@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from . import common_pb2 as glyph_dot_common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16glyph/plugin_bus.proto\x12\x10glyph.plugin_bus\x1a\x12glyph/common.proto\"p\n\x0bPluginEvent\x12.\n\x05hello\x18\x01 \x01(\x0b\x32\x1d.glyph.plugin_bus.PluginHelloH\x00\x12(\n\x07\x66inding\x18\x02 \x01(\x0b\x32\x15.glyph.common.FindingH\x00\x42\x07\n\x05\x65vent\"!\n\x0bPluginHello\x12\x12\n\nauth_token\x18\x01 \x01(\t\"C\n\tHostEvent\x12-\n\nflow_event\x18\x01 \x01(\x0b\x32\x17.glyph.common.FlowEventH\x00\x42\x07\n\x05\x65vent2Z\n\tPluginBus\x12M\n\x0b\x45ventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x01\x30\x01\x42,Z*github.com/example/glyph/proto/glyph;glyphb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16glyph/plugin_bus.proto\x12\x10glyph.plugin_bus\x1a\x12glyph/common.proto\"p\n\x0bPluginEvent\x12.\n\x05hello\x18\x01 \x01(\x0b\x32\x1d.glyph.plugin_bus.PluginHelloH\x00\x12(\n\x07\x66inding\x18\x02 \x01(\x0b\x32\x15.glyph.common.FindingH\x00\x42\x07\n\x05\x65vent\"C\n\x0bPluginHello\x12\x12\n\nauth_token\x18\x01 \x01(\t\x12\x13\n\x0bplugin_name\x18\x02 \x01(\t\x12\x0b\n\x03pid\x18\x03 \x01(\x05\"Y\n\tHostEvent\x12\x14\n\x0c\x63ore_version\x18\x01 \x01(\t\x12-\n\nflow_event\x18\x02 \x01(\x0b\x32\x17.glyph.common.FlowEventH\x00\x42\x07\n\x05\x65vent2Z\n\tPluginBus\x12M\n\x0b\x45ventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x01\x30\x01\x42,Z*github.com/example/glyph/proto/glyph;glyphb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,9 +36,9 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PLUGINEVENT']._serialized_start=64
   _globals['_PLUGINEVENT']._serialized_end=176
   _globals['_PLUGINHELLO']._serialized_start=178
-  _globals['_PLUGINHELLO']._serialized_end=211
-  _globals['_HOSTEVENT']._serialized_start=213
-  _globals['_HOSTEVENT']._serialized_end=280
-  _globals['_PLUGINBUS']._serialized_start=282
-  _globals['_PLUGINBUS']._serialized_end=372
+  _globals['_PLUGINHELLO']._serialized_end=245
+  _globals['_HOSTEVENT']._serialized_start=247
+  _globals['_HOSTEVENT']._serialized_end=336
+  _globals['_PLUGINBUS']._serialized_start=338
+  _globals['_PLUGINBUS']._serialized_end=428
 # @@protoc_insertion_point(module_scope)

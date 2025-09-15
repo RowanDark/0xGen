@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import argparse
+import os
 
 import grpc
 from glyph_plugin_runtime.glyph import common_pb2, plugin_bus_pb2, plugin_bus_pb2_grpc
@@ -17,9 +18,13 @@ logger = logging.getLogger(__name__)
 async def generate_requests(send_queue: asyncio.Queue, auth_token: str):
     """Generates requests to send to the server, starting with authentication."""
     # First, send the PluginHello message
-    hello = plugin_bus_pb2.PluginHello(auth_token=auth_token)
+    hello = plugin_bus_pb2.PluginHello(
+        auth_token=auth_token,
+        plugin_name="glyph-passive-headers",
+        pid=os.getpid(),
+    )
     yield plugin_bus_pb2.PluginEvent(hello=hello)
-    logger.info("Sent PluginHello authentication request.")
+    logger.info(f"Sent PluginHello authentication request for pid {hello.pid}.")
 
     # Then, listen for findings to send from the queue
     while True:
@@ -34,6 +39,7 @@ async def run_event_stream(stub, send_queue: asyncio.Queue, auth_token: str):
     try:
         request_iterator = generate_requests(send_queue, auth_token)
         async for event in stub.EventStream(request_iterator):
+            logger.info(f"Received host event from core version: {event.core_version}")
             if event.HasField("flow_event"):
                 flow_event = event.flow_event
                 if flow_event.type == common_pb2.FlowEvent.FLOW_RESPONSE:

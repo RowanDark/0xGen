@@ -111,7 +111,11 @@ func (*PluginEvent_Finding) isPluginEvent_Event() {}
 type PluginHello struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A secret token to authenticate the plugin.
-	AuthToken     string `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	AuthToken string `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	// The name of the plugin.
+	PluginName string `protobuf:"bytes,2,opt,name=plugin_name,json=pluginName,proto3" json:"plugin_name,omitempty"`
+	// The process ID of the plugin instance.
+	Pid           int32 `protobuf:"varint,3,opt,name=pid,proto3" json:"pid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -153,9 +157,25 @@ func (x *PluginHello) GetAuthToken() string {
 	return ""
 }
 
+func (x *PluginHello) GetPluginName() string {
+	if x != nil {
+		return x.PluginName
+	}
+	return ""
+}
+
+func (x *PluginHello) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
 // HostEvent is a message sent from the host to a plugin.
 type HostEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// The version of the glyphd core that is sending the event.
+	CoreVersion string `protobuf:"bytes,1,opt,name=core_version,json=coreVersion,proto3" json:"core_version,omitempty"`
 	// For now, the only event is a flow event.
 	//
 	// Types that are valid to be assigned to Event:
@@ -196,6 +216,13 @@ func (*HostEvent) Descriptor() ([]byte, []int) {
 	return file_glyph_plugin_bus_proto_rawDescGZIP(), []int{2}
 }
 
+func (x *HostEvent) GetCoreVersion() string {
+	if x != nil {
+		return x.CoreVersion
+	}
+	return ""
+}
+
 func (x *HostEvent) GetEvent() isHostEvent_Event {
 	if x != nil {
 		return x.Event
@@ -217,7 +244,7 @@ type isHostEvent_Event interface {
 }
 
 type HostEvent_FlowEvent struct {
-	FlowEvent *FlowEvent `protobuf:"bytes,1,opt,name=flow_event,json=flowEvent,proto3,oneof"`
+	FlowEvent *FlowEvent `protobuf:"bytes,2,opt,name=flow_event,json=flowEvent,proto3,oneof"`
 }
 
 func (*HostEvent_FlowEvent) isHostEvent_Event() {}
@@ -230,13 +257,17 @@ const file_glyph_plugin_bus_proto_rawDesc = "" +
 	"\vPluginEvent\x125\n" +
 	"\x05hello\x18\x01 \x01(\v2\x1d.glyph.plugin_bus.PluginHelloH\x00R\x05hello\x121\n" +
 	"\afinding\x18\x02 \x01(\v2\x15.glyph.common.FindingH\x00R\afindingB\a\n" +
-	"\x05event\",\n" +
+	"\x05event\"_\n" +
 	"\vPluginHello\x12\x1d\n" +
 	"\n" +
-	"auth_token\x18\x01 \x01(\tR\tauthToken\"N\n" +
-	"\tHostEvent\x128\n" +
+	"auth_token\x18\x01 \x01(\tR\tauthToken\x12\x1f\n" +
+	"\vplugin_name\x18\x02 \x01(\tR\n" +
+	"pluginName\x12\x10\n" +
+	"\x03pid\x18\x03 \x01(\x05R\x03pid\"q\n" +
+	"\tHostEvent\x12!\n" +
+	"\fcore_version\x18\x01 \x01(\tR\vcoreVersion\x128\n" +
 	"\n" +
-	"flow_event\x18\x01 \x01(\v2\x17.glyph.common.FlowEventH\x00R\tflowEventB\a\n" +
+	"flow_event\x18\x02 \x01(\v2\x17.glyph.common.FlowEventH\x00R\tflowEventB\a\n" +
 	"\x05event2Z\n" +
 	"\tPluginBus\x12M\n" +
 	"\vEventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x010\x01B,Z*github.com/example/glyph/proto/glyph;glyphb\x06proto3"
