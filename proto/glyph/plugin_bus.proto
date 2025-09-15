@@ -29,12 +29,19 @@ message PluginEvent {
 message PluginHello {
   // A secret token to authenticate the plugin.
   string auth_token = 1;
+  // The name of the plugin.
+  string plugin_name = 2;
+  // The process ID of the plugin instance.
+  int32 pid = 3;
 }
 
 // HostEvent is a message sent from the host to a plugin.
 message HostEvent {
+  // The version of the glyphd core that is sending the event.
+  string core_version = 1;
+
   // For now, the only event is a flow event.
   oneof event {
-    glyph.common.FlowEvent flow_event = 1;
+    glyph.common.FlowEvent flow_event = 2;
   }
 }

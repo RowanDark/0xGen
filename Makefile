@@ -48,3 +48,29 @@ proto-go:
 .PHONY: test-plugin
 test-plugin:
 	cd examples/glyph-passive-headers && python -m glyph_passive_headers -h || true
+
+# Runs the end-to-end test.
+.PHONY: e2e
+e2e: proto
+	@echo "--- Ensuring cmd directory exists ---"
+	@mkdir -p cmd/glyphd
+	@echo "--- Building glyphd server ---"
+	@go build -o glyphd ./cmd/glyphd
+	@echo "--- Running E2E test ---"
+	@rm -f glyphd.log plugin.log
+	@export GLYPH_AUTH_TOKEN="supersecrettoken" && ./glyphd > glyphd.log 2>&1 &
+	@sleep 2
+	@python -m glyph_passive_headers > plugin.log 2>&1 &
+	@echo "Server and plugin started. Waiting for interaction..."
+	@sleep 4
+	@echo "--- Stopping processes ---"
+	@pkill -f glyphd || true
+	@pkill -f glyph_passive_headers || true
+	@sleep 1
+	@echo
+	@echo "--- Server Log (glyphd.log) ---"
+	@cat glyphd.log
+	@echo
+	@echo "--- Plugin Log (plugin.log) ---"
+	@cat plugin.log
+	@rm -f glyphd glyphd.log plugin.log
