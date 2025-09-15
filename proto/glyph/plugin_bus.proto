@@ -33,6 +33,9 @@ message PluginHello {
   string plugin_name = 2;
   // The process ID of the plugin instance.
   int32 pid = 3;
+  // The list of event types the plugin wishes to subscribe to.
+  // e.g., "flow.response", "flow.request"
+  repeated string subscriptions = 4;
 }
 
 // HostEvent is a message sent from the host to a plugin.
