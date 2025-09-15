@@ -36,6 +36,9 @@ message PluginHello {
   // The list of event types the plugin wishes to subscribe to.
   // e.g., "flow.response", "flow.request"
   repeated string subscriptions = 4;
+  // The list of capabilities the plugin requires.
+  // e.g., "CAP_EMIT_FINDINGS"
+  repeated string capabilities = 5;
 }
 
 // HostEvent is a message sent from the host to a plugin.
