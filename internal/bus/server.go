@@ -15,13 +15,15 @@ import (
 )
 
 const (
-	coreVersion = "v0.1.0"
+	coreVersion         = "v0.1.0"
+	CapEmitFindings     = "CAP_EMIT_FINDINGS"
 )
 
 // plugin holds the information about a connected plugin.
 type plugin struct {
 	eventChan     chan *pb.HostEvent
 	subscriptions map[string]struct{}
+	capabilities  map[string]struct{}
 }
 
 // Server implements the PluginBus service.
@@ -51,16 +53,26 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		return err
 	}
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
-	s.logger.Info("Plugin connected and authenticated", "plugin_id", pluginID, "subscriptions", hello.GetSubscriptions())
+	s.logger.Info("Plugin connected and authenticated",
+		"plugin_id", pluginID,
+		"subscriptions", hello.GetSubscriptions(),
+		"capabilities", hello.GetCapabilities(),
+	)
 
 	// 2. Register the plugin connection
 	subs := make(map[string]struct{})
 	for _, sub := range hello.GetSubscriptions() {
 		subs[sub] = struct{}{}
 	}
+	caps := make(map[string]struct{})
+	for _, cap := range hello.GetCapabilities() {
+		caps[cap] = struct{}{}
+	}
+
 	p := &plugin{
 		eventChan:     make(chan *pb.HostEvent, 100),
 		subscriptions: subs,
+		capabilities:  caps,
 	}
 	s.addConnection(pluginID, p)
 	defer s.removeConnection(pluginID)
@@ -69,7 +81,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	go s.sendEvents(stream, p.eventChan, pluginID)
 
 	// 3. Receive events from the plugin in a loop
-	return s.receiveEvents(stream, pluginID)
+	return s.receiveEvents(stream, p, pluginID)
 }
 
 // authenticate waits for the first message, which must be PluginHello, and validates it.
@@ -112,7 +124,7 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 }
 
 // receiveEvents handles incoming messages from the plugin.
-func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, pluginID string) error {
+func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin, pluginID string) error {
 	for {
 		event, err := stream.Recv()
 		if err == io.EOF {
@@ -126,6 +138,13 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, pluginID s
 
 		switch e := event.Event.(type) {
 		case *pb.PluginEvent_Finding:
+			if _, ok := p.capabilities[CapEmitFindings]; !ok {
+				s.logger.Warn("Plugin sent a finding without declaring capability",
+					"plugin_id", pluginID,
+					"capability", CapEmitFindings,
+				)
+				continue // Ignore the finding
+			}
 			s.logger.Info("Received finding from plugin",
 				"plugin_id", pluginID,
 				"finding_type", e.Finding.Type,
@@ -179,7 +198,6 @@ func (s *Server) StartEventGenerator(ctx context.Context) {
 }
 
 // getEventType returns a string representation of the event type.
-// This is a simple implementation for the known event types.
 func getEventType(event *pb.HostEvent) string {
 	if event.GetFlowEvent() != nil {
 		return event.GetFlowEvent().GetType().String()

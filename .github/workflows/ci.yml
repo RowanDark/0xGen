@@ -38,3 +38,6 @@ jobs:
 
       - name: Smoke test Python plugin import
         run: python -c "import glyph_passive_headers; print('ok')"
+
+      - name: Run End-to-End Test
+        run: make e2e

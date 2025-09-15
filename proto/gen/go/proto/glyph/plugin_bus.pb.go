@@ -119,6 +119,9 @@ type PluginHello struct {
 	// The list of event types the plugin wishes to subscribe to.
 	// e.g., "flow.response", "flow.request"
 	Subscriptions []string `protobuf:"bytes,4,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
+	// The list of capabilities the plugin requires.
+	// e.g., "CAP_EMIT_FINDINGS"
+	Capabilities  []string `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -177,6 +180,13 @@ func (x *PluginHello) GetPid() int32 {
 func (x *PluginHello) GetSubscriptions() []string {
 	if x != nil {
 		return x.Subscriptions
+	}
+	return nil
+}
+
+func (x *PluginHello) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
 	}
 	return nil
 }
@@ -267,14 +277,15 @@ const file_glyph_plugin_bus_proto_rawDesc = "" +
 	"\vPluginEvent\x125\n" +
 	"\x05hello\x18\x01 \x01(\v2\x1d.glyph.plugin_bus.PluginHelloH\x00R\x05hello\x121\n" +
 	"\afinding\x18\x02 \x01(\v2\x15.glyph.common.FindingH\x00R\afindingB\a\n" +
-	"\x05event\"\x85\x01\n" +
+	"\x05event\"\xa9\x01\n" +
 	"\vPluginHello\x12\x1d\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\tR\tauthToken\x12\x1f\n" +
 	"\vplugin_name\x18\x02 \x01(\tR\n" +
 	"pluginName\x12\x10\n" +
 	"\x03pid\x18\x03 \x01(\x05R\x03pid\x12$\n" +
-	"\rsubscriptions\x18\x04 \x03(\tR\rsubscriptions\"q\n" +
+	"\rsubscriptions\x18\x04 \x03(\tR\rsubscriptions\x12\"\n" +
+	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\"q\n" +
 	"\tHostEvent\x12!\n" +
 	"\fcore_version\x18\x01 \x01(\tR\vcoreVersion\x128\n" +
 	"\n" +
