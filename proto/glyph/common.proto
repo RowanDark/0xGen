@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package glyph.common;
+
+option go_package = "github.com/example/glyph/proto/glyph;glyph";
+
+// A Finding is a report from a plugin about something it has observed.
+message Finding {
+  // The type of finding, e.g., "missing-security-header".
+  string type = 1;
+  // A human-readable message describing the finding.
+  string message = 2;
+  // Severity of the finding.
+  Severity severity = 3;
+  // Additional structured data about the finding.
+  map<string, string> metadata = 4;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  INFO = 1;
+  LOW = 2;
+  MEDIUM = 3;
+  HIGH = 4;
+  CRITICAL = 5;
+}
+
+// A FlowEvent represents a network event, like an HTTP request or response.
+message FlowEvent {
+  enum Type {
+    FLOW_EVENT_UNSPECIFIED = 0;
+    FLOW_REQUEST = 1;
+    FLOW_RESPONSE = 2;
+  }
+  Type type = 1;
+
+  // For simplicity in this example, we'll just pass a blob of data.
+  // A real implementation would have structured request/response fields.
+  bytes data = 2;
+}

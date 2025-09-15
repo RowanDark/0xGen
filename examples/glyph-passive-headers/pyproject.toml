@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glyph-passive-headers"
+version = "0.1.0"
+description = "A hello-world Glyph plugin that checks for missing security headers."
+authors = [{ name = "Jules", email = "jules@example.com" }]
+requires-python = ">=3.8"
+dependencies = [
+    "grpcio>=1.60.0",
+    "protobuf>=4.25.0",
+]
+
+[project.entry-points."console_scripts"]
+glyph-passive-headers = "glyph_passive_headers.__main__:main"
+
+[tool.setuptools]
+packages = ["glyph_passive_headers", "glyph_plugin_runtime"]
