@@ -18,13 +18,19 @@ const (
 	coreVersion = "v0.1.0"
 )
 
+// plugin holds the information about a connected plugin.
+type plugin struct {
+	eventChan     chan *pb.HostEvent
+	subscriptions map[string]struct{}
+}
+
 // Server implements the PluginBus service.
 type Server struct {
 	pb.UnimplementedPluginBusServer
 	logger      *slog.Logger
 	authToken   string
 	mu          sync.RWMutex
-	connections map[string]chan<- *pb.HostEvent
+	connections map[string]*plugin
 }
 
 // NewServer creates a new bus server.
@@ -32,7 +38,7 @@ func NewServer(authToken string) *Server {
 	return &Server{
 		logger:      slog.New(slog.NewJSONHandler(os.Stdout, nil)),
 		authToken:   authToken,
-		connections: make(map[string]chan<- *pb.HostEvent),
+		connections: make(map[string]*plugin),
 	}
 }
 
@@ -45,15 +51,22 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		return err
 	}
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
-	s.logger.Info("Plugin connected and authenticated", "plugin_id", pluginID)
+	s.logger.Info("Plugin connected and authenticated", "plugin_id", pluginID, "subscriptions", hello.GetSubscriptions())
 
 	// 2. Register the plugin connection
-	eventChan := make(chan *pb.HostEvent, 100)
-	s.addConnection(pluginID, eventChan)
+	subs := make(map[string]struct{})
+	for _, sub := range hello.GetSubscriptions() {
+		subs[sub] = struct{}{}
+	}
+	p := &plugin{
+		eventChan:     make(chan *pb.HostEvent, 100),
+		subscriptions: subs,
+	}
+	s.addConnection(pluginID, p)
 	defer s.removeConnection(pluginID)
 
 	// Goroutine to send events from the bus to the plugin
-	go s.sendEvents(stream, eventChan, pluginID)
+	go s.sendEvents(stream, p.eventChan, pluginID)
 
 	// 3. Receive events from the plugin in a loop
 	return s.receiveEvents(stream, pluginID)
@@ -124,18 +137,20 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, pluginID s
 	}
 }
 
-func (s *Server) addConnection(id string, eventChan chan<- *pb.HostEvent) {
+func (s *Server) addConnection(id string, p *plugin) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.connections[id] = eventChan
+	s.connections[id] = p
 }
 
 func (s *Server) removeConnection(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	close(s.connections[id])
-	delete(s.connections, id)
-	s.logger.Info("Plugin unregistered", "plugin_id", id, "total_connections", len(s.connections))
+	if p, ok := s.connections[id]; ok {
+		close(p.eventChan)
+		delete(s.connections, id)
+		s.logger.Info("Plugin unregistered", "plugin_id", id, "total_connections", len(s.connections))
+	}
 }
 
 // StartEventGenerator starts a ticker to send synthetic events to all connected plugins.
@@ -163,19 +178,34 @@ func (s *Server) StartEventGenerator(ctx context.Context) {
 	}
 }
 
+// getEventType returns a string representation of the event type.
+// This is a simple implementation for the known event types.
+func getEventType(event *pb.HostEvent) string {
+	if event.GetFlowEvent() != nil {
+		return event.GetFlowEvent().GetType().String()
+	}
+	return "UNKNOWN"
+}
+
 func (s *Server) broadcast(event *pb.HostEvent) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if len(s.connections) == 0 {
 		return
 	}
-	s.logger.Info("Broadcasting event to plugins", "event_type", "FLOW_RESPONSE", "plugin_count", len(s.connections))
-	for id, conn := range s.connections {
-		select {
-		case conn <- event:
-			// Event sent
-		default:
-			s.logger.Warn("Plugin channel full, skipping event.", "plugin_id", id)
+
+	eventType := getEventType(event)
+	s.logger.Info("Broadcasting event", "event_type", eventType)
+
+	for id, plugin := range s.connections {
+		if _, subscribed := plugin.subscriptions[eventType]; subscribed {
+			s.logger.Info("Sending event to subscribed plugin", "plugin_id", id, "event_type", eventType)
+			select {
+			case plugin.eventChan <- event:
+				// Event sent
+			default:
+				s.logger.Warn("Plugin channel full, skipping event.", "plugin_id", id)
+			}
 		}
 	}
 }

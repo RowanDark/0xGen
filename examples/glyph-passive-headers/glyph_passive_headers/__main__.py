@@ -22,6 +22,7 @@ async def generate_requests(send_queue: asyncio.Queue, auth_token: str):
         auth_token=auth_token,
         plugin_name="glyph-passive-headers",
         pid=os.getpid(),
+        subscriptions=["FLOW_RESPONSE"],
     )
     yield plugin_bus_pb2.PluginEvent(hello=hello)
     logger.info(f"Sent PluginHello authentication request for pid {hello.pid}.")
