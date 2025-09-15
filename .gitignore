@@ -1,0 +1,23 @@
+# Go build artifacts
+glyphd
+*.exe
+*.so
+*.dll
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Dependency directories
+/vendor/
+/node_modules/
+
+# IDE files
+.idea/
+.vscode/
+
+# Log files
+*.log

@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package glyph.plugin_bus;
+
+import "glyph/common.proto";
+
+option go_package = "github.com/example/glyph/proto/glyph;glyph";
+
+// The PluginBus service provides a bi-directional stream for plugins to
+// receive events from the host and send findings back.
+service PluginBus {
+  // EventStream is a long-lived, bi-directional stream between the host
+  // (`glyphd`) and a single plugin.
+  rpc EventStream(stream PluginEvent) returns (stream HostEvent);
+}
+
+// PluginEvent is a message sent from a plugin to the host.
+message PluginEvent {
+  oneof event {
+    // The first message sent by a plugin must be a `hello` message.
+    PluginHello hello = 1;
+    // After authentication, a plugin can send findings.
+    glyph.common.Finding finding = 2;
+  }
+}
+
+// PluginHello is the initial message a plugin sends to identify and
+// authenticate itself.
+message PluginHello {
+  // A secret token to authenticate the plugin.
+  string auth_token = 1;
+}
+
+// HostEvent is a message sent from the host to a plugin.
+message HostEvent {
+  // For now, the only event is a flow event.
+  oneof event {
+    glyph.common.FlowEvent flow_event = 1;
+  }
+}
