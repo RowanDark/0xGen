@@ -7,6 +7,22 @@ PYTHON_PLUGIN_RUNTIME_DIR := examples/glyph-passive-headers/glyph_plugin_runtime
 # Output directory for Go stubs.
 GO_STUBS_DIR := proto/gen/go
 
+# Development defaults for running the Go services.
+GLYPH_ADDR ?= :50051
+GLYPH_AUTH_TOKEN ?= dev-token
+
+.PHONY: test
+test:
+	go test ./...
+
+.PHONY: lint
+lint:
+	go vet ./...
+
+.PHONY: run
+run:
+	go run ./cmd/glyphd --addr $(GLYPH_ADDR) --token $(GLYPH_AUTH_TOKEN)
+
 # Default target.
 .PHONY: all
 all: proto

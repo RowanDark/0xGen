@@ -4,6 +4,13 @@ glyphd
 *.so
 *.dll
 
+# Track the Go command sources even though the glyphd binary is ignored.
+!cmd/
+!cmd/glyphd/
+!cmd/glyphd/**
+!cmd/glyphctl/
+!cmd/glyphctl/**
+
 # Python artifacts
 __pycache__/
 *.pyc
