@@ -2,20 +2,17 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 )
 
 func main() {
+	// Parse global flags (including --manifest-validate) once.
 	flag.Parse()
-
-	if code := runManifestValidate(); code != 0 || *manifestValidate != "" {
-		if *manifestValidate != "" {
-			os.Exit(code)
-		}
+	// Fast path: if the validator flag is present, run it and exit with its code.
+	if *manifestValidate != "" {
+		os.Exit(runManifestValidate())
 	}
-
-	fmt.Fprintln(os.Stderr, "no command specified")
+	// No subcommand/flags provided: show usage and exit non-zero.
 	flag.Usage()
 	os.Exit(2)
 }
