@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -45,7 +46,11 @@ func run(ctx context.Context, cfg config) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", cfg.addr, err)
 	}
-	defer lis.Close()
+	defer func() {
+		if err := lis.Close(); err != nil {
+			log.Printf("failed to close listener: %v", err)
+		}
+	}()
 
 	return serve(ctx, lis, cfg.token)
 }
