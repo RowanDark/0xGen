@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/example/glyph/internal/plugins"
+	"github.com/RowanDark/Glyph/internal/plugins"
 )
 
 func main() {

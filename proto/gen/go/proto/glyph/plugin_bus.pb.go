@@ -292,7 +292,7 @@ const file_glyph_plugin_bus_proto_rawDesc = "" +
 	"flow_event\x18\x02 \x01(\v2\x17.glyph.common.FlowEventH\x00R\tflowEventB\a\n" +
 	"\x05event2Z\n" +
 	"\tPluginBus\x12M\n" +
-	"\vEventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x010\x01B,Z*github.com/example/glyph/proto/glyph;glyphb\x06proto3"
+	"\vEventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x010\x01B.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3"
 
 var (
 	file_glyph_plugin_bus_proto_rawDescOnce sync.Once

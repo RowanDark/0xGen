@@ -55,8 +55,8 @@ proto-go:
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	@mkdir -p $(GO_STUBS_DIR)
 	@protoc -I proto \
-	  --go_out=$(GO_STUBS_DIR) --go_opt=module=github.com/example/glyph \
-	  --go-grpc_out=$(GO_STUBS_DIR) --go-grpc_opt=module=github.com/example/glyph \
+       --go_out=$(GO_STUBS_DIR) --go_opt=module=github.com/RowanDark/Glyph \
+       --go-grpc_out=$(GO_STUBS_DIR) --go-grpc_opt=module=github.com/RowanDark/Glyph \
 	  $(PROTO_FILES)
 	@echo "Go stubs generated in $(GO_STUBS_DIR)"
 

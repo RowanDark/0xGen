@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/example/glyph/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -54,9 +54,9 @@ func TestEventStream_ValidAuth(t *testing.T) {
 		mockStream.RecvChan <- &pb.PluginEvent{
 			Event: &pb.PluginEvent_Hello{
 				Hello: &pb.PluginHello{
-					AuthToken:   "test-token",
-					PluginName:  "test-plugin",
-					Pid:         123,
+					AuthToken:     "test-token",
+					PluginName:    "test-plugin",
+					Pid:           123,
 					Subscriptions: []string{"FLOW_RESPONSE"},
 				},
 			},
@@ -93,9 +93,9 @@ func TestEventStream_InvalidAuth(t *testing.T) {
 		mockStream.RecvChan <- &pb.PluginEvent{
 			Event: &pb.PluginEvent_Hello{
 				Hello: &pb.PluginHello{
-					AuthToken:   "wrong-token",
-					PluginName:  "test-plugin",
-					Pid:         123,
+					AuthToken:  "wrong-token",
+					PluginName: "test-plugin",
+					Pid:        123,
 				},
 			},
 		}
