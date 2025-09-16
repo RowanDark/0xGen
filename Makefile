@@ -19,6 +19,22 @@ test:
 lint:
 	go vet ./...
 
+.PHONY: build
+build:
+	go build ./...
+
+.PHONY: validate-manifests
+validate-manifests:
+	@echo "Validating sample manifests..."
+	@go run ./cmd/glyphctl --manifest-validate plugins/samples/passive-header-scan/manifest.json
+	@! go run ./cmd/glyphctl --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
+
+.PHONY: verify
+verify: build
+	@golangci-lint run ./...
+	@go test ./... -v
+	@$(MAKE) validate-manifests
+
 .PHONY: run
 run:
 	go run ./cmd/glyphd --addr $(GLYPH_ADDR) --token $(GLYPH_AUTH_TOKEN)

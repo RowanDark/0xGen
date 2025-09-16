@@ -3,78 +3,84 @@ package plugins
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 )
 
-var allowedCapabilities = []string{
-	"CAP_EMIT_FINDINGS",
-	"CAP_HTTP_ACTIVE",
-	"CAP_HTTP_PASSIVE",
-	"CAP_WS",
-	"CAP_SPIDER",
-	"CAP_REPORT",
-	"CAP_STORAGE",
-}
-
-// Manifest represents the expected contents of a plugin manifest.
 type Manifest struct {
-	Name         string                 `json:"name"`
-	Version      string                 `json:"version"`
-	Entry        string                 `json:"entry"`
-	Capabilities []string               `json:"capabilities"`
-	Config       map[string]interface{} `json:"config,omitempty"`
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
+	Entry        string         `json:"entry"`
+	Capabilities []string       `json:"capabilities"`
+	Config       map[string]any `json:"config,omitempty"`
 }
 
-// LoadManifest reads a manifest from disk and validates its contents.
+var allowedCaps = map[string]struct{}{
+	"CAP_EMIT_FINDINGS": {},
+	"CAP_HTTP_ACTIVE":   {},
+	"CAP_HTTP_PASSIVE":  {},
+	"CAP_WS":            {},
+	"CAP_SPIDER":        {},
+	"CAP_REPORT":        {},
+	"CAP_STORAGE":       {},
+}
+
+func (m *Manifest) Validate() error {
+	if m.Name == "" || m.Version == "" || m.Entry == "" {
+		return errors.New("name, version, and entry are required")
+	}
+	if len(m.Capabilities) == 0 {
+		return errors.New("at least one capability is required")
+	}
+
+	seen := make(map[string]struct{}, len(m.Capabilities))
+	for _, c := range m.Capabilities {
+		if c == "" {
+			return errors.New("capability cannot be empty")
+		}
+		if _, ok := allowedCaps[c]; !ok {
+			return fmt.Errorf("unknown capability: %s", c)
+		}
+		if _, dup := seen[c]; dup {
+			return fmt.Errorf("duplicate capability: %s", c)
+		}
+		seen[c] = struct{}{}
+	}
+
+	return nil
+}
+
+func AllowedCapabilities() []string {
+	out := make([]string, 0, len(allowedCaps))
+	for k := range allowedCaps {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out
+}
+
 func LoadManifest(path string) (*Manifest, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
 
-	var manifest Manifest
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
+
+	var manifest Manifest
 	if err := dec.Decode(&manifest); err != nil {
 		return nil, fmt.Errorf("decode manifest: %w", err)
 	}
-
-	if manifest.Name == "" {
-		return nil, fmt.Errorf("manifest is missing name")
-	}
-	if manifest.Version == "" {
-		return nil, fmt.Errorf("manifest is missing version")
-	}
-	if manifest.Entry == "" {
-		return nil, fmt.Errorf("manifest is missing entry")
-	}
-	if len(manifest.Capabilities) == 0 {
-		return nil, fmt.Errorf("manifest must declare at least one capability")
-	}
-
-	allowed := make(map[string]struct{}, len(allowedCapabilities))
-	for _, c := range allowedCapabilities {
-		allowed[c] = struct{}{}
-	}
-	seen := make(map[string]struct{}, len(manifest.Capabilities))
-	for _, capability := range manifest.Capabilities {
-		if capability == "" {
-			return nil, fmt.Errorf("manifest cannot contain empty capability values")
-		}
-		if _, ok := allowed[capability]; !ok {
-			return nil, fmt.Errorf("manifest contains unknown capability %q", capability)
-		}
-		if _, ok := seen[capability]; ok {
-			return nil, fmt.Errorf("manifest contains duplicate capability %q", capability)
-		}
-		seen[capability] = struct{}{}
+	if err := manifest.Validate(); err != nil {
+		return nil, fmt.Errorf("validate manifest: %w", err)
 	}
 
 	return &manifest, nil
 }
 
-// ValidateManifest ensures the manifest at the provided path is well-formed.
 func ValidateManifest(path string) error {
 	_, err := LoadManifest(path)
 	return err

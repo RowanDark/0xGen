@@ -25,6 +25,8 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
       - name: Build
         run: go build ./...
+      - name: Validate plugin manifests
+        run: make validate-manifests
       - name: Test
         run: go test ./... -v
 
@@ -35,7 +37,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 'stable'
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v7
         with:
           version: v2.1.6
-          args: ./...
+          args: --out-format=github-actions ./...
