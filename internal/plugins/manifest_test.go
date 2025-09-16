@@ -1,7 +1,6 @@
 package plugins_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,44 +9,75 @@ import (
 	"github.com/RowanDark/Glyph/internal/plugins"
 )
 
-func TestAcceptsValidManifest(t *testing.T) {
-	path := filepath.Join("..", "..", "plugins", "samples", "passive-header-scan", "manifest.json")
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	var m plugins.Manifest
-	if err := json.Unmarshal(b, &m); err != nil {
-		t.Fatalf("json: %v", err)
-	}
-	if err := m.Validate(); err != nil {
-		t.Fatalf("validate: %v", err)
+func validManifest() plugins.Manifest {
+	return plugins.Manifest{
+		Name:         "demo",
+		Version:      "1.0.0",
+		Entry:        "plugin.js",
+		Capabilities: []string{"CAP_HTTP_PASSIVE"},
 	}
 }
 
-func TestRejectsInvalidManifest(t *testing.T) {
-	path := filepath.Join("..", "..", "plugins", "samples", "invalid", "manifest.json")
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read: %v", err)
+func TestManifestValidateHappyPath(t *testing.T) {
+	m := validManifest()
+	if err := m.Validate(); err != nil {
+		t.Fatalf("expected manifest to be valid, got error: %v", err)
 	}
-	var m plugins.Manifest
-	if err := json.Unmarshal(b, &m); err != nil {
-		t.Fatalf("json: %v", err)
+}
+
+func TestManifestValidateRejectsUnknownCapability(t *testing.T) {
+	m := validManifest()
+	m.Capabilities = append(m.Capabilities, "CAP_UNKNOWN")
+
+	err := m.Validate()
+	if err == nil {
+		t.Fatalf("expected validation error for unknown capability")
 	}
-	if err := m.Validate(); err == nil {
-		t.Fatalf("expected validation error for invalid manifest")
+	if !strings.Contains(err.Error(), "unknown capability") {
+		t.Fatalf("expected unknown capability error, got: %v", err)
+	}
+}
+
+func TestManifestValidateRejectsDuplicateCapability(t *testing.T) {
+	m := validManifest()
+	m.Capabilities = append(m.Capabilities, m.Capabilities[0])
+
+	err := m.Validate()
+	if err == nil {
+		t.Fatalf("expected validation error for duplicate capability")
+	}
+	if !strings.Contains(err.Error(), "duplicate capability") {
+		t.Fatalf("expected duplicate capability error, got: %v", err)
+	}
+}
+
+func TestManifestValidateRejectsEmptyCapability(t *testing.T) {
+	m := validManifest()
+	m.Capabilities = append(m.Capabilities, "")
+
+	err := m.Validate()
+	if err == nil {
+		t.Fatalf("expected validation error for empty capability")
+	}
+	if !strings.Contains(err.Error(), "cannot be empty") {
+		t.Fatalf("expected empty capability error, got: %v", err)
 	}
 }
 
 func TestValidateRequiresCapabilities(t *testing.T) {
-	m := plugins.Manifest{
-		Name:    "demo",
-		Version: "1.0.0",
-		Entry:   "plugin.js",
-	}
+	m := validManifest()
+	m.Capabilities = nil
+
 	if err := m.Validate(); err == nil {
 		t.Fatalf("expected error when capabilities are missing")
+	}
+}
+
+func TestValidateRequiresMetadata(t *testing.T) {
+	m := plugins.Manifest{}
+
+	if err := m.Validate(); err == nil {
+		t.Fatalf("expected error when metadata fields are missing")
 	}
 }
 
