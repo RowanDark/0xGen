@@ -1,0 +1,6 @@
+{
+  "name": "bad-plugin",
+  "version": "0.0.1",
+  "entry": "bad.js",
+  "capabilities": ["CAP_HTTP_PASSIVE", "CAP_HTTP_PASSIVE", "CAP_MAGIC"]
+}

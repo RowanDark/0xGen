@@ -25,6 +25,8 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
       - name: Build
         run: go build ./...
+      - name: Validate plugin manifests
+        run: make validate-manifests
       - name: Test
         run: go test ./... -v
 

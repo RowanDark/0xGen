@@ -1,0 +1,9 @@
+{
+  "name": "passive-header-scan",
+  "version": "0.1.0",
+  "entry": "plugin.js",
+  "capabilities": ["CAP_HTTP_PASSIVE"],
+  "config": {
+    "includeResponseHeaders": true
+  }
+}
