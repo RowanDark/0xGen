@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -26,11 +27,23 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 
 	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()
-	conn, err := grpc.DialContext(dialCtx, lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		t.Fatalf("failed to dial server: %v", err)
+		t.Fatalf("failed to create gRPC client: %v", err)
 	}
-	conn.Close()
+	conn.Connect()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			break
+		}
+		if !conn.WaitForStateChange(dialCtx, state) {
+			t.Fatalf("gRPC connection did not become ready: %v", dialCtx.Err())
+		}
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("failed to close client connection: %v", err)
+	}
 
 	cancel()
 

@@ -24,15 +24,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if *manifestPath == "" {
-		fmt.Fprintln(stderr, "--manifest flag is required")
+		if _, err := fmt.Fprintln(stderr, "--manifest flag is required"); err != nil {
+			return 2
+		}
 		return 2
 	}
 
 	if err := plugins.ValidateManifest(*manifestPath); err != nil {
-		fmt.Fprintf(stderr, "invalid manifest: %v\n", err)
+		if _, writeErr := fmt.Fprintf(stderr, "invalid manifest: %v\n", err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 
-	fmt.Fprintf(stdout, "manifest %s is valid\n", *manifestPath)
+	if _, err := fmt.Fprintf(stdout, "manifest %s is valid\n", *manifestPath); err != nil {
+		return 1
+	}
 	return 0
 }
