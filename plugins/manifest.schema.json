@@ -1,0 +1,19 @@
+// /plugins/manifest.schema.json
+{
+  "type": "object",
+  "required": ["name","version","entry","capabilities"],
+  "properties": {
+    "name": {"type":"string"},
+    "version": {"type":"string"},
+    "entry": {"type":"string"},
+    "capabilities": {
+      "type":"array",
+      "items":{"type":"string","enum":[
+        "CAP_EMIT_FINDINGS","CAP_HTTP_ACTIVE","CAP_HTTP_PASSIVE",
+        "CAP_WS","CAP_SPIDER","CAP_REPORT","CAP_STORAGE"
+      ]}
+    },
+    "config": {"type":"object","additionalProperties": true}
+  },
+  "additionalProperties": false
+}
