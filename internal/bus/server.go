@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/example/glyph/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	coreVersion         = "v0.1.0"
-	CapEmitFindings     = "CAP_EMIT_FINDINGS"
+	coreVersion     = "v0.1.0"
+	CapEmitFindings = "CAP_EMIT_FINDINGS"
 )
 
 // plugin holds the information about a connected plugin.

@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/example/glyph/internal/bus"
-	pb "github.com/example/glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/Glyph/internal/bus"
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 )
 

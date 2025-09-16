@@ -4,7 +4,7 @@ package glyph.plugin_bus;
 
 import "glyph/common.proto";
 
-option go_package = "github.com/example/glyph/proto/glyph;glyph";
+option go_package = "github.com/RowanDark/Glyph/proto/glyph;glyph";
 
 // The PluginBus service provides a bi-directional stream for plugins to
 // receive events from the host and send findings back.

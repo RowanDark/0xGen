@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package glyph.common;
 
-option go_package = "github.com/example/glyph/proto/glyph;glyph";
+option go_package = "github.com/RowanDark/Glyph/proto/glyph;glyph";
 
 // A Finding is a report from a plugin about something it has observed.
 message Finding {
