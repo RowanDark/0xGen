@@ -1,0 +1,5 @@
+{"ID":"missing-security-header","Plugin":"passive-header-scan-42","Target":"https://example.com","Evidence":"Missing X-Frame-Options header","Severity":"med","TS":"2024-01-02T03:04:05Z"}
+{"ID":"outdated-cipher","Plugin":"tls-scan-7","Target":"https://example.com","Evidence":"Server allows TLS 1.0","Severity":"high","TS":"2024-01-02T04:00:00Z"}
+{"ID":"exposed-admin","Plugin":"crawler-1","Target":"https://example.com/admin","Evidence":"Admin console accessible without auth","Severity":"crit","TS":"2024-01-02T05:06:07Z"}
+{"ID":"missing-https","Plugin":"passive-header-scan-42","Target":"http://example.org","Evidence":"Site not using HTTPS","Severity":"low","TS":"2024-01-02T06:00:00Z"}
+{"ID":"server-banner","Plugin":"passive-header-scan-42","Target":"https://example.com","Evidence":"Server banner reveals version","Severity":"info","TS":"2024-01-02T07:00:00Z"}

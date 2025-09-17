@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/RowanDark/Glyph/internal/findings"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -33,14 +34,19 @@ type Server struct {
 	authToken   string
 	mu          sync.RWMutex
 	connections map[string]*plugin
+	findings    *findings.Bus
 }
 
 // NewServer creates a new bus server.
-func NewServer(authToken string) *Server {
+func NewServer(authToken string, findingsBus *findings.Bus) *Server {
+	if findingsBus == nil {
+		findingsBus = findings.NewBus()
+	}
 	return &Server{
 		logger:      slog.New(slog.NewJSONHandler(os.Stdout, nil)),
 		authToken:   authToken,
 		connections: make(map[string]*plugin),
+		findings:    findingsBus,
 	}
 }
 
@@ -150,6 +156,7 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 				"finding_type", e.Finding.Type,
 				"finding_message", e.Finding.Message,
 			)
+			s.publishFinding(pluginID, e.Finding)
 		default:
 			s.logger.Warn("Received unknown event type from plugin", "plugin_id", pluginID)
 		}
@@ -225,5 +232,50 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 				s.logger.Warn("Plugin channel full, skipping event.", "plugin_id", id)
 			}
 		}
+	}
+}
+
+func (s *Server) publishFinding(pluginID string, incoming *pb.Finding) {
+	if s.findings == nil || incoming == nil {
+		return
+	}
+
+	finding := findings.Finding{
+		ID:       incoming.GetType(),
+		Plugin:   pluginID,
+		Evidence: incoming.GetMessage(),
+		Severity: mapSeverity(incoming.GetSeverity()),
+		TS:       time.Now().UTC(),
+	}
+
+	if meta := incoming.GetMetadata(); meta != nil {
+		if id := meta["id"]; id != "" {
+			finding.ID = id
+		}
+		if target := meta["target"]; target != "" {
+			finding.Target = target
+		}
+		if evidence := meta["evidence"]; evidence != "" {
+			finding.Evidence = evidence
+		}
+	}
+
+	s.findings.Emit(finding)
+}
+
+func mapSeverity(sev pb.Severity) string {
+	switch sev {
+	case pb.Severity_CRITICAL:
+		return "crit"
+	case pb.Severity_HIGH:
+		return "high"
+	case pb.Severity_MEDIUM:
+		return "med"
+	case pb.Severity_LOW:
+		return "low"
+	case pb.Severity_INFO:
+		return "info"
+	default:
+		return "info"
 	}
 }

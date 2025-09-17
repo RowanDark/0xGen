@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/bus"
+	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/reporter"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 )
@@ -60,8 +62,19 @@ func serve(ctx context.Context, lis net.Listener, token string) error {
 		return errors.New("auth token must be provided")
 	}
 
+	findingsBus := findings.NewBus()
+	jsonlWriter := reporter.NewJSONL(reporter.DefaultFindingsPath)
+	findingsCh := findingsBus.Subscribe(ctx)
+	go func() {
+		for finding := range findingsCh {
+			if err := jsonlWriter.Write(finding); err != nil {
+				log.Printf("failed to persist finding: %v", err)
+			}
+		}
+	}()
+
 	srv := grpc.NewServer()
-	busServer := bus.NewServer(token)
+	busServer := bus.NewServer(token, findingsBus)
 	pb.RegisterPluginBusServer(srv, busServer)
 
 	// Create a background context used by the event generator. It is cancelled
