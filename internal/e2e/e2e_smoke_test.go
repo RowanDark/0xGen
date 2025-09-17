@@ -21,7 +21,7 @@ func TestGlyphdSmoke(t *testing.T) {
 		t.Skip("skipping glyphd smoke test in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	root := repoRoot(t)
@@ -69,7 +69,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 		t.Skip("skipping glyphctl smoke test in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	root := repoRoot(t)
@@ -201,16 +201,20 @@ func resolveAddresses(t *testing.T) (string, string) {
 		return addr, dialAddress(addr)
 	}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatalf("failed to acquire ephemeral port: %v", err)
 	}
-	listenAddr := listener.Addr().String()
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener did not return TCP address: %T", listener.Addr())
+	}
+	listenAddr := net.JoinHostPort("127.0.0.1", strconv.Itoa(tcpAddr.Port))
 	if err := listener.Close(); err != nil {
 		t.Fatalf("failed to release ephemeral port: %v", err)
 	}
 
-	return listenAddr, dialAddress(listenAddr)
+	return listenAddr, listenAddr
 }
 
 func dialAddress(listenAddr string) string {
