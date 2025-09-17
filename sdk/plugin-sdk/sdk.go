@@ -13,6 +13,9 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
+
+	"github.com/google/uuid"
 
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
@@ -52,10 +55,14 @@ const (
 // Finding captures the structured data that will be sent back to the host when the
 // plugin observes an issue.
 type Finding struct {
-	Type     string
-	Message  string
-	Severity Severity
-	Metadata map[string]string
+	ID         string
+	Type       string
+	Message    string
+	Target     string
+	Evidence   string
+	Severity   Severity
+	Metadata   map[string]string
+	DetectedAt time.Time
 }
 
 // Hooks contains the callbacks provided by a plugin implementation.
@@ -124,19 +131,58 @@ func (c *Context) EmitFinding(f Finding) error {
 		return errors.New("finding message must not be empty")
 	}
 
+	findingID := strings.TrimSpace(f.ID)
+	if findingID == "" {
+		findingID = uuid.NewString()
+	}
+
+	detectedAt := f.DetectedAt
+	if detectedAt.IsZero() {
+		detectedAt = time.Now().UTC()
+	} else {
+		detectedAt = detectedAt.UTC()
+	}
+
 	pbFinding := &pb.Finding{
 		Type:     f.Type,
 		Message:  f.Message,
-		Severity: pb.Severity(f.Severity),
+		Severity: toProtoSeverity(f.Severity),
 	}
-	if len(f.Metadata) > 0 {
-		pbFinding.Metadata = make(map[string]string, len(f.Metadata))
-		for k, v := range f.Metadata {
-			pbFinding.Metadata[k] = v
+	metadata := make(map[string]string, len(f.Metadata)+4)
+	for k, v := range f.Metadata {
+		if strings.TrimSpace(k) == "" {
+			continue
 		}
+		metadata[k] = v
+	}
+	metadata["id"] = findingID
+	if target := strings.TrimSpace(f.Target); target != "" {
+		metadata["target"] = target
+	}
+	if evidence := strings.TrimSpace(f.Evidence); evidence != "" {
+		metadata["evidence"] = evidence
+	}
+	metadata["detected_at"] = detectedAt.Format(time.RFC3339Nano)
+	if len(metadata) > 0 {
+		pbFinding.Metadata = metadata
 	}
 
 	return c.runtime.sendFinding(pbFinding)
+}
+
+func toProtoSeverity(sev Severity) pb.Severity {
+	switch sev {
+	case SeverityCritical:
+		return pb.Severity_CRITICAL
+	case SeverityHigh:
+		return pb.Severity_HIGH
+	case SeverityMedium:
+		return pb.Severity_MEDIUM
+	case SeverityLow:
+		return pb.Severity_LOW
+	default:
+		return pb.Severity_INFO
+	}
 }
 
 // runtimeState bundles mutable state shared across hooks and the event loop.

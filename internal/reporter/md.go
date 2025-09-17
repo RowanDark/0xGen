@@ -11,23 +11,36 @@ import (
 )
 
 const (
-	// DefaultFindingsPath is where glyphd persists findings for other tools to consume.
-	DefaultFindingsPath = "/out/findings.jsonl"
-	// DefaultReportPath is the default markdown summary written for CAP_REPORT consumers.
-	DefaultReportPath = "/out/report.md"
+	defaultOutputDir = "/out"
+	findingsFilename = "findings.jsonl"
+	reportFilename   = "report.md"
 	// DefaultTopTargets controls how many targets appear in summary tables.
 	DefaultTopTargets = 5
 )
 
+var (
+	// DefaultFindingsPath is where glyphd persists findings for other tools to consume.
+	DefaultFindingsPath = filepath.Join(defaultOutputDir, findingsFilename)
+	// DefaultReportPath is the default markdown summary written for CAP_REPORT consumers.
+	DefaultReportPath = filepath.Join(defaultOutputDir, reportFilename)
+)
+
+func init() {
+	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
+		DefaultFindingsPath = filepath.Join(custom, findingsFilename)
+		DefaultReportPath = filepath.Join(custom, reportFilename)
+	}
+}
+
 var severityOrder = []struct {
-	key   string
+	key   findings.Severity
 	label string
 }{
-	{key: "crit", label: "Critical"},
-	{key: "high", label: "High"},
-	{key: "med", label: "Medium"},
-	{key: "low", label: "Low"},
-	{key: "info", label: "Informational"},
+	{key: findings.SeverityCritical, label: "Critical"},
+	{key: findings.SeverityHigh, label: "High"},
+	{key: findings.SeverityMedium, label: "Medium"},
+	{key: findings.SeverityLow, label: "Low"},
+	{key: findings.SeverityInfo, label: "Informational"},
 }
 
 // RenderReport loads findings from inputPath and writes a markdown summary to outputPath.
@@ -53,17 +66,17 @@ func RenderReport(inputPath, outputPath string, topN int) error {
 
 // RenderMarkdown converts a slice of findings into a markdown report.
 func RenderMarkdown(list []findings.Finding, topN int) string {
-	counts := map[string]int{
-		"crit": 0,
-		"high": 0,
-		"med":  0,
-		"low":  0,
-		"info": 0,
+	counts := map[findings.Severity]int{
+		findings.SeverityCritical: 0,
+		findings.SeverityHigh:     0,
+		findings.SeverityMedium:   0,
+		findings.SeverityLow:      0,
+		findings.SeverityInfo:     0,
 	}
 	targets := map[string]int{}
 
 	for _, f := range list {
-		sev := normalizeSeverity(f.Severity)
+		sev := canonicalSeverity(f.Severity)
 		counts[sev]++
 
 		target := strings.TrimSpace(f.Target)
@@ -125,19 +138,19 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 	return b.String()
 }
 
-func normalizeSeverity(input string) string {
-	switch strings.ToLower(strings.TrimSpace(input)) {
-	case "critical", "crit":
-		return "crit"
-	case "high":
-		return "high"
-	case "medium", "med":
-		return "med"
-	case "low":
-		return "low"
-	case "info", "informational":
-		return "info"
+func canonicalSeverity(input findings.Severity) findings.Severity {
+	switch strings.ToUpper(strings.TrimSpace(string(input))) {
+	case string(findings.SeverityCritical):
+		return findings.SeverityCritical
+	case string(findings.SeverityHigh):
+		return findings.SeverityHigh
+	case string(findings.SeverityMedium):
+		return findings.SeverityMedium
+	case string(findings.SeverityLow):
+		return findings.SeverityLow
+	case string(findings.SeverityInfo):
+		return findings.SeverityInfo
 	default:
-		return "info"
+		return findings.SeverityInfo
 	}
 }

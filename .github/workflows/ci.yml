@@ -4,9 +4,15 @@ on:
     branches: [ main ]
   push:
     branches: [ main ]
+permissions:
+  contents: read
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,15 +29,20 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-go-
+
       - name: Build
         run: go build ./...
+
       - name: Validate plugin manifests
         run: make validate-manifests
-      - name: Test
-        run: go test ./... -v
+
+      - name: Test (race)
+        run: go test -race ./...
 
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

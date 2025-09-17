@@ -40,6 +40,18 @@ func main() {
 	hooks := pluginsdk.Hooks{
 		OnStart: func(ctx *pluginsdk.Context) error {
 			ctx.Logger().Info("plugin started", "addr", *serverAddr)
+			if os.Getenv("GLYPH_E2E_SMOKE") == "1" {
+				if err := ctx.EmitFinding(pluginsdk.Finding{
+					Type:       "e2e-smoke",
+					Message:    "e2e smoke marker",
+					Target:     "e2e://smoke",
+					Evidence:   "e2e smoke marker",
+					Severity:   pluginsdk.SeverityLow,
+					DetectedAt: time.Now().UTC(),
+				}); err != nil {
+					return err
+				}
+			}
 			return nil
 		},
 		OnHTTPPassive: func(ctx *pluginsdk.Context, event pluginsdk.HTTPPassiveEvent) error {
@@ -55,9 +67,12 @@ func main() {
 				if headers.Get(header) == "" {
 					missing = append(missing, header)
 					if err := ctx.EmitFinding(pluginsdk.Finding{
-						Type:     "missing-security-header",
-						Message:  fmt.Sprintf("response missing %s header", header),
-						Severity: pluginsdk.SeverityMedium,
+						Type:       "missing-security-header",
+						Message:    fmt.Sprintf("response missing %s header", header),
+						Target:     event.Response.Headers.Get("Host"),
+						Evidence:   fmt.Sprintf("Missing %s header", header),
+						Severity:   pluginsdk.SeverityMedium,
+						DetectedAt: time.Now().UTC(),
 						Metadata: map[string]string{
 							"header":         header,
 							"recommendation": recommended,

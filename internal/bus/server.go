@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/netgate"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +36,7 @@ type Server struct {
 	mu          sync.RWMutex
 	connections map[string]*plugin
 	findings    *findings.Bus
+	gate        *netgate.Gate
 }
 
 // NewServer creates a new bus server.
@@ -47,6 +49,7 @@ func NewServer(authToken string, findingsBus *findings.Bus) *Server {
 		authToken:   authToken,
 		connections: make(map[string]*plugin),
 		findings:    findingsBus,
+		gate:        netgate.New(nil),
 	}
 }
 
@@ -81,6 +84,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		capabilities:  caps,
 	}
 	s.addConnection(pluginID, p)
+	s.gate.Register(pluginID, hello.GetCapabilities())
 	defer s.removeConnection(pluginID)
 
 	// Goroutine to send events from the bus to the plugin
@@ -177,6 +181,7 @@ func (s *Server) removeConnection(id string) {
 		delete(s.connections, id)
 		s.logger.Info("Plugin unregistered", "plugin_id", id, "total_connections", len(s.connections))
 	}
+	s.gate.Unregister(id)
 }
 
 // StartEventGenerator starts a ticker to send synthetic events to all connected plugins.
@@ -240,42 +245,11 @@ func (s *Server) publishFinding(pluginID string, incoming *pb.Finding) {
 		return
 	}
 
-	finding := findings.Finding{
-		ID:       incoming.GetType(),
-		Plugin:   pluginID,
-		Evidence: incoming.GetMessage(),
-		Severity: mapSeverity(incoming.GetSeverity()),
-		TS:       time.Now().UTC(),
-	}
-
-	if meta := incoming.GetMetadata(); meta != nil {
-		if id := meta["id"]; id != "" {
-			finding.ID = id
-		}
-		if target := meta["target"]; target != "" {
-			finding.Target = target
-		}
-		if evidence := meta["evidence"]; evidence != "" {
-			finding.Evidence = evidence
-		}
+	finding, err := findings.FromProto(pluginID, incoming)
+	if err != nil {
+		s.logger.Warn("Rejecting malformed finding", "plugin_id", pluginID, "error", err)
+		return
 	}
 
 	s.findings.Emit(finding)
-}
-
-func mapSeverity(sev pb.Severity) string {
-	switch sev {
-	case pb.Severity_CRITICAL:
-		return "crit"
-	case pb.Severity_HIGH:
-		return "high"
-	case pb.Severity_MEDIUM:
-		return "med"
-	case pb.Severity_LOW:
-		return "low"
-	case pb.Severity_INFO:
-		return "info"
-	default:
-		return "info"
-	}
 }

@@ -182,8 +182,11 @@ func TestPublishFindingEmitsToBus(t *testing.T) {
 		if finding.Evidence != "Header X-Test missing" {
 			t.Fatalf("unexpected evidence: %s", finding.Evidence)
 		}
-		if finding.Severity != "high" {
+		if finding.Severity != findings.SeverityHigh {
 			t.Fatalf("unexpected severity: %s", finding.Severity)
+		}
+		if finding.DetectedAt.IsZero() {
+			t.Fatal("expected detected_at to be populated")
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for finding from bus")

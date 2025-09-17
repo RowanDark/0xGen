@@ -14,6 +14,7 @@ func validManifest() plugins.Manifest {
 		Name:         "demo",
 		Version:      "1.0.0",
 		Entry:        "plugin.js",
+		Artifact:     "plugin.js",
 		Capabilities: []string{"CAP_HTTP_PASSIVE"},
 	}
 }
@@ -84,7 +85,7 @@ func TestValidateRequiresMetadata(t *testing.T) {
 func TestLoadManifestRejectsUnknownField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manifest.json")
-	if err := os.WriteFile(path, []byte(`{"name":"demo","version":"1.0.0","entry":"plugin.js","capabilities":["CAP_HTTP_PASSIVE"],"unexpected":true}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"name":"demo","version":"1.0.0","entry":"plugin.js","artifact":"plugin.js","capabilities":["CAP_HTTP_PASSIVE"],"unexpected":true}`), 0o644); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
 	err := plugins.ValidateManifest(path)

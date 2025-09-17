@@ -1,5 +1,5 @@
-{"ID":"missing-security-header","Plugin":"passive-header-scan-42","Target":"https://example.com","Evidence":"Missing X-Frame-Options header","Severity":"med","TS":"2024-01-02T03:04:05Z"}
-{"ID":"outdated-cipher","Plugin":"tls-scan-7","Target":"https://example.com","Evidence":"Server allows TLS 1.0","Severity":"high","TS":"2024-01-02T04:00:00Z"}
-{"ID":"exposed-admin","Plugin":"crawler-1","Target":"https://example.com/admin","Evidence":"Admin console accessible without auth","Severity":"crit","TS":"2024-01-02T05:06:07Z"}
-{"ID":"missing-https","Plugin":"passive-header-scan-42","Target":"http://example.org","Evidence":"Site not using HTTPS","Severity":"low","TS":"2024-01-02T06:00:00Z"}
-{"ID":"server-banner","Plugin":"passive-header-scan-42","Target":"https://example.com","Evidence":"Server banner reveals version","Severity":"info","TS":"2024-01-02T07:00:00Z"}
+{"id":"missing-security-header","plugin":"passive-header-scan-42","type":"missing-security-header","message":"response missing Strict-Transport-Security header","target":"https://example.com","evidence":"Missing Strict-Transport-Security header","severity":"MEDIUM","detected_at":"2024-01-02T03:04:05Z"}
+{"id":"outdated-cipher","plugin":"tls-scan-7","type":"weak-tls","message":"Server allows TLS 1.0","target":"https://example.com","evidence":"Server allows TLS 1.0","severity":"HIGH","detected_at":"2024-01-02T04:00:00Z"}
+{"id":"exposed-admin","plugin":"crawler-1","type":"exposed-admin","message":"Admin console accessible without auth","target":"https://example.com/admin","evidence":"Admin console accessible without auth","severity":"CRITICAL","detected_at":"2024-01-02T05:06:07Z"}
+{"id":"missing-https","plugin":"passive-header-scan-42","type":"unencrypted-http","message":"Site not using HTTPS","target":"http://example.org","evidence":"Site not using HTTPS","severity":"LOW","detected_at":"2024-01-02T06:00:00Z"}
+{"id":"server-banner","plugin":"passive-header-scan-42","type":"verbose-banner","message":"Server banner reveals version","target":"https://example.com","evidence":"Server banner reveals version","severity":"INFO","detected_at":"2024-01-02T07:00:00Z"}
