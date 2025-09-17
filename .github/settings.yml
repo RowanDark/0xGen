@@ -1,0 +1,14 @@
+repository:
+  default_branch: main
+branches:
+  - name: main
+    protection:
+      required_status_checks:
+        strict: true
+        contexts:
+          - CI / build-test (ubuntu-latest)
+          - CI / build-test (macos-latest)
+          - CI / lint
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      restrictions: null

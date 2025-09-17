@@ -13,6 +13,7 @@ type Manifest struct {
 	Name         string         `json:"name"`
 	Version      string         `json:"version"`
 	Entry        string         `json:"entry"`
+	Artifact     string         `json:"artifact"`
 	Capabilities []string       `json:"capabilities"`
 	Config       map[string]any `json:"config,omitempty"`
 }
@@ -28,8 +29,8 @@ var allowedCaps = map[string]struct{}{
 }
 
 func (m *Manifest) Validate() error {
-	if m.Name == "" || m.Version == "" || m.Entry == "" {
-		return errors.New("name, version, and entry are required")
+	if m.Name == "" || m.Version == "" || m.Entry == "" || m.Artifact == "" {
+		return errors.New("name, version, entry, and artifact are required")
 	}
 	if len(m.Capabilities) == 0 {
 		return errors.New("at least one capability is required")

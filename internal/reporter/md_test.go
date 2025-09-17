@@ -11,10 +11,11 @@ import (
 )
 
 func TestRenderMarkdown(t *testing.T) {
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	findings := []findings.Finding{
-		{ID: "1", Target: "https://a", Severity: "high"},
-		{ID: "2", Target: "https://a", Severity: "med"},
-		{ID: "3", Target: "https://b", Severity: "low"},
+		{ID: "1", Plugin: "p1", Type: "t", Message: "m", Target: "https://a", Severity: findings.SeverityHigh, DetectedAt: base},
+		{ID: "2", Plugin: "p1", Type: "t", Message: "m", Target: "https://a", Severity: findings.SeverityMedium, DetectedAt: base},
+		{ID: "3", Plugin: "p2", Type: "t", Message: "m", Target: "https://b", Severity: findings.SeverityLow, DetectedAt: base},
 	}
 	md := RenderMarkdown(findings, 5)
 	if !strings.Contains(md, "Total findings: 3") {
@@ -34,7 +35,15 @@ func TestRenderReportWritesFile(t *testing.T) {
 	output := filepath.Join(dir, "report.md")
 
 	writer := NewJSONL(input)
-	sample := findings.Finding{ID: "x", Plugin: "p", Target: "", Evidence: "", Severity: "crit", TS: time.Unix(1710000000, 0).UTC()}
+	sample := findings.Finding{
+		ID:         "x",
+		Plugin:     "p",
+		Type:       "t",
+		Message:    "m",
+		Evidence:   "",
+		Severity:   findings.SeverityCritical,
+		DetectedAt: time.Unix(1710000000, 0).UTC(),
+	}
 	if err := writer.Write(sample); err != nil {
 		t.Fatalf("write finding: %v", err)
 	}

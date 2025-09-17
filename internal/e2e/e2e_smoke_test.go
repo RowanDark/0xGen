@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/reporter"
 )
 
 func TestGlyphdSmoke(t *testing.T) {
@@ -62,6 +64,86 @@ func TestGlyphdSmoke(t *testing.T) {
 	}
 }
 
+func TestGlyphctlSmoke(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping glyphctl smoke test in short mode")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	root := repoRoot(t)
+	glyphdBin := buildGlyphd(ctx, t, root)
+	glyphctlBin := buildGlyphctl(ctx, t, root)
+
+	_ = os.RemoveAll("/out")
+
+	listenAddr, dialAddr := resolveAddresses(t)
+	cmdCtx, cmdCancel := context.WithCancel(ctx)
+	glyphd := exec.CommandContext(cmdCtx, glyphdBin, "--addr", listenAddr, "--token", "test")
+	glyphd.Dir = root
+	glyphd.Env = os.Environ()
+
+	var stdout, stderr bytes.Buffer
+	glyphd.Stdout = &stdout
+	glyphd.Stderr = &stderr
+
+	if err := glyphd.Start(); err != nil {
+		t.Fatalf("failed to start glyphd: %v", err)
+	}
+
+	done := make(chan struct{})
+	var glyphdErr error
+	go func() {
+		glyphdErr = glyphd.Wait()
+		close(done)
+	}()
+
+	t.Cleanup(func() {
+		cmdCancel()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("glyphd did not exit after cancellation")
+		}
+	})
+
+	if err := waitForListener(cmdCtx, dialAddr, done, func() error { return glyphdErr }); err != nil {
+		t.Fatalf("glyphd did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+	}
+
+	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test", "--duration", "3s")
+	pluginCmd.Dir = root
+	var pluginOut, pluginErr bytes.Buffer
+	pluginCmd.Stdout = &pluginOut
+	pluginCmd.Stderr = &pluginErr
+	if err := pluginCmd.Run(); err != nil {
+		t.Fatalf("glyphctl plugin run failed: %v\nstdout:\n%s\nstderr:\n%s", err, pluginOut.String(), pluginErr.String())
+	}
+
+	findings, err := reporter.ReadJSONL(reporter.DefaultFindingsPath)
+	if err != nil {
+		t.Fatalf("read findings: %v", err)
+	}
+	if len(findings) == 0 {
+		t.Fatal("expected at least one finding to be recorded")
+	}
+
+	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", reporter.DefaultFindingsPath, "--out", reporter.DefaultReportPath)
+	reportCmd.Dir = root
+	if out, err := reportCmd.CombinedOutput(); err != nil {
+		t.Fatalf("glyphctl report failed: %v\n%s", err, out)
+	}
+
+	reportData, err := os.ReadFile(reporter.DefaultReportPath)
+	if err != nil {
+		t.Fatalf("read report: %v", err)
+	}
+	if !bytes.Contains(reportData, []byte("Findings Report")) {
+		t.Fatalf("report missing header: %s", reportData)
+	}
+}
+
 func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
 	t.Helper()
 
@@ -82,6 +164,31 @@ func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
 
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to build glyphd: %v\n%s", err, output.String())
+	}
+
+	return binaryPath
+}
+
+func buildGlyphctl(ctx context.Context, t *testing.T, root string) string {
+	t.Helper()
+
+	binaryName := "glyphctl"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+
+	outputDir := t.TempDir()
+	binaryPath := filepath.Join(outputDir, binaryName)
+
+	var output bytes.Buffer
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/glyphctl")
+	cmd.Dir = root
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	cmd.Env = os.Environ()
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to build glyphctl: %v\n%s", err, output.String())
 	}
 
 	return binaryPath

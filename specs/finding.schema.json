@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RowanDark/Glyph/specs/finding.schema.json",
+  "title": "Glyph Finding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "plugin", "type", "message", "severity", "detected_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for the finding."
+    },
+    "plugin": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the plugin that produced the finding."
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Machine readable finding type."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human friendly message describing the finding."
+    },
+    "target": {
+      "type": "string",
+      "description": "Target asset associated with the finding."
+    },
+    "evidence": {
+      "type": "string",
+      "description": "Optional evidence string from the plugin."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      "description": "Severity level assigned to the finding."
+    },
+    "detected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp indicating when the finding was observed."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Arbitrary plugin supplied key/value metadata."
+    }
+  }
+}

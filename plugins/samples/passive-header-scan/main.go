@@ -55,9 +55,12 @@ func main() {
 				if headers.Get(header) == "" {
 					missing = append(missing, header)
 					if err := ctx.EmitFinding(pluginsdk.Finding{
-						Type:     "missing-security-header",
-						Message:  fmt.Sprintf("response missing %s header", header),
-						Severity: pluginsdk.SeverityMedium,
+						Type:       "missing-security-header",
+						Message:    fmt.Sprintf("response missing %s header", header),
+						Target:     event.Response.Headers.Get("Host"),
+						Evidence:   fmt.Sprintf("Missing %s header", header),
+						Severity:   pluginsdk.SeverityMedium,
+						DetectedAt: time.Now().UTC(),
 						Metadata: map[string]string{
 							"header":         header,
 							"recommendation": recommended,

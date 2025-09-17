@@ -62,3 +62,12 @@ func TestRunManifestValidateMissingFile(t *testing.T) {
 		t.Fatalf("expected exit code 2 for read errors, got %d", code)
 	}
 }
+
+func TestRunVersion(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	if code := runVersion(nil); code != 0 {
+		t.Fatalf("expected version command to exit 0, got %d", code)
+	}
+}

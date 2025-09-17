@@ -20,7 +20,16 @@ func TestRunReportSuccess(t *testing.T) {
 	output := filepath.Join(dir, "report.md")
 
 	writer := reporter.NewJSONL(input)
-	sample := findings.Finding{ID: "a", Plugin: "p", Target: "https://example.com", Evidence: "issue", Severity: "low", TS: time.Unix(1710000000, 0).UTC()}
+	sample := findings.Finding{
+		ID:         "a",
+		Plugin:     "p",
+		Type:       "t",
+		Message:    "m",
+		Target:     "https://example.com",
+		Evidence:   "issue",
+		Severity:   findings.SeverityLow,
+		DetectedAt: time.Unix(1710000000, 0).UTC(),
+	}
 	if err := writer.Write(sample); err != nil {
 		t.Fatalf("write finding: %v", err)
 	}
