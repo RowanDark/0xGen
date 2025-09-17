@@ -7,6 +7,13 @@ PYTHON_PLUGIN_RUNTIME_DIR := examples/glyph-passive-headers/glyph_plugin_runtime
 # Output directory for Go stubs.
 GO_STUBS_DIR := proto/gen/go
 
+BIN ?= ./bin
+GLYPHCTL := $(BIN)/glyphctl
+
+$(GLYPHCTL):
+	@mkdir -p $(BIN)
+	@go build -o $(GLYPHCTL) ./cmd/glyphctl
+
 # Development defaults for running the Go services.
 GLYPH_ADDR ?= :50051
 GLYPH_AUTH_TOKEN ?= dev-token
@@ -24,18 +31,17 @@ build:
 	go build ./...
 
 .PHONY: validate-manifests
-validate-manifests:
-        @echo "Validating sample manifests..."
-        @go run ./cmd/glyphctl --manifest-validate plugins/samples/passive-header-scan/manifest.json
-        @go run ./cmd/glyphctl --manifest-validate plugins/samples/emit-on-start/manifest.json
-        @! go run ./cmd/glyphctl --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
+validate-manifests: $(GLYPHCTL)
+	@echo "Validating sample manifests..."
+	@$(GLYPHCTL) --manifest-validate plugins/samples/passive-header-scan/manifest.json
+	@! $(GLYPHCTL) --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
 
 .PHONY: demo-report
 demo-report:
-        @mkdir -p out
-        @cp examples/findings-sample.jsonl out/findings.jsonl
-        @go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
-        @echo "Report written to out/report.md"
+	@mkdir -p out
+	@cp examples/findings-sample.jsonl out/findings.jsonl
+	@go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
+	@echo "Report written to out/report.md"
 
 .PHONY: verify
 verify: build
