@@ -11,13 +11,26 @@ import (
 )
 
 const (
-	// DefaultFindingsPath is where glyphd persists findings for other tools to consume.
-	DefaultFindingsPath = "/out/findings.jsonl"
-	// DefaultReportPath is the default markdown summary written for CAP_REPORT consumers.
-	DefaultReportPath = "/out/report.md"
+	defaultOutputDir = "/out"
+	findingsFilename = "findings.jsonl"
+	reportFilename   = "report.md"
 	// DefaultTopTargets controls how many targets appear in summary tables.
 	DefaultTopTargets = 5
 )
+
+var (
+	// DefaultFindingsPath is where glyphd persists findings for other tools to consume.
+	DefaultFindingsPath = filepath.Join(defaultOutputDir, findingsFilename)
+	// DefaultReportPath is the default markdown summary written for CAP_REPORT consumers.
+	DefaultReportPath = filepath.Join(defaultOutputDir, reportFilename)
+)
+
+func init() {
+	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
+		DefaultFindingsPath = filepath.Join(custom, findingsFilename)
+		DefaultReportPath = filepath.Join(custom, reportFilename)
+	}
+}
 
 var severityOrder = []struct {
 	key   findings.Severity

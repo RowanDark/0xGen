@@ -76,13 +76,20 @@ func TestGlyphctlSmoke(t *testing.T) {
 	glyphdBin := buildGlyphd(ctx, t, root)
 	glyphctlBin := buildGlyphctl(ctx, t, root)
 
-	_ = os.RemoveAll("/out")
+	outDir := t.TempDir()
+	findingsPath := filepath.Join(outDir, "findings.jsonl")
+	reportPath := filepath.Join(outDir, "report.md")
 
 	listenAddr, dialAddr := resolveAddresses(t)
 	cmdCtx, cmdCancel := context.WithCancel(ctx)
 	glyphd := exec.CommandContext(cmdCtx, glyphdBin, "--addr", listenAddr, "--token", "test")
 	glyphd.Dir = root
-	glyphd.Env = os.Environ()
+	glyphd.Env = append(os.Environ(),
+		"GLYPH_ADDR="+listenAddr,
+		"GLYPH_OUT="+outDir,
+		"GLYPH_E2E_SMOKE=1",
+		"GLYPH_SYNC_WRITES=1",
+	)
 
 	var stdout, stderr bytes.Buffer
 	glyphd.Stdout = &stdout
@@ -114,6 +121,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 
 	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test", "--duration", "3s")
 	pluginCmd.Dir = root
+	pluginCmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir, "GLYPH_E2E_SMOKE=1")
 	var pluginOut, pluginErr bytes.Buffer
 	pluginCmd.Stdout = &pluginOut
 	pluginCmd.Stderr = &pluginErr
@@ -121,7 +129,29 @@ func TestGlyphctlSmoke(t *testing.T) {
 		t.Fatalf("glyphctl plugin run failed: %v\nstdout:\n%s\nstderr:\n%s", err, pluginOut.String(), pluginErr.String())
 	}
 
-	findings, err := reporter.ReadJSONL(reporter.DefaultFindingsPath)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		data, err := os.ReadFile(findingsPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if time.Now().After(deadline) {
+					t.Fatalf("expected findings file to be created: %v", err)
+				}
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			t.Fatalf("read findings file: %v", err)
+		}
+		if len(bytes.TrimSpace(data)) > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected at least one finding to be recorded")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	findings, err := reporter.ReadJSONL(findingsPath)
 	if err != nil {
 		t.Fatalf("read findings: %v", err)
 	}
@@ -129,13 +159,14 @@ func TestGlyphctlSmoke(t *testing.T) {
 		t.Fatal("expected at least one finding to be recorded")
 	}
 
-	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", reporter.DefaultFindingsPath, "--out", reporter.DefaultReportPath)
+	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", findingsPath, "--out", reportPath)
 	reportCmd.Dir = root
+	reportCmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir)
 	if out, err := reportCmd.CombinedOutput(); err != nil {
 		t.Fatalf("glyphctl report failed: %v\n%s", err, out)
 	}
 
-	reportData, err := os.ReadFile(reporter.DefaultReportPath)
+	reportData, err := os.ReadFile(reportPath)
 	if err != nil {
 		t.Fatalf("read report: %v", err)
 	}

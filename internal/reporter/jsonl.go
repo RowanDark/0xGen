@@ -87,6 +87,11 @@ func (r *JSONL) Write(f findings.Finding) error {
 	if err := r.writer.Flush(); err != nil {
 		return fmt.Errorf("flush finding: %w", err)
 	}
+	if syncWritesEnabled() && r.file != nil {
+		if err := r.file.Sync(); err != nil {
+			return fmt.Errorf("sync finding: %w", err)
+		}
+	}
 	if r.file != nil {
 		r.written += int64(len(payload))
 	}
@@ -189,4 +194,8 @@ func (r *JSONL) rotateIfNeeded(next int64) error {
 	r.file = nil
 	r.written = 0
 	return r.ensureWriter()
+}
+
+func syncWritesEnabled() bool {
+	return os.Getenv("GLYPH_SYNC_WRITES") == "1"
 }
