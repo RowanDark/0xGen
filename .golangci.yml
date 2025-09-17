@@ -1,12 +1,14 @@
-- version: 2
-+ version: "2"   # v2 schema requires a string
-
-- issues:
--   exclude-use-default: false
-+# v2 removed 'exclude-use-default'. If you need exclusions later,
-+# use 'linters.exclusions' / 'formatters.exclusions'. Keep minimal for now.
-+issues: {}
-- uses: golangci/golangci-lint-action@v7
-  with:
-    version: v2.1.6
-    args: --out-format=github-actions ./...
+version: "2"            # must be a string in v2
+run:
+  timeout: 5m
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - gofmt
+    - goimports
+    - ineffassign
+    - gosimple
+    - misspell
+    - errcheck
+issues: {}              # v2: remove exclude-use-default; keep minimal for now
