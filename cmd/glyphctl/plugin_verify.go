@@ -35,6 +35,9 @@ func runPluginVerify(args []string) int {
 		fmt.Fprintf(os.Stderr, "hash mismatch: expected %s got %s\n", *expected, hash)
 		return 1
 	}
-	fmt.Fprintf(os.Stdout, "hash verified for %s\n", path)
+	if _, err := fmt.Fprintf(os.Stdout, "hash verified for %s\n", path); err != nil {
+		fmt.Fprintf(os.Stderr, "write stdout: %v\n", err)
+		return 1
+	}
 	return 0
 }

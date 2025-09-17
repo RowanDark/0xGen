@@ -67,7 +67,9 @@ func runPluginRun(args []string) int {
 		fmt.Fprintf(os.Stderr, "create build dir: %v\n", err)
 		return 1
 	}
-	defer os.RemoveAll(binaryDir)
+	defer func() {
+		_ = os.RemoveAll(binaryDir)
+	}()
 	binaryPath := filepath.Join(binaryDir, manifest.Entry)
 
 	build := exec.Command("go", "build", "-o", binaryPath, ".")

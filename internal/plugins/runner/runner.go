@@ -53,7 +53,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
 
 	cmd := exec.CommandContext(wallCtx, cfg.Binary, cfg.Args...)
 	cmd.Dir = tmpDir

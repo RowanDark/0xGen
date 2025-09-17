@@ -78,7 +78,9 @@ func (r *JSONL) ReadAll() ([]findings.Finding, error) {
 		}
 		return nil, fmt.Errorf("open findings file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	dec := json.NewDecoder(file)
 	dec.DisallowUnknownFields()

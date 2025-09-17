@@ -262,18 +262,22 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, cfg.Host, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.NewClient(cfg.Host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("dial host: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := pb.NewPluginBusClient(conn)
 	stream, err := client.EventStream(ctx)
 	if err != nil {
 		return fmt.Errorf("open event stream: %w", err)
 	}
-	defer stream.CloseSend()
+	defer func() {
+		_ = stream.CloseSend()
+	}()
 
 	hello := &pb.PluginHello{
 		AuthToken:     cfg.AuthToken,

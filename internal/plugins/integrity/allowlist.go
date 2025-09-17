@@ -25,7 +25,9 @@ func LoadAllowlist(path string) (*Allowlist, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open allowlist: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	scanner := bufio.NewScanner(file)
 	entries := make(map[string]string)
@@ -85,20 +87,22 @@ func (a *Allowlist) Verify(artifactPath string) error {
 }
 
 func hashFile(path string) (string, error) {
-        file, err := os.Open(path)
-        if err != nil {
-                return "", fmt.Errorf("open artifact: %w", err)
-        }
-        defer file.Close()
+	file, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("open artifact: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
 
-        h := sha256.New()
-        if _, err := io.Copy(h, file); err != nil {
-                return "", fmt.Errorf("hash artifact: %w", err)
-        }
-        return hex.EncodeToString(h.Sum(nil)), nil
+	h := sha256.New()
+	if _, err := io.Copy(h, file); err != nil {
+		return "", fmt.Errorf("hash artifact: %w", err)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // HashFile exposes the SHA-256 helper for external callers.
 func HashFile(path string) (string, error) {
-        return hashFile(path)
+	return hashFile(path)
 }

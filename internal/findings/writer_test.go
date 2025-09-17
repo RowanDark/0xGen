@@ -12,7 +12,9 @@ func TestWriterWritesFindings(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "findings.jsonl")
 	writer := NewWriter(path)
-	defer writer.Close()
+	defer func() {
+		_ = writer.Close()
+	}()
 
 	sample := Finding{
 		ID:         "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4",
@@ -40,7 +42,9 @@ func TestWriterRotation(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "findings.jsonl")
 	writer := NewWriter(path, WithMaxBytes(200), WithMaxRotations(2))
-	defer writer.Close()
+	defer func() {
+		_ = writer.Close()
+	}()
 
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 10; i++ {
@@ -73,7 +77,9 @@ func TestWriterRejectsInvalidFinding(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "findings.jsonl")
 	writer := NewWriter(path)
-	defer writer.Close()
+	defer func() {
+		_ = writer.Close()
+	}()
 
 	bad := Finding{}
 	if err := writer.Write(bad); err == nil {
@@ -85,7 +91,9 @@ func TestDefaultPathHonoursEnv(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GLYPH_OUT", dir)
 	w := NewWriter("")
-	defer w.Close()
+	defer func() {
+		_ = w.Close()
+	}()
 
 	sample := Finding{
 		ID:         NewID(),
@@ -109,7 +117,9 @@ func BenchmarkWriter(b *testing.B) {
 	dir := b.TempDir()
 	path := filepath.Join(dir, "findings.jsonl")
 	writer := NewWriter(path)
-	defer writer.Close()
+	defer func() {
+		_ = writer.Close()
+	}()
 
 	sample := Finding{
 		ID:         NewID(),

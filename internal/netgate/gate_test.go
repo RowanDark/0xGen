@@ -24,7 +24,9 @@ func TestGateAllowsWithCapability(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 
 	gate := New(&net.Dialer{Timeout: 100 * time.Millisecond})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -36,7 +38,7 @@ func TestGateAllowsWithCapability(t *testing.T) {
 	go func() {
 		conn, err := ln.Accept()
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 		close(done)
 	}()
@@ -45,7 +47,11 @@ func TestGateAllowsWithCapability(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	conn.Close()
+	func() {
+		if err := conn.Close(); err != nil {
+			t.Fatalf("close connection: %v", err)
+		}
+	}()
 	<-done
 }
 
@@ -80,7 +86,9 @@ func TestGateHTTPClientPerformsRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("do request: %v", err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("close response body: %v", err)
+	}
 }
 
 func TestGateTimeoutEnforced(t *testing.T) {
@@ -109,7 +117,9 @@ func TestGateBudgetExhaustion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error on first dial: %v", err)
 	}
-	conn.Close()
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close connection: %v", err)
+	}
 
 	if _, err := gate.DialContext(context.Background(), "plugin", capHTTPActive, "tcp", "127.0.0.1:1"); err == nil {
 		t.Fatal("expected error once budget exhausted")
@@ -138,7 +148,7 @@ func (dummyDialer) DialContext(ctx context.Context, network, address string) (ne
 		case <-ctx.Done():
 		case <-time.After(10 * time.Millisecond):
 		}
-		c2.Close()
+		_ = c2.Close()
 	}()
 	return c1, nil
 }

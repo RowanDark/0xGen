@@ -171,7 +171,7 @@ func (w *Writer) ensureWriter() error {
 	}
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return fmt.Errorf("stat findings file: %w", err)
 	}
 	w.file = file

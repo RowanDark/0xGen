@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RowanDark/Glyph/sdk/plugin-sdk"
+	pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
 )
 
 func main() {
