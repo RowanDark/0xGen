@@ -6,3 +6,7 @@
 +# v2 removed 'exclude-use-default'. If you need exclusions later,
 +# use 'linters.exclusions' / 'formatters.exclusions'. Keep minimal for now.
 +issues: {}
+- uses: golangci/golangci-lint-action@v7
+  with:
+    version: v2.1.6
+    args: --out-format=github-actions ./...
