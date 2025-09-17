@@ -25,16 +25,17 @@ build:
 
 .PHONY: validate-manifests
 validate-manifests:
-	@echo "Validating sample manifests..."
-	@go run ./cmd/glyphctl --manifest-validate plugins/samples/passive-header-scan/manifest.json
-	@! go run ./cmd/glyphctl --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
+        @echo "Validating sample manifests..."
+        @go run ./cmd/glyphctl --manifest-validate plugins/samples/passive-header-scan/manifest.json
+        @go run ./cmd/glyphctl --manifest-validate plugins/samples/emit-on-start/manifest.json
+        @! go run ./cmd/glyphctl --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
 
-.PHONY: report-sample
-report-sample:
-	@mkdir -p out
-	@cp examples/findings-sample.jsonl out/findings.jsonl
-	@go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
-	@echo "Report written to out/report.md"
+.PHONY: demo-report
+demo-report:
+        @mkdir -p out
+        @cp examples/findings-sample.jsonl out/findings.jsonl
+        @go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
+        @echo "Report written to out/report.md"
 
 .PHONY: verify
 verify: build

@@ -12,7 +12,14 @@ func TestBusEmitDeliversToSubscribers(t *testing.T) {
 	defer cancel()
 
 	ch := bus.Subscribe(ctx)
-	finding := Finding{ID: "1", Plugin: "p", Severity: "info"}
+	finding := Finding{
+		ID:         NewID(),
+		Plugin:     "p",
+		Type:       "demo",
+		Message:    "demo message",
+		Severity:   SeverityInfo,
+		DetectedAt: NewTimestamp(time.Now()),
+	}
 
 	done := make(chan struct{})
 	go func() {

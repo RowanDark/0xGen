@@ -160,7 +160,7 @@ func TestPublishFindingEmitsToBus(t *testing.T) {
 		Message:  "Missing security header",
 		Severity: pb.Severity_HIGH,
 		Metadata: map[string]string{
-			"id":       "finding-123",
+			"id":       "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4",
 			"target":   "https://example.com",
 			"evidence": "Header X-Test missing",
 		},
@@ -170,7 +170,7 @@ func TestPublishFindingEmitsToBus(t *testing.T) {
 
 	select {
 	case finding := <-ch:
-		if finding.ID != "finding-123" {
+		if finding.ID != "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4" {
 			t.Fatalf("unexpected id: %s", finding.ID)
 		}
 		if finding.Plugin != "plugin-1" {

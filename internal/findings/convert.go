@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
 
@@ -37,14 +35,14 @@ func fromProtoWithClock(pluginID string, incoming *pb.Finding, clock func() time
 		metadata = map[string]string{}
 	}
 
-	id := strings.TrimSpace(metadata[metadataID])
+	id := strings.ToUpper(strings.TrimSpace(metadata[metadataID]))
 	if id == "" {
-		id = uuid.NewString()
+		id = NewID()
 	}
 
 	detectedAt := clock().UTC()
 	if ts := strings.TrimSpace(metadata[metadataDetectedAt]); ts != "" {
-		parsed, err := time.Parse(time.RFC3339Nano, ts)
+		parsed, err := time.Parse(time.RFC3339, ts)
 		if err != nil {
 			return Finding{}, fmt.Errorf("invalid detected_at timestamp: %w", err)
 		}
@@ -53,10 +51,12 @@ func fromProtoWithClock(pluginID string, incoming *pb.Finding, clock func() time
 
 	cleanMeta := make(map[string]string, len(metadata))
 	for k, v := range metadata {
-		if k == metadataID || k == metadataTarget || k == metadataEvidence || k == metadataDetectedAt {
+		switch k {
+		case metadataID, metadataTarget, metadataEvidence, metadataDetectedAt:
 			continue
+		default:
+			cleanMeta[k] = v
 		}
-		cleanMeta[k] = v
 	}
 	if len(cleanMeta) == 0 {
 		cleanMeta = nil
@@ -70,7 +70,7 @@ func fromProtoWithClock(pluginID string, incoming *pb.Finding, clock func() time
 		Target:     strings.TrimSpace(metadata[metadataTarget]),
 		Evidence:   metadata[metadataEvidence],
 		Severity:   severityFromProto(incoming.GetSeverity()),
-		DetectedAt: detectedAt,
+		DetectedAt: NewTimestamp(detectedAt),
 		Metadata:   cleanMeta,
 	}
 

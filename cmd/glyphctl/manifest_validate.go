@@ -38,6 +38,9 @@ func runManifestValidate() int {
 		return 1
 	}
 
-	fmt.Fprintln(os.Stdout, "ok")
+	if _, err := fmt.Fprintln(os.Stdout, "ok"); err != nil {
+		fmt.Fprintf(os.Stderr, "write stdout: %v\n", err)
+		return 2
+	}
 	return 0
 }

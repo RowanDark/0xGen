@@ -3,6 +3,8 @@ package pluginsdk
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"errors"
 	"fmt"
 	"io"
@@ -14,8 +16,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/google/uuid"
 
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
@@ -122,7 +122,7 @@ func (c *Context) Logger() *slog.Logger {
 // EmitFinding reports a finding to the host if the plugin has the required capability.
 func (c *Context) EmitFinding(f Finding) error {
 	if _, ok := c.capabilities[CapabilityEmitFindings]; !ok {
-		return fmt.Errorf("missing capability %s", CapabilityEmitFindings)
+		return CapabilityError{Capability: CapabilityEmitFindings}
 	}
 	if strings.TrimSpace(f.Type) == "" {
 		return errors.New("finding type must not be empty")
@@ -133,7 +133,9 @@ func (c *Context) EmitFinding(f Finding) error {
 
 	findingID := strings.TrimSpace(f.ID)
 	if findingID == "" {
-		findingID = uuid.NewString()
+		findingID = newULID()
+	} else {
+		findingID = strings.ToUpper(findingID)
 	}
 
 	detectedAt := f.DetectedAt
@@ -162,12 +164,40 @@ func (c *Context) EmitFinding(f Finding) error {
 	if evidence := strings.TrimSpace(f.Evidence); evidence != "" {
 		metadata["evidence"] = evidence
 	}
-	metadata["detected_at"] = detectedAt.Format(time.RFC3339Nano)
+	metadata["detected_at"] = detectedAt.Format(time.RFC3339)
 	if len(metadata) > 0 {
 		pbFinding.Metadata = metadata
 	}
 
 	return c.runtime.sendFinding(pbFinding)
+}
+
+var sdkCrockford = base32.NewEncoding("0123456789ABCDEFGHJKMNPQRSTVWXYZ").WithPadding(base32.NoPadding)
+
+func newULID() string {
+	buf := make([]byte, 16)
+	ts := uint64(time.Now().UTC().UnixMilli())
+	for i := 5; i >= 0; i-- {
+		buf[i] = byte(ts & 0xFF)
+		ts >>= 8
+	}
+	if _, err := io.ReadFull(rand.Reader, buf[6:]); err != nil {
+		nano := uint64(time.Now().UTC().UnixNano())
+		for i := 6; i < len(buf); i++ {
+			buf[i] = byte(nano & 0xFF)
+			nano >>= 8
+		}
+	}
+	return sdkCrockford.EncodeToString(buf)
+}
+
+// CapabilityError indicates a capability is missing for the requested action.
+type CapabilityError struct {
+	Capability Capability
+}
+
+func (e CapabilityError) Error() string {
+	return fmt.Sprintf("missing capability %s", e.Capability)
 }
 
 func toProtoSeverity(sev Severity) pb.Severity {
@@ -232,18 +262,22 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, cfg.Host, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.NewClient(cfg.Host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("dial host: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := pb.NewPluginBusClient(conn)
 	stream, err := client.EventStream(ctx)
 	if err != nil {
 		return fmt.Errorf("open event stream: %w", err)
 	}
-	defer stream.CloseSend()
+	defer func() {
+		_ = stream.CloseSend()
+	}()
 
 	hello := &pb.PluginHello{
 		AuthToken:     cfg.AuthToken,

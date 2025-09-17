@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
 )
@@ -42,6 +43,14 @@ var severityOrder = []struct {
 	{key: findings.SeverityLow, label: "Low"},
 	{key: findings.SeverityInfo, label: "Informational"},
 }
+
+var severityLabels = func() map[findings.Severity]string {
+	out := make(map[findings.Severity]string, len(severityOrder))
+	for _, entry := range severityOrder {
+		out[entry.key] = entry.label
+	}
+	return out
+}()
 
 // RenderReport loads findings from inputPath and writes a markdown summary to outputPath.
 func RenderReport(inputPath, outputPath string, topN int) error {
@@ -125,21 +134,58 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 
 	b.WriteString("## Top Targets\n\n")
 	if limit == 0 {
-		b.WriteString("No targets reported.\n")
+		b.WriteString("No targets reported.\n\n")
+	} else {
+		fmt.Fprintf(&b, "Showing top %d targets by finding volume.\n\n", limit)
+		for i := 0; i < limit; i++ {
+			entry := ranked[i]
+			fmt.Fprintf(&b, "%d. **%s** — %d findings\n", i+1, entry.Target, entry.Count)
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## Last 10 Findings\n\n")
+	if len(list) == 0 {
+		b.WriteString("No findings recorded.\n")
 		return b.String()
 	}
 
-	fmt.Fprintf(&b, "Showing top %d targets by finding volume.\n\n", limit)
-	for i := 0; i < limit; i++ {
-		entry := ranked[i]
-		fmt.Fprintf(&b, "%d. **%s** — %d findings\n", i+1, entry.Target, entry.Count)
+	recent := make([]findings.Finding, len(list))
+	copy(recent, list)
+	sort.Slice(recent, func(i, j int) bool {
+		ti := recent[i].DetectedAt.Time()
+		tj := recent[j].DetectedAt.Time()
+		if ti.Equal(tj) {
+			return recent[i].ID > recent[j].ID
+		}
+		return ti.After(tj)
+	})
+	if len(recent) > 10 {
+		recent = recent[:10]
+	}
+
+	b.WriteString("| Detected At | Severity | Plugin | Target | Message |\n")
+	b.WriteString("| --- | --- | --- | --- | --- |\n")
+	for _, f := range recent {
+		ts := f.DetectedAt.Time().Format(time.RFC3339)
+		sev := severityLabels[canonicalSeverity(f.Severity)]
+		plugin := markdownCell(f.Plugin)
+		target := markdownCell(f.Target)
+		if target == "" {
+			target = "(not specified)"
+		}
+		message := markdownCell(f.Message)
+		if message == "" {
+			message = "(not specified)"
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", ts, sev, plugin, target, message)
 	}
 	b.WriteString("\n")
 	return b.String()
 }
 
 func canonicalSeverity(input findings.Severity) findings.Severity {
-	switch strings.ToUpper(strings.TrimSpace(string(input))) {
+	switch strings.ToLower(strings.TrimSpace(string(input))) {
 	case string(findings.SeverityCritical):
 		return findings.SeverityCritical
 	case string(findings.SeverityHigh):
@@ -153,4 +199,15 @@ func canonicalSeverity(input findings.Severity) findings.Severity {
 	default:
 		return findings.SeverityInfo
 	}
+}
+
+func markdownCell(input string) string {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return ""
+	}
+	trimmed = strings.ReplaceAll(trimmed, "\n", " ")
+	trimmed = strings.ReplaceAll(trimmed, "\r", " ")
+	trimmed = strings.ReplaceAll(trimmed, "|", "\\|")
+	return trimmed
 }
