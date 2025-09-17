@@ -11,4 +11,4 @@ linters:
     - gosimple
     - misspell
     - errcheck
-issues: {}              # v2: remove exclude-use-default; keep minimal for now
+issues: {}              
