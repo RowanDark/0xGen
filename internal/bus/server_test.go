@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RowanDark/Glyph/internal/findings"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -46,7 +47,7 @@ func newMockStream(ctx context.Context) *mockEventStream {
 }
 
 func TestEventStream_ValidAuth(t *testing.T) {
-	server := NewServer("test-token")
+	server := NewServer("test-token", nil)
 	mockStream := newMockStream(context.Background())
 
 	// Simulate the client sending a valid hello message
@@ -85,7 +86,7 @@ func TestEventStream_ValidAuth(t *testing.T) {
 }
 
 func TestEventStream_InvalidAuth(t *testing.T) {
-	server := NewServer("test-token")
+	server := NewServer("test-token", nil)
 	mockStream := newMockStream(context.Background())
 
 	// Simulate the client sending an invalid hello message
@@ -118,7 +119,7 @@ func TestEventStream_InvalidAuth(t *testing.T) {
 }
 
 func TestEventStream_MissingHello(t *testing.T) {
-	server := NewServer("test-token")
+	server := NewServer("test-token", nil)
 	mockStream := newMockStream(context.Background())
 
 	// Simulate the client sending a finding instead of a hello message
@@ -144,4 +145,47 @@ func TestEventStream_MissingHello(t *testing.T) {
 		t.Errorf("Expected status code %v, but got %v", codes.Unauthenticated, st.Code())
 	}
 	t.Logf("Received expected error: %v", err)
+}
+
+func TestPublishFindingEmitsToBus(t *testing.T) {
+	bus := findings.NewBus()
+	server := NewServer("token", bus)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := bus.Subscribe(ctx)
+	incoming := &pb.Finding{
+		Type:     "missing-header",
+		Message:  "Missing security header",
+		Severity: pb.Severity_HIGH,
+		Metadata: map[string]string{
+			"id":       "finding-123",
+			"target":   "https://example.com",
+			"evidence": "Header X-Test missing",
+		},
+	}
+
+	server.publishFinding("plugin-1", incoming)
+
+	select {
+	case finding := <-ch:
+		if finding.ID != "finding-123" {
+			t.Fatalf("unexpected id: %s", finding.ID)
+		}
+		if finding.Plugin != "plugin-1" {
+			t.Fatalf("unexpected plugin: %s", finding.Plugin)
+		}
+		if finding.Target != "https://example.com" {
+			t.Fatalf("unexpected target: %s", finding.Target)
+		}
+		if finding.Evidence != "Header X-Test missing" {
+			t.Fatalf("unexpected evidence: %s", finding.Evidence)
+		}
+		if finding.Severity != "high" {
+			t.Fatalf("unexpected severity: %s", finding.Severity)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for finding from bus")
+	}
 }
