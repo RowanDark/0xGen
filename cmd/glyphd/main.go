@@ -9,6 +9,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -63,7 +65,9 @@ func serve(ctx context.Context, lis net.Listener, token string) error {
 	}
 
 	findingsBus := findings.NewBus()
-	jsonlWriter := reporter.NewJSONL(reporter.DefaultFindingsPath)
+	findingsPath := resolveFindingsPath()
+	log.Printf("writing findings to %s", findingsPath)
+	jsonlWriter := reporter.NewJSONL(findingsPath)
 	findingsCh := findingsBus.Subscribe(ctx)
 	go func() {
 		for finding := range findingsCh {
@@ -108,4 +112,11 @@ func serve(ctx context.Context, lis net.Listener, token string) error {
 		return err
 	}
 	return nil
+}
+
+func resolveFindingsPath() string {
+	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
+		return filepath.Join(custom, "findings.jsonl")
+	}
+	return reporter.DefaultFindingsPath
 }

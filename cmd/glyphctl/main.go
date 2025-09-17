@@ -32,6 +32,8 @@ func main() {
 		switch args[1] {
 		case "run":
 			os.Exit(runPluginRun(args[2:]))
+		case "verify":
+			os.Exit(runPluginVerify(args[2:]))
 		default:
 			fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
 			os.Exit(2)

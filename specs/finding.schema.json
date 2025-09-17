@@ -8,8 +8,8 @@
   "properties": {
     "id": {
       "type": "string",
-      "minLength": 1,
-      "description": "Stable identifier for the finding."
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Stable ULID identifier for the finding."
     },
     "plugin": {
       "type": "string",
@@ -36,7 +36,7 @@
     },
     "severity": {
       "type": "string",
-      "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      "enum": ["info", "low", "med", "high", "crit"],
       "description": "Severity level assigned to the finding."
     },
     "detected_at": {

@@ -119,7 +119,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 		t.Fatalf("glyphd did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 	}
 
-	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test", "--duration", "3s")
+	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "emit-on-start", "--server", dialAddr, "--token", "test", "--duration", "3s")
 	pluginCmd.Dir = root
 	pluginCmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir, "GLYPH_E2E_SMOKE=1")
 	var pluginOut, pluginErr bytes.Buffer

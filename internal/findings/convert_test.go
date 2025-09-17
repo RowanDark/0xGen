@@ -41,7 +41,7 @@ func TestFromProtoPopulatesDefaults(t *testing.T) {
 		t.Fatalf("unexpected severity: %s", finding.Severity)
 	}
 	if !finding.DetectedAt.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)) {
-		t.Fatalf("unexpected detected_at: %s", finding.DetectedAt)
+		t.Fatalf("unexpected detected_at: %v", finding.DetectedAt.Time())
 	}
 }
 

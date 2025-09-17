@@ -1,0 +1,29 @@
+# Findings Report
+
+Total findings: 3
+
+## Severity Breakdown
+
+| Severity | Count |
+| --- | ---: |
+| Critical | 0 |
+| High | 1 |
+| Medium | 1 |
+| Low | 1 |
+| Informational | 0 |
+
+## Top Targets
+
+Showing top 2 targets by finding volume.
+
+1. **https://a** — 2 findings
+2. **https://b** — 1 findings
+
+## Last 10 Findings
+
+| Detected At | Severity | Plugin | Target | Message |
+| --- | --- | --- | --- | --- |
+| 2024-01-01T02:00:00Z | High | p1 | https://a | high |
+| 2024-01-01T01:00:00Z | Medium | p1 | https://a | medium |
+| 2024-01-01T00:00:00Z | Low | p2 | https://b | low |
+

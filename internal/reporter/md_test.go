@@ -13,19 +13,20 @@ import (
 func TestRenderMarkdown(t *testing.T) {
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	findings := []findings.Finding{
-		{ID: "1", Plugin: "p1", Type: "t", Message: "m", Target: "https://a", Severity: findings.SeverityHigh, DetectedAt: base},
-		{ID: "2", Plugin: "p1", Type: "t", Message: "m", Target: "https://a", Severity: findings.SeverityMedium, DetectedAt: base},
-		{ID: "3", Plugin: "p2", Type: "t", Message: "m", Target: "https://b", Severity: findings.SeverityLow, DetectedAt: base},
+		{ID: "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4", Plugin: "p1", Type: "t", Message: "high", Target: "https://a", Severity: findings.SeverityHigh, DetectedAt: findings.NewTimestamp(base.Add(2 * time.Hour))},
+		{ID: "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C5", Plugin: "p1", Type: "t", Message: "medium", Target: "https://a", Severity: findings.SeverityMedium, DetectedAt: findings.NewTimestamp(base.Add(1 * time.Hour))},
+		{ID: "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C6", Plugin: "p2", Type: "t", Message: "low", Target: "https://b", Severity: findings.SeverityLow, DetectedAt: findings.NewTimestamp(base)},
 	}
-	md := RenderMarkdown(findings, 5)
-	if !strings.Contains(md, "Total findings: 3") {
-		t.Fatalf("missing total count: %s", md)
+
+	got := RenderMarkdown(findings, 5)
+	goldenPath := filepath.Join("testdata", "report.golden")
+	wantBytes, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
 	}
-	if !strings.Contains(md, "| High | 1 |") {
-		t.Fatalf("missing high count: %s", md)
-	}
-	if !strings.Contains(md, "1. **https://a** — 2 findings") {
-		t.Fatalf("missing top target: %s", md)
+	want := string(wantBytes)
+	if got != want {
+		t.Fatalf("markdown mismatch\nwant:\n%s\n\ngot:\n%s", want, got)
 	}
 }
 
@@ -36,13 +37,13 @@ func TestRenderReportWritesFile(t *testing.T) {
 
 	writer := NewJSONL(input)
 	sample := findings.Finding{
-		ID:         "x",
+		ID:         findings.NewID(),
 		Plugin:     "p",
 		Type:       "t",
 		Message:    "m",
 		Evidence:   "",
 		Severity:   findings.SeverityCritical,
-		DetectedAt: time.Unix(1710000000, 0).UTC(),
+		DetectedAt: findings.NewTimestamp(time.Unix(1710000000, 0).UTC()),
 	}
 	if err := writer.Write(sample); err != nil {
 		t.Fatalf("write finding: %v", err)

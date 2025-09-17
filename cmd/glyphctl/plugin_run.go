@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/plugins"
@@ -87,9 +88,17 @@ func runPluginRun(args []string) int {
 	if limits.WallTime <= 0 {
 		limits.WallTime = 5 * time.Second
 	}
+	env := map[string]string{}
+	if val := os.Getenv("GLYPH_OUT"); strings.TrimSpace(val) != "" {
+		env["GLYPH_OUT"] = val
+	}
+	if val := os.Getenv("GLYPH_E2E_SMOKE"); strings.TrimSpace(val) != "" {
+		env["GLYPH_E2E_SMOKE"] = val
+	}
 	config := runner.Config{
 		Binary: binaryPath,
 		Args:   []string{"--server", *server, "--token", *token},
+		Env:    env,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Limits: limits,
