@@ -16,6 +16,7 @@ import (
 
 	"github.com/RowanDark/Glyph/internal/bus"
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
@@ -24,11 +25,17 @@ import (
 type config struct {
 	addr  string
 	token string
+	proxy proxy.Config
 }
 
 func main() {
 	addr := flag.String("addr", ":50051", "address for the gRPC server to listen on")
 	token := flag.String("token", "", "authentication token required for plugins")
+	proxyPort := flag.String("proxy-port", "8080", "port for the Galdr proxy listener")
+	proxyRules := flag.String("proxy-rules", "", "path to proxy modification rules file")
+	proxyHistory := flag.String("proxy-history", "", "path to proxy history log")
+	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
+	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	flag.Parse()
 
 	if *token == "" {
@@ -39,15 +46,56 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, config{addr: *addr, token: *token}); err != nil {
+	cfg := config{
+		addr:  *addr,
+		token: *token,
+		proxy: proxy.Config{
+			Addr:        *proxyPort,
+			RulesPath:   *proxyRules,
+			HistoryPath: *proxyHistory,
+			CACertPath:  *proxyCACert,
+			CAKeyPath:   *proxyCAKey,
+		},
+	}
+
+	if err := run(ctx, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context, cfg config) error {
+	proxySrv, err := proxy.New(cfg.proxy)
+	if err != nil {
+		return fmt.Errorf("initialise proxy: %w", err)
+	}
+
+	proxyCtx, cancelProxy := context.WithCancel(ctx)
+	defer cancelProxy()
+
+	proxyErr := make(chan error, 1)
+	go func() {
+		proxyErr <- proxySrv.Run(proxyCtx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer readyCancel()
+	if err := proxySrv.WaitUntilReady(readyCtx); err != nil {
+		cancelProxy()
+		select {
+		case errRun := <-proxyErr:
+			if errRun != nil {
+				log.Printf("proxy startup error: %v", errRun)
+			}
+		default:
+		}
+		return fmt.Errorf("start proxy: %w", err)
+	}
+
 	lis, err := net.Listen("tcp", cfg.addr)
 	if err != nil {
+		cancelProxy()
+		<-proxyErr
 		return fmt.Errorf("failed to listen on %s: %w", cfg.addr, err)
 	}
 	defer func() {
@@ -56,7 +104,13 @@ func run(ctx context.Context, cfg config) error {
 		}
 	}()
 
-	return serve(ctx, lis, cfg.token)
+	err = serve(ctx, lis, cfg.token)
+	cancelProxy()
+	proxyRunErr := <-proxyErr
+	if proxyRunErr != nil {
+		log.Printf("proxy terminated: %v", proxyRunErr)
+	}
+	return err
 }
 
 func serve(ctx context.Context, lis net.Listener, token string) error {
