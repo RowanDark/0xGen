@@ -1,3 +1,6 @@
+# Use bash for targets that rely on modern shell features.
+SHELL := /bin/bash
+
 # The source .proto files.
 PROTO_FILES := $(shell find proto/glyph -name *.proto)
 
@@ -35,6 +38,25 @@ validate-manifests: $(GLYPHCTL)
 	@echo "Validating sample manifests..."
 	@$(GLYPHCTL) --manifest-validate plugins/samples/passive-header-scan/manifest.json
 	@! $(GLYPHCTL) --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
+
+.PHONY: plugins-skeleton
+plugins-skeleton: $(GLYPHCTL)
+	@set -euo pipefail; \
+		plugins="galdr-proxy cartographer excavator raider osint-well seer scribe ranker grapher cryptographer"; \
+		for plugin in $$plugins; do \
+			manifest="plugins/$${plugin}/manifest.json"; \
+			if [ ! -f "$$manifest" ]; then \
+				echo "missing manifest: $$manifest"; \
+				exit 1; \
+			fi; \
+			$(GLYPHCTL) --manifest-validate "$$manifest" >/dev/null; \
+			done
+	@echo "Running excavator crawl sanity check..."
+	@npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null
+	@tmp_file=$$(mktemp); \
+		node plugins/excavator/crawl.js https://example.com > "$$tmp_file"; \
+		node -e "const fs=require('fs'); JSON.parse(fs.readFileSync(process.argv[1],'utf8')); JSON.parse(fs.readFileSync('plugins/excavator/sample_output.json','utf8'));" "$$tmp_file"; \
+		rm -f "$$tmp_file"
 
 .PHONY: demo-report
 demo-report:

@@ -1,0 +1,7 @@
+{
+  "name": "excavator",
+  "version": "0.1.0",
+  "entry": "plugin.js",
+  "capabilities": ["CAP_HTTP_PASSIVE", "CAP_SPIDER", "CAP_EMIT_FINDINGS"],
+  "config": {}
+}

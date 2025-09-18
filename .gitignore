@@ -22,6 +22,7 @@ __pycache__/
 # Dependency directories
 /vendor/
 /node_modules/
+**/node_modules/
 
 # Generated reports
 /out/
