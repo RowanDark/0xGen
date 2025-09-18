@@ -1,0 +1,8 @@
+{
+  "name": "scribe",
+  "version": "0.1.0",
+  "entry": "plugin.js",
+  "artifact": "plugin.js",
+  "capabilities": ["CAP_REPORT"],
+  "config": {}
+}

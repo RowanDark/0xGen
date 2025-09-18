@@ -1,0 +1,7 @@
+{
+  "target": "https://example.com",
+  "links": [
+    "https://www.iana.org/domains/example"
+  ],
+  "scripts": []
+}

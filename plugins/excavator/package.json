@@ -1,0 +1,11 @@
+{
+  "name": "excavator",
+  "version": "0.1.0",
+  "scripts": {
+    "install-playwright-browsers": "npx playwright install --with-deps",
+    "crawl": "node crawl.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}
