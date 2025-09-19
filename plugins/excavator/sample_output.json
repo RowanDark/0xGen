@@ -1,7 +1,30 @@
 {
-  "target": "https://example.com",
-  "links": [
-    "https://www.iana.org/domains/example"
-  ],
-  "scripts": []
+  "seed": "https://example.com/",
+  "started_at": "2024-01-01T00:00:00Z",
+  "finished_at": "2024-01-01T00:00:10Z",
+  "config": {
+    "max_depth": 1,
+    "max_pages": 25,
+    "allowed_hosts": [
+      "example.com"
+    ]
+  },
+  "stats": {
+    "pages_visited": 1,
+    "links_discovered": 1
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "resolved_url": "https://example.com/",
+      "depth": 0,
+      "status": 200,
+      "title": "Example Domain",
+      "error": null,
+      "links": [
+        "https://www.iana.org/domains/example"
+      ],
+      "scripts": []
+    }
+  ]
 }
