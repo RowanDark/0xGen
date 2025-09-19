@@ -32,7 +32,8 @@ type config struct {
 func main() {
 	addr := flag.String("addr", ":50051", "address for the gRPC server to listen on")
 	token := flag.String("token", "", "authentication token required for plugins")
-	proxyPort := flag.String("proxy-port", "8080", "port for the Galdr proxy listener")
+	proxyAddr := flag.String("proxy-addr", "", "address for the Galdr proxy listener (host:port)")
+	proxyPort := flag.String("proxy-port", "8080", "DEPRECATED: preferred flag is --proxy-addr")
 	proxyRules := flag.String("proxy-rules", "", "path to proxy modification rules file")
 	proxyHistory := flag.String("proxy-history", "", "path to proxy history log")
 	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
