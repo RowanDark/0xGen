@@ -12,7 +12,7 @@ Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS
 `glyphd` now embeds the proxy. Launch it with your authentication token and enable the interception layer:
 
 ```bash
-glyphd --token <TOKEN> --enable-proxy --proxy-port 8080 \
+glyphd --token <TOKEN> --enable-proxy --proxy-addr 127.0.0.1:8080 \
   --proxy-rules /out/proxy_rules.json --proxy-history /out/proxy_history.jsonl
 ```
 
@@ -24,7 +24,7 @@ Key files are written beneath `/out` by default:
 | CA private key | `/out/galdr_proxy_ca.key` | Used to mint leaf certificates for intercepted hosts |
 | History log | `/out/proxy_history.jsonl` | JSONL file containing every intercepted request/response |
 
-Use `--proxy-port`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `--proxy-ca-key` to override the defaults. For a quick-start ruleset, copy `plugins/galdr-proxy/examples/rules.example.json` into your output directory and point `--proxy-rules` at the copied file.
+Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `--proxy-ca-key` to override the defaults. For a quick-start ruleset, copy `examples/rules.example.json` into your output directory and point `--proxy-rules` at the copied file.
 
 ### Install the Galdr CA
 
