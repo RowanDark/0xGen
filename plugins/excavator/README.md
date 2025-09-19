@@ -20,4 +20,13 @@ Excavator is the Playwright-powered crawler foundation for Glyph. It provides a 
    npm --prefix plugins/excavator run crawl -- https://example.com
    ```
 
-The crawl prints a JSON payload describing discovered links and scripts. `sample_output.json` captures an illustrative output for local tests, and `tests/sample_fixture.json` can be expanded with additional fixtures.
+### Runtime configuration
+
+Excavator keeps crawls predictable and safe:
+
+- `EXCAVATOR_MAX_DEPTH` (default `1`) — maximum link depth to follow from the seed URL.
+- `EXCAVATOR_MAX_PAGES` (default `25`) — hard cap on visited pages.
+- `EXCAVATOR_ALLOWED_HOSTS` — comma-separated list of additional hostnames permitted during the crawl. The seed host is always included.
+- `EXCAVATOR_TIMEOUT_MS` — optional navigation timeout override (defaults to 45s).
+
+All URLs are normalised, deduplicated, and constrained to the allowed host list. Each run emits a stable JSON object containing metadata, discovered links, and script excerpts (see `sample_output.json`). Golden coverage for the crawler lives in `tests/crawl.test.js`.
