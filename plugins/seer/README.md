@@ -7,4 +7,11 @@ Seer inspects passive telemetry to spot anomalies and suspicious behaviors befor
 - `CAP_EMIT_FINDINGS`
 
 ## Getting started
-Add detection logic to `plugin.js` to evaluate HTTP responses and emit findings when heuristics fire. Document expected detections in `tests/sample_fixture.json` as patterns are formalized.
+Seer's detectors live in `internal/seer`. The initial release focuses on high-signal secrets:
+
+- AWS access keys
+- Slack tokens
+- High-entropy generic API tokens
+- Email addresses for triage
+
+Use the helpers in `internal/seer` to expand coverage and keep evidence redacted. Golden tests exercise the detector library directly.
