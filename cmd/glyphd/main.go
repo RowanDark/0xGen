@@ -53,7 +53,7 @@ func main() {
 		addr:  *addr,
 		token: *token,
 		proxy: proxy.Config{
-			Addr:        *proxyPort,
+			Addr:        selectProxyAddr(*proxyAddr, *proxyPort),
 			RulesPath:   *proxyRules,
 			HistoryPath: *proxyHistory,
 			CACertPath:  *proxyCACert,
@@ -66,6 +66,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func selectProxyAddr(addrFlag, portFlag string) string {
+	addr := strings.TrimSpace(addrFlag)
+	if addr != "" {
+		return addr
+	}
+	return strings.TrimSpace(portFlag)
 }
 
 func run(ctx context.Context, cfg config) error {
