@@ -1,0 +1,17 @@
+[
+  {
+    "name": "demo-hardening",
+    "match": { "url_contains": "/" },
+    "request": {
+      "add_headers": {
+        "X-Galdr-Demo": "true"
+      }
+    },
+    "response": {
+      "remove_headers": ["Server", "X-Powered-By"],
+      "add_headers": {
+        "X-Galdr-Proxy": "active"
+      }
+    }
+  }
+]
