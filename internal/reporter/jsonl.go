@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
 )
@@ -67,16 +68,35 @@ func (r *JSONL) Close() error {
 }
 
 // ReadAll loads every finding stored in the JSONL file.
+const (
+	jsonlReadRetries = 2
+	jsonlRetryDelay  = 25 * time.Millisecond
+)
+
 func (r *JSONL) ReadAll() ([]findings.Finding, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	file, err := os.Open(r.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
+	var (
+		file *os.File
+		err  error
+	)
+	for attempt := 0; attempt < jsonlReadRetries; attempt++ {
+		file, err = os.Open(r.path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if attempt+1 < jsonlReadRetries {
+					time.Sleep(jsonlRetryDelay)
+					continue
+				}
+				return nil, nil
+			}
+			return nil, fmt.Errorf("open findings file: %w", err)
 		}
-		return nil, fmt.Errorf("open findings file: %w", err)
+		break
+	}
+	if file == nil {
+		return nil, nil
 	}
 	defer func() {
 		_ = file.Close()
