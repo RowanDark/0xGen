@@ -23,9 +23,10 @@ import (
 )
 
 type config struct {
-	addr  string
-	token string
-	proxy proxy.Config
+	addr        string
+	token       string
+	proxy       proxy.Config
+	enableProxy bool
 }
 
 func main() {
@@ -36,6 +37,7 @@ func main() {
 	proxyHistory := flag.String("proxy-history", "", "path to proxy history log")
 	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
+	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
 	flag.Parse()
 
 	if *token == "" {
@@ -56,6 +58,7 @@ func main() {
 			CACertPath:  *proxyCACert,
 			CAKeyPath:   *proxyCAKey,
 		},
+		enableProxy: *enableProxy,
 	}
 
 	if err := run(ctx, cfg); err != nil {
@@ -65,37 +68,52 @@ func main() {
 }
 
 func run(ctx context.Context, cfg config) error {
-	proxySrv, err := proxy.New(cfg.proxy)
-	if err != nil {
-		return fmt.Errorf("initialise proxy: %w", err)
-	}
+	proxyEnabled := cfg.enableProxy || os.Getenv("GLYPH_ENABLE_PROXY") == "1"
 
-	proxyCtx, cancelProxy := context.WithCancel(ctx)
-	defer cancelProxy()
+	cancelProxy := func() {}
+	var (
+		proxyErrCh chan error
+		proxySrv   *proxy.Proxy
+	)
 
-	proxyErr := make(chan error, 1)
-	go func() {
-		proxyErr <- proxySrv.Run(proxyCtx)
-	}()
-
-	readyCtx, readyCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer readyCancel()
-	if err := proxySrv.WaitUntilReady(readyCtx); err != nil {
-		cancelProxy()
-		select {
-		case errRun := <-proxyErr:
-			if errRun != nil {
-				log.Printf("proxy startup error: %v", errRun)
-			}
-		default:
+	if proxyEnabled {
+		var err error
+		proxySrv, err = proxy.New(cfg.proxy)
+		if err != nil {
+			return fmt.Errorf("initialise proxy: %w", err)
 		}
-		return fmt.Errorf("start proxy: %w", err)
+
+		proxyCtx, proxyCancel := context.WithCancel(ctx)
+		cancelProxy = proxyCancel
+
+		proxyErrCh = make(chan error, 1)
+		go func() {
+			proxyErrCh <- proxySrv.Run(proxyCtx)
+		}()
+
+		readyCtx, readyCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer readyCancel()
+		if err := proxySrv.WaitUntilReady(readyCtx); err != nil {
+			cancelProxy()
+			select {
+			case errRun := <-proxyErrCh:
+				if errRun != nil {
+					log.Printf("proxy startup error: %v", errRun)
+				}
+			default:
+			}
+			return fmt.Errorf("start proxy: %w", err)
+		}
 	}
 
 	lis, err := net.Listen("tcp", cfg.addr)
 	if err != nil {
 		cancelProxy()
-		<-proxyErr
+		if proxyErrCh != nil {
+			if errRun := <-proxyErrCh; errRun != nil {
+				log.Printf("proxy terminated: %v", errRun)
+			}
+		}
 		return fmt.Errorf("failed to listen on %s: %w", cfg.addr, err)
 	}
 	defer func() {
@@ -104,13 +122,40 @@ func run(ctx context.Context, cfg config) error {
 		}
 	}()
 
-	err = serve(ctx, lis, cfg.token)
-	cancelProxy()
-	proxyRunErr := <-proxyErr
-	if proxyRunErr != nil {
-		log.Printf("proxy terminated: %v", proxyRunErr)
+	serviceCtx, cancelService := context.WithCancel(ctx)
+	defer cancelService()
+
+	grpcErrCh := make(chan error, 1)
+	go func() {
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token)
+	}()
+
+	select {
+	case err := <-grpcErrCh:
+		cancelProxy()
+		if proxyErrCh != nil {
+			if pErr := <-proxyErrCh; pErr != nil {
+				log.Printf("proxy terminated: %v", pErr)
+			}
+		}
+		return err
+	case err := <-proxyErrCh:
+		cancelService()
+		cancelProxy()
+		if err != nil {
+			return fmt.Errorf("proxy failed: %w", err)
+		}
+		return <-grpcErrCh
+	case <-ctx.Done():
+		cancelService()
+		cancelProxy()
+		if proxyErrCh != nil {
+			if pErr := <-proxyErrCh; pErr != nil {
+				log.Printf("proxy terminated: %v", pErr)
+			}
+		}
+		return ctx.Err()
 	}
-	return err
 }
 
 func serve(ctx context.Context, lis net.Listener, token string) error {
