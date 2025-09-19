@@ -1,0 +1,11 @@
+[
+  {
+    "name": "add-glyph-header",
+    "match": {"url_contains": ""},
+    "request": {"add_headers": {"X-Glyph": "on"}},
+    "response": {
+      "add_headers": {"X-Glyph-Proxy": "active"},
+      "remove_headers": ["Server"]
+    }
+  }
+]
