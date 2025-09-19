@@ -1,0 +1,66 @@
+{
+  "seed": "https://example.com/",
+  "started_at": "2024-01-01T00:00:00.000Z",
+  "finished_at": "2024-01-01T00:00:05.000Z",
+  "config": {
+    "max_depth": 1,
+    "max_pages": 5,
+    "allowed_hosts": [
+      "cdn.example.com",
+      "example.com"
+    ]
+  },
+  "stats": {
+    "pages_visited": 3,
+    "links_discovered": 4
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "resolved_url": "https://example.com/",
+      "depth": 0,
+      "status": 200,
+      "title": "Example Home",
+      "error": null,
+      "links": [
+        "https://example.com/",
+        "https://example.com/about",
+        "https://example.com/contact?a=1&b=2"
+      ],
+      "scripts": [
+        {
+          "src": null,
+          "content_excerpt": "console.log(\"hi\");",
+          "size_bytes": 18
+        },
+        {
+          "src": "https://example.com/static/app.js",
+          "content_excerpt": null,
+          "size_bytes": null
+        }
+      ]
+    },
+    {
+      "url": "https://example.com/about",
+      "resolved_url": "https://example.com/about",
+      "depth": 1,
+      "status": 200,
+      "title": "About",
+      "error": null,
+      "links": [
+        "https://example.com/team"
+      ],
+      "scripts": []
+    },
+    {
+      "url": "https://example.com/contact?a=1&b=2",
+      "resolved_url": "https://example.com/contact?a=1&b=2",
+      "depth": 1,
+      "status": 200,
+      "title": "Contact",
+      "error": null,
+      "links": [],
+      "scripts": []
+    }
+  ]
+}
