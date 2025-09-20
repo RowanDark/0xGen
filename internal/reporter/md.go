@@ -17,7 +17,8 @@ const (
 	reportFilename   = "report.md"
 	// DefaultTopTargets controls how many targets appear in summary tables.
 	DefaultTopTargets     = 10
-	defaultRecentFindings = 10
+	defaultRecentFindings = 20
+	evidenceExcerptLimit  = 160
 )
 
 var (
@@ -54,17 +55,13 @@ var severityLabels = func() map[findings.Severity]string {
 }()
 
 // RenderReport loads findings from inputPath and writes a markdown summary to outputPath.
-func RenderReport(inputPath, outputPath string, topN int) error {
+func RenderReport(inputPath, outputPath string) error {
 	findings, err := ReadJSONL(inputPath)
 	if err != nil {
 		return err
 	}
 
-	if topN <= 0 {
-		topN = DefaultTopTargets
-	}
-
-	content := RenderMarkdown(findings, topN)
+	content := RenderMarkdown(findings)
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create report directory: %w", err)
 	}
@@ -75,7 +72,7 @@ func RenderReport(inputPath, outputPath string, topN int) error {
 }
 
 // RenderMarkdown converts a slice of findings into a markdown report.
-func RenderMarkdown(list []findings.Finding, topN int) string {
+func RenderMarkdown(list []findings.Finding) string {
 	counts := map[findings.Severity]int{
 		findings.SeverityCritical: 0,
 		findings.SeverityHigh:     0,
@@ -117,8 +114,8 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 	})
 
 	limit := len(ranked)
-	if topN > 0 && topN < limit {
-		limit = topN
+	if DefaultTopTargets > 0 && DefaultTopTargets < limit {
+		limit = DefaultTopTargets
 	}
 
 	var b strings.Builder
@@ -166,7 +163,7 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 		recent = recent[:recentCap]
 	}
 
-	b.WriteString("| Detected At | Severity | Plugin | Target | Message |\n")
+	b.WriteString("| Detected At | Severity | Plugin | Target | Evidence |\n")
 	b.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, f := range recent {
 		ts := f.DetectedAt.Time().Format(time.RFC3339)
@@ -176,11 +173,8 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 		if target == "" {
 			target = "(not specified)"
 		}
-		message := markdownCell(f.Message)
-		if message == "" {
-			message = "(not specified)"
-		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", ts, sev, plugin, target, message)
+		evidence := evidenceExcerpt(f)
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", ts, sev, plugin, target, evidence)
 	}
 	b.WriteString("\n")
 	return b.String()
@@ -212,4 +206,28 @@ func markdownCell(input string) string {
 	trimmed = strings.ReplaceAll(trimmed, "\r", " ")
 	trimmed = strings.ReplaceAll(trimmed, "|", "\\|")
 	return trimmed
+}
+
+func evidenceExcerpt(f findings.Finding) string {
+	raw := strings.TrimSpace(f.Evidence)
+	if raw == "" {
+		raw = strings.TrimSpace(f.Message)
+	}
+	if raw == "" {
+		return "(not provided)"
+	}
+	raw = strings.ReplaceAll(raw, "\r", " ")
+	raw = strings.ReplaceAll(raw, "\n", " ")
+	raw = strings.Join(strings.Fields(raw), " ")
+	if evidenceExcerptLimit > 0 {
+		runes := []rune(raw)
+		if len(runes) > evidenceExcerptLimit {
+			raw = strings.TrimSpace(string(runes[:evidenceExcerptLimit])) + "…"
+		}
+	}
+	cell := markdownCell(raw)
+	if cell == "" {
+		return "(not provided)"
+	}
+	return cell
 }

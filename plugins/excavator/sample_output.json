@@ -1,19 +1,17 @@
 {
-  "target": "https://example.com/",
+  "target": "https://example.com",
   "links": [
-    "https://example.com/",
+    "https://example.com",
     "https://www.iana.org/domains/example"
   ],
-  "scripts": [],
+  "scripts": [
+    {
+      "src": "https://example.com/script.js",
+      "snippet": "console.log('hello from excavator');"
+    }
+  ],
   "meta": {
     "crawled_at": "2024-01-01T00:00:10Z",
-    "depth": 1,
-    "pages_visited": 1,
-    "host_limit": 1,
-    "allowed_hosts": [
-      "example.com"
-    ],
-    "started_at": "2024-01-01T00:00:00Z",
-    "max_pages": 25
+    "depth": 1
   }
 }

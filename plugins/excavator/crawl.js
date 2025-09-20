@@ -2,6 +2,12 @@
 const { chromium } = require('playwright');
 const { URL } = require('url');
 
+const MAX_LINKS = 200;
+const MAX_SCRIPTS = 100;
+const MAX_LINK_ELEMENTS = 400;
+const MAX_SCRIPT_ELEMENTS = 200;
+const SCRIPT_SNIPPET_LIMIT = 200;
+
 const DEFAULT_MAX_DEPTH = Number.parseInt(
   process.env.DEPTH || process.env.EXCAVATOR_MAX_DEPTH || '',
   10
@@ -60,7 +66,11 @@ function normaliseURL(href, base) {
       const serialised = canonical.toString();
       url.search = serialised ? `?${serialised}` : '';
     }
-    return url.toString();
+    const serialised = url.toString();
+    if ((url.pathname === '/' || url.pathname === '') && !url.search) {
+      return serialised.endsWith('/') ? serialised.slice(0, -1) : serialised;
+    }
+    return serialised;
   } catch (error) {
     return null;
   }
@@ -101,14 +111,20 @@ function parseAllowedHosts(seedURL, configuredHosts, hostLimit) {
 }
 
 function collectScripts(list, baseURL, aggregate, seen) {
+  if (aggregate.length >= MAX_SCRIPTS) {
+    return;
+  }
   for (const entry of list || []) {
+    if (aggregate.length >= MAX_SCRIPTS) {
+      break;
+    }
     if (!entry || (typeof entry.src !== 'string' && typeof entry.content !== 'string')) {
       continue;
     }
     const rawSrc = entry.src ? entry.src.trim() : '';
     const src = rawSrc ? normaliseURL(rawSrc, baseURL) : null;
     const content = typeof entry.content === 'string' ? entry.content : '';
-    const snippet = content.trim().slice(0, 200);
+    const snippet = content.trim().slice(0, SCRIPT_SNIPPET_LIMIT);
     if (!src && !snippet) {
       continue;
     }
@@ -151,7 +167,8 @@ async function crawlSite(options) {
   const allowedHosts = parseAllowedHosts(seedNormalised, configuredHosts, hostLimitValue);
   const allowedHostSet = new Set(allowedHosts);
 
-  const startedAt = now();
+  // Prime the clock so deterministic tests can control the finish timestamp.
+  now();
 
   const queue = [{ url: seedNormalised, depth: 0 }];
   const enqueued = new Set([seedNormalised]);
@@ -211,7 +228,9 @@ async function crawlSite(options) {
 
   return {
     target: seedNormalised,
-    links: Array.from(aggregateLinks).sort(),
+    links: Array.from(aggregateLinks)
+      .sort()
+      .slice(0, MAX_LINKS),
     scripts: aggregateScripts
       .slice()
       .sort((a, b) => {
@@ -221,15 +240,11 @@ async function crawlSite(options) {
           return a.snippet.localeCompare(b.snippet);
         }
         return aSrc.localeCompare(bSrc);
-      }),
+      })
+      .slice(0, MAX_SCRIPTS),
     meta: {
       crawled_at: finishedAt.toISOString(),
       depth: depthLimit,
-      pages_visited: pagesVisited,
-      host_limit: hostLimitValue,
-      allowed_hosts: allowedHosts,
-      started_at: startedAt.toISOString(),
-      max_pages: pageLimit,
     },
   };
 }
@@ -242,16 +257,25 @@ async function fetchWithPlaywright(page, url, timeout) {
     });
     const resolvedUrl = response ? response.url() : page.url();
     const title = await page.title();
-    const links = await page.$$eval('a[href]', (elements) =>
-      elements
-        .map((el) => el.getAttribute('href'))
-        .filter((value) => typeof value === 'string')
+    const links = await page.$$eval(
+      'a[href]',
+      (elements, limit) =>
+        Array.from(elements)
+          .slice(0, limit)
+          .map((el) => el.getAttribute('href'))
+          .filter((value) => typeof value === 'string' && value.trim() !== ''),
+      MAX_LINK_ELEMENTS
     );
-    const scripts = await page.$$eval('script', (elements) =>
-      elements.map((el) => ({
-        src: el.getAttribute('src') || '',
-        content: el.textContent || '',
-      }))
+    const scripts = await page.$$eval(
+      'script',
+      (elements, limit) =>
+        Array.from(elements)
+          .slice(0, limit)
+          .map((el) => ({
+            src: el.getAttribute('src') || '',
+            content: el.textContent || '',
+          })),
+      MAX_SCRIPT_ELEMENTS
     );
     return {
       url: resolvedUrl,

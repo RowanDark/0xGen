@@ -1,0 +1,30 @@
+# Findings Report
+
+Total findings: 3
+
+## Severity Breakdown
+
+| Severity | Count |
+| --- | ---: |
+| Critical | 1 |
+| High | 1 |
+| Medium | 0 |
+| Low | 1 |
+| Informational | 0 |
+
+## Top Targets
+
+Showing top 3 targets by finding volume.
+
+1. **(not specified)** — 1 findings
+2. **https://a.example** — 1 findings
+3. **https://b.example/login** — 1 findings
+
+## Last 20 Findings
+
+| Detected At | Severity | Plugin | Target | Evidence |
+| --- | --- | --- | --- | --- |
+| 2024-02-01T10:00:00Z | High | seer | https://a.example | Access key: AKIA1234567890TEST |
+| 2024-02-01T09:00:00Z | Low | galdr | https://b.example/login | Banner: ExampleCo Service Version 1.2.3 |
+| 2024-02-01T08:30:00Z | Critical | raider | (not specified) | SQL injection |
+
