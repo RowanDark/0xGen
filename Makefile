@@ -34,10 +34,8 @@ build:
 	go build ./...
 
 .PHONY: validate-manifests
-validate-manifests: $(GLYPHCTL)
-	@echo "Validating sample manifests..."
-	@$(GLYPHCTL) --manifest-validate plugins/samples/passive-header-scan/manifest.json
-	@! $(GLYPHCTL) --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
+validate-manifests:
+	@./hack/validate_manifests.sh
 
 .PHONY: plugins-skeleton
 plugins-skeleton: $(GLYPHCTL)
