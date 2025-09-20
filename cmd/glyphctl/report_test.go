@@ -34,7 +34,7 @@ func TestRunReportSuccess(t *testing.T) {
 		t.Fatalf("write finding: %v", err)
 	}
 
-	if code := runReport([]string{"--input", input, "--out", output, "--top", "3"}); code != 0 {
+	if code := runReport([]string{"--input", input, "--out", output}); code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
@@ -42,8 +42,15 @@ func TestRunReportSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read report: %v", err)
 	}
-	if !strings.Contains(string(data), "Findings Report") {
-		t.Fatalf("report missing header: %s", data)
+	content := string(data)
+	if !strings.Contains(content, "## Severity Breakdown") {
+		t.Fatalf("report missing severity section: %s", content)
+	}
+	if !strings.Contains(content, "## Last 20 Findings") {
+		t.Fatalf("report missing recent findings section: %s", content)
+	}
+	if !strings.Contains(content, "issue") {
+		t.Fatalf("report missing evidence excerpt: %s", content)
 	}
 }
 
@@ -53,5 +60,33 @@ func TestRunReportMissingArgs(t *testing.T) {
 
 	if code := runReport([]string{"--input", "", "--out", ""}); code != 2 {
 		t.Fatalf("expected exit code 2, got %d", code)
+	}
+}
+
+func TestRunReportMatchesGolden(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	dir := t.TempDir()
+	output := filepath.Join(dir, "report.md")
+	input := filepath.Join("testdata", "findings.jsonl")
+
+	if code := runReport([]string{"--input", input, "--out", output}); code != 0 {
+		t.Fatalf("runReport exited with %d", code)
+	}
+
+	got, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatalf("read generated report: %v", err)
+	}
+
+	goldenPath := filepath.Join("testdata", "report.golden")
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
+	}
+
+	if string(got) != string(want) {
+		t.Fatalf("report mismatch\nwant:\n%s\n\ngot:\n%s", string(want), string(got))
 	}
 }

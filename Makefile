@@ -34,10 +34,8 @@ build:
 	go build ./...
 
 .PHONY: validate-manifests
-validate-manifests: $(GLYPHCTL)
-	@echo "Validating sample manifests..."
-	@$(GLYPHCTL) --manifest-validate plugins/samples/passive-header-scan/manifest.json
-	@! $(GLYPHCTL) --manifest-validate plugins/samples/invalid/manifest.json >/dev/null 2>&1 || (echo "invalid sample should fail" && exit 1)
+validate-manifests:
+	@./hack/validate_manifests.sh
 
 .PHONY: plugins-skeleton
 plugins-skeleton: $(GLYPHCTL)
@@ -60,10 +58,15 @@ plugins-skeleton: $(GLYPHCTL)
 
 .PHONY: demo-report
 demo-report:
-	@mkdir -p out
-	@cp examples/findings-sample.jsonl out/findings.jsonl
-	@go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
-	@echo "Report written to out/report.md"
+        @mkdir -p out
+        @cp examples/findings-sample.jsonl out/findings.jsonl
+        @go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
+        @echo "Report written to out/report.md"
+
+.PHONY: crawl-demo
+crawl-demo:
+        @npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null
+        @node plugins/excavator/crawl.js --target=https://example.com --depth=1
 
 .PHONY: verify
 verify: build

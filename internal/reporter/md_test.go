@@ -18,7 +18,7 @@ func TestRenderMarkdown(t *testing.T) {
 		{ID: "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C6", Plugin: "p2", Type: "t", Message: "low", Target: "https://b", Severity: findings.SeverityLow, DetectedAt: findings.NewTimestamp(base)},
 	}
 
-	got := RenderMarkdown(findings, 5)
+	got := RenderMarkdown(findings)
 	goldenPath := filepath.Join("testdata", "report.golden")
 	wantBytes, err := os.ReadFile(goldenPath)
 	if err != nil {
@@ -49,7 +49,7 @@ func TestRenderReportWritesFile(t *testing.T) {
 		t.Fatalf("write finding: %v", err)
 	}
 
-	if err := RenderReport(input, output, 3); err != nil {
+	if err := RenderReport(input, output); err != nil {
 		t.Fatalf("render report: %v", err)
 	}
 

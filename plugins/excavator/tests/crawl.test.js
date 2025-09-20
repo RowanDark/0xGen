@@ -1,8 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
 const { crawlSite } = require('../crawl');
 
 function nowStub(sequence) {
@@ -15,7 +12,7 @@ function nowStub(sequence) {
   };
 }
 
-test('crawlSite normalises URLs, respects depth limits, and de-dupes links', async () => {
+test('crawlSite normalises URLs, respects depth limits, and returns canonical schema', async () => {
   const pages = new Map([
     [
       'https://example.com/',
@@ -74,8 +71,25 @@ test('crawlSite normalises URLs, respects depth limits, and de-dupes links', asy
     now: nowStub(['2024-01-01T00:00:00Z', '2024-01-01T00:00:05Z']),
   });
 
-  const goldenPath = path.join(__dirname, 'crawl.golden.json');
-  const expected = JSON.parse(fs.readFileSync(goldenPath, 'utf8'));
+  assert.deepStrictEqual(Object.keys(result).sort(), ['links', 'meta', 'scripts', 'target']);
+  assert.equal(result.target, 'https://example.com');
 
-  assert.deepStrictEqual(result, expected);
+  assert.ok(Array.isArray(result.links));
+  assert.deepStrictEqual(result.links, [
+    'https://example.com',
+    'https://example.com/about',
+    'https://example.com/contact?a=1&b=2',
+    'https://example.com/team',
+  ]);
+
+  assert.ok(Array.isArray(result.scripts));
+  assert.deepStrictEqual(result.scripts, [
+    { src: null, snippet: 'console.log("hi");' },
+    { src: 'https://example.com/static/app.js', snippet: '' },
+  ]);
+
+  assert.ok(result.meta);
+  assert.deepStrictEqual(Object.keys(result.meta).sort(), ['crawled_at', 'depth']);
+  assert.equal(result.meta.depth, 1);
+  assert.equal(result.meta.crawled_at, '2024-01-01T00:00:05.000Z');
 });

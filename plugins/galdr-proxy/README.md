@@ -29,15 +29,13 @@ Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `
 ### Install the Galdr CA
 
 1. Start `glyphd` once so the proxy can generate a root CA and private key.
-2. Export the certificate found at `/out/galdr_proxy_ca.pem` to the system that will run the browser.
-3. Import the PEM into your browser or system trust store. The certificate common name is **Galdr Proxy Root CA**.
-   - **macOS:** Keychain Access → System → Certificates → import the PEM → set to “Always Trust”.
-   - **Firefox:** Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import, then trust for website identification.
-   - **Linux/Windows:** Use the native certificate manager for your distribution.
+2. Copy the certificate at `/out/galdr_proxy_ca.pem` (or your custom `--proxy-ca-cert` location) to the workstation running the browser. Treat the matching `*.key` as a secret.
+3. Import the PEM into your browser or operating-system trust store. The certificate common name is **Galdr Proxy Root CA**.
+   - **macOS Keychain Access:** System → Certificates → File → Import Items… → select the PEM → double-click the imported certificate and set “When using this certificate” to **Always Trust**.
+   - **Firefox:** Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import → select the PEM → tick “Trust this CA to identify websites”.
+   - **Chrome / Chromium:** Settings → Privacy and security → Security → Manage device certificates → Authorities → Import → trust for identifying websites. On macOS Chrome reuses the system keychain, so follow the Keychain Access steps above.
 
-To remove the proxy trust anchor later, delete the **Galdr Proxy Root CA** entry from the same trust store.
-
-Until the CA is trusted, HTTPS interception will surface security warnings.
+Remove the trust anchor by deleting the **Galdr Proxy Root CA** entry from the same store. Until the CA is trusted, HTTPS interception will surface browser security warnings.
 
 ### Configure your browser/system proxy
 
@@ -82,6 +80,12 @@ Every flow is appended to `/out/proxy_history.jsonl` as JSON Lines. Each entry m
 | `matched_rules` | array (optional) | Names of any modification rules applied to the flow. |
 
 The log can be tailed or post-processed by other Glyph plugins for analysis. Override the path with `--proxy-history` if you prefer a custom location.
+
+Example entry:
+
+```json
+{"timestamp":"2024-01-01T12:00:00Z","client_ip":"127.0.0.1","protocol":"http","method":"GET","url":"https://example.com/demo","status_code":200,"latency_ms":42,"request_size_bytes":128,"response_size_bytes":512,"request_headers":{"X-Glyph":["on"]},"response_headers":{"X-Glyph-Proxy":["active"]},"matched_rules":["demo-rule"]}
+```
 
 ### WebSocket traffic
 

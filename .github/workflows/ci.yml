@@ -35,7 +35,35 @@ jobs:
         run: go build ./...
 
       - name: Validate plugin manifests
-        run: make validate-manifests
+        run: |
+          set -euo pipefail
+          npm -s i -g ajv-cli@5.0.0 || true
+          ROOT="$GITHUB_WORKSPACE"
+          SCHEMA="$ROOT/plugins/manifest.schema.json"
+
+          shopt -s nullglob
+          MANIFESTS=("$ROOT"/plugins/*/manifest.json)
+          if (( ${#MANIFESTS[@]} == 0 )); then
+            echo "No plugin manifests found under plugins/*/manifest.json"; exit 2
+          fi
+
+          rc=0
+          for mf in "${MANIFESTS[@]}"; do
+            rel="${mf#$ROOT/}"
+            echo "• validating $rel"
+            # Guard against a BOM / hidden unicode
+            if LC_ALL=C grep -q $'\xEF\xBB\xBF' "$mf"; then
+              echo "  ✗ UTF-8 BOM detected"; rc=2; continue
+            fi
+            if ! jq -e . "$mf" >/dev/null 2>&1; then
+              echo "  ✗ invalid JSON (parse error)"; rc=2; continue
+            fi
+            if ! npx -y ajv-cli@5.0.0 validate -s "$SCHEMA" -d "$mf" --strict=true --errors=lineNumbers; then
+              echo "  ✗ schema validation failed"; rc=2; continue
+            fi
+            echo "  ✓ ok"
+          done
+          exit "$rc"
 
       - name: Test (race)
         run: go test -race ./...
