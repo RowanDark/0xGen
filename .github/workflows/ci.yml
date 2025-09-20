@@ -35,7 +35,9 @@ jobs:
         run: go build ./...
 
       - name: Validate plugin manifests
-        run: make validate-manifests
+        run: |
+          npm -s i -g ajv-cli@5.0.0 || true
+          ./hack/validate_manifests.sh
 
       - name: Test (race)
         run: go test -race ./...
