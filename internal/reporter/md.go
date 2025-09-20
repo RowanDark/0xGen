@@ -16,7 +16,8 @@ const (
 	findingsFilename = "findings.jsonl"
 	reportFilename   = "report.md"
 	// DefaultTopTargets controls how many targets appear in summary tables.
-	DefaultTopTargets = 5
+	DefaultTopTargets     = 10
+	defaultRecentFindings = 10
 )
 
 var (
@@ -144,7 +145,8 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("## Last 10 Findings\n\n")
+	recentCap := defaultRecentFindings
+	fmt.Fprintf(&b, "## Last %d Findings\n\n", recentCap)
 	if len(list) == 0 {
 		b.WriteString("No findings recorded.\n")
 		return b.String()
@@ -160,8 +162,8 @@ func RenderMarkdown(list []findings.Finding, topN int) string {
 		}
 		return ti.After(tj)
 	})
-	if len(recent) > 10 {
-		recent = recent[:10]
+	if len(recent) > recentCap {
+		recent = recent[:recentCap]
 	}
 
 	b.WriteString("| Detected At | Severity | Plugin | Target | Message |\n")

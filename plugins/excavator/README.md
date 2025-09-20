@@ -13,20 +13,24 @@ Excavator is the Playwright-powered crawler foundation for Glyph. It provides a 
    npm --prefix plugins/excavator install
    npm --prefix plugins/excavator run install-playwright-browsers
    ```
-2. Run the sample crawl (TARGET_URL may be an environment variable or CLI argument):
+2. Run the sample crawl (all configuration values may be provided via environment variables or CLI flags):
    ```bash
-   TARGET_URL=https://example.com npm --prefix plugins/excavator run crawl
+   TARGET_URL=https://example.com DEPTH=1 npm --prefix plugins/excavator run crawl
    # or
-   npm --prefix plugins/excavator run crawl -- https://example.com
+   npm --prefix plugins/excavator run crawl -- --target=https://example.com --depth=1
    ```
 
 ### Runtime configuration
 
 Excavator keeps crawls predictable and safe:
 
-- `EXCAVATOR_MAX_DEPTH` (default `1`) — maximum link depth to follow from the seed URL.
-- `EXCAVATOR_MAX_PAGES` (default `25`) — hard cap on visited pages.
-- `EXCAVATOR_ALLOWED_HOSTS` — comma-separated list of additional hostnames permitted during the crawl. The seed host is always included.
-- `EXCAVATOR_TIMEOUT_MS` — optional navigation timeout override (defaults to 45s).
+- `TARGET_URL` / `--target` — seed URL to crawl (defaults to `https://example.com`).
+- `DEPTH` / `--depth` (default `1`) — maximum link depth to follow from the seed URL.
+- `MAX_PAGES` / `--max-pages` (default `25`) — hard cap on visited pages.
+- `HOST_LIMIT` / `--host-limit` — optional maximum number of hostnames (including the seed host) that the crawler may visit.
+- `ALLOWED_HOSTS` / repeated `--allowed-host` / `--allowed-hosts` — additional hostnames permitted during the crawl. The seed host is always included.
+- `TIMEOUT` / `--timeout` (milliseconds, default `45000`) — navigation timeout override.
 
-All URLs are normalised, deduplicated, and constrained to the allowed host list. Each run emits a stable JSON object containing metadata, discovered links, and script excerpts (see `sample_output.json`). Golden coverage for the crawler lives in `tests/crawl.test.js`.
+The previous `EXCAVATOR_*` variables remain supported for backwards compatibility.
+
+All URLs are normalised, deduplicated, and constrained to the allowed host list. Each run emits a stable JSON object containing the seed `target`, unique `links`, discovered `scripts`, and crawl `meta` (see `sample_output.json`). Golden coverage for the crawler lives in `tests/crawl.test.js`.
