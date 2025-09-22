@@ -1,0 +1,42 @@
+# Findings Report
+
+Reporting window: 2024-01-31T12:00:00Z — 2024-02-01T12:00:00Z (UTC)
+
+Total findings: 3
+
+## Totals by Severity
+
+| Severity | Count |
+| --- | ---: |
+| Critical | 1 |
+| High | 1 |
+| Medium | 0 |
+| Low | 1 |
+| Informational | 0 |
+
+## Findings by Plugin (top 5)
+
+Showing top 3 plugins by finding volume.
+
+| Plugin | Findings |
+| --- | ---: |
+| galdr | 1 |
+| raider | 1 |
+| seer | 1 |
+
+## Top 10 Targets
+
+Showing top 3 targets by finding volume.
+
+1. **(not specified)** — 1 findings
+2. **https://a.example** — 1 findings
+3. **https://b.example/login** — 1 findings
+
+## Last 20 Findings
+
+| Plugin | Target | Evidence | Detected At |
+| --- | --- | --- | --- |
+| seer | https://a.example | Access key: AKIA1234567890TEST | 2024-02-01T10:00:00Z |
+| galdr | https://b.example/login | Banner: ExampleCo Service Version 1.2.3 | 2024-02-01T09:00:00Z |
+| raider | (not specified) | SQL injection | 2024-02-01T08:30:00Z |
+

@@ -34,7 +34,8 @@ func TestRunReportSuccess(t *testing.T) {
 		t.Fatalf("write finding: %v", err)
 	}
 
-	if code := runReport([]string{"--input", input, "--out", output}); code != 0 {
+	now := time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC)
+	if code := runReportAt([]string{"--input", input, "--out", output}, now); code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
@@ -71,7 +72,8 @@ func TestRunReportMatchesGolden(t *testing.T) {
 	output := filepath.Join(dir, "report.md")
 	input := filepath.Join("testdata", "findings.jsonl")
 
-	if code := runReport([]string{"--input", input, "--out", output}); code != 0 {
+	now := time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC)
+	if code := runReportAt([]string{"--input", input, "--out", output}, now); code != 0 {
 		t.Fatalf("runReport exited with %d", code)
 	}
 
@@ -80,7 +82,7 @@ func TestRunReportMatchesGolden(t *testing.T) {
 		t.Fatalf("read generated report: %v", err)
 	}
 
-	goldenPath := filepath.Join("testdata", "report.golden")
+	goldenPath := filepath.Join("testdata", "report_no_filter.golden")
 	want, err := os.ReadFile(goldenPath)
 	if err != nil {
 		t.Fatalf("read golden: %v", err)
@@ -88,5 +90,44 @@ func TestRunReportMatchesGolden(t *testing.T) {
 
 	if string(got) != string(want) {
 		t.Fatalf("report mismatch\nwant:\n%s\n\ngot:\n%s", string(want), string(got))
+	}
+}
+
+func TestRunReportSince24hMatchesGolden(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	dir := t.TempDir()
+	output := filepath.Join(dir, "report.md")
+	input := filepath.Join("testdata", "findings.jsonl")
+
+	now := time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC)
+	if code := runReportAt([]string{"--input", input, "--out", output, "--since", "24h"}, now); code != 0 {
+		t.Fatalf("runReport exited with %d", code)
+	}
+
+	got, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatalf("read generated report: %v", err)
+	}
+
+	goldenPath := filepath.Join("testdata", "report_since_24h.golden")
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
+	}
+
+	if string(got) != string(want) {
+		t.Fatalf("report mismatch\nwant:\n%s\n\ngot:\n%s", string(want), string(got))
+	}
+}
+
+func TestRunReportInvalidSince(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	now := time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC)
+	if code := runReportAt([]string{"--input", "in", "--out", "out", "--since", "nonsense"}, now); code != 2 {
+		t.Fatalf("expected exit code 2, got %d", code)
 	}
 }

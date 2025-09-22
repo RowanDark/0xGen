@@ -17,6 +17,7 @@ const (
 	reportFilename   = "report.md"
 	// DefaultTopTargets controls how many targets appear in summary tables.
 	DefaultTopTargets     = 10
+	defaultTopPlugins     = 5
 	defaultRecentFindings = 20
 	evidenceExcerptLimit  = 160
 )
@@ -46,14 +47,37 @@ var severityOrder = []struct {
 	{key: findings.SeverityInfo, label: "Informational"},
 }
 
+// ReportOptions customises the filtering applied when rendering a report.
+type ReportOptions struct {
+	// Since filters findings to those detected on or after the provided timestamp.
+	// A zero value disables the filter.
+	Since *time.Time
+	// Now identifies the end of the reporting window. When unset, time.Now() is used.
+	Now time.Time
+}
+
+func (o ReportOptions) reportingWindow() (time.Time, time.Time, bool) {
+	now := o.Now
+	if now.IsZero() {
+		now = time.Now().UTC()
+	} else {
+		now = now.UTC()
+	}
+	if o.Since == nil {
+		return time.Time{}, now, false
+	}
+	since := o.Since.UTC()
+	return since, now, true
+}
+
 // RenderReport loads findings from inputPath and writes a markdown summary to outputPath.
-func RenderReport(inputPath, outputPath string) error {
+func RenderReport(inputPath, outputPath string, opts ReportOptions) error {
 	findings, err := ReadJSONL(inputPath)
 	if err != nil {
 		return err
 	}
 
-	content := RenderMarkdown(findings)
+	content := RenderMarkdown(findings, opts)
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create report directory: %w", err)
 	}
@@ -64,7 +88,32 @@ func RenderReport(inputPath, outputPath string) error {
 }
 
 // RenderMarkdown converts a slice of findings into a markdown report.
-func RenderMarkdown(list []findings.Finding) string {
+func RenderMarkdown(list []findings.Finding, opts ReportOptions) string {
+	since, now, filtered := opts.reportingWindow()
+	var windowStart *time.Time
+	if filtered {
+		windowStart = &since
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+
+	filteredList := list
+	if windowStart != nil {
+		trimmed := make([]findings.Finding, 0, len(list))
+		for _, f := range list {
+			ts := f.DetectedAt.Time().UTC()
+			if ts.Before(*windowStart) {
+				continue
+			}
+			if ts.After(now) {
+				continue
+			}
+			trimmed = append(trimmed, f)
+		}
+		filteredList = trimmed
+	}
+
 	counts := map[findings.Severity]int{
 		findings.SeverityCritical: 0,
 		findings.SeverityHigh:     0,
@@ -73,8 +122,9 @@ func RenderMarkdown(list []findings.Finding) string {
 		findings.SeverityInfo:     0,
 	}
 	targets := map[string]int{}
+	plugins := map[string]int{}
 
-	for _, f := range list {
+	for _, f := range filteredList {
 		sev := canonicalSeverity(f.Severity)
 		counts[sev]++
 
@@ -83,6 +133,12 @@ func RenderMarkdown(list []findings.Finding) string {
 			target = "(not specified)"
 		}
 		targets[target]++
+
+		plugin := strings.TrimSpace(f.Plugin)
+		if plugin == "" {
+			plugin = "(not specified)"
+		}
+		plugins[plugin]++
 	}
 
 	type targetCount struct {
@@ -110,9 +166,39 @@ func RenderMarkdown(list []findings.Finding) string {
 		limit = DefaultTopTargets
 	}
 
+	type pluginCount struct {
+		Plugin string
+		Count  int
+	}
+
+	pluginRanked := make([]pluginCount, 0, len(plugins))
+	for plugin, count := range plugins {
+		if count == 0 {
+			continue
+		}
+		pluginRanked = append(pluginRanked, pluginCount{Plugin: plugin, Count: count})
+	}
+
+	sort.Slice(pluginRanked, func(i, j int) bool {
+		if pluginRanked[i].Count == pluginRanked[j].Count {
+			return pluginRanked[i].Plugin < pluginRanked[j].Plugin
+		}
+		return pluginRanked[i].Count > pluginRanked[j].Count
+	})
+
+	pluginLimit := len(pluginRanked)
+	if defaultTopPlugins > 0 && pluginLimit > defaultTopPlugins {
+		pluginLimit = defaultTopPlugins
+	}
+
 	var b strings.Builder
 	b.WriteString("# Findings Report\n\n")
-	fmt.Fprintf(&b, "Total findings: %d\n\n", len(list))
+	if windowStart != nil {
+		fmt.Fprintf(&b, "Reporting window: %s — %s (UTC)\n\n", windowStart.Format(time.RFC3339), now.Format(time.RFC3339))
+	} else {
+		fmt.Fprintf(&b, "Reporting window: All findings through %s (UTC)\n\n", now.Format(time.RFC3339))
+	}
+	fmt.Fprintf(&b, "Total findings: %d\n\n", len(filteredList))
 
 	b.WriteString("## Totals by Severity\n\n")
 	b.WriteString("| Severity | Count |\n")
@@ -121,6 +207,20 @@ func RenderMarkdown(list []findings.Finding) string {
 		fmt.Fprintf(&b, "| %s | %d |\n", entry.label, counts[entry.key])
 	}
 	b.WriteString("\n")
+
+	b.WriteString("## Findings by Plugin (top 5)\n\n")
+	if pluginLimit == 0 {
+		b.WriteString("No plugins reported.\n\n")
+	} else {
+		fmt.Fprintf(&b, "Showing top %d plugins by finding volume.\n\n", pluginLimit)
+		b.WriteString("| Plugin | Findings |\n")
+		b.WriteString("| --- | ---: |\n")
+		for i := 0; i < pluginLimit; i++ {
+			entry := pluginRanked[i]
+			fmt.Fprintf(&b, "| %s | %d |\n", markdownCell(entry.Plugin), entry.Count)
+		}
+		b.WriteString("\n")
+	}
 
 	b.WriteString("## Top 10 Targets\n\n")
 	if limit == 0 {
@@ -136,13 +236,13 @@ func RenderMarkdown(list []findings.Finding) string {
 
 	recentCap := defaultRecentFindings
 	fmt.Fprintf(&b, "## Last %d Findings\n\n", recentCap)
-	if len(list) == 0 {
+	if len(filteredList) == 0 {
 		b.WriteString("No findings recorded.\n")
 		return b.String()
 	}
 
-	recent := make([]findings.Finding, len(list))
-	copy(recent, list)
+	recent := make([]findings.Finding, len(filteredList))
+	copy(recent, filteredList)
 	sort.Slice(recent, func(i, j int) bool {
 		ti := recent[i].DetectedAt.Time()
 		tj := recent[j].DetectedAt.Time()
