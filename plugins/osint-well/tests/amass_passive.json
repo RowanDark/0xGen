@@ -1,0 +1,3 @@
+{"timestamp":"2024-05-01T00:00:00Z","name":"www.example.com","domain":"example.com","addresses":[{"ip":"93.184.216.34"}],"sources":["ExampleSource"]}
+{"timestamp":"2024-05-02T10:00:00Z","name":"blog.example.com","domain":"example.com","sources":["ExampleSource","Another"]}
+{"timestamp":"2024-05-03T09:30:00Z","name":"www.example.com","domain":"example.com","sources":["ExampleSource"]}
