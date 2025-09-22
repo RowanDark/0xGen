@@ -25,12 +25,10 @@ Excavator is the Playwright-powered crawler foundation for Glyph. It provides a 
 Excavator keeps crawls predictable and safe:
 
 - `TARGET_URL` / `--target` — seed URL to crawl (defaults to `https://example.com`).
-- `DEPTH` / `--depth` (default `1`) — maximum link depth to follow from the seed URL.
-- `MAX_PAGES` / `--max-pages` (default `25`) — hard cap on visited pages.
-- `HOST_LIMIT` / `--host-limit` — optional maximum number of hostnames (including the seed host) that the crawler may visit.
-- `ALLOWED_HOSTS` / repeated `--allowed-host` / `--allowed-hosts` — additional hostnames permitted during the crawl. The seed host is always included.
-- `TIMEOUT` / `--timeout` (milliseconds, default `45000`) — navigation timeout override.
+- `DEPTH` / `--depth` (default `1`) — maximum same-origin link depth to follow from the seed URL.
+- `HOST_LIMIT` / `--host-limit` (default `1`) — cap on the number of unique hostnames the crawler may visit (including the seed host).
+- `TIMEOUT_MS` / `--timeout-ms` (milliseconds, default `45000`) — navigation timeout override.
 
-The previous `EXCAVATOR_*` variables remain supported for backwards compatibility.
+The previous `EXCAVATOR_*` environment variables remain supported for backwards compatibility.
 
-All URLs are normalised, deduplicated, and constrained to the allowed host list. Each run emits a stable JSON object containing the seed `target`, unique `links`, discovered `scripts`, and crawl `meta` (see `sample_output.json`). Golden coverage for the crawler lives in `tests/crawl.test.js`.
+All URLs are normalised, deduplicated, and constrained to the host limit. Each run emits a stable JSON object containing the seed `target`, unique `links`, discovered `scripts`, and crawl `meta` (see `sample_output.json`). Golden coverage for the crawler lives in `tests/crawl.test.js`. For Playwright usage details see the [Page API documentation](https://playwright.dev/docs/api/class-page).

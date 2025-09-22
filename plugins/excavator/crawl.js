@@ -7,13 +7,10 @@ const MAX_SCRIPTS = 100;
 const MAX_LINK_ELEMENTS = 400;
 const MAX_SCRIPT_ELEMENTS = 200;
 const SCRIPT_SNIPPET_LIMIT = 200;
+const MAX_VISITED_PAGES = 50;
 
-const DEFAULT_MAX_DEPTH = Number.parseInt(
+const DEFAULT_DEPTH = Number.parseInt(
   process.env.DEPTH || process.env.EXCAVATOR_MAX_DEPTH || '',
-  10
-);
-const DEFAULT_MAX_PAGES = Number.parseInt(
-  process.env.MAX_PAGES || process.env.EXCAVATOR_MAX_PAGES || '',
   10
 );
 const DEFAULT_HOST_LIMIT = Number.parseInt(
@@ -21,7 +18,7 @@ const DEFAULT_HOST_LIMIT = Number.parseInt(
   10
 );
 const DEFAULT_TIMEOUT = Number.parseInt(
-  process.env.TIMEOUT || process.env.TIMEOUT_MS || process.env.EXCAVATOR_TIMEOUT_MS || '',
+  process.env.TIMEOUT_MS || process.env.TIMEOUT || process.env.EXCAVATOR_TIMEOUT_MS || '',
   10
 );
 
@@ -76,40 +73,6 @@ function normaliseURL(href, base) {
   }
 }
 
-function parseAllowedHosts(seedURL, configuredHosts, hostLimit) {
-  const seedHost = new URL(seedURL).hostname.toLowerCase();
-  const ordered = [seedHost];
-  const seen = new Set(ordered);
-
-  for (const host of configuredHosts) {
-    const trimmed = String(host || '').trim().toLowerCase();
-    if (trimmed && !seen.has(trimmed)) {
-      ordered.push(trimmed);
-      seen.add(trimmed);
-    }
-  }
-
-  let limit = Number.isFinite(hostLimit) && hostLimit > 0 ? Math.floor(hostLimit) : null;
-  if (limit !== null && limit < 1) {
-    limit = 1;
-  }
-
-  let constrained = ordered;
-  if (limit !== null && ordered.length > limit) {
-    if (!ordered.slice(0, limit).includes(seedHost)) {
-      const withoutSeed = ordered.filter((entry) => entry !== seedHost);
-      constrained = [seedHost, ...withoutSeed];
-    }
-    constrained = constrained.slice(0, limit);
-    if (!constrained.includes(seedHost)) {
-      constrained[constrained.length - 1] = seedHost;
-    }
-  }
-
-  const sorted = Array.from(new Set(constrained)).sort();
-  return sorted;
-}
-
 function collectScripts(list, baseURL, aggregate, seen) {
   if (aggregate.length >= MAX_SCRIPTS) {
     return;
@@ -143,10 +106,8 @@ function collectScripts(list, baseURL, aggregate, seen) {
 async function crawlSite(options) {
   const {
     seed,
-    maxDepth = Number.isFinite(DEFAULT_MAX_DEPTH) && DEFAULT_MAX_DEPTH >= 0 ? DEFAULT_MAX_DEPTH : 1,
-    maxPages = Number.isFinite(DEFAULT_MAX_PAGES) && DEFAULT_MAX_PAGES > 0 ? DEFAULT_MAX_PAGES : 25,
-    allowedHosts: configuredHosts = [],
-    hostLimit = Number.isFinite(DEFAULT_HOST_LIMIT) && DEFAULT_HOST_LIMIT > 0 ? DEFAULT_HOST_LIMIT : null,
+    depth = Number.isFinite(DEFAULT_DEPTH) && DEFAULT_DEPTH >= 0 ? DEFAULT_DEPTH : 1,
+    hostLimit = Number.isFinite(DEFAULT_HOST_LIMIT) && DEFAULT_HOST_LIMIT > 0 ? DEFAULT_HOST_LIMIT : 1,
     fetchPage,
     now = () => new Date(),
   } = options;
@@ -160,12 +121,12 @@ async function crawlSite(options) {
     throw new Error('seed URL must be an absolute HTTP(S) URL');
   }
 
-  const depthLimit = Number.isFinite(maxDepth) && maxDepth >= 0 ? Math.floor(maxDepth) : 1;
-  const pageLimit = Number.isFinite(maxPages) && maxPages > 0 ? Math.floor(maxPages) : 25;
-  const hostLimitValue = Number.isFinite(hostLimit) && hostLimit > 0 ? Math.floor(hostLimit) : null;
+  const depthLimit = Number.isFinite(depth) && depth >= 0 ? Math.floor(depth) : 1;
+  const hostLimitValue = Number.isFinite(hostLimit) && hostLimit > 0 ? Math.floor(hostLimit) : 1;
 
-  const allowedHosts = parseAllowedHosts(seedNormalised, configuredHosts, hostLimitValue);
-  const allowedHostSet = new Set(allowedHosts);
+  const seedUrl = new URL(seedNormalised);
+  const seedOrigin = seedUrl.origin;
+  const seedHost = seedUrl.hostname.toLowerCase();
 
   // Prime the clock so deterministic tests can control the finish timestamp.
   now();
@@ -173,18 +134,18 @@ async function crawlSite(options) {
   const queue = [{ url: seedNormalised, depth: 0 }];
   const enqueued = new Set([seedNormalised]);
   const visited = new Set();
-  const aggregateLinks = new Set();
+  const aggregateLinks = new Set([seedNormalised]);
   const aggregateScripts = [];
   const scriptFingerprints = new Set();
+  const allowedHosts = new Set([seedHost]);
   let pagesVisited = 0;
 
-  while (queue.length > 0 && pagesVisited < pageLimit) {
+  while (queue.length > 0 && pagesVisited < MAX_VISITED_PAGES) {
     const current = queue.shift();
     if (!current) break;
     if (visited.has(current.url)) {
       continue;
     }
-    visited.add(current.url);
 
     let pageData;
     try {
@@ -194,31 +155,70 @@ async function crawlSite(options) {
     }
 
     const resolved = normaliseURL(pageData.url || current.url) || current.url;
-    if (!visited.has(resolved)) {
-      visited.add(resolved);
+    if (visited.has(resolved)) {
+      continue;
     }
 
+    let resolvedHost;
+    try {
+      resolvedHost = new URL(resolved).hostname.toLowerCase();
+    } catch (error) {
+      resolvedHost = seedHost;
+    }
+
+    if (!allowedHosts.has(resolvedHost)) {
+      if (allowedHosts.size >= hostLimitValue) {
+        visited.add(resolved);
+        continue;
+      }
+      allowedHosts.add(resolvedHost);
+    }
+
+    visited.add(resolved);
     pagesVisited += 1;
 
-    const links = [];
-    for (const raw of pageData.links || []) {
+    aggregateLinks.add(resolved);
+
+    const links = Array.isArray(pageData.links) ? pageData.links : [];
+    for (const raw of links) {
       const normalised = normaliseURL(raw, resolved);
       if (!normalised) {
         continue;
       }
-      const host = new URL(normalised).hostname.toLowerCase();
-      if (!allowedHostSet.has(host)) {
+
+      let linkURL;
+      try {
+        linkURL = new URL(normalised);
+      } catch (error) {
         continue;
       }
-      links.push(normalised);
-      if (current.depth < depthLimit && !visited.has(normalised) && !enqueued.has(normalised)) {
+
+      const linkHost = linkURL.hostname.toLowerCase();
+      const linkOrigin = linkURL.origin;
+      const isSameOrigin = linkOrigin === seedOrigin;
+      const canIncludeLink = isSameOrigin || depthLimit === 0;
+      if (!canIncludeLink) {
+        continue;
+      }
+
+      if (!allowedHosts.has(linkHost)) {
+        if (allowedHosts.size >= hostLimitValue) {
+          continue;
+        }
+        allowedHosts.add(linkHost);
+      }
+
+      aggregateLinks.add(normalised);
+
+      if (
+        current.depth < depthLimit &&
+        isSameOrigin &&
+        !visited.has(normalised) &&
+        !enqueued.has(normalised)
+      ) {
         queue.push({ url: normalised, depth: current.depth + 1 });
         enqueued.add(normalised);
       }
-    }
-
-    for (const link of links) {
-      aggregateLinks.add(link);
     }
 
     collectScripts(pageData.scripts || [], resolved, aggregateScripts, scriptFingerprints);
@@ -252,9 +252,10 @@ async function crawlSite(options) {
 async function fetchWithPlaywright(page, url, timeout) {
   try {
     const response = await page.goto(url, {
-      waitUntil: 'networkidle',
+      waitUntil: 'load',
       timeout: timeout && Number.isFinite(timeout) ? timeout : 45000,
     });
+    await page.waitForTimeout(250);
     const resolvedUrl = response ? response.url() : page.url();
     const title = await page.title();
     const links = await page.$$eval(
@@ -298,35 +299,20 @@ async function run() {
     process.env.EXCAVATOR_TARGET ||
     'https://example.com';
 
-  const envHosts = `${process.env.ALLOWED_HOSTS || process.env.EXCAVATOR_ALLOWED_HOSTS || ''}`
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const allowedHostsEnv = [...envHosts, ...(args.allowedHosts || [])];
-
   const timeoutEnv = Number.isFinite(DEFAULT_TIMEOUT) && DEFAULT_TIMEOUT > 0 ? DEFAULT_TIMEOUT : null;
-  const timeoutCli = parseInteger(args.timeout);
-  const timeout =
-    timeoutCli !== null ? timeoutCli : timeoutEnv !== null ? timeoutEnv : undefined;
+  const timeoutCli = parseInteger(args.timeoutMs);
+  const timeout = timeoutCli !== null ? timeoutCli : timeoutEnv !== null ? timeoutEnv : undefined;
 
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
     const depthArg = parseInteger(args.depth);
-    const maxPagesArg = parseInteger(args.maxPages);
     const hostLimitArg = parseInteger(args.hostLimit);
 
     const result = await crawlSite({
       seed,
-      maxDepth:
-        depthArg !== null ? depthArg : Number.isFinite(DEFAULT_MAX_DEPTH) ? DEFAULT_MAX_DEPTH : undefined,
-      maxPages:
-        maxPagesArg !== null
-          ? maxPagesArg
-          : Number.isFinite(DEFAULT_MAX_PAGES)
-          ? DEFAULT_MAX_PAGES
-          : undefined,
-      allowedHosts: allowedHostsEnv,
+      depth:
+        depthArg !== null ? depthArg : Number.isFinite(DEFAULT_DEPTH) ? DEFAULT_DEPTH : undefined,
       hostLimit:
         hostLimitArg !== null
           ? hostLimitArg
@@ -356,9 +342,7 @@ if (require.main === module) {
 }
 
 function parseArgs(argv) {
-  const result = {
-    allowedHosts: [],
-  };
+  const result = {};
   const positional = [];
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -383,36 +367,16 @@ function parseArgs(argv) {
 
     switch (key) {
       case 'target':
-      case 'target-url':
         result.target = value;
         break;
       case 'depth':
         result.depth = value;
         break;
-      case 'max-pages':
-        result.maxPages = value;
-        break;
       case 'host-limit':
         result.hostLimit = value;
         break;
-      case 'timeout':
       case 'timeout-ms':
-        result.timeout = value;
-        break;
-      case 'allowed-host':
-        if (value) {
-          result.allowedHosts.push(value);
-        }
-        break;
-      case 'allowed-hosts':
-        if (value) {
-          result.allowedHosts.push(
-            ...value
-              .split(',')
-              .map((item) => item.trim())
-              .filter(Boolean)
-          );
-        }
+        result.timeoutMs = value;
         break;
       default:
         break;
