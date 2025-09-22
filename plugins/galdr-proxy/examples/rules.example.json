@@ -1,10 +1,12 @@
 [
   {
-    "name": "add-glyph-header",
-    "match": {"url_contains": ""},
-    "request": {"add_headers": {"X-Glyph": "on"}},
+    "name": "glyph-demo-response",
+    "match": {"url_contains": "/"},
     "response": {
-      "add_headers": {"X-Glyph-Proxy": "active"},
+      "add_headers": {
+        "X-Glyph": "on",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://glyph.dev"
+      },
       "remove_headers": ["Server"]
     }
   }

@@ -20,11 +20,11 @@ Key files are written beneath `/out` by default:
 
 | Artifact | Default path | Purpose |
 | -------- | ------------ | ------- |
-| CA certificate | `/out/galdr_proxy_ca.pem` | Install in your browser/OS trust store |
+| CA certificate | `/out/galdr_proxy_ca.pem` | Export and install in your browser/OS trust store |
 | CA private key | `/out/galdr_proxy_ca.key` | Used to mint leaf certificates for intercepted hosts |
 | History log | `/out/proxy_history.jsonl` | JSONL file containing every intercepted request/response |
 
-Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `--proxy-ca-key` to override the defaults. For a quick-start ruleset, copy `examples/rules.example.json` into your output directory and point `--proxy-rules` at the copied file.
+Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `--proxy-ca-key` to override the defaults. For a quick-start ruleset, copy `examples/rules.example.json` into your output directory and point `--proxy-rules` at the copied file. The example injects an `X-Glyph: on` response header, strips the upstream `Server` banner, and rewrites the content-security policy so you can immediately verify changes in a browser.
 
 ### Install the Galdr CA
 
@@ -60,6 +60,9 @@ Rules live in a JSON file (`/out/proxy_rules.json` by default). Each rule can ma
 
 Save changes to the rules file and the proxy will pick them up automatically within a second.
 
+> **Implementation note for maintainers:** Go's [`httputil.ReverseProxy`](https://pkg.go.dev/net/http/httputil#ReverseProxy)
+> exposes `Rewrite` and `ModifyResponse` hooks that can help when implementing more advanced response mutations.
+
 ### History log
 
 Every flow is appended to `/out/proxy_history.jsonl` as JSON Lines. Each entry matches the following schema:
@@ -76,7 +79,7 @@ Every flow is appended to `/out/proxy_history.jsonl` as JSON Lines. Each entry m
 | `request_size_bytes` | integer | Number of bytes received from the client. |
 | `response_size_bytes` | integer | Number of bytes sent back to the client. |
 | `request_headers` | object | Map of header name → array of values sent upstream. |
-| `response_headers` | object | Map of header name → array of values returned downstream. |
+| `response_headers` | object | Map of header name → array of values returned downstream after modifications. |
 | `matched_rules` | array (optional) | Names of any modification rules applied to the flow. |
 
 The log can be tailed or post-processed by other Glyph plugins for analysis. Override the path with `--proxy-history` if you prefer a custom location.
