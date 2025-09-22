@@ -26,7 +26,7 @@ Excavator keeps crawls predictable and safe:
 
 - `TARGET_URL` / `--target` — seed URL to crawl (defaults to `https://example.com`).
 - `DEPTH` / `--depth` (default `1`) — maximum same-origin link depth to follow from the seed URL.
-- `HOST_LIMIT` / `--host-limit` (default `1`) — cap on the number of unique hostnames the crawler may visit (including the seed host).
+- `HOST_LIMIT` / `--host-limit` (default `1`) — cap on the number of unique hostnames the crawler may visit across all depths (including the seed host).
 - `TIMEOUT_MS` / `--timeout-ms` (milliseconds, default `45000`) — navigation timeout override.
 
 The previous `EXCAVATOR_*` environment variables remain supported for backwards compatibility.

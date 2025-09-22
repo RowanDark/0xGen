@@ -6,6 +6,9 @@
   "scripts": [],
   "meta": {
     "crawled_at": "2024-01-01T00:00:10Z",
-    "depth": 1
+    "depth": 1,
+    "allowed_hosts": [
+      "example.com"
+    ]
   }
 }
