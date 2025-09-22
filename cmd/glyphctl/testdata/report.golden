@@ -2,7 +2,7 @@
 
 Total findings: 3
 
-## Severity Breakdown
+## Totals by Severity
 
 | Severity | Count |
 | --- | ---: |
@@ -12,7 +12,7 @@ Total findings: 3
 | Low | 1 |
 | Informational | 0 |
 
-## Top Targets
+## Top 10 Targets
 
 Showing top 3 targets by finding volume.
 
@@ -22,9 +22,9 @@ Showing top 3 targets by finding volume.
 
 ## Last 20 Findings
 
-| Detected At | Severity | Plugin | Target | Evidence |
-| --- | --- | --- | --- | --- |
-| 2024-02-01T10:00:00Z | High | seer | https://a.example | Access key: AKIA1234567890TEST |
-| 2024-02-01T09:00:00Z | Low | galdr | https://b.example/login | Banner: ExampleCo Service Version 1.2.3 |
-| 2024-02-01T08:30:00Z | Critical | raider | (not specified) | SQL injection |
+| Plugin | Target | Evidence | Detected At |
+| --- | --- | --- | --- |
+| seer | https://a.example | Access key: AKIA1234567890TEST | 2024-02-01T10:00:00Z |
+| galdr | https://b.example/login | Banner: ExampleCo Service Version 1.2.3 | 2024-02-01T09:00:00Z |
+| raider | (not specified) | SQL injection | 2024-02-01T08:30:00Z |
 

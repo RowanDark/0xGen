@@ -43,7 +43,7 @@ func TestRunReportSuccess(t *testing.T) {
 		t.Fatalf("read report: %v", err)
 	}
 	content := string(data)
-	if !strings.Contains(content, "## Severity Breakdown") {
+	if !strings.Contains(content, "## Totals by Severity") {
 		t.Fatalf("report missing severity section: %s", content)
 	}
 	if !strings.Contains(content, "## Last 20 Findings") {
