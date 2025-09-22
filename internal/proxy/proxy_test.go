@@ -40,6 +40,105 @@ func waitErr(t *testing.T, ch <-chan error) {
 	}
 }
 
+func TestProxyEndToEndHeaderRewrite(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", "upstream-demo")
+		_, _ = w.Write([]byte("demo"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	rules := `[{"name":"demo-rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-Glyph":"on","Content-Security-Policy":"default-src 'self'"},"remove_headers":["Server"]}}]`
+	rulesPath := filepath.Join(tempDir, "rules.json")
+	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
+		t.Fatalf("write rules: %v", err)
+	}
+
+	historyPath := filepath.Join(tempDir, "history.jsonl")
+	cfg := Config{
+		Addr:        "127.0.0.1:0",
+		RulesPath:   rulesPath,
+		HistoryPath: historyPath,
+		CACertPath:  filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:   filepath.Join(tempDir, "ca.key"),
+		Logger:      newTestLogger(),
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	resp, err := client.Get(upstream.URL)
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	if got := resp.Header.Get("X-Glyph"); got != "on" {
+		t.Fatalf("expected injected header, got %q", got)
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); got != "default-src 'self'" {
+		t.Fatalf("csp header = %q", got)
+	}
+	if got := resp.Header.Get("Server"); got != "" {
+		t.Fatalf("expected server header stripped, got %q", got)
+	}
+
+	cancel()
+	waitErr(t, errCh)
+
+	data, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("read history: %v", err)
+	}
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		t.Fatal("history file empty")
+	}
+	lines := strings.Split(trimmed, "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected single history entry, got %d", len(lines))
+	}
+
+	var entry HistoryEntry
+	if err := json.Unmarshal([]byte(lines[0]), &entry); err != nil {
+		t.Fatalf("decode history: %v", err)
+	}
+	if entry.StatusCode != http.StatusOK {
+		t.Fatalf("history status = %d", entry.StatusCode)
+	}
+	if !contains(entry.MatchedRules, "demo-rewrite") {
+		t.Fatalf("history missing rule reference: %#v", entry.MatchedRules)
+	}
+	if headerValues := entry.ResponseHeaders["X-Glyph"]; len(headerValues) == 0 || headerValues[0] != "on" {
+		t.Fatalf("history missing rewritten header")
+	}
+	if _, exists := entry.ResponseHeaders["Server"]; exists {
+		t.Fatal("history should not include stripped server header")
+	}
+}
+
 func TestProxyHTTPModificationAndHistory(t *testing.T) {
 	t.Parallel()
 
