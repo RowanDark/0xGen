@@ -20,6 +20,10 @@ Excavator is the Playwright-powered crawler foundation for Glyph. It provides a 
    npm --prefix plugins/excavator run crawl -- --target=https://example.com --depth=1
    ```
 
+## Continuous integration
+
+- Manual smoke validation: [Excavator smoke workflow](../../.github/workflows/excavator-smoke.yml)
+
 ### Runtime configuration
 
 Excavator keeps crawls predictable and safe:
