@@ -55,10 +55,12 @@ jobs:
             if LC_ALL=C grep -q $'\xEF\xBB\xBF' "$mf"; then
               echo "  ✗ UTF-8 BOM detected"; rc=2; continue
             fi
+            # JSON well-formed
             if ! jq -e . "$mf" >/dev/null 2>&1; then
               echo "  ✗ invalid JSON (parse error)"; rc=2; continue
             fi
-            if ! npx -y ajv-cli@5.0.0 validate -s "$SCHEMA" -d "$mf" --strict=true --errors=lineNumbers; then
+            # Schema validation (strict)
+            if ! ajv validate -s "$SCHEMA" -d "$mf" --strict=true --errors=lineNumbers; then
               echo "  ✗ schema validation failed"; rc=2; continue
             fi
             echo "  ✓ ok"
