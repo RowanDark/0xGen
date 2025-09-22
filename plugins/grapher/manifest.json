@@ -1,8 +1,8 @@
 {
   "name": "grapher",
   "version": "0.1.0",
-  "entry": "plugin.js",
-  "artifact": "plugin.js",
+  "entry": "grapher",
+  "artifact": "plugins/grapher/main.go",
   "capabilities": ["CAP_STORAGE", "CAP_EMIT_FINDINGS"],
   "config": {}
 }
