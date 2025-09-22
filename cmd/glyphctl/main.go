@@ -26,6 +26,8 @@ func main() {
 		os.Exit(runReport(args[1:]))
 	case "osint-well":
 		os.Exit(runOSINTWell(args[1:]))
+	case "rank":
+		os.Exit(runRank(args[1:]))
 	case "plugin":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "plugin subcommand required")
