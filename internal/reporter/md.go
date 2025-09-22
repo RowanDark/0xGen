@@ -46,14 +46,6 @@ var severityOrder = []struct {
 	{key: findings.SeverityInfo, label: "Informational"},
 }
 
-var severityLabels = func() map[findings.Severity]string {
-	out := make(map[findings.Severity]string, len(severityOrder))
-	for _, entry := range severityOrder {
-		out[entry.key] = entry.label
-	}
-	return out
-}()
-
 // RenderReport loads findings from inputPath and writes a markdown summary to outputPath.
 func RenderReport(inputPath, outputPath string) error {
 	findings, err := ReadJSONL(inputPath)
@@ -122,7 +114,7 @@ func RenderMarkdown(list []findings.Finding) string {
 	b.WriteString("# Findings Report\n\n")
 	fmt.Fprintf(&b, "Total findings: %d\n\n", len(list))
 
-	b.WriteString("## Severity Breakdown\n\n")
+	b.WriteString("## Totals by Severity\n\n")
 	b.WriteString("| Severity | Count |\n")
 	b.WriteString("| --- | ---: |\n")
 	for _, entry := range severityOrder {
@@ -130,7 +122,7 @@ func RenderMarkdown(list []findings.Finding) string {
 	}
 	b.WriteString("\n")
 
-	b.WriteString("## Top Targets\n\n")
+	b.WriteString("## Top 10 Targets\n\n")
 	if limit == 0 {
 		b.WriteString("No targets reported.\n\n")
 	} else {
@@ -163,18 +155,17 @@ func RenderMarkdown(list []findings.Finding) string {
 		recent = recent[:recentCap]
 	}
 
-	b.WriteString("| Detected At | Severity | Plugin | Target | Evidence |\n")
-	b.WriteString("| --- | --- | --- | --- | --- |\n")
+	b.WriteString("| Plugin | Target | Evidence | Detected At |\n")
+	b.WriteString("| --- | --- | --- | --- |\n")
 	for _, f := range recent {
-		ts := f.DetectedAt.Time().Format(time.RFC3339)
-		sev := severityLabels[canonicalSeverity(f.Severity)]
+		ts := f.DetectedAt.Time().UTC().Format(time.RFC3339)
 		plugin := markdownCell(f.Plugin)
 		target := markdownCell(f.Target)
 		if target == "" {
 			target = "(not specified)"
 		}
 		evidence := evidenceExcerpt(f)
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", ts, sev, plugin, target, evidence)
+		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", plugin, target, evidence, ts)
 	}
 	b.WriteString("\n")
 	return b.String()

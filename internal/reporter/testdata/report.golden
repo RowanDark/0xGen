@@ -2,7 +2,7 @@
 
 Total findings: 3
 
-## Severity Breakdown
+## Totals by Severity
 
 | Severity | Count |
 | --- | ---: |
@@ -12,7 +12,7 @@ Total findings: 3
 | Low | 1 |
 | Informational | 0 |
 
-## Top Targets
+## Top 10 Targets
 
 Showing top 2 targets by finding volume.
 
@@ -21,9 +21,9 @@ Showing top 2 targets by finding volume.
 
 ## Last 20 Findings
 
-| Detected At | Severity | Plugin | Target | Evidence |
-| --- | --- | --- | --- | --- |
-| 2024-01-01T02:00:00Z | High | p1 | https://a | high |
-| 2024-01-01T01:00:00Z | Medium | p1 | https://a | medium |
-| 2024-01-01T00:00:00Z | Low | p2 | https://b | low |
+| Plugin | Target | Evidence | Detected At |
+| --- | --- | --- | --- |
+| p1 | https://a | high | 2024-01-01T02:00:00Z |
+| p1 | https://a | medium | 2024-01-01T01:00:00Z |
+| p2 | https://b | low | 2024-01-01T00:00:00Z |
 
