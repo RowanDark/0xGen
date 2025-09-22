@@ -1,8 +1,11 @@
 {
   "name": "seer",
   "version": "0.1.0",
-  "entry": "plugin.js",
-  "artifact": "plugin.js",
+  "entry": "seer",
+  "artifact": "plugins/seer/main.go",
   "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
-  "config": {}
+  "config": {
+    "allowlist_env": "SEER_ALLOWLIST",
+    "allowlist_file_env": "SEER_ALLOWLIST_FILE"
+  }
 }
