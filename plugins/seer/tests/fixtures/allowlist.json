@@ -1,0 +1,11 @@
+{
+  "name": "allowlist-suppresses",
+  "target": "https://example.com/settings",
+  "allowlist": [
+    "AKIAABCDEFGHIJKLMNOP",
+    "xoxb-111111111111-placeholder",
+    "security@example.com"
+  ],
+  "content": "AWS key: AKIAABCDEFGHIJKLMNOP\nSlack token: xoxb-111111111111-placeholder\nEmail: security@example.com\nGeneric key: api_key = test-token-123",
+  "expect": []
+}
