@@ -1,15 +1,9 @@
 {
   "target": "https://example.com",
   "links": [
-    "https://example.com",
-    "https://www.iana.org/domains/example"
+    "https://example.com"
   ],
-  "scripts": [
-    {
-      "src": "https://example.com/script.js",
-      "snippet": "console.log('hello from excavator');"
-    }
-  ],
+  "scripts": [],
   "meta": {
     "crawled_at": "2024-01-01T00:00:10Z",
     "depth": 1

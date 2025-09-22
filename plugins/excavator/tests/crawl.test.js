@@ -64,9 +64,8 @@ test('crawlSite normalises URLs, respects depth limits, and returns canonical sc
 
   const result = await crawlSite({
     seed: 'https://example.com',
-    maxDepth: 1,
-    maxPages: 5,
-    allowedHosts: ['example.com', 'cdn.example.com'],
+    depth: 1,
+    hostLimit: 1,
     fetchPage,
     now: nowStub(['2024-01-01T00:00:00Z', '2024-01-01T00:00:05Z']),
   });
@@ -81,6 +80,7 @@ test('crawlSite normalises URLs, respects depth limits, and returns canonical sc
     'https://example.com/contact?a=1&b=2',
     'https://example.com/team',
   ]);
+  assert.ok(!result.links.includes('https://external.test/path'));
 
   assert.ok(Array.isArray(result.scripts));
   assert.deepStrictEqual(result.scripts, [
