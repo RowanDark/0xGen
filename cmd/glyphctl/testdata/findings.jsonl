@@ -1,3 +1,4 @@
 {"id":"01HV7RCFF0J1AY7P5Z9Q4C1000","plugin":"seer","type":"secret","message":"AWS key exposed","target":"https://a.example","evidence":"Access key: AKIA1234567890TEST","severity":"high","detected_at":"2024-02-01T10:00:00Z"}
 {"id":"01HV7RCFF0J1AY7P5Z9Q4C1100","plugin":"galdr","type":"observation","message":"Response discloses banner","target":"https://b.example/login","evidence":"Banner: ExampleCo Service\nVersion 1.2.3","severity":"low","detected_at":"2024-02-01T09:00:00Z"}
 {"id":"01HV7RCFF0J1AY7P5Z9Q4C1200","plugin":"raider","type":"vuln","message":"SQL injection","target":"","evidence":"","severity":"crit","detected_at":"2024-02-01T08:30:00Z"}
+{"id":"01HV7RCFF0J1AY7P5Z9Q4C1300","plugin":"chronicle","type":"note","message":"Legacy issue","target":"https://c.example","evidence":"","severity":"low","detected_at":"2024-01-29T11:00:00Z"}

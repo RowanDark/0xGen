@@ -1,0 +1,43 @@
+# Findings Report
+
+Reporting window: All findings through 2024-02-10T12:00:00Z (UTC)
+
+Total findings: 4
+
+## Totals by Severity
+
+| Severity | Count |
+| --- | ---: |
+| Critical | 1 |
+| High | 1 |
+| Medium | 1 |
+| Low | 1 |
+| Informational | 0 |
+
+## Findings by Plugin (top 5)
+
+Showing top 3 plugins by finding volume.
+
+| Plugin | Findings |
+| --- | ---: |
+| alpha | 2 |
+| beta | 1 |
+| gamma | 1 |
+
+## Top 10 Targets
+
+Showing top 3 targets by finding volume.
+
+1. **https://a** — 2 findings
+2. **(not specified)** — 1 findings
+3. **https://b** — 1 findings
+
+## Last 20 Findings
+
+| Plugin | Target | Evidence | Detected At |
+| --- | --- | --- | --- |
+| alpha | https://a | alpha high | 2024-02-10T10:00:00Z |
+| beta | https://b | beta medium | 2024-02-10T06:00:00Z |
+| alpha | https://a | alpha critical | 2024-02-09T11:00:00Z |
+| gamma | (not specified) | gamma low | 2024-02-09T10:00:00Z |
+

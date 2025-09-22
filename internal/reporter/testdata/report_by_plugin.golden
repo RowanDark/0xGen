@@ -1,0 +1,54 @@
+# Findings Report
+
+Reporting window: All findings through 2024-03-01T15:00:00Z (UTC)
+
+Total findings: 10
+
+## Totals by Severity
+
+| Severity | Count |
+| --- | ---: |
+| Critical | 0 |
+| High | 2 |
+| Medium | 3 |
+| Low | 4 |
+| Informational | 1 |
+
+## Findings by Plugin (top 5)
+
+Showing top 5 plugins by finding volume.
+
+| Plugin | Findings |
+| --- | ---: |
+| alpha | 3 |
+| beta | 2 |
+| gamma | 2 |
+| delta | 1 |
+| epsilon | 1 |
+
+## Top 10 Targets
+
+Showing top 6 targets by finding volume.
+
+1. **https://one** — 3 findings
+2. **https://three** — 2 findings
+3. **https://two** — 2 findings
+4. **https://five** — 1 findings
+5. **https://four** — 1 findings
+6. **https://six** — 1 findings
+
+## Last 20 Findings
+
+| Plugin | Target | Evidence | Detected At |
+| --- | --- | --- | --- |
+| alpha | https://one | alpha | 2024-03-01T14:00:00Z |
+| beta | https://two | beta | 2024-03-01T13:00:00Z |
+| gamma | https://three | gamma | 2024-03-01T12:00:00Z |
+| delta | https://four | delta | 2024-03-01T11:00:00Z |
+| epsilon | https://five | epsilon | 2024-03-01T10:00:00Z |
+| zeta | https://six | zeta | 2024-03-01T09:00:00Z |
+| alpha | https://one | alpha repeat | 2024-03-01T08:00:00Z |
+| alpha | https://one | alpha another | 2024-03-01T07:00:00Z |
+| beta | https://two | beta repeat | 2024-03-01T06:00:00Z |
+| gamma | https://three | gamma repeat | 2024-03-01T05:00:00Z |
+
