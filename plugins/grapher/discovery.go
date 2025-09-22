@@ -68,7 +68,7 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 			continue
 		}
 		status, ok := fetchEndpoint(ctx, client, target, http.MethodGet)
-		if !ok {
+		if !ok || !shouldRecordStatus(status) {
 			continue
 		}
 		seen[target] = struct{}{}
@@ -147,27 +147,33 @@ func fetchEndpoint(ctx context.Context, client *http.Client, target, method stri
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		return resp.StatusCode, true
-	}
-	return resp.StatusCode, false
+	return resp.StatusCode, true
 }
 
 func probeGraphQLEndpoint(ctx context.Context, client *http.Client, target string) (int, bool) {
-	status, ok := fetchEndpoint(ctx, client, target, http.MethodHead)
-	if ok {
-		return status, true
-	}
-	// Retry with GET for servers that do not implement HEAD.
-	status, ok = fetchEndpoint(ctx, client, target, http.MethodGet)
-	if !ok {
-		// Treat 400 responses as evidence of a GraphQL handler complaining about a missing query.
-		if status == http.StatusBadRequest {
-			return status, true
+	statusHead, okHead := fetchEndpoint(ctx, client, target, http.MethodHead)
+	headRecordable := okHead && shouldRecordStatus(statusHead)
+	needGet := !headRecordable || statusHead == http.StatusMethodNotAllowed || statusHead == http.StatusNotImplemented
+
+	if needGet {
+		statusGet, okGet := fetchEndpoint(ctx, client, target, http.MethodGet)
+		if okGet && shouldRecordStatus(statusGet) {
+			if statusGet == http.StatusBadRequest {
+				return statusGet, true
+			}
+			return statusGet, true
 		}
-		return status, false
+		if headRecordable {
+			return statusHead, true
+		}
+		return 0, false
 	}
-	return status, true
+
+	return statusHead, true
+}
+
+func shouldRecordStatus(status int) bool {
+	return status != 0 && status != http.StatusNotFound
 }
 
 // writeResults persists schema results to JSON Lines.

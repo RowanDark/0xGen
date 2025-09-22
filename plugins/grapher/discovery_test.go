@@ -53,6 +53,33 @@ func TestDiscoverSchemasOpenAPI(t *testing.T) {
 	}
 }
 
+func TestDiscoverSchemasOpenAPIUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	ctx := context.Background()
+	now := func() time.Time { return time.Unix(150, 0).UTC() }
+
+	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	res := results[0]
+	if res.Status != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", res.Status)
+	}
+}
+
 func TestDiscoverSchemasGraphQLHead(t *testing.T) {
 	t.Parallel()
 
@@ -122,6 +149,33 @@ func TestDiscoverSchemasGraphQLBadRequest(t *testing.T) {
 	}
 	if res.Status != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", res.Status)
+	}
+}
+
+func TestDiscoverSchemasGraphQLUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	ctx := context.Background()
+	now := func() time.Time { return time.Unix(400, 0).UTC() }
+
+	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	res := results[0]
+	if res.Status != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", res.Status)
 	}
 }
 
