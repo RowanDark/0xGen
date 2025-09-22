@@ -1,0 +1,42 @@
+name: Excavator smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    name: Run excavator smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: plugins/excavator/package-lock.json
+
+      - name: Install dependencies
+        working-directory: plugins/excavator
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: plugins/excavator
+        run: npx playwright install --with-deps
+
+      - name: Run excavator crawl
+        run: |
+          mkdir -p artifacts
+          DEPTH=1 HOST_LIMIT=1 node plugins/excavator/crawl.js --target=https://example.com --depth=1 > artifacts/excavator-smoke.json
+
+      - name: Upload crawl artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excavator-smoke
+          path: artifacts/excavator-smoke.json
+          if-no-files-found: error
+          retention-days: 7
