@@ -125,7 +125,6 @@ async function crawlSite(options) {
   const hostLimitValue = Number.isFinite(hostLimit) && hostLimit > 0 ? Math.floor(hostLimit) : 1;
 
   const seedUrl = new URL(seedNormalised);
-  const seedOrigin = seedUrl.origin;
   const seedHost = seedUrl.hostname.toLowerCase();
 
   // Prime the clock so deterministic tests can control the finish timestamp.
@@ -194,31 +193,28 @@ async function crawlSite(options) {
       }
 
       const linkHost = linkURL.hostname.toLowerCase();
-      const linkOrigin = linkURL.origin;
-      const isSameOrigin = linkOrigin === seedOrigin;
-      const canIncludeLink = isSameOrigin || depthLimit === 0;
+      const hostAlreadyAllowed = allowedHosts.has(linkHost);
+      const canAdmitHost = hostAlreadyAllowed || allowedHosts.size < hostLimitValue;
+      const canIncludeLink = hostAlreadyAllowed || depthLimit === 0 || canAdmitHost;
+
       if (!canIncludeLink) {
         continue;
       }
 
-      if (!allowedHosts.has(linkHost)) {
-        if (allowedHosts.size >= hostLimitValue) {
-          continue;
-        }
-        allowedHosts.add(linkHost);
-      }
-
-      aggregateLinks.add(normalised);
-
       if (
         current.depth < depthLimit &&
-        isSameOrigin &&
+        canAdmitHost &&
         !visited.has(normalised) &&
         !enqueued.has(normalised)
       ) {
+        if (!hostAlreadyAllowed) {
+          allowedHosts.add(linkHost);
+        }
         queue.push({ url: normalised, depth: current.depth + 1 });
         enqueued.add(normalised);
       }
+
+      aggregateLinks.add(normalised);
     }
 
     collectScripts(pageData.scripts || [], resolved, aggregateScripts, scriptFingerprints);
@@ -245,6 +241,9 @@ async function crawlSite(options) {
     meta: {
       crawled_at: finishedAt.toISOString(),
       depth: depthLimit,
+      allowed_hosts: Array.from(allowedHosts)
+        .map((host) => host.toLowerCase())
+        .sort(),
     },
   };
 }
