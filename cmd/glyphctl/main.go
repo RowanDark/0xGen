@@ -42,6 +42,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
 			os.Exit(2)
 		}
+	case "raider":
+		os.Exit(runRaider(args[1:]))
 	case "version":
 		os.Exit(runVersion(args[1:]))
 	default:
