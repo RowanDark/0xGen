@@ -554,49 +554,113 @@ func (p *Proxy) newReverseProxy(target *url.URL, state *proxyFlowState) *httputi
 
 func (p *Proxy) makeModifyResponse(state *proxyFlowState) func(*http.Response) error {
 	return func(resp *http.Response) error {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		_ = resp.Body.Close()
-
-		headers := cloneHeader(resp.Header)
-		if state.applyRules {
-			for _, rule := range state.matched {
-				applyHeaderAdds(headers, rule.Response.AddHeaders)
-				applyHeaderRemovals(headers, rule.Response.RemoveHeaders)
-				if rule.Response.Body != nil {
-					body = []byte(rule.Response.Body.Set)
-				}
+		if err := proxyResponseModifier(p, resp, state); err != nil {
+			target := ""
+			if resp != nil && resp.Request != nil && resp.Request.URL != nil {
+				target = resp.Request.URL.String()
 			}
-		}
-
-		headers.Del("Content-Length")
-		headers.Del("Transfer-Encoding")
-		if len(body) > 0 {
-			headers.Set("Content-Length", strconv.Itoa(len(body)))
-			resp.Body = io.NopCloser(bytes.NewReader(body))
-		} else {
-			headers.Set("Content-Length", "0")
-			resp.Body = http.NoBody
-		}
-		resp.ContentLength = int64(len(body))
-		copyHeaders(resp.Header, headers)
-
-		state.responseHeaders = cloneHeader(headers)
-		state.responseBody = append([]byte(nil), body...)
-		state.statusCode = resp.StatusCode
-
-		if state.recordHistory {
-			p.recordHistory(state)
+			var ruleErr *RuleError
+			if errors.As(err, &ruleErr) && ruleErr.RuleID != "" {
+				return fmt.Errorf("modifyresponse failed: url=%s rule=%s: %w", target, ruleErr.RuleID, err)
+			}
+			return fmt.Errorf("modifyresponse failed: url=%s: %w", target, err)
 		}
 		return nil
 	}
 }
 
 func (p *Proxy) reverseProxyErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
-	p.logger.Warn("proxy dispatch failed", "error", err)
-	http.Error(w, "proxy error", http.StatusBadGateway)
+	w.WriteHeader(http.StatusBadGateway)
+	_, _ = w.Write([]byte("Bad Gateway"))
+
+	url := ""
+	if r != nil && r.URL != nil {
+		url = r.URL.String()
+	}
+
+	rule := ""
+	var ruleErr *RuleError
+	if errors.As(err, &ruleErr) && ruleErr.RuleID != "" {
+		rule = ruleErr.RuleID
+	}
+
+	p.logger.Error("reverse proxy error",
+		"component", "galdr",
+		"event", "proxy_error",
+		"url", url,
+		"rule", rule,
+		"err", err,
+	)
+}
+
+type responseModifierFunc func(*Proxy, *http.Response, *proxyFlowState) error
+
+var proxyResponseModifier responseModifierFunc = defaultProxyResponseModifier
+
+func defaultProxyResponseModifier(p *Proxy, resp *http.Response, state *proxyFlowState) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		_ = resp.Body.Close()
+		return err
+	}
+	_ = resp.Body.Close()
+
+	headers := cloneHeader(resp.Header)
+	if state.applyRules {
+		for _, rule := range state.matched {
+			applyHeaderAdds(headers, rule.Response.AddHeaders)
+			applyHeaderRemovals(headers, rule.Response.RemoveHeaders)
+			if rule.Response.Body != nil {
+				body = []byte(rule.Response.Body.Set)
+			}
+		}
+	}
+
+	headers.Del("Content-Length")
+	headers.Del("Transfer-Encoding")
+	if len(body) > 0 {
+		headers.Set("Content-Length", strconv.Itoa(len(body)))
+		resp.Body = io.NopCloser(bytes.NewReader(body))
+	} else {
+		headers.Set("Content-Length", "0")
+		resp.Body = http.NoBody
+	}
+	resp.ContentLength = int64(len(body))
+	copyHeaders(resp.Header, headers)
+
+	state.responseHeaders = cloneHeader(headers)
+	state.responseBody = append([]byte(nil), body...)
+	state.statusCode = resp.StatusCode
+
+	if state.recordHistory {
+		p.recordHistory(state)
+	}
+	return nil
+}
+
+// RuleError carries the rule that failed during modification.
+type RuleError struct {
+	RuleID string
+	Err    error
+}
+
+// Error exposes the underlying error message.
+func (e *RuleError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Err == nil {
+		return ""
+	}
+	return e.Err.Error()
+}
+
+// Unwrap returns the wrapped error for errors.Is/As support.
+func (e *RuleError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
 }
 
 func (p *Proxy) recordHistory(state *proxyFlowState) {
