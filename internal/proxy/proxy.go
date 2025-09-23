@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -71,6 +72,9 @@ func New(cfg Config) (*Proxy, error) {
 	if transport == nil {
 		transport = defaultTransport()
 	}
+	if err := configureHTTP2Transport(transport); err != nil {
+		return nil, fmt.Errorf("configure http2 transport: %w", err)
+	}
 
 	p := &Proxy{
 		cfg:       cfg,
@@ -128,7 +132,7 @@ func defaultTransport() http.RoundTripper {
 	}
 	transport.Proxy = nil
 	transport.ProxyConnectHeader = nil
-	transport.ForceAttemptHTTP2 = false
+	transport.ForceAttemptHTTP2 = true
 	return transport
 }
 
@@ -239,44 +243,21 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "failed to read request body", http.StatusBadRequest)
-		return
-	}
-	_ = r.Body.Close()
-
-	targetURL := copyURL(r.URL)
-	if targetURL.Scheme == "" {
-		targetURL.Scheme = "http"
-	}
-	if targetURL.Host == "" {
-		targetURL.Host = r.Host
-	}
-
-	reqHeaders := cloneHeader(r.Header)
-	resp, err := p.dispatchRequest(r.Context(), proxyRequest{
-		Method:     r.Method,
-		URL:        targetURL,
-		Header:     reqHeaders,
-		Body:       body,
-		Protocol:   targetURL.Scheme,
-		ClientAddr: r.RemoteAddr,
-		Host:       targetURL.Host,
-	})
-	if err != nil {
-		p.logger.Warn("proxy dispatch failed", "error", err)
-		http.Error(w, "proxy error", http.StatusBadGateway)
-		return
-	}
-
-	copyHeaders(w.Header(), resp.Header)
-	w.WriteHeader(resp.StatusCode)
-	if len(resp.Body) > 0 {
-		if _, err := w.Write(resp.Body); err != nil {
-			p.logger.Warn("failed to write response to client", "error", err)
+	meta := connectionMetadataFromContext(r.Context())
+	scheme := ""
+	host := ""
+	clientAddr := r.RemoteAddr
+	if meta != nil {
+		scheme = meta.scheme
+		if meta.host != "" {
+			host = meta.host
+		}
+		if meta.clientAddr != "" {
+			clientAddr = meta.clientAddr
 		}
 	}
+
+	p.serveProxyRequest(w, r, scheme, host, clientAddr, true, true)
 }
 
 func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
@@ -293,6 +274,10 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	host := r.Host
+	if strings.TrimSpace(host) == "" {
+		host = r.URL.Host
+	}
+
 	_, _ = rw.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n")
 	if err := rw.Flush(); err != nil {
 		_ = clientConn.Close()
@@ -301,7 +286,7 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
-		NextProtos: []string{"http/1.1"},
+		NextProtos: []string{"h2", "http/1.1"},
 		GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			name := chi.ServerName
 			if name == "" {
@@ -318,11 +303,18 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.serveTLS(tlsConn, host, r.RemoteAddr)
+	metadata := &connMetadata{scheme: "https", host: host, clientAddr: r.RemoteAddr}
+	switch tlsConn.ConnectionState().NegotiatedProtocol {
+	case "h2":
+		p.serveHTTP2(tlsConn, metadata)
+	default:
+		p.serveTLSHTTP1(tlsConn, metadata)
+	}
 }
 
-func (p *Proxy) serveTLS(conn net.Conn, host, clientAddr string) {
+func (p *Proxy) serveTLSHTTP1(conn net.Conn, meta *connMetadata) {
 	defer conn.Close()
+
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
@@ -335,214 +327,334 @@ func (p *Proxy) serveTLS(conn net.Conn, host, clientAddr string) {
 			return
 		}
 
-		body, err := io.ReadAll(req.Body)
-		_ = req.Body.Close()
-		if err != nil {
-			p.logger.Warn("failed to read tls request body", "error", err)
-			return
-		}
+		ctx := context.WithValue(req.Context(), connMetadataContextKey{}, meta)
+		req = req.WithContext(ctx)
+		req.RemoteAddr = meta.clientAddr
 
-		targetURL := copyURL(req.URL)
-		targetURL.Scheme = "https"
-		if targetURL.Host == "" {
-			targetURL.Host = host
-		}
-
-		resp, err := p.dispatchRequest(context.Background(), proxyRequest{
-			Method:     req.Method,
-			URL:        targetURL,
-			Header:     cloneHeader(req.Header),
-			Body:       body,
-			Protocol:   "https",
-			ClientAddr: clientAddr,
-			Host:       targetURL.Host,
-		})
-		if err != nil {
-			p.logger.Warn("proxy dispatch failed", "error", err)
-			return
-		}
-
-		response := &http.Response{
-			StatusCode: resp.StatusCode,
-			Proto:      "HTTP/1.1",
-			ProtoMajor: 1,
-			ProtoMinor: 1,
-			Header:     cloneHeader(resp.Header),
-			Body:       io.NopCloser(bytes.NewReader(resp.Body)),
-		}
-		response.ContentLength = int64(len(resp.Body))
-		if len(resp.Body) == 0 {
-			response.Body = http.NoBody
-		}
-		if err := response.Write(writer); err != nil {
+		respWriter := newTLSResponseWriter(writer)
+		p.handleHTTP(respWriter, req)
+		if err := respWriter.flush(); err != nil {
 			p.logger.Warn("failed to write tls response", "error", err)
 			return
 		}
-		if err := writer.Flush(); err != nil {
-			p.logger.Warn("failed to flush tls response", "error", err)
-			return
-		}
 	}
 }
 
-func (p *Proxy) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	hijacker, ok := w.(http.Hijacker)
-	if !ok {
-		http.Error(w, "websocket not supported", http.StatusInternalServerError)
-		return
-	}
-
-	clientConn, clientBuf, err := hijacker.Hijack()
-	if err != nil {
-		http.Error(w, "failed to hijack websocket", http.StatusInternalServerError)
-		return
-	}
-
-	targetHost := r.Host
-	if !strings.Contains(targetHost, ":") {
-		targetHost = net.JoinHostPort(targetHost, "80")
-	}
-
-	upstream, err := net.Dial("tcp", targetHost)
-	if err != nil {
-		_, _ = clientBuf.WriteString("HTTP/1.1 502 Bad Gateway\r\n\r\n")
-		_ = clientBuf.Flush()
-		_ = clientConn.Close()
-		return
-	}
-
-	if err := r.Write(upstream); err != nil {
-		_ = upstream.Close()
-		_ = clientConn.Close()
-		return
-	}
-
-	upstreamReader := bufio.NewReader(upstream)
-	resp, err := http.ReadResponse(upstreamReader, r)
-	if err != nil {
-		_ = upstream.Close()
-		_ = clientConn.Close()
-		return
-	}
-
-	if err := resp.Write(clientBuf); err != nil {
-		_ = upstream.Close()
-		_ = clientConn.Close()
-		return
-	}
-	if err := clientBuf.Flush(); err != nil {
-		_ = upstream.Close()
-		_ = clientConn.Close()
-		return
-	}
-
-	if resp.StatusCode == http.StatusSwitchingProtocols {
-		go func() {
-			_, _ = io.Copy(upstream, clientConn)
-			_ = upstream.Close()
-		}()
-		_, _ = io.Copy(clientConn, upstream)
-	}
-
-	_ = upstream.Close()
-	_ = clientConn.Close()
+type tlsResponseWriter struct {
+	writer      *bufio.Writer
+	header      http.Header
+	status      int
+	wroteHeader bool
+	headersSent bool
 }
 
-type proxyRequest struct {
-	Method     string
-	URL        *url.URL
-	Header     http.Header
-	Body       []byte
-	Protocol   string
-	ClientAddr string
-	Host       string
+func newTLSResponseWriter(w *bufio.Writer) *tlsResponseWriter {
+	return &tlsResponseWriter{writer: w, header: make(http.Header)}
 }
 
-type proxyResponse struct {
-	StatusCode int
-	Header     http.Header
-	Body       []byte
+func (w *tlsResponseWriter) Header() http.Header {
+	return w.header
 }
 
-func (p *Proxy) dispatchRequest(ctx context.Context, req proxyRequest) (*proxyResponse, error) {
-	matched, names := p.rules.match(req.Method, req.URL.String())
-
-	headers := cloneHeader(req.Header)
-	body := append([]byte(nil), req.Body...)
-
-	for _, rule := range matched {
-		applyHeaderAdds(headers, rule.Request.AddHeaders)
-		applyHeaderRemovals(headers, rule.Request.RemoveHeaders)
-		if rule.Request.Body != nil {
-			body = []byte(rule.Request.Body.Set)
-		}
+func (w *tlsResponseWriter) WriteHeader(status int) {
+	if w.headersSent {
+		return
 	}
+	w.status = status
+	w.wroteHeader = true
+}
 
-	sanitizeProxyHeaders(headers)
+func (w *tlsResponseWriter) Write(b []byte) (int, error) {
+	if err := w.writeHeaders(); err != nil {
+		return 0, err
+	}
+	return w.writer.Write(b)
+}
 
-	outboundReq, err := http.NewRequestWithContext(ctx, req.Method, req.URL.String(), bytes.NewReader(body))
+func (w *tlsResponseWriter) Flush() {
+	_ = w.writeHeaders()
+	_ = w.writer.Flush()
+}
+
+func (w *tlsResponseWriter) flush() error {
+	if err := w.writeHeaders(); err != nil {
+		return err
+	}
+	return w.writer.Flush()
+}
+
+func (w *tlsResponseWriter) writeHeaders() error {
+	if w.headersSent {
+		return nil
+	}
+	if !w.wroteHeader {
+		w.status = http.StatusOK
+	}
+	statusText := http.StatusText(w.status)
+	if statusText == "" {
+		statusText = "Status"
+	}
+	if _, err := fmt.Fprintf(w.writer, "HTTP/1.1 %d %s\r\n", w.status, statusText); err != nil {
+		return err
+	}
+	if err := w.header.Write(w.writer); err != nil {
+		return err
+	}
+	if _, err := w.writer.WriteString("\r\n"); err != nil {
+		return err
+	}
+	w.headersSent = true
+	return nil
+}
+
+func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory bool) {
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return nil, fmt.Errorf("build outbound request: %w", err)
+		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		return
 	}
-	outboundReq.Header = headers
-	outboundReq.Host = req.Host
-	outboundReq.ContentLength = int64(len(body))
+	_ = r.Body.Close()
+
+	if clientAddr == "" {
+		clientAddr = r.RemoteAddr
+	}
+
+	targetURL := copyURL(r.URL)
+	if scheme != "" {
+		targetURL.Scheme = scheme
+	}
+	if targetURL.Scheme == "" {
+		targetURL.Scheme = "http"
+	}
+	if hostOverride != "" {
+		targetURL.Host = hostOverride
+	}
+	if targetURL.Host == "" {
+		targetURL.Host = r.Host
+	}
+	if strings.TrimSpace(targetURL.Host) == "" {
+		http.Error(w, "missing target host", http.StatusBadRequest)
+		return
+	}
+
+	matched, names := p.rules.match(r.Method, targetURL.String())
+
+	headers := cloneHeader(r.Header)
+	r.Header = headers
+
+	state := &proxyFlowState{
+		method:         r.Method,
+		url:            targetURL.String(),
+		protocol:       targetURL.Scheme,
+		host:           targetURL.Host,
+		clientAddr:     clientAddr,
+		matched:        matched,
+		matchedNames:   names,
+		requestHeaders: headers,
+		requestBody:    append([]byte(nil), body...),
+		start:          time.Now(),
+		applyRules:     applyRules,
+		recordHistory:  recordHistory,
+	}
+
 	if len(body) == 0 {
-		outboundReq.Body = http.NoBody
-	}
-
-	start := time.Now()
-	resp, err := p.transport.RoundTrip(outboundReq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read upstream response: %w", err)
-	}
-
-	respHeaders := cloneHeader(resp.Header)
-	for _, rule := range matched {
-		applyHeaderAdds(respHeaders, rule.Response.AddHeaders)
-		applyHeaderRemovals(respHeaders, rule.Response.RemoveHeaders)
-		if rule.Response.Body != nil {
-			respBody = []byte(rule.Response.Body.Set)
-		}
-	}
-
-	respHeaders.Del("Content-Length")
-	respHeaders.Del("Transfer-Encoding")
-	if len(respBody) > 0 {
-		respHeaders.Set("Content-Length", strconv.Itoa(len(respBody)))
+		r.Body = http.NoBody
+		r.ContentLength = 0
 	} else {
-		respHeaders.Set("Content-Length", "0")
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
 	}
 
+	proxy := p.newReverseProxy(targetURL, state)
+	proxy.ServeHTTP(w, r)
+}
+
+func (p *Proxy) newReverseProxy(target *url.URL, state *proxyFlowState) *httputil.ReverseProxy {
+	director := func(outReq *http.Request) {
+		outReq.URL = copyURL(target)
+		outReq.Host = target.Host
+
+		headers := cloneHeader(state.requestHeaders)
+		body := append([]byte(nil), state.requestBody...)
+
+		if state.applyRules {
+			for _, rule := range state.matched {
+				applyHeaderAdds(headers, rule.Request.AddHeaders)
+				applyHeaderRemovals(headers, rule.Request.RemoveHeaders)
+				if rule.Request.Body != nil {
+					body = []byte(rule.Request.Body.Set)
+				}
+			}
+		}
+
+		sanitizeProxyHeaders(headers)
+
+		outReq.Header = headers
+		outReq.ContentLength = int64(len(body))
+		if len(body) == 0 {
+			outReq.Body = http.NoBody
+		} else {
+			outReq.Body = io.NopCloser(bytes.NewReader(body))
+		}
+
+		state.finalRequestHeaders = cloneHeader(headers)
+		state.finalRequestBody = append([]byte(nil), body...)
+	}
+
+	proxy := &httputil.ReverseProxy{
+		Director:     director,
+		Transport:    p.transport,
+		ErrorHandler: p.reverseProxyErrorHandler,
+	}
+	if state.applyRules || state.recordHistory {
+		proxy.ModifyResponse = p.makeModifyResponse(state)
+	}
+	if !state.applyRules && !state.recordHistory {
+		proxy.FlushInterval = -1
+	}
+	return proxy
+}
+
+func (p *Proxy) makeModifyResponse(state *proxyFlowState) func(*http.Response) error {
+	return func(resp *http.Response) error {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		_ = resp.Body.Close()
+
+		headers := cloneHeader(resp.Header)
+		if state.applyRules {
+			for _, rule := range state.matched {
+				applyHeaderAdds(headers, rule.Response.AddHeaders)
+				applyHeaderRemovals(headers, rule.Response.RemoveHeaders)
+				if rule.Response.Body != nil {
+					body = []byte(rule.Response.Body.Set)
+				}
+			}
+		}
+
+		headers.Del("Content-Length")
+		headers.Del("Transfer-Encoding")
+		if len(body) > 0 {
+			headers.Set("Content-Length", strconv.Itoa(len(body)))
+			resp.Body = io.NopCloser(bytes.NewReader(body))
+		} else {
+			headers.Set("Content-Length", "0")
+			resp.Body = http.NoBody
+		}
+		resp.ContentLength = int64(len(body))
+		copyHeaders(resp.Header, headers)
+
+		state.responseHeaders = cloneHeader(headers)
+		state.responseBody = append([]byte(nil), body...)
+		state.statusCode = resp.StatusCode
+
+		if state.recordHistory {
+			p.recordHistory(state)
+		}
+		return nil
+	}
+}
+
+func (p *Proxy) reverseProxyErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+	p.logger.Warn("proxy dispatch failed", "error", err)
+	http.Error(w, "proxy error", http.StatusBadGateway)
+}
+
+func (p *Proxy) recordHistory(state *proxyFlowState) {
 	entry := HistoryEntry{
 		Timestamp:       time.Now().UTC(),
-		ClientIP:        clientIP(req.ClientAddr),
-		Protocol:        strings.ToUpper(req.Protocol),
-		Method:          strings.ToUpper(req.Method),
-		URL:             req.URL.String(),
-		StatusCode:      resp.StatusCode,
-		LatencyMillis:   time.Since(start).Milliseconds(),
-		RequestSize:     len(body),
-		ResponseSize:    len(respBody),
-		RequestHeaders:  headerToMap(headers),
-		ResponseHeaders: headerToMap(respHeaders),
-		MatchedRules:    names,
+		ClientIP:        clientIP(state.clientAddr),
+		Protocol:        strings.ToUpper(state.protocol),
+		Method:          strings.ToUpper(state.method),
+		URL:             state.url,
+		StatusCode:      state.statusCode,
+		LatencyMillis:   time.Since(state.start).Milliseconds(),
+		RequestSize:     len(state.finalRequestBody),
+		ResponseSize:    len(state.responseBody),
+		RequestHeaders:  headerToMap(state.finalRequestHeaders),
+		ResponseHeaders: headerToMap(state.responseHeaders),
+		MatchedRules:    state.matchedNames,
 	}
 	if err := p.history.Write(entry); err != nil {
 		p.logger.Warn("failed to persist history", "error", err)
 	}
+}
 
-	return &proxyResponse{
-		StatusCode: resp.StatusCode,
-		Header:     respHeaders,
-		Body:       respBody,
-	}, nil
+type connMetadata struct {
+	scheme     string
+	host       string
+	clientAddr string
+}
+
+type connMetadataContextKey struct{}
+
+func connectionMetadataFromContext(ctx context.Context) *connMetadata {
+	if ctx == nil {
+		return nil
+	}
+	if v := ctx.Value(connMetadataContextKey{}); v != nil {
+		if meta, ok := v.(*connMetadata); ok {
+			return meta
+		}
+	}
+	return nil
+}
+
+type proxyFlowState struct {
+	method              string
+	url                 string
+	protocol            string
+	host                string
+	clientAddr          string
+	matched             []Rule
+	matchedNames        []string
+	requestHeaders      http.Header
+	requestBody         []byte
+	finalRequestHeaders http.Header
+	finalRequestBody    []byte
+	responseHeaders     http.Header
+	responseBody        []byte
+	statusCode          int
+	start               time.Time
+	applyRules          bool
+	recordHistory       bool
+}
+
+type singleConnListener struct {
+	conn net.Conn
+	addr net.Addr
+	mu   sync.Mutex
+	used bool
+}
+
+func newSingleConnListener(conn net.Conn) *singleConnListener {
+	return &singleConnListener{conn: conn, addr: conn.LocalAddr()}
+}
+
+func (l *singleConnListener) Accept() (net.Conn, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.used {
+		return nil, io.EOF
+	}
+	l.used = true
+	return l.conn, nil
+}
+
+func (l *singleConnListener) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.used {
+		return nil
+	}
+	l.used = true
+	return l.conn.Close()
+}
+
+func (l *singleConnListener) Addr() net.Addr {
+	return l.addr
 }
 
 func sanitizeProxyHeaders(h http.Header) {

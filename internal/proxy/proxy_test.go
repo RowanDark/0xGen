@@ -25,7 +25,7 @@ type recordedRequest struct {
 }
 
 func newTestLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+        return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 func waitErr(t *testing.T, ch <-chan error) {

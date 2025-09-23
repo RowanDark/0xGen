@@ -7,6 +7,9 @@ Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS
 - `CAP_HTTP_PASSIVE`
 - `CAP_WS`
 
+Galdr negotiates HTTP/2 for HTTPS interceptions and transparently forwards WebSocket upgrades so modern browsers can connect wi
+thout downgrades.
+
 ## Running the proxy service
 
 `glyphd` now embeds the proxy. Launch it with your authentication token and enable the interception layer:
