@@ -39,7 +39,19 @@ var graphQLCandidates = []string{
 
 const (
 	maxResponseBytes = 1 << 20 // 1 MiB
+	maxRedirects     = 3
+	maxRetries       = 2
 )
+
+var retryStatuses = map[int]struct{}{
+	http.StatusTooManyRequests:    {},
+	http.StatusServiceUnavailable: {},
+}
+
+var redirectStatuses = map[int]struct{}{
+	http.StatusMovedPermanently: {},
+	http.StatusFound:            {},
+}
 
 // schemaResult captures information about a discovered schema endpoint.
 type schemaResult struct {
@@ -67,14 +79,16 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 		if _, ok := seen[target]; ok {
 			continue
 		}
-		status, ok := fetchEndpoint(ctx, client, target, http.MethodGet)
+		status, finalURL, ok := fetchEndpoint(ctx, client, target, http.MethodGet)
 		if !ok || !shouldRecordStatus(status) {
+			seen[target] = struct{}{}
 			continue
 		}
 		seen[target] = struct{}{}
+		seen[finalURL] = struct{}{}
 		results = append(results, schemaResult{
 			Type:      schemaOpenAPI,
-			URL:       target,
+			URL:       finalURL,
 			Status:    status,
 			Timestamp: now().UTC(),
 		})
@@ -85,14 +99,16 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 		if _, ok := seen[target]; ok {
 			continue
 		}
-		status, ok := probeGraphQLEndpoint(ctx, client, target)
+		status, finalURL, ok := probeGraphQLEndpoint(ctx, client, target)
 		if !ok {
+			seen[target] = struct{}{}
 			continue
 		}
 		seen[target] = struct{}{}
+		seen[finalURL] = struct{}{}
 		results = append(results, schemaResult{
 			Type:      schemaGraphQL,
-			URL:       target,
+			URL:       finalURL,
 			Status:    status,
 			Timestamp: now().UTC(),
 		})
@@ -133,43 +149,129 @@ func resolveURL(base *url.URL, candidate string) string {
 	return base.ResolveReference(ref).String()
 }
 
-func fetchEndpoint(ctx context.Context, client *http.Client, target, method string) (int, bool) {
+func fetchEndpoint(ctx context.Context, client *http.Client, target, method string) (int, string, bool) {
+	current := target
+	redirects := 0
+	attempts := 0
+
+	for {
+		status, next, shouldRedirect, ok := singleRequest(ctx, client, current, method)
+		if !ok {
+			return 0, "", false
+		}
+
+		if shouldRedirect {
+			if redirects >= maxRedirects || next == "" {
+				return status, current, true
+			}
+			redirects++
+			current = next
+			continue
+		}
+
+		if _, retry := retryStatuses[status]; retry {
+			if attempts >= maxRetries {
+				return status, current, true
+			}
+			attempts++
+			backoff := time.Duration(attempts) * 200 * time.Millisecond
+			if !sleepWithContext(ctx, backoff) {
+				return 0, "", false
+			}
+			continue
+		}
+
+		return status, current, true
+	}
+}
+
+func singleRequest(ctx context.Context, client *http.Client, target, method string) (status int, next string, redirect bool, ok bool) {
 	req, err := http.NewRequestWithContext(ctx, method, target, nil)
 	if err != nil {
-		return 0, false
+		return 0, "", false, false
 	}
 	req.Header.Set("Accept", "application/json, application/yaml;q=0.9, */*;q=0.5")
 
-	resp, err := client.Do(req)
+	clientCopy := *client
+	clientCopy.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	resp, err := clientCopy.Do(req)
 	if err != nil {
-		return 0, false
+		if !errors.Is(err, http.ErrUseLastResponse) || resp == nil {
+			return 0, "", false, false
+		}
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
 
-	return resp.StatusCode, true
+	status = resp.StatusCode
+	if _, ok := redirectStatuses[status]; ok {
+		loc := strings.TrimSpace(resp.Header.Get("Location"))
+		if loc == "" {
+			return status, "", true, true
+		}
+		nextURL, err := safeRedirect(target, loc)
+		if err != nil {
+			return status, "", true, true
+		}
+		return status, nextURL, true, true
+	}
+
+	return status, "", false, true
 }
 
-func probeGraphQLEndpoint(ctx context.Context, client *http.Client, target string) (int, bool) {
-	statusHead, okHead := fetchEndpoint(ctx, client, target, http.MethodHead)
+func safeRedirect(current, location string) (string, error) {
+	base, err := url.Parse(current)
+	if err != nil {
+		return "", err
+	}
+	ref, err := url.Parse(location)
+	if err != nil {
+		return "", err
+	}
+	next := base.ResolveReference(ref)
+	if next.Host != base.Host {
+		return "", fmt.Errorf("redirect host mismatch: %s -> %s", base.Host, next.Host)
+	}
+	return next.String(), nil
+}
+
+func sleepWithContext(ctx context.Context, d time.Duration) bool {
+	if d <= 0 {
+		return true
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func probeGraphQLEndpoint(ctx context.Context, client *http.Client, target string) (int, string, bool) {
+	statusHead, urlHead, okHead := fetchEndpoint(ctx, client, target, http.MethodHead)
 	headRecordable := okHead && shouldRecordStatus(statusHead)
 	needGet := !headRecordable || statusHead == http.StatusMethodNotAllowed || statusHead == http.StatusNotImplemented
 
 	if needGet {
-		statusGet, okGet := fetchEndpoint(ctx, client, target, http.MethodGet)
+		statusGet, urlGet, okGet := fetchEndpoint(ctx, client, target, http.MethodGet)
 		if okGet && shouldRecordStatus(statusGet) {
-			if statusGet == http.StatusBadRequest {
-				return statusGet, true
-			}
-			return statusGet, true
+			return statusGet, urlGet, true
 		}
 		if headRecordable {
-			return statusHead, true
+			return statusHead, urlHead, true
 		}
-		return 0, false
+		return 0, "", false
 	}
 
-	return statusHead, true
+	if !okHead {
+		return 0, "", false
+	}
+	return statusHead, urlHead, true
 }
 
 func shouldRecordStatus(status int) bool {
@@ -192,7 +294,13 @@ func writeResults(path string, results []schemaResult) error {
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
+	seen := make(map[string]struct{}, len(results))
 	for _, res := range results {
+		key := string(res.Type) + "|" + res.URL
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
 		payload := map[string]any{
 			"type":   string(res.Type),
 			"url":    res.URL,

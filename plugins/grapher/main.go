@@ -114,10 +114,11 @@ func runDiscovery(ctx context.Context, client *http.Client, targets []string) ([
 			return nil, fmt.Errorf("discover %s: %w", target, err)
 		}
 		for _, res := range results {
-			if _, ok := seen[res.URL]; ok {
+			key := string(res.Type) + "|" + res.URL
+			if _, ok := seen[key]; ok {
 				continue
 			}
-			seen[res.URL] = struct{}{}
+			seen[key] = struct{}{}
 			all = append(all, res)
 		}
 	}
