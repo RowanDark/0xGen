@@ -16,4 +16,10 @@ Scribe renders investigation output into human-friendly reports, summarizing fin
    ```
 3. Compare the output with `plugins/samples/report.golden.md` or wire it into downstream automation.
 
+To export HTML instead of Markdown, supply the format flag:
+
+```bash
+go run ./cmd/glyphctl -- report --input ./plugins/samples/findings.jsonl --format html --out ./out/report.html
+```
+
 The `internal/reporter` package powers the CLI and exposes helpers for other components that need Markdown summaries.

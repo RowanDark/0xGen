@@ -95,7 +95,7 @@ func TestRenderReportWritesFile(t *testing.T) {
 		t.Fatalf("write finding: %v", err)
 	}
 
-	if err := RenderReport(input, output, ReportOptions{}); err != nil {
+	if err := RenderReport(input, output, FormatMarkdown, ReportOptions{}); err != nil {
 		t.Fatalf("render report: %v", err)
 	}
 

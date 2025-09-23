@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Glyph Findings Report</title>
+  <style>body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #1f2933; background-color: #ffffff; }
+h1 { margin-bottom: 0.25rem; }
+.meta { color: #52606d; margin: 0.25rem 0; }
+.section { margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
+th, td { border: 1px solid #d2d6dc; padding: 0.5rem; text-align: left; vertical-align: top; }
+th.numeric, td.numeric { text-align: right; }
+ol { margin-top: 0.75rem; padding-left: 1.5rem; }
+.severity-band { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-weight: 600; }
+.severity-critical { background-color: #b71c1c; color: #ffffff; }
+.severity-high { background-color: #e65100; color: #ffffff; }
+.severity-medium { background-color: #f9a825; color: #1f2933; }
+.severity-low { background-color: #1e88e5; color: #ffffff; }
+.severity-info { background-color: #546e7a; color: #ffffff; }
+</style>
+</head>
+<body>
+  <h1>Findings Report</h1>
+  <p class="meta">Generated at 2024-02-10T12:00:00Z (UTC)</p>
+  <p class="meta">Reporting window: 2024-02-09T12:00:00Z — 2024-02-10T12:00:00Z (UTC)</p>
+  <p class="meta">Total findings: 2</p>
+  <section class="section">
+    <h2>Totals by Severity</h2>
+    <table>
+      <thead>
+        <tr><th scope="col">Severity</th><th scope="col" class="numeric">Count</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="severity-band severity-critical">Critical</span></td><td class="numeric">0</td></tr>
+        <tr><td><span class="severity-band severity-high">High</span></td><td class="numeric">1</td></tr>
+        <tr><td><span class="severity-band severity-medium">Medium</span></td><td class="numeric">1</td></tr>
+        <tr><td><span class="severity-band severity-low">Low</span></td><td class="numeric">0</td></tr>
+        <tr><td><span class="severity-band severity-info">Informational</span></td><td class="numeric">0</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="section">
+    <h2>Findings by Plugin (top 5)</h2>
+    <p>Showing top 2 plugins by finding volume.</p>
+    <table>
+      <thead>
+        <tr><th scope="col">Plugin</th><th scope="col" class="numeric">Findings</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>alpha</td><td class="numeric">1</td></tr>
+        <tr><td>beta</td><td class="numeric">1</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="section">
+    <h2>Top 10 Targets</h2>
+    <p>Showing top 2 targets by finding volume.</p>
+    <ol>
+      <li><strong>https://a</strong> — 1 findings</li>
+      <li><strong>https://b</strong> — 1 findings</li>
+    </ol>
+  </section>
+  <section class="section">
+    <h2>Last 20 Findings</h2>
+    <table>
+      <thead>
+        <tr><th scope="col">Plugin</th><th scope="col">Target</th><th scope="col">Evidence</th><th scope="col">Detected At</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>alpha</td><td>https://a</td><td>alpha high</td><td>2024-02-10T10:00:00Z</td></tr>
+        <tr><td>beta</td><td>https://b</td><td>beta medium</td><td>2024-02-10T06:00:00Z</td></tr>
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>
