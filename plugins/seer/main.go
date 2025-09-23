@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,14 +19,26 @@ import (
 	pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
 )
 
+const (
+	defaultEvidencePrefix = 4
+	defaultEvidenceSuffix = 4
+	defaultMaxScanBytes   = 512 * 1024
+)
+
 func main() {
 	defaultServer := envOrDefault("GLYPH_SERVER", "127.0.0.1:50051")
 	defaultToken := envOrDefault("GLYPH_AUTH_TOKEN", "supersecrettoken")
 	defaultAllowlist := strings.TrimSpace(os.Getenv("SEER_ALLOWLIST_FILE"))
+	configuredEvidencePrefix := envOrDefaultInt("SEER_EVIDENCE_PREFIX", defaultEvidencePrefix)
+	configuredEvidenceSuffix := envOrDefaultInt("SEER_EVIDENCE_SUFFIX", defaultEvidenceSuffix)
+	configuredMaxScanBytes := envOrDefaultInt("SEER_MAX_SCAN_BYTES", defaultMaxScanBytes)
 
 	serverAddr := flag.String("server", defaultServer, "glyphd gRPC address")
 	authToken := flag.String("token", defaultToken, "authentication token")
 	allowlistPath := flag.String("allowlist", defaultAllowlist, "path to newline-separated allowlist entries")
+	evidencePrefix := flag.Int("evidence-prefix", configuredEvidencePrefix, "characters to retain at the start of emitted evidence")
+	evidenceSuffix := flag.Int("evidence-suffix", configuredEvidenceSuffix, "characters to retain at the end of emitted evidence")
+	maxScanBytes := flag.Int("max-scan-bytes", configuredMaxScanBytes, "maximum number of bytes to scan from each artifact")
 	flag.Parse()
 
 	allowlist, err := collectAllowlist(*allowlistPath)
@@ -50,11 +63,28 @@ func main() {
 		Logger: logger,
 	}
 
-	detectorCfg := seer.Config{Allowlist: allowlist}
+	prefix := clampNonNegative(*evidencePrefix)
+	suffix := clampNonNegative(*evidenceSuffix)
+	maxBytes := *maxScanBytes
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxScanBytes
+	}
+
+	detectorCfg := seer.Config{
+		Allowlist:      allowlist,
+		EvidencePrefix: prefix,
+		EvidenceSuffix: suffix,
+		MaxScanBytes:   maxBytes,
+	}
 
 	hooks := pluginsdk.Hooks{
 		OnStart: func(ctx *pluginsdk.Context) error {
-			ctx.Logger().Info("seer plugin initialised", "allowlist_entries", len(allowlist))
+			ctx.Logger().Info("seer plugin initialised",
+				"allowlist_entries", len(allowlist),
+				"evidence_prefix", detectorCfg.EvidencePrefix,
+				"evidence_suffix", detectorCfg.EvidenceSuffix,
+				"max_scan_bytes", detectorCfg.MaxScanBytes,
+			)
 			return nil
 		},
 		OnHTTPPassive: func(ctx *pluginsdk.Context, event pluginsdk.HTTPPassiveEvent) error {
@@ -65,10 +95,30 @@ func main() {
 			if len(body) == 0 {
 				return nil
 			}
+			if isLikelyBinary(body) {
+				ctx.Logger().Debug("skipping binary-like response body")
+				return nil
+			}
 			if !utf8.Valid(body) {
 				ctx.Logger().Debug("skipping non-utf8 response body")
 				return nil
 			}
+
+			maxBytes := detectorCfg.MaxScanBytes
+			if maxBytes <= 0 {
+				maxBytes = defaultMaxScanBytes
+			}
+			if maxBytes > 0 && len(body) > maxBytes {
+				body = clampBody(body, maxBytes)
+				if len(body) == 0 {
+					return nil
+				}
+			}
+			if !utf8.Valid(body) {
+				ctx.Logger().Debug("skipping non-utf8 response body after clamp")
+				return nil
+			}
+
 			content := string(body)
 			if strings.TrimSpace(content) == "" {
 				return nil
@@ -98,6 +148,28 @@ func envOrDefault(key, fallback string) string {
 		return val
 	}
 	return fallback
+}
+
+func envOrDefaultInt(key string, fallback int) int {
+	val := strings.TrimSpace(os.Getenv(key))
+	if val == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(val)
+	if err != nil {
+		return fallback
+	}
+	if parsed < 0 {
+		return fallback
+	}
+	return parsed
+}
+
+func clampNonNegative(val int) int {
+	if val < 0 {
+		return 0
+	}
+	return val
 }
 
 func collectAllowlist(path string) ([]string, error) {
@@ -146,6 +218,47 @@ func readAllowlistFile(path string) ([]string, error) {
 		return nil, fmt.Errorf("read allowlist: %w", err)
 	}
 	return entries, nil
+}
+
+func isLikelyBinary(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	sample := data
+	if len(sample) > 2048 {
+		sample = sample[:2048]
+	}
+	var nonText int
+	for _, b := range sample {
+		if b == 0 {
+			return true
+		}
+		if b < 0x20 {
+			switch b {
+			case '\n', '\r', '\t':
+				continue
+			default:
+				nonText++
+			}
+			continue
+		}
+		if b > 0x7E {
+			nonText++
+		}
+	}
+	ratio := float64(nonText) / float64(len(sample))
+	return ratio > 0.3
+}
+
+func clampBody(data []byte, max int) []byte {
+	if max <= 0 || len(data) <= max {
+		return data
+	}
+	trimmed := data[:max]
+	for len(trimmed) > 0 && !utf8.Valid(trimmed) {
+		trimmed = trimmed[:len(trimmed)-1]
+	}
+	return trimmed
 }
 
 func responseTarget(resp *pluginsdk.HTTPResponse) string {
