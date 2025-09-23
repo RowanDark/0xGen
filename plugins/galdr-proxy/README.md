@@ -87,6 +87,23 @@ Every flow is appended to `/out/proxy_history.jsonl` as JSON Lines. Each entry m
 
 The log can be tailed or post-processed by other Glyph plugins for analysis. Override the path with `--proxy-history` if you prefer a custom location.
 
+#### Searching and replaying flows
+
+Pair the recorded history with `glyphctl` to quickly rediscover and replay interesting requests:
+
+```bash
+glyphctl history search --history /out/proxy_history.jsonl --q 'host:example.com method:POST'
+
+# Replay the captured request with an updated token and body payload.
+glyphctl repeater send \
+  --history /out/proxy_history.jsonl \
+  --id 42 \
+  --set 'Header:X-Token=override' \
+  --set-body @payload.json
+```
+
+`glyphctl repeater` will print a replay summary and append the upstream response to the same history log for follow-up analysis.
+
 Example entry:
 
 ```json
