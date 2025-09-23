@@ -313,7 +313,12 @@ func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) serveTLSHTTP1(conn net.Conn, meta *connMetadata) {
-	defer conn.Close()
+	hijacked := false
+	defer func() {
+		if !hijacked {
+			_ = conn.Close()
+		}
+	}()
 
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
@@ -331,8 +336,20 @@ func (p *Proxy) serveTLSHTTP1(conn net.Conn, meta *connMetadata) {
 		req = req.WithContext(ctx)
 		req.RemoteAddr = meta.clientAddr
 
-		respWriter := newTLSResponseWriter(writer)
-		p.handleHTTP(respWriter, req)
+		respWriter := newTLSResponseWriter(conn, reader, writer)
+
+		switch {
+		case isWebSocketRequest(req):
+			p.handleWebSocket(respWriter, req)
+		default:
+			p.handleHTTP(respWriter, req)
+		}
+
+		if respWriter.hijacked {
+			hijacked = true
+			return
+		}
+
 		if err := respWriter.flush(); err != nil {
 			p.logger.Warn("failed to write tls response", "error", err)
 			return
@@ -341,15 +358,23 @@ func (p *Proxy) serveTLSHTTP1(conn net.Conn, meta *connMetadata) {
 }
 
 type tlsResponseWriter struct {
+	conn        net.Conn
+	reader      *bufio.Reader
 	writer      *bufio.Writer
 	header      http.Header
 	status      int
 	wroteHeader bool
 	headersSent bool
+	hijacked    bool
 }
 
-func newTLSResponseWriter(w *bufio.Writer) *tlsResponseWriter {
-	return &tlsResponseWriter{writer: w, header: make(http.Header)}
+func newTLSResponseWriter(conn net.Conn, reader *bufio.Reader, writer *bufio.Writer) *tlsResponseWriter {
+	return &tlsResponseWriter{
+		conn:   conn,
+		reader: reader,
+		writer: writer,
+		header: make(http.Header),
+	}
 }
 
 func (w *tlsResponseWriter) Header() http.Header {
@@ -405,6 +430,18 @@ func (w *tlsResponseWriter) writeHeaders() error {
 	}
 	w.headersSent = true
 	return nil
+}
+
+func (w *tlsResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if w.hijacked {
+		return nil, nil, fmt.Errorf("connection already hijacked")
+	}
+	if err := w.writer.Flush(); err != nil {
+		return nil, nil, err
+	}
+	w.headersSent = true
+	w.hijacked = true
+	return w.conn, bufio.NewReadWriter(w.reader, w.writer), nil
 }
 
 func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory bool) {
