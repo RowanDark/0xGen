@@ -44,6 +44,30 @@ func main() {
 		}
 	case "raider":
 		os.Exit(runRaider(args[1:]))
+	case "history":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "history subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "search":
+			os.Exit(runHistorySearch(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown history subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	case "repeater":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "repeater subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "send":
+			os.Exit(runRepeaterSend(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown repeater subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
 	case "version":
 		os.Exit(runVersion(args[1:]))
 	default:
