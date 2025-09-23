@@ -3,27 +3,38 @@ package seer
 import (
 	"fmt"
 	"math"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/RowanDark/Glyph/internal/findings"
 )
 
+const (
+	defaultEvidencePrefix = 4
+	defaultEvidenceSuffix = 4
+	defaultMaxScanBytes   = 512 * 1024
+)
+
 var (
 	awsAccessKeyRe = regexp.MustCompile(`\b(?:AKIA|ASIA|AGPA|AIDA)[0-9A-Z]{16}\b`)
 	slackTokenRe   = regexp.MustCompile(`\bxox(?:b|p|a|r|s)-[0-9A-Za-z-]{10,}\b`)
-	genericKeyRe   = regexp.MustCompile(`(?i)(?:api|token|secret|key)[-_ ]*(?:id|key)?\s*[:=]\s*['\"]?([A-Za-z0-9-_]{16,})['\"]?`)
-	emailRe        = regexp.MustCompile(`\b[\w.+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b`)
+	genericKeyRe   = regexp.MustCompile(`(?i)(?:api|token|secret|key)[-_ ]*(?:id|key)?\s*[:=]\s*['\"]?([A-Za-z0-9-_]{16,128})['\"]?`)
+	emailRe        = regexp.MustCompile(`\b([A-Za-z0-9](?:[A-Za-z0-9.!#$%&'*+/=?^_\x60{|}~-]{0,63}))@((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:[A-Za-z]{2,24}))\b`)
 )
 
 // Config controls how the detector scans text for potential secrets.
 type Config struct {
-	Allowlist []string
-	Now       func() time.Time
+	Allowlist      []string
+	Now            func() time.Time
+	EvidencePrefix int
+	EvidenceSuffix int
+	MaxScanBytes   int
 }
 
 // Scan analyses the provided content and returns structured findings.
@@ -32,6 +43,28 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 	nowFn := cfg.Now
 	if nowFn == nil {
 		nowFn = time.Now
+	}
+
+	maxBytes := cfg.MaxScanBytes
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxScanBytes
+	}
+	content = clampToValidUTF8(content, maxBytes)
+	if looksBinary(content) {
+		return nil
+	}
+
+	prefix := cfg.EvidencePrefix
+	if prefix < 0 {
+		prefix = 0
+	}
+	suffix := cfg.EvidenceSuffix
+	if suffix < 0 {
+		suffix = 0
+	}
+	if prefix == 0 && suffix == 0 {
+		prefix = defaultEvidencePrefix
+		suffix = defaultEvidenceSuffix
 	}
 
 	type detection struct {
@@ -50,7 +83,7 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 		if match == "" {
 			return
 		}
-		if shouldAllow(match, allow) {
+		if shouldAllow(match, kind, target, metadata, allow) {
 			return
 		}
 		key := kind + "|" + strings.ToLower(match)
@@ -62,7 +95,7 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 		for k, v := range metadata {
 			meta[k] = v
 		}
-		redacted := redact(match)
+		redacted := redact(match, prefix, suffix)
 		meta["redacted_match"] = redacted
 		detections = append(detections, detection{
 			match:    match,
@@ -86,9 +119,6 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 			continue
 		}
 		candidate := groups[1]
-		if len(candidate) > 128 {
-			continue
-		}
 		if awsAccessKeyRe.MatchString(candidate) || slackTokenRe.MatchString(candidate) {
 			continue
 		}
@@ -101,8 +131,21 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 		})
 	}
 
-	for _, match := range emailRe.FindAllString(content, -1) {
-		add(match, "seer.email_address", "Email address discovered", findings.SeverityLow, nil)
+	for _, groups := range emailRe.FindAllStringSubmatch(content, -1) {
+		if len(groups) < 3 {
+			continue
+		}
+		full := groups[0]
+		local := groups[1]
+		domain := strings.ToLower(groups[2])
+		if utf8.RuneCountInString(local) > 64 {
+			continue
+		}
+		if len(domain) < 4 || len(domain) > 255 {
+			continue
+		}
+		metadata := map[string]string{"domain": domain}
+		add(full, "seer.email_address", "Email address discovered", findings.SeverityLow, metadata)
 	}
 
 	sort.SliceStable(detections, func(i, j int) bool {
@@ -130,76 +173,332 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 	return findingsList
 }
 
-func buildAllowlist(entries []string) map[string]struct{} {
+type allowlist struct {
+	exact         map[string]struct{}
+	exactLower    map[string]struct{}
+	patterns      map[string]struct{}
+	patternsLower map[string]struct{}
+	domains       map[string]struct{}
+	urls          map[string]struct{}
+	urlsLower     map[string]struct{}
+	paths         map[string]struct{}
+}
+
+func buildAllowlist(entries []string) *allowlist {
 	if len(entries) == 0 {
 		return nil
 	}
-	allow := make(map[string]struct{}, len(entries)*2)
+
+	al := &allowlist{
+		exact:         make(map[string]struct{}),
+		exactLower:    make(map[string]struct{}),
+		patterns:      make(map[string]struct{}),
+		patternsLower: make(map[string]struct{}),
+		domains:       make(map[string]struct{}),
+		urls:          make(map[string]struct{}),
+		urlsLower:     make(map[string]struct{}),
+		paths:         make(map[string]struct{}),
+	}
+
 	for _, entry := range entries {
 		trimmed := strings.TrimSpace(entry)
 		if trimmed == "" {
 			continue
 		}
-		allow[trimmed] = struct{}{}
-		allow[strings.ToLower(trimmed)] = struct{}{}
+
+		lower := strings.ToLower(trimmed)
+		switch {
+		case strings.HasPrefix(lower, "pattern:"):
+			pattern := strings.TrimSpace(trimmed[len("pattern:"):])
+			if pattern == "" {
+				continue
+			}
+			al.patterns[pattern] = struct{}{}
+			al.patternsLower[strings.ToLower(pattern)] = struct{}{}
+		case strings.HasPrefix(lower, "domain:"):
+			domain := normalizeDomain(trimmed[len("domain:"):])
+			if domain == "" {
+				continue
+			}
+			al.domains[domain] = struct{}{}
+		case strings.HasPrefix(lower, "url:"):
+			urlVal := strings.TrimSpace(trimmed[len("url:"):])
+			if urlVal == "" {
+				continue
+			}
+			al.urls[urlVal] = struct{}{}
+			al.urlsLower[strings.ToLower(urlVal)] = struct{}{}
+		case strings.HasPrefix(trimmed, "@"):
+			domain := normalizeDomain(trimmed[1:])
+			if domain == "" {
+				continue
+			}
+			al.domains[domain] = struct{}{}
+		case strings.HasPrefix(lower, "path:"):
+			rawPath := strings.TrimSpace(trimmed[len("path:"):])
+			if rawPath == "" {
+				continue
+			}
+			path := normalizePath(rawPath)
+			if path == "" {
+				continue
+			}
+			al.paths[path] = struct{}{}
+		case strings.HasPrefix(trimmed, "/"):
+			path := normalizePath(trimmed)
+			if path == "" {
+				continue
+			}
+			al.paths[path] = struct{}{}
+		case strings.Contains(trimmed, "://"):
+			al.urls[trimmed] = struct{}{}
+			al.urlsLower[strings.ToLower(trimmed)] = struct{}{}
+		default:
+			al.exact[trimmed] = struct{}{}
+			al.exactLower[lower] = struct{}{}
+		}
 	}
-	return allow
+
+	if len(al.exact) == 0 {
+		al.exact = nil
+	}
+	if len(al.exactLower) == 0 {
+		al.exactLower = nil
+	}
+	if len(al.patterns) == 0 {
+		al.patterns = nil
+		al.patternsLower = nil
+	}
+	if len(al.domains) == 0 {
+		al.domains = nil
+	}
+	if len(al.urls) == 0 {
+		al.urls = nil
+		al.urlsLower = nil
+	}
+	if len(al.paths) == 0 {
+		al.paths = nil
+	}
+
+	if al.exact == nil && al.patterns == nil && al.domains == nil && al.urls == nil && al.paths == nil {
+		return nil
+	}
+
+	return al
 }
 
-func shouldAllow(match string, allow map[string]struct{}) bool {
-	if len(allow) == 0 {
+func shouldAllow(match, kind, target string, metadata map[string]string, allow *allowlist) bool {
+	if allow == nil {
 		return false
 	}
-	if _, ok := allow[match]; ok {
-		return true
+
+	if allow.patterns != nil {
+		if _, ok := allow.patterns[kind]; ok {
+			return true
+		}
 	}
-	if _, ok := allow[strings.ToLower(match)]; ok {
-		return true
+	if allow.patternsLower != nil {
+		if _, ok := allow.patternsLower[strings.ToLower(kind)]; ok {
+			return true
+		}
 	}
+
+	if allow.exact != nil {
+		if _, ok := allow.exact[match]; ok {
+			return true
+		}
+	}
+	if allow.exactLower != nil {
+		if _, ok := allow.exactLower[strings.ToLower(match)]; ok {
+			return true
+		}
+	}
+
+	if target != "" {
+		if allow.urls != nil {
+			if _, ok := allow.urls[target]; ok {
+				return true
+			}
+		}
+		if allow.urlsLower != nil {
+			if _, ok := allow.urlsLower[strings.ToLower(target)]; ok {
+				return true
+			}
+		}
+		if allow.paths != nil {
+			if parsed, err := url.Parse(target); err == nil {
+				path := normalizePath(parsed.Path)
+				if _, ok := allow.paths[path]; ok {
+					return true
+				}
+			}
+		}
+	}
+
+	if allow.domains != nil {
+		domain := strings.ToLower(metadataValue(metadata, "domain"))
+		if domain == "" {
+			if idx := strings.LastIndex(match, "@"); idx != -1 && idx < len(match)-1 {
+				domain = strings.ToLower(match[idx+1:])
+			}
+		}
+		if domain != "" {
+			for allowed := range allow.domains {
+				if domain == allowed || strings.HasSuffix(domain, "."+allowed) {
+					return true
+				}
+			}
+		}
+	}
+
 	return false
 }
 
-func redact(value string) string {
+func clampToValidUTF8(content string, maxBytes int) string {
+	if !utf8.ValidString(content) {
+		for len(content) > 0 && !utf8.ValidString(content) {
+			content = content[:len(content)-1]
+		}
+	}
+	if maxBytes <= 0 || len(content) <= maxBytes {
+		return content
+	}
+	trimmed := content[:maxBytes]
+	for len(trimmed) > 0 && !utf8.ValidString(trimmed) {
+		trimmed = trimmed[:len(trimmed)-1]
+	}
+	return trimmed
+}
+
+func looksBinary(content string) bool {
+	if content == "" {
+		return false
+	}
+	runes := []rune(content)
+	sample := runes
+	if len(sample) > 2048 {
+		sample = sample[:2048]
+	}
+	var nonText int
+	for _, r := range sample {
+		if r == 0 {
+			return true
+		}
+		if r < 0x20 {
+			switch r {
+			case '\n', '\r', '\t':
+				continue
+			default:
+				nonText++
+			}
+			continue
+		}
+		if !unicode.IsGraphic(r) && !unicode.IsSpace(r) {
+			nonText++
+		}
+	}
+	ratio := float64(nonText) / float64(len(sample))
+	return ratio > 0.3
+}
+
+func redact(value string, prefix, suffix int) string {
 	if value == "" {
 		return ""
 	}
 	if strings.Contains(value, "@") {
-		parts := strings.SplitN(value, "@", 2)
-		local := []rune(parts[0])
-		domain := parts[1]
-		maskedLocal := maskRunes(local, 1, 1)
-		if maskedLocal == "" {
-			maskedLocal = "*"
-		}
-		return maskedLocal + "@" + domain
+		return redactEmail(value, prefix, suffix)
 	}
-	runes := []rune(value)
-	return maskRunes(runes, 0, 4)
+	return redactGeneral(value, prefix, suffix)
 }
 
-func maskRunes(runes []rune, preserveStart, preserveEnd int) string {
-	n := len(runes)
-	if n == 0 {
+func redactGeneral(value string, prefix, suffix int) string {
+	runes := []rune(value)
+	length := len(runes)
+	if length == 0 {
 		return ""
 	}
-	if preserveStart < 0 {
-		preserveStart = 0
+	if prefix+suffix >= length {
+		return value
 	}
-	if preserveEnd < 0 {
-		preserveEnd = 0
+	start := runes[:min(prefix, length)]
+	end := runes[length-min(suffix, length):]
+	return string(start) + "…" + string(end)
+}
+
+func redactEmail(value string, prefix, suffix int) string {
+	parts := strings.SplitN(value, "@", 2)
+	if len(parts) != 2 {
+		return redactGeneral(value, prefix, suffix)
 	}
-	if preserveStart+preserveEnd >= n {
-		return strings.Repeat("*", n)
+	localRunes := []rune(parts[0])
+	domainRunes := []rune(parts[1])
+	if len(domainRunes) == 0 {
+		return redactGeneral(value, prefix, suffix)
 	}
-	var b strings.Builder
-	for i := 0; i < n; i++ {
-		if i < preserveStart || i >= n-preserveEnd {
-			b.WriteRune(runes[i])
-		} else {
-			b.WriteRune('*')
-		}
+
+	startCount := min(prefix, len(localRunes))
+	endCount := min(suffix, len(domainRunes))
+
+	start := string(localRunes[:startCount])
+	var localEllipsis string
+	if startCount < len(localRunes) {
+		localEllipsis = "…"
 	}
-	return b.String()
+
+	var domainSegment string
+	switch {
+	case endCount >= len(domainRunes):
+		domainSegment = string(domainRunes)
+	case endCount <= 0:
+		domainSegment = "…"
+	default:
+		domainSegment = "…" + string(domainRunes[len(domainRunes)-endCount:])
+	}
+
+	if localEllipsis == "" && domainSegment == string(domainRunes) {
+		return value
+	}
+
+	return start + localEllipsis + "@" + domainSegment
+}
+
+func metadataValue(meta map[string]string, key string) string {
+	if meta == nil {
+		return ""
+	}
+	return meta[key]
+}
+
+func normalizeDomain(value string) string {
+	domain := strings.TrimSpace(value)
+	domain = strings.Trim(domain, " .")
+	domain = strings.TrimPrefix(domain, "@")
+	domain = strings.ToLower(domain)
+	if domain == "" {
+		return ""
+	}
+	if !strings.Contains(domain, ".") {
+		return ""
+	}
+	return domain
+}
+
+func normalizePath(value string) string {
+	path := strings.TrimSpace(value)
+	if path == "" {
+		return "/"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func shannonEntropy(input string) float64 {
