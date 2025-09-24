@@ -70,6 +70,7 @@ test('crawlSite normalises URLs, respects depth limits, and returns canonical sc
     hostLimit: 1,
     fetchPage,
     now: nowStub(['2024-01-01T00:00:00Z', '2024-01-01T00:00:05Z']),
+    scope: 'origin',
   });
 
   assert.deepStrictEqual(Object.keys(result).sort(), ['links', 'meta', 'scripts', 'target']);
@@ -116,9 +117,14 @@ function startTestServer(routeFactory) {
         return;
       }
 
-      res.statusCode = 200;
-      res.setHeader('content-type', 'text/html; charset=utf-8');
-      res.end(typeof page === 'function' ? page(requestUrl) : page);
+      const payload = typeof page === 'function' ? page(requestUrl, req) : page;
+      const { body, headers, statusCode } = normaliseResponse(payload);
+
+      res.statusCode = statusCode;
+      for (const [headerName, headerValue] of Object.entries(headers)) {
+        res.setHeader(headerName, headerValue);
+      }
+      res.end(body);
     });
 
     server.once('error', reject);
@@ -147,6 +153,19 @@ function startTestServer(routeFactory) {
       });
     });
   });
+}
+
+function normaliseResponse(value) {
+  if (value && typeof value === 'object' && !Buffer.isBuffer(value) && 'body' in value) {
+    const headers = Object.assign({ 'content-type': 'text/html; charset=utf-8' }, value.headers || {});
+    const statusCode = typeof value.statusCode === 'number' ? value.statusCode : 200;
+    return { body: value.body || '', headers, statusCode };
+  }
+  return {
+    body: typeof value === 'string' || Buffer.isBuffer(value) ? value : String(value ?? ''),
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+    statusCode: 200,
+  };
 }
 
 function extractLinks(html) {
@@ -209,7 +228,7 @@ function htmlPage(title, hrefs) {
   return `<!DOCTYPE html><html><head><title>${title}</title></head><body>${links}</body></html>`;
 }
 
-test('crawlSite enforces host limits across multiple hosts', async (t) => {
+test('crawlSite enforces host limits across multiple hosts with a custom scope', async (t) => {
   const server = await startTestServer((port) => ({
     'seed.test': {
       '/': htmlPage('Seed Root', [
@@ -246,6 +265,8 @@ test('crawlSite enforces host limits across multiple hosts', async (t) => {
     hostLimit: 1,
     fetchPage,
     now: nowStub(['2024-01-01T00:00:00Z', '2024-01-01T00:00:01Z']),
+    scope: 'custom',
+    scopeAllowlist: [`^http://seed.test:${server.port}/`],
   });
 
   assert.deepStrictEqual(singleHost.meta.allowed_hosts, ['seed.test']);
@@ -259,6 +280,13 @@ test('crawlSite enforces host limits across multiple hosts', async (t) => {
     hostLimit: 3,
     fetchPage,
     now: nowStub(['2024-01-02T00:00:00Z', '2024-01-02T00:00:01Z']),
+    scope: 'custom',
+    scopeAllowlist: [
+      `^http://seed.test:${server.port}/`,
+      `^http://alpha.test:${server.port}/`,
+      `^http://beta.test:${server.port}/`,
+      `^http://gamma.test:${server.port}/`,
+    ],
   });
 
   assert.deepStrictEqual(multiHost.meta.allowed_hosts, ['alpha.test', 'beta.test', 'seed.test']);
@@ -275,6 +303,13 @@ test('crawlSite enforces host limits across multiple hosts', async (t) => {
     hostLimit: 3,
     fetchPage,
     now: nowStub(['2024-01-03T00:00:00Z', '2024-01-03T00:00:01Z']),
+    scope: 'custom',
+    scopeAllowlist: [
+      `^http://seed.test:${server.port}/`,
+      `^http://alpha.test:${server.port}/`,
+      `^http://beta.test:${server.port}/`,
+      `^http://gamma.test:${server.port}/`,
+    ],
   });
 
   assert.deepStrictEqual(depthZero.meta.allowed_hosts, ['seed.test']);
@@ -282,3 +317,151 @@ test('crawlSite enforces host limits across multiple hosts', async (t) => {
   assert.ok(depthZero.links.some((link) => new URL(link).hostname === 'beta.test'));
   assert.deepStrictEqual(Object.keys(server.hits()).sort(), ['seed.test']);
 });
+
+test('crawlSite retains cookies, enforces scope, and honours delay/max page limits', async (t) => {
+  const seenCookies = [];
+  let outsideHits = 0;
+
+  const server = await startTestServer((port) => ({
+    'origin.test': {
+      '/': () => ({
+        headers: {
+          'Set-Cookie': ['session=alpha; Path=/', 'pref=blue; Path=/'],
+        },
+        body: htmlPage('Origin Root', [`/next`, `http://other.test:${port}/outside`]),
+      }),
+      '/next': (_url, req) => {
+        seenCookies.push(req.headers.cookie || '');
+        return htmlPage('Next', [`http://allowed.test:${port}/allowed`]);
+      },
+    },
+    'other.test': {
+      '/outside': () => {
+        outsideHits += 1;
+        return htmlPage('Outside', []);
+      },
+    },
+    'allowed.test': {
+      '/allowed': () => htmlPage('Allowed', []),
+    },
+  }));
+
+  t.after(async () => {
+    await server.close();
+  });
+
+  const fetchPage = createCookieFetcher(server.port);
+  const seed = `http://origin.test:${server.port}/`;
+
+  const waitDurations = [];
+
+  const result = await crawlSite({
+    seed,
+    depth: 3,
+    hostLimit: 4,
+    fetchPage,
+    now: nowStub(['2024-01-04T00:00:00Z', '2024-01-04T00:00:02Z']),
+    scope: 'custom',
+    scopeAllowlist: [
+      `^http://origin.test:${server.port}/`,
+      `^http://allowed.test:${server.port}/`,
+    ],
+    delayMs: 15,
+    maxPages: 2,
+    wait: (ms) => {
+      waitDurations.push(ms);
+      return Promise.resolve();
+    },
+  });
+
+  assert.deepStrictEqual(result.meta.allowed_hosts.sort(), ['allowed.test', 'origin.test']);
+  assert.strictEqual(outsideHits, 0);
+  assert.ok(seenCookies.some((cookieHeader) => cookieHeader.includes('session=alpha')));
+  assert.ok(seenCookies.some((cookieHeader) => cookieHeader.includes('pref=blue')));
+  assert.deepStrictEqual(waitDurations, [15]);
+  assert.ok(result.links.every((link) => /origin\.test|allowed\.test/.test(new URL(link).hostname)));
+});
+
+function createCookieFetcher(defaultPort) {
+  const cookieStores = new Map();
+
+  return async function fetchPage(url) {
+    const target = new URL(url);
+    const port = target.port ? Number.parseInt(target.port, 10) : defaultPort;
+    const originKey = `${target.protocol}//${target.host}`;
+    const cookieEntries = cookieStores.get(originKey);
+    const cookieHeader = cookieEntries
+      ? Array.from(cookieEntries.entries())
+          .map(([name, value]) => `${name}=${value}`)
+          .join('; ')
+      : '';
+
+    const options = {
+      protocol: target.protocol,
+      hostname: '127.0.0.1',
+      port,
+      path: `${target.pathname}${target.search}`,
+      method: 'GET',
+      headers: {
+        Host: target.host,
+      },
+      lookup(hostname, _options, callback) {
+        callback(null, '127.0.0.1', 4);
+      },
+    };
+
+    if (cookieHeader) {
+      options.headers.Cookie = cookieHeader;
+    }
+
+    const responseData = await new Promise((resolve, reject) => {
+      const request = http.request(options, (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => {
+          const setCookie = response.headers['set-cookie'];
+          const incomingCookies = Array.isArray(setCookie)
+            ? setCookie
+            : setCookie
+            ? [setCookie]
+            : [];
+          if (incomingCookies.length > 0) {
+            const jar = cookieStores.get(originKey) || new Map();
+            for (const cookieLine of incomingCookies) {
+              const [pair] = cookieLine.split(';', 1);
+              if (!pair) {
+                continue;
+              }
+              const separator = pair.indexOf('=');
+              if (separator <= 0) {
+                continue;
+              }
+              const name = pair.slice(0, separator).trim();
+              const value = pair.slice(separator + 1).trim();
+              if (!name) {
+                continue;
+              }
+              jar.set(name, value);
+            }
+            cookieStores.set(originKey, jar);
+          }
+
+          resolve({
+            statusCode: response.statusCode || 0,
+            body: Buffer.concat(chunks).toString('utf8'),
+          });
+        });
+      });
+      request.on('error', reject);
+      request.end();
+    });
+
+    return {
+      url,
+      status: responseData.statusCode,
+      title: '',
+      links: extractLinks(responseData.body),
+      scripts: [],
+    };
+  };
+}
