@@ -158,6 +158,7 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 	findingsList := make([]findings.Finding, 0, len(detections))
 	for _, det := range detections {
 		findingsList = append(findingsList, findings.Finding{
+			Version:    findings.SchemaVersion,
 			ID:         findings.NewID(),
 			Plugin:     "seer",
 			Type:       det.kind,

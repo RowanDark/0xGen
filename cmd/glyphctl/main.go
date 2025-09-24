@@ -24,6 +24,8 @@ func main() {
 	switch args[0] {
 	case "report":
 		os.Exit(runReport(args[1:]))
+	case "findings":
+		os.Exit(runFindings(args[1:]))
 	case "osint-well":
 		os.Exit(runOSINTWell(args[1:]))
 	case "rank":

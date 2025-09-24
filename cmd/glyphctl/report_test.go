@@ -21,6 +21,7 @@ func TestRunReportSuccess(t *testing.T) {
 
 	writer := reporter.NewJSONL(input)
 	sample := findings.Finding{
+		Version:    findings.SchemaVersion,
 		ID:         findings.NewID(),
 		Plugin:     "p",
 		Type:       "t",

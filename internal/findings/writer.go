@@ -99,6 +99,9 @@ func NewWriter(path string, opts ...WriterOption) *Writer {
 
 // Write validates and appends the finding to disk.
 func (w *Writer) Write(f Finding) error {
+	if strings.TrimSpace(f.Version) == "" {
+		f.Version = SchemaVersion
+	}
 	if err := f.Validate(); err != nil {
 		return fmt.Errorf("invalid finding: %w", err)
 	}

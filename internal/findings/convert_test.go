@@ -25,6 +25,9 @@ func TestFromProtoPopulatesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fromProto: %v", err)
 	}
+	if finding.Version != SchemaVersion {
+		t.Fatalf("unexpected version: %s", finding.Version)
+	}
 	if finding.ID == "" {
 		t.Fatal("expected id to be populated")
 	}

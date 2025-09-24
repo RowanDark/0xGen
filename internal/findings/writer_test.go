@@ -17,6 +17,7 @@ func TestWriterWritesFindings(t *testing.T) {
 	}()
 
 	sample := Finding{
+		Version:    SchemaVersion,
 		ID:         "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4",
 		Plugin:     "p",
 		Type:       "t",
@@ -49,6 +50,7 @@ func TestWriterRotation(t *testing.T) {
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 10; i++ {
 		f := Finding{
+			Version:    SchemaVersion,
 			ID:         NewID(),
 			Plugin:     "p",
 			Type:       "t",
@@ -96,6 +98,7 @@ func TestDefaultPathHonoursEnv(t *testing.T) {
 	}()
 
 	sample := Finding{
+		Version:    SchemaVersion,
 		ID:         NewID(),
 		Plugin:     "p",
 		Type:       "t",
@@ -122,6 +125,7 @@ func BenchmarkWriter(b *testing.B) {
 	}()
 
 	sample := Finding{
+		Version:    SchemaVersion,
 		ID:         NewID(),
 		Plugin:     "p",
 		Type:       "t",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/RowanDark/Glyph/specs/finding.schema.json",
-  "title": "Glyph Finding v0.2",
+  "$id": "https://github.com/RowanDark/Glyph/plugins/findings.schema.json",
+  "title": "Glyph Findings JSONL entry",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "id", "plugin", "type", "message", "severity", "ts"],
@@ -19,7 +19,7 @@
     "plugin": {
       "type": "string",
       "minLength": 1,
-      "description": "Identifier of the plugin that produced the finding."
+      "description": "Identifier of the emitting plugin."
     },
     "type": {
       "type": "string",
@@ -29,17 +29,17 @@
     "message": {
       "type": "string",
       "minLength": 1,
-      "description": "Human friendly message describing the finding."
+      "description": "Human readable finding summary."
     },
     "target": {
       "type": "string",
       "minLength": 1,
-      "description": "Target asset associated with the finding."
+      "description": "Asset or resource that the finding relates to."
     },
     "evidence": {
       "type": "string",
       "minLength": 1,
-      "description": "Optional evidence string from the plugin."
+      "description": "Optional supporting evidence string."
     },
     "severity": {
       "type": "string",
@@ -49,14 +49,14 @@
     "ts": {
       "type": "string",
       "format": "date-time",
-      "description": "RFC3339 timestamp indicating when the finding was observed."
+      "description": "RFC3339 timestamp when the finding was observed."
     },
     "meta": {
       "type": "object",
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Arbitrary plugin supplied key/value metadata."
+      "description": "Optional plugin supplied key/value metadata."
     }
   }
 }

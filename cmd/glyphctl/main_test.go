@@ -63,6 +63,24 @@ func TestRunManifestValidateMissingFile(t *testing.T) {
 	}
 }
 
+func TestRunFindingsMissingSubcommand(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	if code := runFindings(nil); code != 2 {
+		t.Fatalf("expected exit code 2 for missing subcommand, got %d", code)
+	}
+}
+
+func TestRunFindingsUnknownSubcommand(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	if code := runFindings([]string{"bogus"}); code != 2 {
+		t.Fatalf("expected exit code 2 for unknown subcommand, got %d", code)
+	}
+}
+
 func TestRunVersion(t *testing.T) {
 	restore := silenceOutput(t)
 	defer restore()
