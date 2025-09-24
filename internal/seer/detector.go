@@ -1,6 +1,8 @@
 package seer
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
@@ -25,6 +27,8 @@ var (
 	awsAccessKeyRe = regexp.MustCompile(`\b(?:AKIA|ASIA|AGPA|AIDA)[0-9A-Z]{16}\b`)
 	slackTokenRe   = regexp.MustCompile(`\bxox(?:b|p|a|r|s)-[0-9A-Za-z-]{10,}\b`)
 	genericKeyRe   = regexp.MustCompile(`(?i)(?:api|token|secret|key)[-_ ]*(?:id|key)?\s*[:=]\s*['\"]?([A-Za-z0-9-_]{16,128})['\"]?`)
+	googleAPIKeyRe = regexp.MustCompile(`\bAIza[0-9A-Za-z-_]{35}\b`)
+	jwtTokenRe     = regexp.MustCompile(`\b([A-Za-z0-9_-]{8,})\.([A-Za-z0-9_-]{8,})\.([A-Za-z0-9_-]{8,})\b`)
 	emailRe        = regexp.MustCompile(`\b([A-Za-z0-9](?:[A-Za-z0-9.!#$%&'*+/=?^_\x60{|}~-]{0,63}))@((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+(?:[A-Za-z]{2,24}))\b`)
 )
 
@@ -119,7 +123,7 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 			continue
 		}
 		candidate := groups[1]
-		if awsAccessKeyRe.MatchString(candidate) || slackTokenRe.MatchString(candidate) {
+		if awsAccessKeyRe.MatchString(candidate) || slackTokenRe.MatchString(candidate) || googleAPIKeyRe.MatchString(candidate) {
 			continue
 		}
 		entropy := shannonEntropy(candidate)
@@ -129,6 +133,38 @@ func Scan(target, content string, cfg Config) []findings.Finding {
 		add(candidate, "seer.generic_api_key", "High-entropy API key candidate detected", findings.SeverityMedium, map[string]string{
 			"entropy": fmt.Sprintf("%.2f", entropy),
 		})
+	}
+
+	for _, match := range googleAPIKeyRe.FindAllString(content, -1) {
+		entropy := shannonEntropy(match)
+		if entropy < 3.5 {
+			continue
+		}
+		add(match, "seer.google_api_key", "Potential Google API key detected", findings.SeverityHigh, map[string]string{
+			"entropy": fmt.Sprintf("%.2f", entropy),
+		})
+	}
+
+	for _, groups := range jwtTokenRe.FindAllStringSubmatch(content, -1) {
+		if len(groups) < 4 {
+			continue
+		}
+		token := groups[0]
+		alg, ok := parseJWT(token)
+		if !ok {
+			continue
+		}
+		entropy := shannonEntropy(token)
+		if entropy < 3.0 {
+			continue
+		}
+		metadata := map[string]string{
+			"entropy": fmt.Sprintf("%.2f", entropy),
+		}
+		if alg != "" {
+			metadata["jwt_alg"] = alg
+		}
+		add(token, "seer.jwt_token", "Potential JSON Web Token detected", findings.SeverityMedium, metadata)
 	}
 
 	for _, groups := range emailRe.FindAllStringSubmatch(content, -1) {
@@ -400,6 +436,57 @@ func looksBinary(content string) bool {
 	}
 	ratio := float64(nonText) / float64(len(sample))
 	return ratio > 0.3
+}
+
+func parseJWT(token string) (string, bool) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return "", false
+	}
+
+	header, err := decodeJWTPart(parts[0])
+	if err != nil {
+		return "", false
+	}
+	if len(header) == 0 {
+		return "", false
+	}
+
+	payload, err := decodeJWTPart(parts[1])
+	if err != nil {
+		return "", false
+	}
+	if len(payload) == 0 {
+		return "", false
+	}
+
+	if _, err := decodeJWTPart(parts[2]); err != nil {
+		return "", false
+	}
+
+	var headerMap map[string]any
+	if err := json.Unmarshal(header, &headerMap); err != nil {
+		return "", false
+	}
+
+	var payloadMap map[string]any
+	if err := json.Unmarshal(payload, &payloadMap); err != nil {
+		return "", false
+	}
+
+	alg, _ := headerMap["alg"].(string)
+	return alg, true
+}
+
+func decodeJWTPart(segment string) ([]byte, error) {
+	if segment == "" {
+		return nil, fmt.Errorf("empty segment")
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(segment)
+	if err != nil {
+		return nil, err
+	}
+	return decoded, nil
 }
 
 func redact(value string, prefix, suffix int) string {

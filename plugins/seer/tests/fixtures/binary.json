@@ -1,0 +1,6 @@
+{
+  "name": "binary-skip",
+  "target": "https://example.com/assets",
+  "content": "\u0000\u0001\u0002AKIAABCDEFGHIJKLMNOP",
+  "expect": []
+}
