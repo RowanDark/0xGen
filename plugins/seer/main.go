@@ -91,6 +91,10 @@ func main() {
 			if event.Response == nil {
 				return nil
 			}
+			if ct := strings.TrimSpace(event.Response.Headers.Get("Content-Type")); isBinaryContentType(ct) {
+				ctx.Logger().Debug("skipping binary content-type response", "content_type", ct)
+				return nil
+			}
 			body := event.Response.Body
 			if len(body) == 0 {
 				return nil
@@ -284,6 +288,54 @@ func responseTarget(resp *pluginsdk.HTTPResponse) string {
 		path = "/" + path
 	}
 	return fmt.Sprintf("%s://%s%s", scheme, host, path)
+}
+
+func isBinaryContentType(value string) bool {
+	if value == "" {
+		return false
+	}
+	ct := strings.ToLower(strings.TrimSpace(value))
+	if idx := strings.Index(ct, ";"); idx != -1 {
+		ct = strings.TrimSpace(ct[:idx])
+	}
+	if ct == "" {
+		return false
+	}
+	if strings.HasPrefix(ct, "text/") {
+		return false
+	}
+	textualHints := []string{"json", "xml", "yaml", "yml", "javascript", "ecmascript", "csv", "form-urlencoded"}
+	for _, hint := range textualHints {
+		if strings.Contains(ct, hint) {
+			return false
+		}
+	}
+	binaryMatches := []string{
+		"application/octet-stream",
+		"application/pdf",
+		"application/zip",
+		"application/x-7z-compressed",
+		"application/x-bzip2",
+		"application/x-gzip",
+		"application/x-tar",
+		"application/vnd.ms-excel",
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	}
+	for _, match := range binaryMatches {
+		if ct == match {
+			return true
+		}
+	}
+	binaryPrefixes := []string{"image/", "audio/", "video/", "font/"}
+	for _, prefix := range binaryPrefixes {
+		if strings.HasPrefix(ct, prefix) {
+			return true
+		}
+	}
+	if strings.HasSuffix(ct, "+protobuf") || strings.HasSuffix(ct, "+avro") {
+		return true
+	}
+	return false
 }
 
 func convertFinding(f findings.Finding) pluginsdk.Finding {

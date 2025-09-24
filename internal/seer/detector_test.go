@@ -12,6 +12,8 @@ func TestScanFindsSecrets(t *testing.T) {
 	content := `AWS key: AKIAABCDEFGHIJKLMNOP
 Slack token: xoxb-123456789012-abcdefghijklmnop
 Generic key: api_key = sk_live_a1B2c3D4e5F6g7H8
+Google key: AIzaSyA1234567890bcdefGhijklmnopqrstuVw
+JWT: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
 Email: alerts@example.com`
 
 	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -20,8 +22,8 @@ Email: alerts@example.com`
 		Now:       func() time.Time { return ts },
 	})
 
-	if len(results) != 3 {
-		t.Fatalf("expected 3 findings, got %d", len(results))
+	if len(results) != 5 {
+		t.Fatalf("expected 5 findings, got %d", len(results))
 	}
 
 	check := func(idx int, wantType string, wantSeverity findings.Severity, wantEvidence string) {
@@ -55,7 +57,18 @@ Email: alerts@example.com`
 	if entropy := results[1].Metadata["entropy"]; entropy == "" {
 		t.Fatalf("generic finding missing entropy")
 	}
-	check(2, "seer.slack_token", findings.SeverityHigh, "xoxb…mnop")
+	check(2, "seer.google_api_key", findings.SeverityHigh, "AIza…tuVw")
+	if entropy := results[2].Metadata["entropy"]; entropy == "" {
+		t.Fatalf("google api key missing entropy")
+	}
+	check(3, "seer.jwt_token", findings.SeverityMedium, "eyJh…sw5c")
+	if entropy := results[3].Metadata["entropy"]; entropy == "" {
+		t.Fatalf("jwt finding missing entropy")
+	}
+	if alg := results[3].Metadata["jwt_alg"]; alg != "HS256" {
+		t.Fatalf("jwt finding missing alg metadata: %q", alg)
+	}
+	check(4, "seer.slack_token", findings.SeverityHigh, "xoxb…mnop")
 }
 
 func TestScanDeduplicatesAndRedactsEmails(t *testing.T) {
