@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -34,13 +36,13 @@ func TestDiscoverSchemasOpenAPI(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(100, 0).UTC() }
 
-        results, err := discoverSchemas(ctx, client, srv.URL, now)
-        if err != nil {
-                t.Fatalf("discoverSchemas returned error: %v", err)
-        }
-        if len(results) != 1 {
-                t.Fatalf("expected 1 result, got %d: %#v", len(results), results)
-        }
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d: %#v", len(results), results)
+	}
 	res := results[0]
 	if res.Type != schemaOpenAPI {
 		t.Fatalf("expected type openapi, got %s", res.Type)
@@ -53,6 +55,102 @@ func TestDiscoverSchemasOpenAPI(t *testing.T) {
 	}
 	if !res.Timestamp.Equal(now()) {
 		t.Fatalf("unexpected timestamp: %s", res.Timestamp)
+	}
+	if res.Bytes != 0 || res.Hash != "" {
+		t.Fatalf("expected no schema metadata when fetch disabled, got bytes=%d hash=%q", res.Bytes, res.Hash)
+	}
+}
+
+func TestDiscoverSchemasOpenAPIFetchHash(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"openapi":"3.1.0"}`)
+	expectedHash := sha256.Sum256(body)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(body)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	ctx := context.Background()
+	now := func() time.Time { return time.Unix(101, 0).UTC() }
+
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	res := results[0]
+	if res.Bytes != len(body) {
+		t.Fatalf("expected bytes %d, got %d", len(body), res.Bytes)
+	}
+	if res.Hash != hex.EncodeToString(expectedHash[:]) {
+		t.Fatalf("unexpected hash: %s", res.Hash)
+	}
+}
+
+func TestDiscoverSchemasOpenAPIFetchRequiresJSON(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte(`openapi: 3.1.0`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	ctx := context.Background()
+	now := func() time.Time { return time.Unix(102, 0).UTC() }
+
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Bytes != 0 || results[0].Hash != "" {
+		t.Fatalf("expected no metadata for non-json content, got bytes=%d hash=%q", results[0].Bytes, results[0].Hash)
+	}
+}
+
+func TestDiscoverSchemasOpenAPIFetchSizeCap(t *testing.T) {
+	t.Parallel()
+
+	large := bytes.Repeat([]byte("a"), maxSchemaFetchBytes+1)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(large)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	ctx := context.Background()
+	now := func() time.Time { return time.Unix(103, 0).UTC() }
+
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Bytes != 0 || results[0].Hash != "" {
+		t.Fatalf("expected metadata skipped for oversize document, got bytes=%d hash=%q", results[0].Bytes, results[0].Hash)
 	}
 }
 
@@ -75,13 +173,13 @@ func TestDiscoverSchemasOpenAPIRedirect(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(120, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
-        if len(results) != 1 {
-                t.Fatalf("expected 1 result, got %d: %#v", len(results), results)
-        }
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d: %#v", len(results), results)
+	}
 	if results[0].URL != srv.URL+"/swagger.json" {
 		t.Fatalf("expected final url %s/swagger.json, got %s", srv.URL, results[0].URL)
 	}
@@ -101,7 +199,7 @@ func TestDiscoverSchemasOpenAPIUnauthorized(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(150, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -132,7 +230,7 @@ func TestDiscoverSchemasGraphQLHead(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(200, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -170,7 +268,7 @@ func TestDiscoverSchemasGraphQLBadRequest(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(300, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -206,7 +304,7 @@ func TestDiscoverSchemasRetryOn429(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(500, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -234,7 +332,7 @@ func TestDiscoverSchemasRecords503(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(600, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -260,7 +358,7 @@ func TestDiscoverSchemasGraphQLUnauthorized(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(400, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -305,9 +403,10 @@ func TestWriteResults(t *testing.T) {
 	out := filepath.Join(tempDir, "schemas.jsonl")
 
 	results := []schemaResult{
-		{Type: schemaOpenAPI, URL: "https://example.com/openapi.json", Status: 200, Timestamp: time.Unix(0, 0).UTC()},
-		{Type: schemaGraphQL, URL: "https://example.com/graphql", Status: 400, Timestamp: time.Unix(1, 0).UTC()},
-		{Type: schemaOpenAPI, URL: "https://example.com/openapi.json", Status: 200, Timestamp: time.Unix(2, 0).UTC()},
+		{Type: schemaOpenAPI, URL: "https://example.com/openapi.json", Status: 200, Bytes: 10, Hash: "aaa", Timestamp: time.Unix(0, 0).UTC()},
+		{Type: schemaGraphQL, URL: "https://example.com/graphql", Status: 400, Bytes: 0, Hash: "", Timestamp: time.Unix(1, 0).UTC()},
+		{Type: schemaOpenAPI, URL: "https://example.com/openapi.json", Status: 200, Bytes: 10, Hash: "aaa", Timestamp: time.Unix(2, 0).UTC()},
+		{Type: schemaOpenAPI, URL: "https://example.com/openapi.json", Status: 200, Bytes: 12, Hash: "bbb", Timestamp: time.Unix(3, 0).UTC()},
 	}
 	if err := writeResults(out, results); err != nil {
 		t.Fatalf("writeResults returned error: %v", err)
@@ -318,15 +417,15 @@ func TestWriteResults(t *testing.T) {
 		t.Fatalf("read output: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("expected 2 lines, got %d", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines, got %d", len(lines))
 	}
 	for i, line := range lines {
 		var obj map[string]any
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
 			t.Fatalf("line %d not valid json: %v", i, err)
 		}
-		if obj["type"] == nil || obj["url"] == nil || obj["status"] == nil || obj["ts"] == nil {
+		if obj["type"] == nil || obj["url"] == nil || obj["status"] == nil || obj["ts"] == nil || obj["bytes"] == nil || obj["hash"] == nil {
 			t.Fatalf("line %d missing fields: %s", i, line)
 		}
 	}
@@ -350,7 +449,7 @@ func TestFetchEndpointEnforcesByteCap(t *testing.T) {
 		}, nil
 	})}
 
-	status, finalURL, ok := fetchEndpoint(context.Background(), client, "https://example.com/openapi.json", http.MethodGet)
+	status, finalURL, body, _, ok := fetchEndpoint(context.Background(), client, "https://example.com/openapi.json", http.MethodGet, false)
 	if !ok {
 		t.Fatalf("fetchEndpoint returned !ok")
 	}
@@ -362,6 +461,9 @@ func TestFetchEndpointEnforcesByteCap(t *testing.T) {
 	}
 	if got := read.Load(); got != int64(maxResponseBytes) {
 		t.Fatalf("expected to read %d bytes, read %d", maxResponseBytes, got)
+	}
+	if len(body) != 0 {
+		t.Fatalf("expected empty body when capture disabled, got %d bytes", len(body))
 	}
 }
 

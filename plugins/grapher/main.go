@@ -18,6 +18,7 @@ func main() {
 	var (
 		outPath    = fs.String("out", "", "path to write schema results")
 		timeout    = fs.Duration("timeout", 5*time.Second, "request timeout")
+		fetchDocs  = fs.Bool("fetch", false, "fetch small OpenAPI schemas for hashing")
 		targetsArg multiValue
 		filePath   = fs.String("targets-file", "", "path to newline-delimited base URLs")
 	)
@@ -40,7 +41,7 @@ func main() {
 	client := &http.Client{Timeout: *timeout}
 	ctx := context.Background()
 
-	results, err := runDiscovery(ctx, client, targets)
+	results, err := runDiscovery(ctx, client, targets, *fetchDocs)
 	if err != nil {
 		fatal(err)
 	}
@@ -104,17 +105,17 @@ func gatherTargets(flagTargets []string, filePath string, args []string) ([]stri
 	return deduped, nil
 }
 
-func runDiscovery(ctx context.Context, client *http.Client, targets []string) ([]schemaResult, error) {
+func runDiscovery(ctx context.Context, client *http.Client, targets []string, fetchDocs bool) ([]schemaResult, error) {
 	now := time.Now
 	var all []schemaResult
 	seen := make(map[string]struct{})
 	for _, target := range targets {
-		results, err := discoverSchemas(ctx, client, target, now)
+		results, err := discoverSchemas(ctx, client, target, now, fetchDocs)
 		if err != nil {
 			return nil, fmt.Errorf("discover %s: %w", target, err)
 		}
 		for _, res := range results {
-			key := string(res.Type) + "|" + res.URL
+			key := string(res.Type) + "|" + res.URL + "|" + res.Hash
 			if _, ok := seen[key]; ok {
 				continue
 			}
@@ -128,12 +129,15 @@ func runDiscovery(ctx context.Context, client *http.Client, targets []string) ([
 
 func sortSchemaResults(results []schemaResult) {
 	sort.Slice(results, func(i, j int) bool {
-		if results[i].Type == results[j].Type {
-			if results[i].URL == results[j].URL {
-				return results[i].Timestamp.Before(results[j].Timestamp)
-			}
+		if results[i].Type != results[j].Type {
+			return results[i].Type < results[j].Type
+		}
+		if results[i].URL != results[j].URL {
 			return results[i].URL < results[j].URL
 		}
-		return results[i].Type < results[j].Type
+		if results[i].Hash != results[j].Hash {
+			return results[i].Hash < results[j].Hash
+		}
+		return results[i].Timestamp.Before(results[j].Timestamp)
 	})
 }
