@@ -24,6 +24,9 @@ const (
 	SeverityCritical Severity = "crit"
 )
 
+// SchemaVersion captures the canonical findings schema version persisted to disk.
+const SchemaVersion = "0.2"
+
 var severitySet = map[Severity]struct{}{
 	SeverityInfo:     {},
 	SeverityLow:      {},
@@ -111,7 +114,7 @@ func (t *Timestamp) UnmarshalJSON(data []byte) error {
 	}
 	parsed, err := time.Parse(time.RFC3339, raw)
 	if err != nil {
-		return fmt.Errorf("invalid detected_at timestamp: %w", err)
+		return fmt.Errorf("invalid ts timestamp: %w", err)
 	}
 	*t = NewTimestamp(parsed)
 	return nil
@@ -139,6 +142,7 @@ func NewID() string {
 
 // Finding represents a single issue reported by a plugin.
 type Finding struct {
+	Version    string            `json:"version"`
 	ID         string            `json:"id"`
 	Plugin     string            `json:"plugin"`
 	Type       string            `json:"type"`
@@ -146,13 +150,19 @@ type Finding struct {
 	Target     string            `json:"target,omitempty"`
 	Evidence   string            `json:"evidence,omitempty"`
 	Severity   Severity          `json:"severity"`
-	DetectedAt Timestamp         `json:"detected_at"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
+	DetectedAt Timestamp         `json:"ts"`
+	Metadata   map[string]string `json:"meta,omitempty"`
 }
 
 // Validate performs sanity checks ensuring the struct complies with the
 // contract codified in specs/finding.md.
 func (f Finding) Validate() error {
+	if strings.TrimSpace(f.Version) == "" {
+		return errors.New("version is required")
+	}
+	if strings.TrimSpace(f.Version) != SchemaVersion {
+		return fmt.Errorf("unsupported version %q", f.Version)
+	}
 	if strings.TrimSpace(f.ID) == "" {
 		return errors.New("finding id is required")
 	}
@@ -172,7 +182,7 @@ func (f Finding) Validate() error {
 		return err
 	}
 	if f.DetectedAt.IsZero() {
-		return errors.New("detected_at is required")
+		return errors.New("ts is required")
 	}
 	return nil
 }

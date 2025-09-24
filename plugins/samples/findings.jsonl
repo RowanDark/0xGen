@@ -1,12 +1,12 @@
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4","plugin":"seer","type":"secret","message":"Exposed AWS access key","target":"https://a.example/app","severity":"high","detected_at":"2024-01-01T11:00:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C5","plugin":"grapher","type":"misconfig","message":"Verbose directory listing enabled","target":"https://b.example/login","severity":"med","detected_at":"2024-01-01T10:30:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C6","plugin":"raider","type":"vuln","message":"Remote code execution via template injection","target":"https://a.example/app","severity":"crit","detected_at":"2024-01-01T10:00:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C7","plugin":"seer","type":"misconfig","message":"Missing security headers","target":"https://c.example/docs","severity":"low","detected_at":"2024-01-01T09:00:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C8","plugin":"seer","type":"info","message":"Stack trace revealed version","target":"https://b.example/login","severity":"info","detected_at":"2024-01-01T08:30:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C9","plugin":"seer","type":"secret","message":"Slack token exposed in page","target":"https://a.example/app","severity":"high","detected_at":"2024-01-01T08:00:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CA","plugin":"seer","type":"bug","message":"Verbose error responses include stack traces","target":"https://b.example/api","severity":"med","detected_at":"2024-01-01T07:45:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CB","plugin":"ranker","type":"observation","message":"Cookie missing SameSite flag","target":"https://a.example/app","severity":"low","detected_at":"2024-01-01T07:30:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CC","plugin":"raider","type":"vuln","message":"Default credentials accepted","target":"https://d.example/admin","severity":"crit","detected_at":"2024-01-01T07:00:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CD","plugin":"seer","type":"bug","message":"Outdated JavaScript library","target":"https://c.example/docs","severity":"med","detected_at":"2024-01-01T06:30:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CE","plugin":"seer","type":"info","message":"Service banner exposes environment","target":"https://d.example/admin","severity":"info","detected_at":"2024-01-01T06:00:00Z"}
-{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CF","plugin":"seer","type":"secret","message":"S3 bucket readable without auth","target":"https://e.example","severity":"high","detected_at":"2024-01-01T05:30:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4","plugin":"seer","type":"secret","message":"Exposed AWS access key","target":"https://a.example/app","severity":"high","ts":"2024-01-01T11:00:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C5","plugin":"grapher","type":"misconfig","message":"Verbose directory listing enabled","target":"https://b.example/login","severity":"med","ts":"2024-01-01T10:30:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C6","plugin":"raider","type":"vuln","message":"Remote code execution via template injection","target":"https://a.example/app","severity":"crit","ts":"2024-01-01T10:00:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C7","plugin":"seer","type":"misconfig","message":"Missing security headers","target":"https://c.example/docs","severity":"low","ts":"2024-01-01T09:00:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C8","plugin":"seer","type":"info","message":"Stack trace revealed version","target":"https://b.example/login","severity":"info","ts":"2024-01-01T08:30:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C9","plugin":"seer","type":"secret","message":"Slack token exposed in page","target":"https://a.example/app","severity":"high","ts":"2024-01-01T08:00:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CA","plugin":"seer","type":"bug","message":"Verbose error responses include stack traces","target":"https://b.example/api","severity":"med","ts":"2024-01-01T07:45:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CB","plugin":"ranker","type":"observation","message":"Cookie missing SameSite flag","target":"https://a.example/app","severity":"low","ts":"2024-01-01T07:30:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CC","plugin":"raider","type":"vuln","message":"Default credentials accepted","target":"https://d.example/admin","severity":"crit","ts":"2024-01-01T07:00:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CD","plugin":"seer","type":"bug","message":"Outdated JavaScript library","target":"https://c.example/docs","severity":"med","ts":"2024-01-01T06:30:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CE","plugin":"seer","type":"info","message":"Service banner exposes environment","target":"https://d.example/admin","severity":"info","ts":"2024-01-01T06:00:00Z"}
+{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4CF","plugin":"seer","type":"secret","message":"S3 bucket readable without auth","target":"https://e.example","severity":"high","ts":"2024-01-01T05:30:00Z"}

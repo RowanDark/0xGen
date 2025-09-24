@@ -173,6 +173,9 @@ func TestPublishFindingEmitsToBus(t *testing.T) {
 		if finding.ID != "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4" {
 			t.Fatalf("unexpected id: %s", finding.ID)
 		}
+		if finding.Version != findings.SchemaVersion {
+			t.Fatalf("unexpected version: %s", finding.Version)
+		}
 		if finding.Plugin != "plugin-1" {
 			t.Fatalf("unexpected plugin: %s", finding.Plugin)
 		}

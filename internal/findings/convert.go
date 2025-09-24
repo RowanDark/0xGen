@@ -63,6 +63,7 @@ func fromProtoWithClock(pluginID string, incoming *pb.Finding, clock func() time
 	}
 
 	f := Finding{
+		Version:    SchemaVersion,
 		ID:         id,
 		Plugin:     pluginID,
 		Type:       strings.TrimSpace(incoming.GetType()),

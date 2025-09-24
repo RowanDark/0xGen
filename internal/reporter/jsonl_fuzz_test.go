@@ -7,7 +7,7 @@ import (
 )
 
 func FuzzJSONLReadAll(f *testing.F) {
-	valid := []byte("{\"id\":\"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4\",\"plugin\":\"p\",\"type\":\"t\",\"message\":\"m\",\"severity\":\"low\",\"detected_at\":\"2024-01-01T00:00:00Z\"}\n")
+	valid := []byte("{\"version\":\"0.2\",\"id\":\"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4\",\"plugin\":\"p\",\"type\":\"t\",\"message\":\"m\",\"severity\":\"low\",\"ts\":\"2024-01-01T00:00:00Z\"}\n")
 	f.Add(valid)
 	f.Add([]byte("\n"))
 	f.Add([]byte("{bad json}\n"))

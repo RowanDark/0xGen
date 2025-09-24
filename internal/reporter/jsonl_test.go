@@ -16,6 +16,7 @@ func TestJSONLWriteAndRead(t *testing.T) {
 
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	f1 := findings.Finding{
+		Version:    findings.SchemaVersion,
 		ID:         findings.NewID(),
 		Plugin:     "plugin-a",
 		Type:       "missing-header",
@@ -26,6 +27,7 @@ func TestJSONLWriteAndRead(t *testing.T) {
 		DetectedAt: findings.NewTimestamp(base),
 	}
 	f2 := findings.Finding{
+		Version:    findings.SchemaVersion,
 		ID:         findings.NewID(),
 		Plugin:     "plugin-b",
 		Type:       "missing-header",
@@ -61,7 +63,7 @@ func TestJSONLWriteAndRead(t *testing.T) {
 func TestJSONLRejectsUnknownFields(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "findings.jsonl")
-	content := `{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4","plugin":"p","type":"x","message":"m","severity":"low","detected_at":"2024-01-01T00:00:00Z","unexpected":true}`
+	content := `{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4","plugin":"p","type":"x","message":"m","severity":"low","ts":"2024-01-01T00:00:00Z","unexpected":true}`
 	if err := os.WriteFile(path, []byte(content+"\n"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
@@ -75,7 +77,7 @@ func TestJSONLRejectsUnknownFields(t *testing.T) {
 func TestJSONLRejectsInvalidSeverity(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "findings.jsonl")
-	content := `{"id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4","plugin":"p","type":"x","message":"m","severity":"invalid","detected_at":"2024-01-01T00:00:00Z"}`
+	content := `{"version":"0.2","id":"01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4","plugin":"p","type":"x","message":"m","severity":"invalid","ts":"2024-01-01T00:00:00Z"}`
 	if err := os.WriteFile(path, []byte(content+"\n"), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
@@ -94,6 +96,7 @@ func TestJSONLRotation(t *testing.T) {
 	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 5; i++ {
 		f := findings.Finding{
+			Version:    findings.SchemaVersion,
 			ID:         findings.NewID(),
 			Plugin:     "plugin",
 			Type:       "t",

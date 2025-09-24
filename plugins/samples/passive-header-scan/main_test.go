@@ -85,12 +85,15 @@ func TestSampleEmitsFinding(t *testing.T) {
 		t.Fatalf("timed out waiting for finding\nstdout: %s\nstderr: %s", stdout.String(), stderr.String())
 	}
 
-	if finding.ID == "" {
-		t.Fatal("expected finding id to be populated")
-	}
-	if finding.Type != "missing-security-header" {
-		t.Fatalf("unexpected finding type: %s", finding.Type)
-	}
+        if finding.ID == "" {
+                t.Fatal("expected finding id to be populated")
+        }
+        if finding.Version != findings.SchemaVersion {
+                t.Fatalf("unexpected version: %s", finding.Version)
+        }
+        if finding.Type != "missing-security-header" {
+                t.Fatalf("unexpected finding type: %s", finding.Type)
+        }
 	if finding.Severity != findings.SeverityMedium {
 		t.Fatalf("unexpected severity: %s", finding.Severity)
 	}
