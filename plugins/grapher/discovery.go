@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,9 +40,10 @@ var graphQLCandidates = []string{
 }
 
 const (
-	maxResponseBytes = 1 << 20 // 1 MiB
-	maxRedirects     = 3
-	maxRetries       = 2
+	maxResponseBytes    = 1 << 20 // 1 MiB
+	maxRedirects        = 3
+	maxRetries          = 2
+	maxSchemaFetchBytes = 256 * 1024
 )
 
 var retryStatuses = map[int]struct{}{
@@ -58,11 +61,13 @@ type schemaResult struct {
 	Type      schemaType
 	URL       string
 	Status    int
+	Bytes     int
+	Hash      string
 	Timestamp time.Time
 }
 
 // discoverSchemas probes well-known OpenAPI and GraphQL endpoints using the provided HTTP client.
-func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, now func() time.Time) ([]schemaResult, error) {
+func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, now func() time.Time, fetchDocs bool) ([]schemaResult, error) {
 	if client == nil {
 		return nil, errors.New("http client must not be nil")
 	}
@@ -79,17 +84,20 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 		if _, ok := seen[target]; ok {
 			continue
 		}
-		status, finalURL, ok := fetchEndpoint(ctx, client, target, http.MethodGet)
+		status, finalURL, body, header, ok := fetchEndpoint(ctx, client, target, http.MethodGet, fetchDocs)
 		if !ok || !shouldRecordStatus(status) {
 			seen[target] = struct{}{}
 			continue
 		}
 		seen[target] = struct{}{}
 		seen[finalURL] = struct{}{}
+		bytesRead, hash := schemaDigest(header, body, fetchDocs)
 		results = append(results, schemaResult{
 			Type:      schemaOpenAPI,
 			URL:       finalURL,
 			Status:    status,
+			Bytes:     bytesRead,
+			Hash:      hash,
 			Timestamp: now().UTC(),
 		})
 	}
@@ -110,6 +118,8 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 			Type:      schemaGraphQL,
 			URL:       finalURL,
 			Status:    status,
+			Bytes:     0,
+			Hash:      "",
 			Timestamp: now().UTC(),
 		})
 	}
@@ -121,6 +131,24 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 		return results[i].Type < results[j].Type
 	})
 	return results, nil
+}
+
+func schemaDigest(header http.Header, body []byte, enabled bool) (int, string) {
+	if !enabled {
+		return 0, ""
+	}
+	if len(body) == 0 {
+		return 0, ""
+	}
+	if len(body) > maxSchemaFetchBytes {
+		return 0, ""
+	}
+	ct := strings.ToLower(strings.TrimSpace(header.Get("Content-Type")))
+	if ct == "" || !strings.Contains(ct, "json") {
+		return 0, ""
+	}
+	sum := sha256.Sum256(body)
+	return len(body), hex.EncodeToString(sum[:])
 }
 
 func normalizeBaseURL(raw string) (*url.URL, error) {
@@ -149,20 +177,20 @@ func resolveURL(base *url.URL, candidate string) string {
 	return base.ResolveReference(ref).String()
 }
 
-func fetchEndpoint(ctx context.Context, client *http.Client, target, method string) (int, string, bool) {
+func fetchEndpoint(ctx context.Context, client *http.Client, target, method string, capture bool) (int, string, []byte, http.Header, bool) {
 	current := target
 	redirects := 0
 	attempts := 0
 
 	for {
-		status, next, shouldRedirect, ok := singleRequest(ctx, client, current, method)
+		status, next, shouldRedirect, header, body, ok := singleRequest(ctx, client, current, method, capture && method == http.MethodGet)
 		if !ok {
-			return 0, "", false
+			return 0, "", nil, nil, false
 		}
 
 		if shouldRedirect {
 			if redirects >= maxRedirects || next == "" {
-				return status, current, true
+				return status, current, nil, header, true
 			}
 			redirects++
 			current = next
@@ -171,24 +199,24 @@ func fetchEndpoint(ctx context.Context, client *http.Client, target, method stri
 
 		if _, retry := retryStatuses[status]; retry {
 			if attempts >= maxRetries {
-				return status, current, true
+				return status, current, nil, header, true
 			}
 			attempts++
 			backoff := time.Duration(attempts) * 200 * time.Millisecond
 			if !sleepWithContext(ctx, backoff) {
-				return 0, "", false
+				return 0, "", nil, nil, false
 			}
 			continue
 		}
 
-		return status, current, true
+		return status, current, body, header, true
 	}
 }
 
-func singleRequest(ctx context.Context, client *http.Client, target, method string) (status int, next string, redirect bool, ok bool) {
+func singleRequest(ctx context.Context, client *http.Client, target, method string, capture bool) (status int, next string, redirect bool, header http.Header, body []byte, ok bool) {
 	req, err := http.NewRequestWithContext(ctx, method, target, nil)
 	if err != nil {
-		return 0, "", false, false
+		return 0, "", false, nil, nil, false
 	}
 	req.Header.Set("Accept", "application/json, application/yaml;q=0.9, */*;q=0.5")
 
@@ -200,26 +228,35 @@ func singleRequest(ctx context.Context, client *http.Client, target, method stri
 	resp, err := clientCopy.Do(req)
 	if err != nil {
 		if !errors.Is(err, http.ErrUseLastResponse) || resp == nil {
-			return 0, "", false, false
+			return 0, "", false, nil, nil, false
 		}
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
+	if capture {
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
+		if err != nil {
+			return 0, "", false, nil, nil, false
+		}
+		body = data
+	} else {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
+	}
 
 	status = resp.StatusCode
+	header = resp.Header.Clone()
 	if _, ok := redirectStatuses[status]; ok {
 		loc := strings.TrimSpace(resp.Header.Get("Location"))
 		if loc == "" {
-			return status, "", true, true
+			return status, "", true, header, nil, true
 		}
 		nextURL, err := safeRedirect(target, loc)
 		if err != nil {
-			return status, "", true, true
+			return status, "", true, header, nil, true
 		}
-		return status, nextURL, true, true
+		return status, nextURL, true, header, nil, true
 	}
 
-	return status, "", false, true
+	return status, "", false, header, body, true
 }
 
 func safeRedirect(current, location string) (string, error) {
@@ -253,12 +290,12 @@ func sleepWithContext(ctx context.Context, d time.Duration) bool {
 }
 
 func probeGraphQLEndpoint(ctx context.Context, client *http.Client, target string) (int, string, bool) {
-	statusHead, urlHead, okHead := fetchEndpoint(ctx, client, target, http.MethodHead)
+	statusHead, urlHead, _, _, okHead := fetchEndpoint(ctx, client, target, http.MethodHead, false)
 	headRecordable := okHead && shouldRecordStatus(statusHead)
 	needGet := !headRecordable || statusHead == http.StatusMethodNotAllowed || statusHead == http.StatusNotImplemented
 
 	if needGet {
-		statusGet, urlGet, okGet := fetchEndpoint(ctx, client, target, http.MethodGet)
+		statusGet, urlGet, _, _, okGet := fetchEndpoint(ctx, client, target, http.MethodGet, false)
 		if okGet && shouldRecordStatus(statusGet) {
 			return statusGet, urlGet, true
 		}
@@ -296,7 +333,7 @@ func writeResults(path string, results []schemaResult) error {
 	encoder := json.NewEncoder(file)
 	seen := make(map[string]struct{}, len(results))
 	for _, res := range results {
-		key := string(res.Type) + "|" + res.URL
+		key := string(res.Type) + "|" + res.URL + "|" + res.Hash
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -305,6 +342,8 @@ func writeResults(path string, results []schemaResult) error {
 			"type":   string(res.Type),
 			"url":    res.URL,
 			"status": res.Status,
+			"bytes":  res.Bytes,
+			"hash":   res.Hash,
 			"ts":     res.Timestamp.UTC().Format(time.RFC3339),
 		}
 		if err := encoder.Encode(payload); err != nil {
