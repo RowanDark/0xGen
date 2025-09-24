@@ -1,4 +1,5 @@
 // plugins/excavator/crawl.js
+const fs = require('node:fs');
 const { chromium } = require('playwright');
 const { URL } = require('url');
 
@@ -110,6 +111,11 @@ async function crawlSite(options) {
     hostLimit = Number.isFinite(DEFAULT_HOST_LIMIT) && DEFAULT_HOST_LIMIT > 0 ? DEFAULT_HOST_LIMIT : 1,
     fetchPage,
     now = () => new Date(),
+    scope = 'origin',
+    scopeAllowlist = [],
+    delayMs = 0,
+    maxPages = MAX_VISITED_PAGES,
+    wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   } = options;
 
   if (typeof fetchPage !== 'function') {
@@ -126,6 +132,17 @@ async function crawlSite(options) {
 
   const seedUrl = new URL(seedNormalised);
   const seedHost = seedUrl.hostname.toLowerCase();
+  const seedOrigin = seedUrl.origin;
+
+  const delayInterval = Number.isFinite(delayMs) && delayMs > 0 ? Math.floor(delayMs) : 0;
+  const maxPagesLimit = Number.isFinite(maxPages) && maxPages > 0 ? Math.floor(maxPages) : MAX_VISITED_PAGES;
+
+  const scopeChecker = createScopeChecker(scope, {
+    seedUrl,
+    seedHost,
+    seedOrigin,
+    allowlist: Array.isArray(scopeAllowlist) ? scopeAllowlist : [scopeAllowlist],
+  });
 
   // Prime the clock so deterministic tests can control the finish timestamp.
   now();
@@ -139,7 +156,7 @@ async function crawlSite(options) {
   const allowedHosts = new Set([seedHost]);
   let pagesVisited = 0;
 
-  while (queue.length > 0 && pagesVisited < MAX_VISITED_PAGES) {
+  while (queue.length > 0 && pagesVisited < maxPagesLimit) {
     const current = queue.shift();
     if (!current) break;
     if (visited.has(current.url)) {
@@ -148,6 +165,9 @@ async function crawlSite(options) {
 
     let pageData;
     try {
+      if (delayInterval > 0 && pagesVisited > 0) {
+        await wait(delayInterval);
+      }
       pageData = await fetchPage(current.url, current.depth);
     } catch (error) {
       continue;
@@ -163,6 +183,11 @@ async function crawlSite(options) {
       resolvedHost = new URL(resolved).hostname.toLowerCase();
     } catch (error) {
       resolvedHost = seedHost;
+    }
+
+    if (!scopeChecker(resolved)) {
+      visited.add(resolved);
+      continue;
     }
 
     if (!allowedHosts.has(resolvedHost)) {
@@ -197,7 +222,7 @@ async function crawlSite(options) {
       const canAdmitHost = hostAlreadyAllowed || allowedHosts.size < hostLimitValue;
       const canIncludeLink = hostAlreadyAllowed || depthLimit === 0 || canAdmitHost;
 
-      if (!canIncludeLink) {
+      if (!scopeChecker(normalised) || !canIncludeLink) {
         continue;
       }
 
@@ -302,11 +327,36 @@ async function run() {
   const timeoutCli = parseInteger(args.timeoutMs);
   const timeout = timeoutCli !== null ? timeoutCli : timeoutEnv !== null ? timeoutEnv : undefined;
 
+  const normalisedSeed = normaliseURL(seed);
+
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+
+  try {
+    const seedForCookies = normalisedSeed ? new URL(normalisedSeed) : new URL(seed);
+    const cookieHeaders = collectCookieHeaders(args);
+    const initialCookies = buildInitialCookies(cookieHeaders, seedForCookies);
+    if (initialCookies.length > 0) {
+      await context.addCookies(initialCookies);
+    }
+  } catch (cookieError) {
+    await context.close();
+    await browser.close();
+    throw cookieError;
+  }
+
+  const page = await context.newPage();
   try {
     const depthArg = parseInteger(args.depth);
     const hostLimitArg = parseInteger(args.hostLimit);
+    const delayArg = parseInteger(args.delayMs);
+    const maxPagesArg = parseInteger(args.maxPages);
+    const scopeArg = typeof args.scope === 'string' ? args.scope : undefined;
+    const allowlistArg = Array.isArray(args.allowlist)
+      ? args.allowlist
+      : args.allowlist
+      ? [args.allowlist]
+      : [];
 
     const result = await crawlSite({
       seed,
@@ -319,9 +369,15 @@ async function run() {
           ? DEFAULT_HOST_LIMIT
           : undefined,
       fetchPage: (targetUrl) => fetchWithPlaywright(page, targetUrl, timeout),
+      scope: scopeArg,
+      scopeAllowlist: allowlistArg,
+      delayMs: delayArg !== null ? delayArg : undefined,
+      maxPages: maxPagesArg !== null ? maxPagesArg : undefined,
+      wait: sleep,
     });
     console.log(JSON.stringify(result, null, 2));
     await page.close();
+    await context.close();
     await browser.close();
     process.exit(0);
   } catch (error) {
@@ -330,6 +386,11 @@ async function run() {
       await page.close();
     } catch (closeError) {
       // ignore close errors
+    }
+    try {
+      await context.close();
+    } catch (contextError) {
+      // ignore context close errors
     }
     await browser.close();
     process.exit(2);
@@ -377,6 +438,50 @@ function parseArgs(argv) {
       case 'timeout-ms':
         result.timeoutMs = value;
         break;
+      case 'delay-ms':
+        result.delayMs = value;
+        break;
+      case 'max-pages':
+        result.maxPages = value;
+        break;
+      case 'scope':
+        result.scope = value;
+        break;
+      case 'allow':
+      case 'allowlist':
+      case 'scope-allow':
+      case 'scope-allowlist':
+        if (value !== undefined) {
+          if (!result.allowlist) {
+            result.allowlist = [];
+          }
+          if (Array.isArray(value)) {
+            for (const entry of value) {
+              if (entry) {
+                result.allowlist.push(entry);
+              }
+            }
+          } else if (value) {
+            result.allowlist.push(value);
+          }
+        }
+        break;
+      case 'cookie':
+        if (!result.cookie) {
+          result.cookie = [];
+        }
+        if (value) {
+          result.cookie.push(value);
+        }
+        break;
+      case 'cookie-file':
+        if (!result.cookieFile) {
+          result.cookieFile = [];
+        }
+        if (value) {
+          result.cookieFile.push(value);
+        }
+        break;
       default:
         break;
     }
@@ -404,3 +509,148 @@ function parseInteger(value) {
 }
 
 module.exports = { crawlSite, normaliseURL, parseArgs };
+
+function createScopeChecker(mode, context) {
+  const normalisedMode = typeof mode === 'string' ? mode.toLowerCase() : 'origin';
+  const { seedUrl, seedHost, seedOrigin, allowlist } = context;
+  const seedDomain = deriveRegistrableDomain(seedHost);
+  const allowExpressions = Array.isArray(allowlist)
+    ? allowlist
+        .map((pattern) => {
+          if (typeof pattern !== 'string' || pattern.trim() === '') {
+            return null;
+          }
+          try {
+            return new RegExp(pattern);
+          } catch (error) {
+            return null;
+          }
+        })
+        .filter(Boolean)
+    : [];
+
+  switch (normalisedMode) {
+    case 'domain':
+      return (value) => {
+        try {
+          const candidate = new URL(value);
+          const candidateDomain = deriveRegistrableDomain(candidate.hostname.toLowerCase());
+          return candidateDomain === seedDomain;
+        } catch (error) {
+          return false;
+        }
+      };
+    case 'custom':
+      return (value) => {
+        try {
+          const candidate = new URL(value);
+          if (allowExpressions.length === 0) {
+            return candidate.origin === seedOrigin;
+          }
+          return allowExpressions.some((expression) => expression.test(candidate.toString()));
+        } catch (error) {
+          return false;
+        }
+      };
+    case 'origin':
+    default:
+      return (value) => {
+        try {
+          const candidate = new URL(value);
+          return candidate.origin === seedOrigin;
+        } catch (error) {
+          return false;
+        }
+      };
+  }
+}
+
+function deriveRegistrableDomain(hostname) {
+  if (typeof hostname !== 'string') {
+    return '';
+  }
+  const trimmed = hostname.trim().toLowerCase();
+  if (trimmed === '') {
+    return '';
+  }
+  const labels = trimmed.split('.').filter((label) => label !== '');
+  if (labels.length <= 2) {
+    return labels.join('.');
+  }
+  return labels.slice(-2).join('.');
+}
+
+function collectCookieHeaders(args) {
+  const headers = [];
+  if (Array.isArray(args.cookie)) {
+    for (const entry of args.cookie) {
+      if (typeof entry === 'string' && entry.trim() !== '') {
+        headers.push(entry.trim());
+      }
+    }
+  } else if (typeof args.cookie === 'string' && args.cookie.trim() !== '') {
+    headers.push(args.cookie.trim());
+  }
+
+  const files = Array.isArray(args.cookieFile)
+    ? args.cookieFile
+    : typeof args.cookieFile === 'string'
+    ? [args.cookieFile]
+    : [];
+
+  for (const filePath of files) {
+    if (typeof filePath !== 'string' || filePath.trim() === '') {
+      continue;
+    }
+    const contents = fs.readFileSync(filePath, 'utf8');
+    const lines = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line !== '');
+    headers.push(...lines);
+  }
+
+  return headers;
+}
+
+function buildInitialCookies(cookieHeaders, seedUrl) {
+  if (!Array.isArray(cookieHeaders) || cookieHeaders.length === 0) {
+    return [];
+  }
+  const baseUrl = `${seedUrl.protocol}//${seedUrl.host}`;
+  const jar = new Map();
+
+  for (const header of cookieHeaders) {
+    const segments = header.split(';');
+    for (const segment of segments) {
+      const trimmed = segment.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const separator = trimmed.indexOf('=');
+      if (separator <= 0) {
+        continue;
+      }
+      const name = trimmed.slice(0, separator).trim();
+      const value = trimmed.slice(separator + 1).trim();
+      if (!name) {
+        continue;
+      }
+      jar.set(name, value);
+    }
+  }
+
+  return Array.from(jar.entries()).map(([name, value]) => ({
+    name,
+    value,
+    url: baseUrl,
+    path: '/',
+  }));
+}
+
+async function sleep(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return;
+  }
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
