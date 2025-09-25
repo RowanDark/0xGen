@@ -30,6 +30,8 @@ func main() {
 		os.Exit(runOSINTWell(args[1:]))
 	case "rank":
 		os.Exit(runRank(args[1:]))
+	case "config":
+		os.Exit(runConfig(args[1:]))
 	case "plugin":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "plugin subcommand required")
