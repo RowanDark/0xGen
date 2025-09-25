@@ -17,20 +17,61 @@ var severityClass = map[findings.Severity]string{
 	findings.SeverityInfo:     "severity-info",
 }
 
-const htmlStyles = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #1f2933; background-color: #ffffff; }
+const htmlStyles = `:root {
+ color-scheme: light dark;
+ --bg-color: #f8fafc;
+ --text-color: #1f2933;
+ --muted-color: #52606d;
+ --border-color: #d2d6dc;
+ --table-stripe: #e4e7eb;
+ --severity-critical-bg: #b71c1c;
+ --severity-critical-text: #ffffff;
+ --severity-high-bg: #c2410c;
+ --severity-high-text: #ffffff;
+ --severity-medium-bg: #ca8a04;
+ --severity-medium-text: #1f2933;
+ --severity-low-bg: #2563eb;
+ --severity-low-text: #ffffff;
+ --severity-info-bg: #475569;
+ --severity-info-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+ :root {
+  --bg-color: #0f172a;
+  --text-color: #e2e8f0;
+  --muted-color: #94a3b8;
+  --border-color: #334155;
+  --table-stripe: #1e293b;
+  --severity-critical-bg: #ef4444;
+  --severity-critical-text: #0f172a;
+  --severity-high-bg: #f97316;
+  --severity-high-text: #0f172a;
+  --severity-medium-bg: #facc15;
+  --severity-medium-text: #0f172a;
+  --severity-low-bg: #3b82f6;
+  --severity-low-text: #0f172a;
+  --severity-info-bg: #38bdf8;
+  --severity-info-text: #0f172a;
+ }
+}
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: var(--text-color); background-color: var(--bg-color); transition: background-color 0.3s ease, color 0.3s ease; }
 h1 { margin-bottom: 0.25rem; }
-.meta { color: #52606d; margin: 0.25rem 0; }
+.meta { color: var(--muted-color); margin: 0.25rem 0; }
 .section { margin-top: 2rem; }
 table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
-th, td { border: 1px solid #d2d6dc; padding: 0.5rem; text-align: left; vertical-align: top; }
+th, td { border: 1px solid var(--border-color); padding: 0.5rem; text-align: left; vertical-align: top; }
+thead tr { background-color: var(--table-stripe); }
+tbody tr:nth-child(even) { background-color: var(--table-stripe); }
 th.numeric, td.numeric { text-align: right; }
 ol { margin-top: 0.75rem; padding-left: 1.5rem; }
 .severity-band { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-weight: 600; }
-.severity-critical { background-color: #b71c1c; color: #ffffff; }
-.severity-high { background-color: #e65100; color: #ffffff; }
-.severity-medium { background-color: #f9a825; color: #1f2933; }
-.severity-low { background-color: #1e88e5; color: #ffffff; }
-.severity-info { background-color: #546e7a; color: #ffffff; }
+.severity-critical { background-color: var(--severity-critical-bg); color: var(--severity-critical-text); }
+.severity-high { background-color: var(--severity-high-bg); color: var(--severity-high-text); }
+.severity-medium { background-color: var(--severity-medium-bg); color: var(--severity-medium-text); }
+.severity-low { background-color: var(--severity-low-bg); color: var(--severity-low-text); }
+.severity-info { background-color: var(--severity-info-bg); color: var(--severity-info-text); }
 `
 
 // RenderHTML converts a slice of findings into an HTML report.
