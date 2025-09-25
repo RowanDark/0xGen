@@ -8,3 +8,4 @@
 - Introduced the Seer detector library for high-signal secrets with redacted evidence and unit tests.
 - Added the OSINT Well Amass wrapper (`glyphctl osint-well`) to normalise assets into `/out/assets.jsonl`.
 - Documented release processes and contribution guidelines.
+- Automated the v0.1.0-alpha release packaging with embedded version metadata, cross-compiled binaries, and GitHub publishing.
