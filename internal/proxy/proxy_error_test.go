@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -79,14 +80,33 @@ func TestProxyErrorSurface(t *testing.T) {
 		t.Fatalf("expected 502 for boom path, got %d", resFail.StatusCode)
 	}
 
-	logs := logBuf.String()
-	if !strings.Contains(logs, "\"component\":\"galdr\"") {
-		t.Fatalf("expected component field in logs, got %s", logs)
+	decoder := json.NewDecoder(&logBuf)
+	var found bool
+	for decoder.More() {
+		var entry map[string]any
+		if err := decoder.Decode(&entry); err != nil {
+			t.Fatalf("decode structured log: %v", err)
+		}
+		msg, _ := entry["msg"].(string)
+		if msg != "reverse proxy error" {
+			continue
+		}
+		component, ok := entry["component"].(string)
+		if !ok || component != "galdr" {
+			t.Fatalf("expected galdr component, got %#v", entry["component"])
+		}
+		rule, ok := entry["rule"].(string)
+		if !ok || rule != "strip-server" {
+			t.Fatalf("expected strip-server rule, got %#v", entry["rule"])
+		}
+		urlVal, ok := entry["url"].(string)
+		if !ok || !strings.Contains(urlVal, "/boom") {
+			t.Fatalf("expected boom url fragment, got %#v", entry["url"])
+		}
+		found = true
+		break
 	}
-	if !strings.Contains(logs, "\"rule\":\"strip-server\"") {
-		t.Fatalf("expected rule id in logs, got %s", logs)
-	}
-	if !strings.Contains(logs, "\"url\":\"") || !strings.Contains(logs, "/boom\"") {
-		t.Fatalf("expected url field with path in logs, got %s", logs)
+	if !found {
+		t.Fatal("expected reverse proxy error log entry")
 	}
 }

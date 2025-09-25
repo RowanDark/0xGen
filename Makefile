@@ -13,9 +13,12 @@ GO_STUBS_DIR := proto/gen/go
 BIN ?= ./bin
 GLYPHCTL := $(BIN)/glyphctl
 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+GLYPHCTL_LDFLAGS ?= -s -w -X main.version=$(VERSION)
+
 $(GLYPHCTL):
-	@mkdir -p $(BIN)
-	@go build -o $(GLYPHCTL) ./cmd/glyphctl
+        @mkdir -p $(BIN)
+        @go build -ldflags "$(GLYPHCTL_LDFLAGS)" -o $(GLYPHCTL) ./cmd/glyphctl
 
 # Development defaults for running the Go services.
 GLYPH_ADDR ?= :50051
@@ -62,10 +65,10 @@ plugins-skeleton: $(GLYPHCTL)
 
 .PHONY: demo-report
 demo-report:
-	@mkdir -p out
-	@cp examples/findings-sample.jsonl out/findings.jsonl
-	@go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
-	@echo "Report written to out/report.md"
+        @mkdir -p out
+        @cp examples/findings-sample.jsonl out/findings.jsonl
+        @go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
+        @echo "Report written to out/report.md"
 
 
 
@@ -102,9 +105,10 @@ demo:
 		wait "$$seer_pid" 2>/dev/null || true; \
 		wait "$$glyphd_pid" 2>/dev/null || true; \
 		if [ ! -s "$$out_dir/findings.jsonl" ]; then go run ./cmd/quickstartseed --html examples/quickstart/demo-response.html --out "$$out_dir/findings.jsonl" --target http://example.com >/dev/null; fi; \
-		go run ./cmd/glyphctl rank --input "$$out_dir/findings.jsonl" --out "$$out_dir/ranked.jsonl" >/dev/null; \
-		go run ./cmd/glyphctl report --input "$$out_dir/findings.jsonl" --out "$$out_dir/report.html" --format html >/dev/null; \
-		echo "Quickstart report available at $$out_dir/report.html"
+                go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl rank --input "$$out_dir/findings.jsonl" --out "$$out_dir/ranked.jsonl" >/dev/null; \
+                go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl report --input "$$out_dir/findings.jsonl" --out "$$out_dir/report.html" --format html >/dev/null; \
+                report_path="$$(cd "$$out_dir" && pwd)/report.html"; \
+                echo "Quickstart report available at $$report_path"
 
 .PHONY: verify
 verify: build

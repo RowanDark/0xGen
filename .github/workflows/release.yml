@@ -33,6 +33,8 @@ jobs:
           name: Glyph ${{ github.ref_name }}
           body: |
             ## Glyph ${{ github.ref_name }}
+            This release publishes glyphctl binaries for Linux and macOS (amd64 and arm64).
+            SHA256 checksum files are included alongside the archives for verification.
             See the [CHANGELOG](https://github.com/RowanDark/Glyph/blob/${{ github.ref_name }}/CHANGELOG.md) for details.
           files: |
             dist/*.tar.gz
