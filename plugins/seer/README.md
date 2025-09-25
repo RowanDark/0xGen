@@ -18,6 +18,14 @@ The detector library in [`internal/seer`](../../internal/seer) powers the plugin
 
 Evidence for tokens is redacted to only retain the last four characters (e.g. `AKIAABCDEFGHIJKLMNOP` becomes `****************MNOP`). This keeps operator tooling actionable without leaking the full secret. Never store real credentials in fixtures or logs—synthetic examples keep the training corpus safe.
 
+## Defaults and thresholds
+
+- Generic API keys and Google API keys must exceed an entropy threshold of **3.5 bits per byte**, while JWTs require at least **3.0**. This filters out obvious test values and short placeholders before Seer emits a finding.
+- Evidence is redacted by default to preserve the first **four** and last **four** characters. Override the prefix/suffix via `SEER_EVIDENCE_PREFIX` and `SEER_EVIDENCE_SUFFIX` or the corresponding CLI flags when tighter masking is required.
+- Email addresses preserve their domain suffix and only reveal the configured prefix of the local-part. Seer emits an ellipsis (`…`) to denote redacted segments.
+
+These defaults can be tuned per deployment, but the shipped values balance fidelity with safe disclosure for most environments.
+
 ## Configuration
 The binary accepts the following flags (defaults can also be provided through environment variables):
 
@@ -28,6 +36,17 @@ The binary accepts the following flags (defaults can also be provided through en
 | `--allowlist` | `SEER_ALLOWLIST_FILE` | Optional path to a newline-separated allowlist file. Lines starting with `#` are treated as comments. |
 
 In addition, `SEER_ALLOWLIST` can supply a comma-separated list of allowlisted tokens or email addresses. All allowlist sources are merged, deduplicated case-insensitively, and applied before any findings are emitted. The plugin also skips binary payloads based on response metadata and byte heuristics to reduce noise from non-text artifacts.
+
+### Allowlisting corporate domains
+
+Create an allowlist file when traffic legitimately contains internal identities. Prefix entries with `domain:` (or use the shorthand `@example.corp`) to permit entire domains while keeping other detections active:
+
+```
+# seer-allowlist.txt
+domain:corp.example
+```
+
+Run Seer with `--allowlist seer-allowlist.txt` (or set `SEER_ALLOWLIST_FILE`) to suppress alerting on corporate email loops while leaving third-party domains and token detections untouched. Combine file-based entries with the `SEER_ALLOWLIST` environment variable for one-off redactions without editing the shared policy.
 
 ## Safety
 Fixtures and documentation only contain fake credential shapes. Do not record genuine secrets in tests or repositories—always use synthetic values when exercising the detectors.
