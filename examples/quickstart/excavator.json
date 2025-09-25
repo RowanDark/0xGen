@@ -1,0 +1,14 @@
+{
+  "target": "http://example.com",
+  "links": [
+    "http://example.com"
+  ],
+  "scripts": [],
+  "meta": {
+    "crawled_at": "2025-09-25T14:03:46.214Z",
+    "depth": 0,
+    "allowed_hosts": [
+      "example.com"
+    ]
+  }
+}

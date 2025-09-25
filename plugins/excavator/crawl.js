@@ -1,6 +1,8 @@
 // plugins/excavator/crawl.js
 const fs = require('node:fs');
 const { chromium } = require('playwright');
+const http = require('node:http');
+const https = require('node:https');
 const { URL } = require('url');
 
 const MAX_LINKS = 200;
@@ -329,7 +331,36 @@ async function run() {
 
   const normalisedSeed = normaliseURL(seed);
 
-  const browser = await chromium.launch({ headless: true });
+  const proxyServer =
+    (typeof args.proxy === 'string' && args.proxy.trim() !== '' && args.proxy) ||
+    process.env.EXCAVATOR_PROXY ||
+    process.env.PROXY ||
+    process.env.HTTP_PROXY ||
+    process.env.HTTPS_PROXY ||
+    process.env.ALL_PROXY ||
+    '';
+
+  const launchOptions = { headless: true };
+  if (typeof proxyServer === 'string' && proxyServer.trim() !== '') {
+    launchOptions.proxy = { server: proxyServer.trim() };
+  }
+
+  let browser;
+  try {
+    browser = await chromium.launch(launchOptions);
+  } catch (error) {
+    if (isMissingBrowserError(error)) {
+      const fallback = await crawlWithHTTP({
+        seed: normalisedSeed || seed,
+        proxy: typeof proxyServer === 'string' ? proxyServer.trim() : '',
+        now: () => new Date(),
+        timeout,
+      });
+      console.log(JSON.stringify(fallback, null, 2));
+      process.exit(0);
+    }
+    throw error;
+  }
   const context = await browser.newContext();
 
   try {
@@ -447,6 +478,9 @@ function parseArgs(argv) {
       case 'scope':
         result.scope = value;
         break;
+      case 'proxy':
+        result.proxy = value;
+        break;
       case 'allow':
       case 'allowlist':
       case 'scope-allow':
@@ -509,6 +543,140 @@ function parseInteger(value) {
 }
 
 module.exports = { crawlSite, normaliseURL, parseArgs };
+
+function isMissingBrowserError(error) {
+  if (!error) {
+    return false;
+  }
+  const message = String(error && error.message ? error.message : error);
+  return (
+    message.includes('Executable doesn\'t exist') ||
+    message.includes('playwright install') ||
+    message.includes('browserType.launch')
+  );
+}
+
+async function crawlWithHTTP(options) {
+  const { seed, proxy, now = () => new Date(), timeout } = options;
+  const normalised = normaliseURL(seed);
+  if (!normalised) {
+    throw new Error('seed URL must be an absolute HTTP(S) URL');
+  }
+  const response = await fetchViaHTTP(normalised, proxy, timeout);
+  const baseURL = normaliseURL(response.url) || normalised;
+  const links = extractLinks(response.body, baseURL);
+  const scripts = extractScripts(response.body, baseURL);
+  const host = new URL(baseURL).hostname.toLowerCase();
+
+  return {
+    target: normalised,
+    links,
+    scripts,
+    meta: {
+      crawled_at: now().toISOString(),
+      depth: 0,
+      allowed_hosts: [host],
+    },
+  };
+}
+
+function extractLinks(html, baseURL) {
+  const seen = new Set();
+  const results = [];
+  if (typeof html !== 'string' || html.trim() === '') {
+    return [baseURL];
+  }
+  const linkRe = /<a\s+[^>]*href\s*=\s*"([^"]+)"/gi;
+  let match;
+  while ((match = linkRe.exec(html)) !== null) {
+    const candidate = normaliseURL(match[1], baseURL);
+    if (!candidate || seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    results.push(candidate);
+  }
+  if (!seen.has(baseURL)) {
+    results.unshift(baseURL);
+  }
+  return results.slice(0, MAX_LINKS);
+}
+
+function extractScripts(html, baseURL) {
+  const seen = new Set();
+  const scripts = [];
+  if (typeof html !== 'string' || html.trim() === '') {
+    return scripts;
+  }
+  const scriptRe = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+  let match;
+  while ((match = scriptRe.exec(html)) !== null) {
+    if (scripts.length >= MAX_SCRIPTS) {
+      break;
+    }
+    const attrs = match[1] || '';
+    const body = match[2] || '';
+    const srcMatch = /src\s*=\s*"([^"]+)"/i.exec(attrs);
+    const src = srcMatch ? normaliseURL(srcMatch[1], baseURL) : null;
+    const snippet = body.trim().slice(0, SCRIPT_SNIPPET_LIMIT);
+    const fingerprint = `${src || ''}|${snippet}`;
+    if (fingerprint.trim() === '' || seen.has(fingerprint)) {
+      continue;
+    }
+    seen.add(fingerprint);
+    scripts.push({ src, snippet });
+  }
+  return scripts;
+}
+
+async function fetchViaHTTP(target, proxy, timeout) {
+  const url = new URL(target);
+  const useProxy = typeof proxy === 'string' && proxy.trim() !== '';
+  const client = useProxy ? http : url.protocol === 'https:' ? https : http;
+  const proxyURL = useProxy ? new URL(proxy) : null;
+  const requestOptions = useProxy
+    ? {
+        host: proxyURL.hostname,
+        port: proxyURL.port || (proxyURL.protocol === 'https:' ? 443 : 80),
+        method: 'GET',
+        path: target,
+        headers: { Host: url.host },
+      }
+    : {
+        host: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        method: 'GET',
+        path: (url.pathname || '/') + (url.search || ''),
+        headers: { Host: url.host },
+      };
+
+  requestOptions.family = 4;
+
+  if (timeout && Number.isFinite(timeout)) {
+    requestOptions.timeout = timeout;
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = client.request(requestOptions, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => {
+        chunks.push(Buffer.from(chunk));
+      });
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          url: res.headers.location ? res.headers.location : target,
+          status: res.statusCode || 0,
+          body,
+        });
+      });
+    });
+    req.on('error', (err) => {
+      reject(err);
+    });
+    req.end();
+  });
+}
 
 function createScopeChecker(mode, context) {
   const normalisedMode = typeof mode === 'string' ? mode.toLowerCase() : 'origin';

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Glyph Findings Report</title>
+  <style>:root {
+ color-scheme: light dark;
+ --bg-color: #f8fafc;
+ --text-color: #1f2933;
+ --muted-color: #52606d;
+ --border-color: #d2d6dc;
+ --table-stripe: #e4e7eb;
+ --severity-critical-bg: #b71c1c;
+ --severity-critical-text: #ffffff;
+ --severity-high-bg: #c2410c;
+ --severity-high-text: #ffffff;
+ --severity-medium-bg: #ca8a04;
+ --severity-medium-text: #1f2933;
+ --severity-low-bg: #2563eb;
+ --severity-low-text: #ffffff;
+ --severity-info-bg: #475569;
+ --severity-info-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+ :root {
+  --bg-color: #0f172a;
+  --text-color: #e2e8f0;
+  --muted-color: #94a3b8;
+  --border-color: #334155;
+  --table-stripe: #1e293b;
+  --severity-critical-bg: #ef4444;
+  --severity-critical-text: #0f172a;
+  --severity-high-bg: #f97316;
+  --severity-high-text: #0f172a;
+  --severity-medium-bg: #facc15;
+  --severity-medium-text: #0f172a;
+  --severity-low-bg: #3b82f6;
+  --severity-low-text: #0f172a;
+  --severity-info-bg: #38bdf8;
+  --severity-info-text: #0f172a;
+ }
+}
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: var(--text-color); background-color: var(--bg-color); transition: background-color 0.3s ease, color 0.3s ease; }
+h1 { margin-bottom: 0.25rem; }
+.meta { color: var(--muted-color); margin: 0.25rem 0; }
+.section { margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
+th, td { border: 1px solid var(--border-color); padding: 0.5rem; text-align: left; vertical-align: top; }
+thead tr { background-color: var(--table-stripe); }
+tbody tr:nth-child(even) { background-color: var(--table-stripe); }
+th.numeric, td.numeric { text-align: right; }
+ol { margin-top: 0.75rem; padding-left: 1.5rem; }
+.severity-band { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-weight: 600; }
+.severity-critical { background-color: var(--severity-critical-bg); color: var(--severity-critical-text); }
+.severity-high { background-color: var(--severity-high-bg); color: var(--severity-high-text); }
+.severity-medium { background-color: var(--severity-medium-bg); color: var(--severity-medium-text); }
+.severity-low { background-color: var(--severity-low-bg); color: var(--severity-low-text); }
+.severity-info { background-color: var(--severity-info-bg); color: var(--severity-info-text); }
+</style>
+</head>
+<body>
+  <h1>Findings Report</h1>
+  <p class="meta">Generated at 2025-09-25T14:03:50Z (UTC)</p>
+  <p class="meta">Reporting window: All findings through 2025-09-25T14:03:50Z (UTC)</p>
+  <p class="meta">Total findings: 6</p>
+  <section class="section">
+    <h2>Totals by Severity</h2>
+    <table>
+      <thead>
+        <tr><th scope="col">Severity</th><th scope="col" class="numeric">Count</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="severity-band severity-critical">Critical</span></td><td class="numeric">0</td></tr>
+        <tr><td><span class="severity-band severity-high">High</span></td><td class="numeric">2</td></tr>
+        <tr><td><span class="severity-band severity-medium">Medium</span></td><td class="numeric">3</td></tr>
+        <tr><td><span class="severity-band severity-low">Low</span></td><td class="numeric">1</td></tr>
+        <tr><td><span class="severity-band severity-info">Informational</span></td><td class="numeric">0</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="section">
+    <h2>Findings by Plugin (top 5)</h2>
+    <p>Showing top 1 plugins by finding volume.</p>
+    <table>
+      <thead>
+        <tr><th scope="col">Plugin</th><th scope="col" class="numeric">Findings</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>seer</td><td class="numeric">6</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="section">
+    <h2>Top 10 Targets</h2>
+    <p>Showing top 1 targets by finding volume.</p>
+    <ol>
+      <li><strong>http://example.com</strong> — 6 findings</li>
+    </ol>
+  </section>
+  <section class="section">
+    <h2>Last 20 Findings</h2>
+    <table>
+      <thead>
+        <tr><th scope="col">Plugin</th><th scope="col">Target</th><th scope="col">Evidence</th><th scope="col">Detected At</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>seer</td><td>http://example.com</td><td>eyJh…sw5c</td><td>2025-09-25T14:03:49Z</td></tr>
+        <tr><td>seer</td><td>http://example.com</td><td>AKIA…1234</td><td>2025-09-25T14:03:49Z</td></tr>
+        <tr><td>seer</td><td>http://example.com</td><td>xoxb…7890</td><td>2025-09-25T14:03:49Z</td></tr>
+        <tr><td>seer</td><td>http://example.com</td><td>AIza…0000</td><td>2025-09-25T14:03:49Z</td></tr>
+        <tr><td>seer</td><td>http://example.com</td><td>Z9fA…S9tU</td><td>2025-09-25T14:03:49Z</td></tr>
+        <tr><td>seer</td><td>http://example.com</td><td>aler…@….com</td><td>2025-09-25T14:03:49Z</td></tr>
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>
