@@ -17,4 +17,8 @@ jobs:
       - name: Run fuzzers
         run: |
           set -euo pipefail
-          go test ./... -run=^$ -fuzz=Fuzz -fuzztime=20s
+          for pkg in $(go list ./...); do
+            if go test "$pkg" -run=^$ -list=Fuzz | grep -q '^Fuzz'; then
+              go test "$pkg" -run=^$ -fuzz=Fuzz -fuzztime=20s
+            fi
+          done
