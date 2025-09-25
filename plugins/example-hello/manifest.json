@@ -1,0 +1,7 @@
+{
+  "name": "example-hello",
+  "version": "0.1.0",
+  "entry": "example-hello",
+  "artifact": "plugins/example-hello/main.go",
+  "capabilities": ["CAP_EMIT_FINDINGS"]
+}

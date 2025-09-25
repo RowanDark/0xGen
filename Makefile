@@ -37,10 +37,14 @@ build:
 validate-manifests:
 	@./hack/validate_manifests.sh
 
+.PHONY: new-plugin
+new-plugin:
+	@hack/new_plugin.sh "$(name)"
+
 .PHONY: plugins-skeleton
 plugins-skeleton: $(GLYPHCTL)
 	@set -euo pipefail; \
-		plugins="galdr-proxy cartographer excavator raider osint-well seer scribe ranker grapher cryptographer"; \
+	plugins="galdr-proxy cartographer excavator raider osint-well seer scribe ranker grapher cryptographer"; \
 		for plugin in $$plugins; do \
 			manifest="plugins/$${plugin}/manifest.json"; \
 			if [ ! -f "$$manifest" ]; then \
@@ -58,15 +62,15 @@ plugins-skeleton: $(GLYPHCTL)
 
 .PHONY: demo-report
 demo-report:
-        @mkdir -p out
-        @cp examples/findings-sample.jsonl out/findings.jsonl
-        @go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
-        @echo "Report written to out/report.md"
+	@mkdir -p out
+	@cp examples/findings-sample.jsonl out/findings.jsonl
+	@go run ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
+	@echo "Report written to out/report.md"
 
 .PHONY: crawl-demo
 crawl-demo:
-        @npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null
-        @node plugins/excavator/crawl.js --target=https://example.com --depth=1
+	@npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null
+	@node plugins/excavator/crawl.js --target=https://example.com --depth=1
 
 .PHONY: verify
 verify: build

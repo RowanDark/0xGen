@@ -2,12 +2,15 @@
 
 Glyph plugins are Go binaries that connect to `glyphd` using the SDK in
 `sdk/plugin-sdk`. The SDK handles the gRPC transport, lifecycle hooks and safely
-emitting findings back to the host.
+emitting findings back to the host. Consult [docs/plugins.md](../docs/plugins.md)
+for the full author guide, capability matrix, and JSONL emission rules.
 
 ## Hello world example
 
 The sample below emits a single finding when the plugin starts. It matches the
-behaviour of the `emit-on-start` sample bundled with the repository.
+behaviour of the `emit-on-start` sample bundled with the repository. A complete
+end-to-end reference (manifest, plugin, and test) lives in
+`plugins/example-hello/`.
 
 ```go
 package main

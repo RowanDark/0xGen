@@ -1,0 +1,6 @@
+{
+  "type": "example.hello",
+  "message": "Hello from example-hello!",
+  "target": "example://hello",
+  "severity": "info"
+}
