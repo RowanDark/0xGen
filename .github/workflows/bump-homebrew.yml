@@ -1,0 +1,41 @@
+name: Bump Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    if: startsWith(github.event.release.tag_name, 'v') && secrets.HOMEBREW_TAP_TOKEN != ''
+    runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.event.release.tag_name }}
+      TAP_REPO: RowanDark/homebrew-glyph
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Checkout Glyph
+        uses: actions/checkout@v4
+
+      - name: Clone tap repository
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+
+      - name: Update formula
+        run: |
+          scripts/update_homebrew_formula.sh "${TAG_NAME}" tap
+
+      - name: Commit and push changes
+        run: |
+          cd tap
+          if git status --porcelain | grep . >/dev/null 2>&1; then
+            git config user.name "glyph-bot"
+            git config user.email "glyph-bot@users.noreply.github.com"
+            git add Formula/glyph.rb
+            git commit -m "Bump glyph to ${TAG_NAME}"
+            git push origin HEAD
+          else
+            echo "Homebrew formula already up to date"
+          fi

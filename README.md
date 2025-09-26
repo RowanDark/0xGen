@@ -5,6 +5,15 @@ It coordinates plugins such as Galdr (HTTP rewriting proxy), Excavator (Playwrig
 crawler), Seer (secret/PII detector), Ranker, and Scribe to turn raw telemetry into
 ranked findings and human-readable reports.
 
+## Installation
+
+macOS users can install the prebuilt `glyphctl` binary via Homebrew using the
+[RowanDark/homebrew-glyph tap](https://github.com/RowanDark/homebrew-glyph):
+
+```bash
+brew install rowandark/glyph/glyph
+```
+
 ## Quickstart
 
 Clone the repository and run the end-to-end demo target:
