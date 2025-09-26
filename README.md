@@ -32,10 +32,12 @@ notes.
 
 * [Configuration reference](docs/configuration.md)
 * [Plugin catalogue](docs/plugins.md)
-* [Threat model](docs/security/threat-model.md)
+* [Threat model](docs/threat-model.md)
 * [Contributing guide](CONTRIBUTING.md)
 
 ## Security
 
 Please review our [security policy](SECURITY.md) for instructions on reporting
-vulnerabilities and understanding the supported scope.
+vulnerabilities and understanding the supported scope. For a deeper look at the
+runtime isolation model and artifact expectations, see the
+[threat model overview](docs/threat-model.md).
