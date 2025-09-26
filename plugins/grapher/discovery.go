@@ -40,10 +40,11 @@ var graphQLCandidates = []string{
 }
 
 const (
-	maxResponseBytes    = 1 << 20 // 1 MiB
-	maxRedirects        = 3
-	maxRetries          = 2
-	maxSchemaFetchBytes = 256 * 1024
+	maxResponseBytes       = 1 << 20 // 1 MiB
+	maxRedirects           = 3
+	maxRetries             = 2
+	maxSchemaFetchBytes    = 256 * 1024
+	maxSchemaFetchDuration = time.Second
 )
 
 var retryStatuses = map[int]struct{}{
@@ -84,14 +85,24 @@ func discoverSchemas(ctx context.Context, client *http.Client, baseURL string, n
 		if _, ok := seen[target]; ok {
 			continue
 		}
-		status, finalURL, body, header, ok := fetchEndpoint(ctx, client, target, http.MethodGet, fetchDocs)
+		status, finalURL, _, header, ok := fetchEndpoint(ctx, client, target, http.MethodGet, false)
 		if !ok || !shouldRecordStatus(status) {
 			seen[target] = struct{}{}
 			continue
 		}
 		seen[target] = struct{}{}
 		seen[finalURL] = struct{}{}
-		bytesRead, hash := schemaDigest(header, body, fetchDocs)
+
+		digestHeader := header
+		var body []byte
+		if fetchDocs && status >= http.StatusOK && status < http.StatusMultipleChoices {
+			if fetchedBody, fetchedHeader, ok := fetchOpenAPIDocument(ctx, client, finalURL); ok {
+				body = fetchedBody
+				digestHeader = fetchedHeader
+			}
+		}
+
+		bytesRead, hash := schemaDigest(digestHeader, body, fetchDocs)
 		results = append(results, schemaResult{
 			Type:      schemaOpenAPI,
 			URL:       finalURL,
@@ -213,6 +224,20 @@ func fetchEndpoint(ctx context.Context, client *http.Client, target, method stri
 	}
 }
 
+func fetchOpenAPIDocument(ctx context.Context, client *http.Client, target string) ([]byte, http.Header, bool) {
+	ctx, cancel := context.WithTimeout(ctx, maxSchemaFetchDuration)
+	defer cancel()
+
+	status, _, body, header, ok := fetchEndpoint(ctx, client, target, http.MethodGet, true)
+	if !ok {
+		return nil, nil, false
+	}
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		return nil, header, false
+	}
+	return body, header, true
+}
+
 func singleRequest(ctx context.Context, client *http.Client, target, method string, capture bool) (status int, next string, redirect bool, header http.Header, body []byte, ok bool) {
 	req, err := http.NewRequestWithContext(ctx, method, target, nil)
 	if err != nil {
@@ -233,7 +258,11 @@ func singleRequest(ctx context.Context, client *http.Client, target, method stri
 	}
 	defer resp.Body.Close()
 	if capture {
-		data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
+		limit := int64(maxSchemaFetchBytes + 1)
+		if limit > maxResponseBytes {
+			limit = maxResponseBytes
+		}
+		data, err := io.ReadAll(io.LimitReader(resp.Body, limit))
 		if err != nil {
 			return 0, "", false, nil, nil, false
 		}
