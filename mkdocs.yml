@@ -1,8 +1,8 @@
 site_name: Glyph Documentation
 site_description: Documentation for the Glyph red-team and detection automation toolkit.
-site_url: https://<owner>.github.io/Glyph/
-repo_url: https://github.com/<owner>/Glyph
-repo_name: <owner>/Glyph
+site_url: https://rowandark.github.io/Glyph/
+repo_url: https://github.com/RowanDark/Glyph
+repo_name: RowanDark/Glyph
 
 nav:
   - Home: index.md

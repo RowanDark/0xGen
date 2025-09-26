@@ -28,7 +28,7 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
    ```bash
    slsa-verifier verify-artifact \
      --provenance glyph-v1.2.3-binaries.intoto.jsonl \
-     --source-uri github.com/<owner>/Glyph \
+    --source-uri github.com/RowanDark/Glyph \
      --builder-id \
        https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
      dist/glyphctl-linux-amd64.tar.gz
@@ -40,16 +40,16 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
 
 ## Container image
 
-The container image published to `ghcr.io/<owner>/glyphctl` also carries a SLSA
+The container image published to `ghcr.io/rowandark/glyphctl` also carries a SLSA
 provenance statement. After pulling the image digest you wish to verify, run:
 
 ```bash
 slsa-verifier verify-image \
   --provenance glyph-v1.2.3-image.intoto.jsonl \
-  --source-uri github.com/<owner>/Glyph \
+  --source-uri github.com/RowanDark/Glyph \
   --builder-id \
     https://github.com/slsa-framework/slsa-github-generator/.github/workflows/container-post-push-provenance@v1.10.0 \
-  ghcr.io/<owner>/glyphctl@sha256:deadbeef...
+  ghcr.io/rowandark/glyphctl@sha256:deadbeef...
 ```
 
 The verifier will confirm the digest matches the provenance and that the image
