@@ -35,7 +35,7 @@ FORMULA_DIR="${TAP_DIR}/Formula"
 mkdir -p "$FORMULA_DIR"
 FORMULA_PATH="${FORMULA_DIR}/glyph.rb"
 
-cat >"$FORMULA_PATH" <<'FORMULA'
+cat >"$FORMULA_PATH" <<FORMULA
 class Glyph < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/${RELEASE_OWNER}/${RELEASE_REPO}"
