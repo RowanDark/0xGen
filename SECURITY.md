@@ -18,6 +18,13 @@ Please include the following details to help us triage your report:
 We aim to acknowledge new reports within **two business days**. Once validated we will
 coordinate a fix, publish release notes, and credit reporters who opt in to disclosure.
 
+## Additional resources
+
+* [Threat model overview](docs/threat-model.md) – plugin isolation, network posture,
+  and artifact expectations.
+* [Build provenance verification](docs/security/provenance.md) – how to validate
+  release signatures before installing.
+
 ## Scope
 
 The policy covers the Glyph core (`glyphd`, `glyphctl`), bundled plugins, SDKs, and
