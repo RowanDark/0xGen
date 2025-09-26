@@ -60,6 +60,20 @@ jobs:
           build-args: |
             VERSION=${{ github.ref_name }}
 
+      - name: Upload image digest for provenance
+        run: |
+          echo "${{ steps.build.outputs.digest }}" >image-digest.txt
+          echo "${{ steps.meta.outputs.tags }}" >image-tags.txt
+        shell: bash
+
+      - name: Archive image metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-image-metadata
+          path: |
+            image-digest.txt
+            image-tags.txt
+
       - name: Install cosign
         uses: sigstore/cosign-installer@v3.5.0
 

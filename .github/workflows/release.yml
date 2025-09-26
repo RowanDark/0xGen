@@ -26,6 +26,12 @@ jobs:
       - name: Build release artifacts
         run: scripts/build_release.sh
 
+      - name: Upload release artifacts for provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist
+          path: dist/
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
