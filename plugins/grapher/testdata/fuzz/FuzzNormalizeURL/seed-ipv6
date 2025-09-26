@@ -1,0 +1,2 @@
+go test fuzz v1
+string("https://[2001:db8::1]:8080/metrics")
