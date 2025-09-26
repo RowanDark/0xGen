@@ -25,7 +25,7 @@ make demo
 
 The target performs the following steps:
 
-1. Build fresh `glyphd` and `seer` binaries under `out/demo/`.
+1. Build fresh `glyphd` and `seer` binaries under `out/`.
 2. Start `glyphd` with Galdr enabled at `http://127.0.0.1:8080` using
    [`examples/quickstart/galdr-rules.json`](../examples/quickstart/galdr-rules.json)
    so intercepted responses receive deterministic headers and a red-team themed
@@ -34,22 +34,22 @@ The target performs the following steps:
    Excavator. When Playwright browsers are unavailable, the crawler falls back to
    a lightweight HTTP client that still records a structured
    [`excavator.json`](../examples/quickstart/excavator.json) transcript.
-4. Persist proxy history, Seer findings, and ranked output under `out/demo/`.
+4. Persist proxy history, Seer findings, and ranked output under `out/`.
    If Galdr cannot contact the upstream host, the demo seeds
    [`findings.jsonl`](../examples/quickstart/findings.jsonl) using
    [`cmd/quickstartseed`](../cmd/quickstartseed/main.go) so downstream stages
    still showcase the reporting flow.
-5. Render `out/demo/report.html`, an HTML report identical to the checked-in
+5. Render `out/report.html`, an HTML report identical to the checked-in
    reference [`examples/quickstart/report.html`](../examples/quickstart/report.html).
 
 On success the terminal prints:
 
 ```
-Quickstart report available at out/demo/report.html
+Quickstart report available at out/report.html
 ```
 
 Open that file in your browser to explore the generated dashboard. The JSONL
-artifacts under `out/demo/` and the reference copies in
+artifacts under `out/` and the reference copies in
 [`examples/quickstart/`](../examples/quickstart) are handy when writing tests or
 inspecting the data Seer emits.
 
@@ -59,12 +59,12 @@ Useful files after the demo completes:
 
 | Path | Description |
 | ---- | ----------- |
-| `out/demo/glyphd.log` | Galdr / glyphd server logs. |
-| `out/demo/seer.log` | Seer plugin output. |
-| `out/demo/excavator.json` | Crawl transcript including discovered links. |
-| `out/demo/findings.jsonl` | Raw Seer findings (JSONL). |
-| `out/demo/ranked.jsonl` | Ranked findings with deterministic scores. |
-| `out/demo/report.html` | Final HTML report. |
+| `out/glyphd.log` | Galdr / glyphd server logs. |
+| `out/seer.log` | Seer plugin output. |
+| `out/excavator.json` | Crawl transcript including discovered links. |
+| `out/findings.jsonl` | Raw Seer findings (JSONL). |
+| `out/ranked.jsonl` | Ranked findings with deterministic scores. |
+| `out/report.html` | Final HTML report. |
 
 The `examples/quickstart/` directory mirrors the expected outputs so you can
 diff future runs or plug sample data into other tools without re-running the
@@ -75,7 +75,7 @@ pipeline.
 Remove the generated artifacts with:
 
 ```bash
-rm -rf out/demo
+rm -rf out
 ```
 
 Rerun `make demo` at any time to regenerate the report.

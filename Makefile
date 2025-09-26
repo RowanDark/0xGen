@@ -82,7 +82,7 @@ crawl-demo:
 .PHONY: demo
 demo:
 	@set -euo pipefail; \
-		out_dir="out/demo"; \
+		out_dir="out"; \
 		rm -rf "$$out_dir"; \
 		mkdir -p "$$out_dir"; \
 		npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null; \
