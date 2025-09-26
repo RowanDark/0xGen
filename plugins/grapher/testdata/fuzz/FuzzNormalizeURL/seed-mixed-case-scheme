@@ -1,0 +1,2 @@
+go test fuzz v1
+string("HtTp://Example.COM/path?q=1#frag")
