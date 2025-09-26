@@ -162,6 +162,7 @@ func TestDiscoverSchemasOpenAPIRedirect(t *testing.T) {
 		http.Redirect(w, r, "/swagger.json", http.StatusMovedPermanently)
 	})
 	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"openapi":"3.0.0"}`))
 	})
@@ -173,15 +174,19 @@ func TestDiscoverSchemasOpenAPIRedirect(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(120, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d: %#v", len(results), results)
 	}
-	if results[0].URL != srv.URL+"/swagger.json" {
-		t.Fatalf("expected final url %s/swagger.json, got %s", srv.URL, results[0].URL)
+	res := results[0]
+	if res.URL != srv.URL+"/swagger.json" {
+		t.Fatalf("expected final url %s/swagger.json, got %s", srv.URL, res.URL)
+	}
+	if res.Bytes == 0 || res.Hash == "" {
+		t.Fatalf("expected metadata populated after redirect, got bytes=%d hash=%q", res.Bytes, res.Hash)
 	}
 }
 
@@ -199,7 +204,7 @@ func TestDiscoverSchemasOpenAPIUnauthorized(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(150, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
@@ -209,6 +214,9 @@ func TestDiscoverSchemasOpenAPIUnauthorized(t *testing.T) {
 	res := results[0]
 	if res.Status != http.StatusUnauthorized {
 		t.Fatalf("expected status 401, got %d", res.Status)
+	}
+	if res.Bytes != 0 || res.Hash != "" {
+		t.Fatalf("expected no metadata for unauthorized response, got bytes=%d hash=%q", res.Bytes, res.Hash)
 	}
 }
 
@@ -293,6 +301,7 @@ func TestDiscoverSchemasRetryOn429(t *testing.T) {
 			w.WriteHeader(http.StatusTooManyRequests)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"openapi":"3.1.0"}`))
 	})
@@ -304,18 +313,22 @@ func TestDiscoverSchemasRetryOn429(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(500, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
-	if got := calls.Load(); got != 3 {
-		t.Fatalf("expected 3 attempts, got %d", got)
+        if got := calls.Load(); got != 4 {
+                t.Fatalf("expected 4 attempts (including fetch), got %d", got)
+        }
+	res := results[0]
+	if res.Status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.Status)
 	}
-	if results[0].Status != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", results[0].Status)
+	if res.Bytes == 0 || res.Hash == "" {
+		t.Fatalf("expected metadata populated after retry, got bytes=%d hash=%q", res.Bytes, res.Hash)
 	}
 }
 
@@ -332,15 +345,55 @@ func TestDiscoverSchemasRecords503(t *testing.T) {
 	ctx := context.Background()
 	now := func() time.Time { return time.Unix(600, 0).UTC() }
 
-	results, err := discoverSchemas(ctx, client, srv.URL, now, false)
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
 	if err != nil {
 		t.Fatalf("discoverSchemas returned error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
-	if results[0].Status != http.StatusServiceUnavailable {
-		t.Fatalf("expected status 503, got %d", results[0].Status)
+	res := results[0]
+	if res.Status != http.StatusServiceUnavailable {
+		t.Fatalf("expected status 503, got %d", res.Status)
+	}
+	if res.Bytes != 0 || res.Hash != "" {
+		t.Fatalf("expected no metadata for 503 response, got bytes=%d hash=%q", res.Bytes, res.Hash)
+	}
+}
+
+func TestDiscoverSchemasOpenAPIFetchTimeout(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		time.Sleep(maxSchemaFetchDuration + 100*time.Millisecond)
+		_, _ = w.Write([]byte(`{"openapi":"3.1.0"}`))
+	})
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	client.Timeout = 5 * time.Second
+
+	ctx := context.Background()
+	now := func() time.Time { return time.Unix(777, 0).UTC() }
+
+	results, err := discoverSchemas(ctx, client, srv.URL, now, true)
+	if err != nil {
+		t.Fatalf("discoverSchemas returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	res := results[0]
+	if res.Status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.Status)
+	}
+	if res.Bytes != 0 || res.Hash != "" {
+		t.Fatalf("expected metadata omitted after timeout, got bytes=%d hash=%q", res.Bytes, res.Hash)
 	}
 }
 
