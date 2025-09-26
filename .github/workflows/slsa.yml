@@ -1,0 +1,48 @@
+name: SLSA Provenance
+
+on:
+  workflow_run:
+    workflows:
+      - Release
+      - Release Container Image
+    types:
+      - completed
+
+permissions: {}
+
+jobs:
+  release-provenance:
+    if: ${{ github.event.workflow_run.name == 'Release' && github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0
+    with:
+      slsa-workflow-recipient: ${{ github.event.workflow_run.url }}
+      provenance-name: glyph-${{ github.event.workflow_run.head_branch }}-binaries.intoto.jsonl
+      download-artifacts: true
+      artifacts: release-dist
+      subject-path: |
+        dist/*.tar.gz
+        dist/*SHA256SUMS.txt
+      upload-assets: true
+
+  container-provenance:
+    if: ${{ github.event.workflow_run.name == 'Release Container Image' && github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      packages: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/container-post-push-provenance@v1.10.0
+    with:
+      slsa-workflow-recipient: ${{ github.event.workflow_run.url }}
+      provenance-name: glyph-${{ github.event.workflow_run.head_branch }}-image.intoto.jsonl
+      download-artifacts: true
+      artifacts: release-image-metadata
+      digest-file: image-digest.txt
+      tags-file: image-tags.txt
+      upload-assets: true
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
