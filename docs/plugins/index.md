@@ -1,9 +1,9 @@
 # Plugin Author Guide
 
 Glyph plugins are Go binaries that connect to the platform over gRPC using the SDK
-provided in `sdk/plugin-sdk`. This guide documents the lifecycle hooks exposed by
-the runtime, the capabilities that can be requested in a manifest, and the rules
-for emitting JSONL findings safely.
+provided in [`sdk/plugin-sdk`]({{ config.repo_url }}/tree/main/sdk/plugin-sdk). This guide documents the
+lifecycle hooks exposed by the runtime, the capabilities that can be requested in a
+manifest, and the rules for emitting JSONL findings safely.
 
 ## Plugin Roster
 
@@ -28,15 +28,16 @@ fixtures to accelerate future development.
 ## Getting started
 
 1. Scaffold a new plugin with `make new-plugin name=<id>`. The target creates a
-   directory under `plugins/<id>/` with a manifest and Go stub wired to the SDK.
-   The stub compiles out of the box so you can iterate from a working baseline.
-2. Study `plugins/example-hello/` for a compact end-to-end example. It includes a
-   manifest, runnable plugin, and test fixture demonstrating how to assert emitted
-   findings.
+   directory under [`plugins/<id>/`]({{ config.repo_url }}/tree/main/plugins) with a manifest and Go stub
+   wired to the SDK. The stub compiles out of the box so you can iterate from a
+   working baseline.
+2. Study [`plugins/example-hello/`]({{ config.repo_url }}/tree/main/plugins/example-hello) for a compact
+   end-to-end example. It includes a manifest, runnable plugin, and test fixture
+   demonstrating how to assert emitted findings.
 3. Run `go test ./...` frequently to execute plugin unit tests alongside the rest
    of the repository. The example plugin test shows how to stand up the in-memory
-   bus exposed by `internal/bus` so findings can be asserted without a full Glyph
-   deployment.
+   bus exposed by [`internal/bus`]({{ config.repo_url }}/tree/main/internal/bus) so findings can be asserted
+   without a full Glyph deployment.
 
 ## Lifecycle hooks
 
@@ -98,8 +99,9 @@ Findings are serialised to `findings.jsonl` using the schema defined in
 - Store additional context in the `Metadata` map. Keys must be non-empty strings.
 
 When exporting findings to disk or downstream systems, the host enforces the
-schema described in `specs/finding.md`. Run `go run ./cmd/glyphctl findings
-validate --input <path>` to verify JSONL output before distribution.
+schema described in [`specs/finding.md`]({{ config.repo_url }}/blob/main/specs/finding.md). Run
+`go run ./cmd/glyphctl findings validate --input <path>` to verify JSONL output
+before distribution.
 
 ## Performance and safety guidelines
 
