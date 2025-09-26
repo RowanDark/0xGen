@@ -1,5 +1,7 @@
 # Glyph
 
+[![Docs](https://img.shields.io/badge/docs-material-blue)](https://<owner>.github.io/Glyph/)
+
 Glyph is an automation toolkit for orchestrating red-team and detection workflows.
 It coordinates plugins such as Galdr (HTTP rewriting proxy), Excavator (Playwright
 crawler), Seer (secret/PII detector), Ranker, and Scribe to turn raw telemetry into
@@ -24,20 +26,24 @@ make demo
 
 The pipeline builds fresh binaries, starts Galdr and Seer locally, captures a crawl
 with Excavator, ranks any emitted findings, and renders an HTML summary. The terminal
-prints the absolute path to `report.html` once the run completes. See
-[`docs/quickstart.md`](docs/quickstart.md) for a full walkthrough and troubleshooting
-notes.
+prints the absolute path to `report.html` once the run completes. See the
+[Quickstart walkthrough](https://<owner>.github.io/Glyph/quickstart/) for a full
+tour and troubleshooting notes.
 
 ## Documentation
 
-* [Configuration reference](docs/configuration.md)
-* [Plugin catalogue](docs/plugins.md)
-* [Threat model](docs/threat-model.md)
-* [Contributing guide](CONTRIBUTING.md)
+Browse the full documentation site at [<owner>.github.io/Glyph](https://<owner>.github.io/Glyph/).
+Highlights include:
+
+* [Quickstart demo](https://<owner>.github.io/Glyph/quickstart/)
+* [Plugin author guide](https://<owner>.github.io/Glyph/plugins/)
+* [CLI reference](https://<owner>.github.io/Glyph/cli/)
+* [Developer guide](https://<owner>.github.io/Glyph/dev-guide/)
+* [Security overview](https://<owner>.github.io/Glyph/security/)
 
 ## Security
 
 Please review our [security policy](SECURITY.md) for instructions on reporting
 vulnerabilities and understanding the supported scope. For a deeper look at the
 runtime isolation model and artifact expectations, see the
-[threat model overview](docs/threat-model.md).
+[threat model overview](https://<owner>.github.io/Glyph/security/threat-model/).

@@ -20,7 +20,7 @@ coordinate a fix, publish release notes, and credit reporters who opt in to disc
 
 ## Additional resources
 
-* [Threat model overview](docs/threat-model.md) – plugin isolation, network posture,
+* [Threat model overview](docs/security/threat-model.md) – plugin isolation, network posture,
   and artifact expectations.
 * [Build provenance verification](docs/security/provenance.md) – how to validate
   release signatures before installing.

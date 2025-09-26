@@ -28,7 +28,7 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
    ```bash
    slsa-verifier verify-artifact \
      --provenance glyph-v1.2.3-binaries.intoto.jsonl \
-     --source-uri github.com/RowanDark/Glyph \
+     --source-uri github.com/<owner>/Glyph \
      --builder-id \
        https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
      dist/glyphctl-linux-amd64.tar.gz
@@ -46,7 +46,7 @@ provenance statement. After pulling the image digest you wish to verify, run:
 ```bash
 slsa-verifier verify-image \
   --provenance glyph-v1.2.3-image.intoto.jsonl \
-  --source-uri github.com/RowanDark/Glyph \
+  --source-uri github.com/<owner>/Glyph \
   --builder-id \
     https://github.com/slsa-framework/slsa-github-generator/.github/workflows/container-post-push-provenance@v1.10.0 \
   ghcr.io/<owner>/glyphctl@sha256:deadbeef...
