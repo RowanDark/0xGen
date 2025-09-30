@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PluginBus_EventStream_FullMethodName = "/glyph.plugin_bus.PluginBus/EventStream"
+	PluginBus_EventStream_FullMethodName       = "/glyph.plugin_bus.PluginBus/EventStream"
+	PluginBus_GrantCapabilities_FullMethodName = "/glyph.plugin_bus.PluginBus/GrantCapabilities"
 )
 
 // PluginBusClient is the client API for PluginBus service.
@@ -32,6 +33,8 @@ type PluginBusClient interface {
 	// EventStream is a long-lived, bi-directional stream between the host
 	// (`glyphd`) and a single plugin.
 	EventStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[PluginEvent, HostEvent], error)
+	// GrantCapabilities issues a short-lived capability token for a plugin invocation.
+	GrantCapabilities(ctx context.Context, in *PluginCapabilityRequest, opts ...grpc.CallOption) (*PluginCapabilityGrant, error)
 }
 
 type pluginBusClient struct {
@@ -52,6 +55,16 @@ func (c *pluginBusClient) EventStream(ctx context.Context, opts ...grpc.CallOpti
 	return x, nil
 }
 
+func (c *pluginBusClient) GrantCapabilities(ctx context.Context, in *PluginCapabilityRequest, opts ...grpc.CallOption) (*PluginCapabilityGrant, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PluginCapabilityGrant)
+	err := c.cc.Invoke(ctx, PluginBus_GrantCapabilities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PluginBus_EventStreamClient = grpc.BidiStreamingClient[PluginEvent, HostEvent]
 
@@ -65,6 +78,8 @@ type PluginBusServer interface {
 	// EventStream is a long-lived, bi-directional stream between the host
 	// (`glyphd`) and a single plugin.
 	EventStream(grpc.BidiStreamingServer[PluginEvent, HostEvent]) error
+	// GrantCapabilities issues a short-lived capability token for a plugin invocation.
+	GrantCapabilities(context.Context, *PluginCapabilityRequest) (*PluginCapabilityGrant, error)
 	mustEmbedUnimplementedPluginBusServer()
 }
 
@@ -77,6 +92,9 @@ type UnimplementedPluginBusServer struct{}
 
 func (UnimplementedPluginBusServer) EventStream(grpc.BidiStreamingServer[PluginEvent, HostEvent]) error {
 	return status.Errorf(codes.Unimplemented, "method EventStream not implemented")
+}
+func (UnimplementedPluginBusServer) GrantCapabilities(context.Context, *PluginCapabilityRequest) (*PluginCapabilityGrant, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GrantCapabilities not implemented")
 }
 func (UnimplementedPluginBusServer) mustEmbedUnimplementedPluginBusServer() {}
 func (UnimplementedPluginBusServer) testEmbeddedByValue()                   {}
@@ -106,13 +124,36 @@ func _PluginBus_EventStream_Handler(srv interface{}, stream grpc.ServerStream) e
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PluginBus_EventStreamServer = grpc.BidiStreamingServer[PluginEvent, HostEvent]
 
+func _PluginBus_GrantCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PluginCapabilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginBusServer).GrantCapabilities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginBus_GrantCapabilities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginBusServer).GrantCapabilities(ctx, req.(*PluginCapabilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PluginBus_ServiceDesc is the grpc.ServiceDesc for PluginBus service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PluginBus_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "glyph.plugin_bus.PluginBus",
 	HandlerType: (*PluginBusServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GrantCapabilities",
+			Handler:    _PluginBus_GrantCapabilities_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "EventStream",

@@ -12,6 +12,9 @@ service PluginBus {
   // EventStream is a long-lived, bi-directional stream between the host
   // (`glyphd`) and a single plugin.
   rpc EventStream(stream PluginEvent) returns (stream HostEvent);
+  // GrantCapabilities issues a short-lived token binding a plugin to the
+  // capabilities declared in its manifest.
+  rpc GrantCapabilities(PluginCapabilityRequest) returns (PluginCapabilityGrant);
 }
 
 // PluginEvent is a message sent from a plugin to the host.
@@ -39,6 +42,22 @@ message PluginHello {
   // The list of capabilities the plugin requires.
   // e.g., "CAP_EMIT_FINDINGS"
   repeated string capabilities = 5;
+  // Capability token issued by the host prior to runtime.
+  string capability_token = 6;
+}
+
+// PluginCapabilityRequest captures the parameters required to mint a capability
+// token for a plugin invocation.
+message PluginCapabilityRequest {
+  string auth_token = 1;
+  string plugin_name = 2;
+  repeated string capabilities = 3;
+}
+
+// PluginCapabilityGrant returns the issued token and expiry metadata.
+message PluginCapabilityGrant {
+  string capability_token = 1;
+  int64 expires_at_unix = 2;
 }
 
 // HostEvent is a message sent from the host to a plugin.

@@ -15,6 +15,9 @@ import (
 	"github.com/RowanDark/Glyph/internal/plugins"
 	"github.com/RowanDark/Glyph/internal/plugins/integrity"
 	"github.com/RowanDark/Glyph/internal/plugins/runner"
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func runPluginRun(args []string) int {
@@ -83,6 +86,11 @@ func runPluginRun(args []string) int {
 	}
 
 	ctx := context.Background()
+	capToken, err := requestCapabilityGrant(ctx, *server, *token, manifest)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "request capability grant: %v\n", err)
+		return 1
+	}
 	limits := runner.Limits{
 		CPUSeconds: 60,
 		WallTime:   *duration,
@@ -97,6 +105,7 @@ func runPluginRun(args []string) int {
 	if val := os.Getenv("GLYPH_E2E_SMOKE"); strings.TrimSpace(val) != "" {
 		env["GLYPH_E2E_SMOKE"] = val
 	}
+	env["GLYPH_CAPABILITY_TOKEN"] = capToken
 	config := runner.Config{
 		Binary: binaryPath,
 		Args:   []string{"--server", *server, "--token", *token},
@@ -115,4 +124,36 @@ func runPluginRun(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func requestCapabilityGrant(parent context.Context, addr, authToken string, manifest *plugins.Manifest) (string, error) {
+	if manifest == nil {
+		return "", errors.New("manifest is required")
+	}
+	dialCtx, cancel := context.WithTimeout(parent, 10*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(dialCtx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", fmt.Errorf("dial glyphd: %w", err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	client := pb.NewPluginBusClient(conn)
+	reqCtx, reqCancel := context.WithTimeout(parent, 5*time.Second)
+	defer reqCancel()
+	resp, err := client.GrantCapabilities(reqCtx, &pb.PluginCapabilityRequest{
+		AuthToken:    authToken,
+		PluginName:   manifest.Name,
+		Capabilities: manifest.Capabilities,
+	})
+	if err != nil {
+		return "", fmt.Errorf("grant capabilities: %w", err)
+	}
+	token := strings.TrimSpace(resp.GetCapabilityToken())
+	if token == "" {
+		return "", errors.New("received empty capability token")
+	}
+	return token, nil
 }
