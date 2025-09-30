@@ -121,9 +121,11 @@ type PluginHello struct {
 	Subscriptions []string `protobuf:"bytes,4,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
 	// The list of capabilities the plugin requires.
 	// e.g., "CAP_EMIT_FINDINGS"
-	Capabilities  []string `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Capabilities []string `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	// Capability token issued by the host prior to runtime.
+	CapabilityToken string `protobuf:"bytes,6,opt,name=capability_token,json=capabilityToken,proto3" json:"capability_token,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PluginHello) Reset() {
@@ -191,6 +193,128 @@ func (x *PluginHello) GetCapabilities() []string {
 	return nil
 }
 
+func (x *PluginHello) GetCapabilityToken() string {
+	if x != nil {
+		return x.CapabilityToken
+	}
+	return ""
+}
+
+// PluginCapabilityRequest captures the parameters required to mint a capability
+// token for a plugin invocation.
+type PluginCapabilityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     string                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	PluginName    string                 `protobuf:"bytes,2,opt,name=plugin_name,json=pluginName,proto3" json:"plugin_name,omitempty"`
+	Capabilities  []string               `protobuf:"bytes,3,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PluginCapabilityRequest) Reset() {
+	*x = PluginCapabilityRequest{}
+	mi := &file_glyph_plugin_bus_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PluginCapabilityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PluginCapabilityRequest) ProtoMessage() {}
+
+func (x *PluginCapabilityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_glyph_plugin_bus_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PluginCapabilityRequest.ProtoReflect.Descriptor instead.
+func (*PluginCapabilityRequest) Descriptor() ([]byte, []int) {
+	return file_glyph_plugin_bus_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PluginCapabilityRequest) GetAuthToken() string {
+	if x != nil {
+		return x.AuthToken
+	}
+	return ""
+}
+
+func (x *PluginCapabilityRequest) GetPluginName() string {
+	if x != nil {
+		return x.PluginName
+	}
+	return ""
+}
+
+func (x *PluginCapabilityRequest) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+// PluginCapabilityGrant returns the issued token and expiry metadata.
+type PluginCapabilityGrant struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CapabilityToken string                 `protobuf:"bytes,1,opt,name=capability_token,json=capabilityToken,proto3" json:"capability_token,omitempty"`
+	ExpiresAtUnix   int64                  `protobuf:"varint,2,opt,name=expires_at_unix,json=expiresAtUnix,proto3" json:"expires_at_unix,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PluginCapabilityGrant) Reset() {
+	*x = PluginCapabilityGrant{}
+	mi := &file_glyph_plugin_bus_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PluginCapabilityGrant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PluginCapabilityGrant) ProtoMessage() {}
+
+func (x *PluginCapabilityGrant) ProtoReflect() protoreflect.Message {
+	mi := &file_glyph_plugin_bus_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PluginCapabilityGrant.ProtoReflect.Descriptor instead.
+func (*PluginCapabilityGrant) Descriptor() ([]byte, []int) {
+	return file_glyph_plugin_bus_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PluginCapabilityGrant) GetCapabilityToken() string {
+	if x != nil {
+		return x.CapabilityToken
+	}
+	return ""
+}
+
+func (x *PluginCapabilityGrant) GetExpiresAtUnix() int64 {
+	if x != nil {
+		return x.ExpiresAtUnix
+	}
+	return 0
+}
+
 // HostEvent is a message sent from the host to a plugin.
 type HostEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -208,7 +332,7 @@ type HostEvent struct {
 
 func (x *HostEvent) Reset() {
 	*x = HostEvent{}
-	mi := &file_glyph_plugin_bus_proto_msgTypes[2]
+	mi := &file_glyph_plugin_bus_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +344,7 @@ func (x *HostEvent) String() string {
 func (*HostEvent) ProtoMessage() {}
 
 func (x *HostEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_glyph_plugin_bus_proto_msgTypes[2]
+	mi := &file_glyph_plugin_bus_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +357,7 @@ func (x *HostEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostEvent.ProtoReflect.Descriptor instead.
 func (*HostEvent) Descriptor() ([]byte, []int) {
-	return file_glyph_plugin_bus_proto_rawDescGZIP(), []int{2}
+	return file_glyph_plugin_bus_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HostEvent) GetCoreVersion() string {
@@ -277,7 +401,7 @@ const file_glyph_plugin_bus_proto_rawDesc = "" +
 	"\vPluginEvent\x125\n" +
 	"\x05hello\x18\x01 \x01(\v2\x1d.glyph.plugin_bus.PluginHelloH\x00R\x05hello\x121\n" +
 	"\afinding\x18\x02 \x01(\v2\x15.glyph.common.FindingH\x00R\afindingB\a\n" +
-	"\x05event\"\xa9\x01\n" +
+	"\x05event\"\xd4\x01\n" +
 	"\vPluginHello\x12\x1d\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\tR\tauthToken\x12\x1f\n" +
@@ -285,14 +409,25 @@ const file_glyph_plugin_bus_proto_rawDesc = "" +
 	"pluginName\x12\x10\n" +
 	"\x03pid\x18\x03 \x01(\x05R\x03pid\x12$\n" +
 	"\rsubscriptions\x18\x04 \x03(\tR\rsubscriptions\x12\"\n" +
-	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\"q\n" +
+	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\x12)\n" +
+	"\x10capability_token\x18\x06 \x01(\tR\x0fcapabilityToken\"}\n" +
+	"\x17PluginCapabilityRequest\x12\x1d\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\tR\tauthToken\x12\x1f\n" +
+	"\vplugin_name\x18\x02 \x01(\tR\n" +
+	"pluginName\x12\"\n" +
+	"\fcapabilities\x18\x03 \x03(\tR\fcapabilities\"j\n" +
+	"\x15PluginCapabilityGrant\x12)\n" +
+	"\x10capability_token\x18\x01 \x01(\tR\x0fcapabilityToken\x12&\n" +
+	"\x0fexpires_at_unix\x18\x02 \x01(\x03R\rexpiresAtUnix\"q\n" +
 	"\tHostEvent\x12!\n" +
 	"\fcore_version\x18\x01 \x01(\tR\vcoreVersion\x128\n" +
 	"\n" +
 	"flow_event\x18\x02 \x01(\v2\x17.glyph.common.FlowEventH\x00R\tflowEventB\a\n" +
-	"\x05event2Z\n" +
+	"\x05event2\xc3\x01\n" +
 	"\tPluginBus\x12M\n" +
-	"\vEventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x010\x01B.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3"
+	"\vEventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x010\x01\x12g\n" +
+	"\x11GrantCapabilities\x12).glyph.plugin_bus.PluginCapabilityRequest\x1a'.glyph.plugin_bus.PluginCapabilityGrantB.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3"
 
 var (
 	file_glyph_plugin_bus_proto_rawDescOnce sync.Once
@@ -306,22 +441,26 @@ func file_glyph_plugin_bus_proto_rawDescGZIP() []byte {
 	return file_glyph_plugin_bus_proto_rawDescData
 }
 
-var file_glyph_plugin_bus_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_glyph_plugin_bus_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_glyph_plugin_bus_proto_goTypes = []any{
-	(*PluginEvent)(nil), // 0: glyph.plugin_bus.PluginEvent
-	(*PluginHello)(nil), // 1: glyph.plugin_bus.PluginHello
-	(*HostEvent)(nil),   // 2: glyph.plugin_bus.HostEvent
-	(*Finding)(nil),     // 3: glyph.common.Finding
-	(*FlowEvent)(nil),   // 4: glyph.common.FlowEvent
+	(*PluginEvent)(nil),             // 0: glyph.plugin_bus.PluginEvent
+	(*PluginHello)(nil),             // 1: glyph.plugin_bus.PluginHello
+	(*PluginCapabilityRequest)(nil), // 2: glyph.plugin_bus.PluginCapabilityRequest
+	(*PluginCapabilityGrant)(nil),   // 3: glyph.plugin_bus.PluginCapabilityGrant
+	(*HostEvent)(nil),               // 4: glyph.plugin_bus.HostEvent
+	(*Finding)(nil),                 // 5: glyph.common.Finding
+	(*FlowEvent)(nil),               // 6: glyph.common.FlowEvent
 }
 var file_glyph_plugin_bus_proto_depIdxs = []int32{
 	1, // 0: glyph.plugin_bus.PluginEvent.hello:type_name -> glyph.plugin_bus.PluginHello
-	3, // 1: glyph.plugin_bus.PluginEvent.finding:type_name -> glyph.common.Finding
-	4, // 2: glyph.plugin_bus.HostEvent.flow_event:type_name -> glyph.common.FlowEvent
+	5, // 1: glyph.plugin_bus.PluginEvent.finding:type_name -> glyph.common.Finding
+	6, // 2: glyph.plugin_bus.HostEvent.flow_event:type_name -> glyph.common.FlowEvent
 	0, // 3: glyph.plugin_bus.PluginBus.EventStream:input_type -> glyph.plugin_bus.PluginEvent
-	2, // 4: glyph.plugin_bus.PluginBus.EventStream:output_type -> glyph.plugin_bus.HostEvent
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
+	2, // 4: glyph.plugin_bus.PluginBus.GrantCapabilities:input_type -> glyph.plugin_bus.PluginCapabilityRequest
+	4, // 5: glyph.plugin_bus.PluginBus.EventStream:output_type -> glyph.plugin_bus.HostEvent
+	3, // 6: glyph.plugin_bus.PluginBus.GrantCapabilities:output_type -> glyph.plugin_bus.PluginCapabilityGrant
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -337,7 +476,7 @@ func file_glyph_plugin_bus_proto_init() {
 		(*PluginEvent_Hello)(nil),
 		(*PluginEvent_Finding)(nil),
 	}
-	file_glyph_plugin_bus_proto_msgTypes[2].OneofWrappers = []any{
+	file_glyph_plugin_bus_proto_msgTypes[4].OneofWrappers = []any{
 		(*HostEvent_FlowEvent)(nil),
 	}
 	type x struct{}
@@ -346,7 +485,7 @@ func file_glyph_plugin_bus_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_glyph_plugin_bus_proto_rawDesc), len(file_glyph_plugin_bus_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

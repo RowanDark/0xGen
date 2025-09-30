@@ -45,6 +45,7 @@ import (
         "flag"
         "log/slog"
         "os"
+        "strings"
 
         pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
 )
@@ -58,10 +59,17 @@ func main() {
 
         logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+        capToken := strings.TrimSpace(os.Getenv("GLYPH_CAPABILITY_TOKEN"))
+        if capToken == "" {
+                logger.Error("missing GLYPH_CAPABILITY_TOKEN environment variable")
+                os.Exit(1)
+        }
+
         cfg := pluginsdk.Config{
-                PluginName: "${name}",
-                Host:       *serverAddr,
-                AuthToken:  *authToken,
+                PluginName:      "${name}",
+                Host:            *serverAddr,
+                AuthToken:       *authToken,
+                CapabilityToken: capToken,
                 Capabilities: []pluginsdk.Capability{
                         pluginsdk.CapabilityEmitFindings,
                 },

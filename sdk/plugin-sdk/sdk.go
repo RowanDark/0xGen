@@ -85,6 +85,8 @@ type Config struct {
 	Host string
 	// AuthToken is the shared secret required by the host.
 	AuthToken string
+	// CapabilityToken binds this invocation to the capabilities granted by the host.
+	CapabilityToken string
 	// Capabilities is the set of capabilities granted by the manifest.
 	Capabilities []Capability
 	// Subscriptions lists the host events the plugin wants to receive.
@@ -241,6 +243,9 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 	if cfg.AuthToken == "" {
 		return errors.New("auth token is required")
 	}
+	if cfg.CapabilityToken == "" {
+		return errors.New("capability token is required")
+	}
 
 	logger := cfg.Logger
 	if logger == nil {
@@ -280,11 +285,12 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 	}()
 
 	hello := &pb.PluginHello{
-		AuthToken:     cfg.AuthToken,
-		PluginName:    cfg.PluginName,
-		Pid:           int32(os.Getpid()),
-		Subscriptions: mapSubscriptions(subs),
-		Capabilities:  mapCapabilities(caps),
+		AuthToken:       cfg.AuthToken,
+		PluginName:      cfg.PluginName,
+		Pid:             int32(os.Getpid()),
+		Subscriptions:   mapSubscriptions(subs),
+		Capabilities:    mapCapabilities(caps),
+		CapabilityToken: cfg.CapabilityToken,
 	}
 	if err := stream.Send(&pb.PluginEvent{Event: &pb.PluginEvent_Hello{Hello: hello}}); err != nil {
 		return fmt.Errorf("send hello: %w", err)

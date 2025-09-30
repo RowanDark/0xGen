@@ -6,11 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
 	"github.com/RowanDark/Glyph/internal/netgate"
+	"github.com/RowanDark/Glyph/internal/plugins/capabilities"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -37,6 +39,7 @@ type Server struct {
 	connections map[string]*plugin
 	findings    *findings.Bus
 	gate        *netgate.Gate
+	caps        *capabilities.Manager
 }
 
 // NewServer creates a new bus server.
@@ -50,6 +53,7 @@ func NewServer(authToken string, findingsBus *findings.Bus) *Server {
 		connections: make(map[string]*plugin),
 		findings:    findingsBus,
 		gate:        netgate.New(nil),
+		caps:        capabilities.NewManager(),
 	}
 }
 
@@ -62,10 +66,20 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		return err
 	}
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
+	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
+	if err != nil {
+		s.logger.Warn("Plugin capability validation failed",
+			"plugin", hello.GetPluginName(),
+			"pid", hello.GetPid(),
+			"error", err,
+		)
+		return status.Errorf(codes.PermissionDenied, "capability validation failed: %v", err)
+	}
+
 	s.logger.Info("Plugin connected and authenticated",
 		"plugin_id", pluginID,
 		"subscriptions", hello.GetSubscriptions(),
-		"capabilities", hello.GetCapabilities(),
+		"capabilities", validatedCaps,
 	)
 
 	// 2. Register the plugin connection
@@ -74,7 +88,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		subs[sub] = struct{}{}
 	}
 	caps := make(map[string]struct{})
-	for _, cap := range hello.GetCapabilities() {
+	for _, cap := range validatedCaps {
 		caps[cap] = struct{}{}
 	}
 
@@ -84,7 +98,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		capabilities:  caps,
 	}
 	s.addConnection(pluginID, p)
-	s.gate.Register(pluginID, hello.GetCapabilities())
+	s.gate.Register(pluginID, validatedCaps)
 	defer s.removeConnection(pluginID)
 
 	// Goroutine to send events from the bus to the plugin
@@ -92,6 +106,30 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 
 	// 3. Receive events from the plugin in a loop
 	return s.receiveEvents(stream, p, pluginID)
+}
+
+// GrantCapabilities issues a short-lived capability token for a plugin invocation.
+func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapabilityRequest) (*pb.PluginCapabilityGrant, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request is required")
+	}
+	if req.GetAuthToken() != s.authToken {
+		return nil, status.Error(codes.PermissionDenied, "invalid auth token")
+	}
+	pluginName := strings.TrimSpace(req.GetPluginName())
+	if pluginName == "" {
+		return nil, status.Error(codes.InvalidArgument, "plugin_name is required")
+	}
+	token, expires, err := s.caps.Issue(pluginName, req.GetCapabilities())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "issue token: %v", err)
+	}
+	s.logger.Info("Issued capability grant",
+		"plugin", pluginName,
+		"capabilities", req.GetCapabilities(),
+		"expires_at", expires.UTC(),
+	)
+	return &pb.PluginCapabilityGrant{CapabilityToken: token, ExpiresAtUnix: expires.UTC().Unix()}, nil
 }
 
 // authenticate waits for the first message, which must be PluginHello, and validates it.

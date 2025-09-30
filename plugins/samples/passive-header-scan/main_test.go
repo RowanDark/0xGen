@@ -16,6 +16,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/findings"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestSampleEmitsFinding(t *testing.T) {
@@ -70,9 +71,32 @@ func TestSampleEmitsFinding(t *testing.T) {
 		t.Fatalf("build plugin: %v\noutput: %s", err, buildOutput.String())
 	}
 
+	conn, err := grpc.DialContext(ctx, lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = conn.Close()
+	})
+	grantCtx, grantCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer grantCancel()
+	grant, err := pb.NewPluginBusClient(conn).GrantCapabilities(grantCtx, &pb.PluginCapabilityRequest{
+		AuthToken:    "test-token",
+		PluginName:   "passive-header-scan",
+		Capabilities: []string{"CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+	token := strings.TrimSpace(grant.GetCapabilityToken())
+	if token == "" {
+		t.Fatal("expected capability token")
+	}
+
 	cmd := exec.CommandContext(cmdCtx, binaryPath, "--server", lis.Addr().String(), "--token", "test-token")
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(), "GLYPH_CAPABILITY_TOKEN="+token)
 
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start plugin: %v", err)
@@ -85,15 +109,15 @@ func TestSampleEmitsFinding(t *testing.T) {
 		t.Fatalf("timed out waiting for finding\nstdout: %s\nstderr: %s", stdout.String(), stderr.String())
 	}
 
-        if finding.ID == "" {
-                t.Fatal("expected finding id to be populated")
-        }
-        if finding.Version != findings.SchemaVersion {
-                t.Fatalf("unexpected version: %s", finding.Version)
-        }
-        if finding.Type != "missing-security-header" {
-                t.Fatalf("unexpected finding type: %s", finding.Type)
-        }
+	if finding.ID == "" {
+		t.Fatal("expected finding id to be populated")
+	}
+	if finding.Version != findings.SchemaVersion {
+		t.Fatalf("unexpected version: %s", finding.Version)
+	}
+	if finding.Type != "missing-security-header" {
+		t.Fatalf("unexpected finding type: %s", finding.Type)
+	}
 	if finding.Severity != findings.SeverityMedium {
 		t.Fatalf("unexpected severity: %s", finding.Severity)
 	}

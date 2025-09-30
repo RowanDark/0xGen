@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,10 +29,17 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	capToken := strings.TrimSpace(os.Getenv("GLYPH_CAPABILITY_TOKEN"))
+	if capToken == "" {
+		logger.Error("missing GLYPH_CAPABILITY_TOKEN environment variable")
+		os.Exit(1)
+	}
+
 	cfg := pluginsdk.Config{
-		PluginName: "emit-on-start",
-		Host:       *serverAddr,
-		AuthToken:  *authToken,
+		PluginName:      "emit-on-start",
+		Host:            *serverAddr,
+		AuthToken:       *authToken,
+		CapabilityToken: capToken,
 		Capabilities: []pluginsdk.Capability{
 			pluginsdk.CapabilityEmitFindings,
 		},

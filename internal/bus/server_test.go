@@ -50,15 +50,26 @@ func TestEventStream_ValidAuth(t *testing.T) {
 	server := NewServer("test-token", nil)
 	mockStream := newMockStream(context.Background())
 
+	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
+		AuthToken:    "test-token",
+		PluginName:   "test-plugin",
+		Capabilities: []string{"CAP_EMIT_FINDINGS"},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+
 	// Simulate the client sending a valid hello message
 	go func() {
 		mockStream.RecvChan <- &pb.PluginEvent{
 			Event: &pb.PluginEvent_Hello{
 				Hello: &pb.PluginHello{
-					AuthToken:     "test-token",
-					PluginName:    "test-plugin",
-					Pid:           123,
-					Subscriptions: []string{"FLOW_RESPONSE"},
+					AuthToken:       "test-token",
+					PluginName:      "test-plugin",
+					Pid:             123,
+					Subscriptions:   []string{"FLOW_RESPONSE"},
+					Capabilities:    []string{"CAP_EMIT_FINDINGS"},
+					CapabilityToken: grant.GetCapabilityToken(),
 				},
 			},
 		}
@@ -193,5 +204,45 @@ func TestPublishFindingEmitsToBus(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for finding from bus")
+	}
+}
+
+func TestEventStreamDeniesCapabilityEscalation(t *testing.T) {
+	server := NewServer("test-token", nil)
+	mockStream := newMockStream(context.Background())
+
+	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
+		AuthToken:    "test-token",
+		PluginName:   "test-plugin",
+		Capabilities: []string{"CAP_EMIT_FINDINGS"},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+
+	go func() {
+		mockStream.RecvChan <- &pb.PluginEvent{
+			Event: &pb.PluginEvent_Hello{
+				Hello: &pb.PluginHello{
+					AuthToken:       "test-token",
+					PluginName:      "test-plugin",
+					Pid:             42,
+					Capabilities:    []string{"CAP_EMIT_FINDINGS", "CAP_HTTP_ACTIVE"},
+					CapabilityToken: grant.GetCapabilityToken(),
+				},
+			},
+		}
+	}()
+
+	err = server.EventStream(mockStream)
+	if err == nil {
+		t.Fatal("expected escalation attempt to be rejected")
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error, got %v", err)
+	}
+	if st.Code() != codes.PermissionDenied {
+		t.Fatalf("expected permission denied, got %v", st.Code())
 	}
 }

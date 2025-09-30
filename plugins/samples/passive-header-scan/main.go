@@ -26,10 +26,17 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
+	capToken := strings.TrimSpace(os.Getenv("GLYPH_CAPABILITY_TOKEN"))
+	if capToken == "" {
+		logger.Error("missing GLYPH_CAPABILITY_TOKEN environment variable")
+		os.Exit(1)
+	}
+
 	cfg := pluginsdk.Config{
-		PluginName: "passive-header-scan",
-		Host:       *serverAddr,
-		AuthToken:  *authToken,
+		PluginName:      "passive-header-scan",
+		Host:            *serverAddr,
+		AuthToken:       *authToken,
+		CapabilityToken: capToken,
 		Capabilities: []pluginsdk.Capability{
 			pluginsdk.CapabilityHTTPPassive,
 			pluginsdk.CapabilityEmitFindings,
