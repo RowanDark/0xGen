@@ -18,7 +18,7 @@ func TestRunTimeoutKillsProcess(t *testing.T) {
 	if err := os.WriteFile(source, []byte(program), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
-	binary := filepath.Join(dir, "sleepy")
+	binary := executablePath(dir, "sleepy")
 	build := exec.Command("go", "build", "-o", binary, source)
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build binary: %v\noutput: %s", err, out)

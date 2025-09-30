@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
@@ -24,7 +23,7 @@ func main() {
 	)
 	flag.Parse()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer stop()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))

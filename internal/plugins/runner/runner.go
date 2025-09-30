@@ -9,8 +9,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 )
 
@@ -59,7 +57,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	cmd := exec.CommandContext(wallCtx, cfg.Binary, cfg.Args...)
 	cmd.Dir = tmpDir
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	configureSysProc(cmd)
 
 	if cfg.Stdout != nil {
 		cmd.Stdout = cfg.Stdout
@@ -95,6 +93,10 @@ func buildEnv(workDir string, overrides map[string]string) []string {
 		"HOME":   workDir,
 		"TMPDIR": workDir,
 	}
+	if runtime.GOOS == "windows" {
+		base["TEMP"] = workDir
+		base["TMP"] = workDir
+	}
 	for k, v := range overrides {
 		base[k] = v
 	}
@@ -106,64 +108,4 @@ func buildEnv(workDir string, overrides map[string]string) []string {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 	return env
-}
-
-var limitMu sync.Mutex
-
-func startWithLimits(cmd *exec.Cmd, lim Limits) error {
-	limitMu.Lock()
-	defer limitMu.Unlock()
-
-	var (
-		cpuOrig syscall.Rlimit
-		memOrig syscall.Rlimit
-		cpuSet  bool
-		memSet  bool
-	)
-
-	if lim.CPUSeconds > 0 {
-		if err := syscall.Getrlimit(syscall.RLIMIT_CPU, &cpuOrig); err != nil {
-			return fmt.Errorf("get cpu limit: %w", err)
-		}
-		newLimit := syscall.Rlimit{Cur: lim.CPUSeconds, Max: lim.CPUSeconds}
-		if err := syscall.Setrlimit(syscall.RLIMIT_CPU, &newLimit); err != nil {
-			return fmt.Errorf("set cpu limit: %w", err)
-		}
-		cpuSet = true
-	}
-
-	if lim.MemoryBytes > 0 {
-		if err := syscall.Getrlimit(syscall.RLIMIT_AS, &memOrig); err != nil {
-			return fmt.Errorf("get memory limit: %w", err)
-		}
-		newLimit := syscall.Rlimit{Cur: lim.MemoryBytes, Max: lim.MemoryBytes}
-		if err := syscall.Setrlimit(syscall.RLIMIT_AS, &newLimit); err != nil {
-			return fmt.Errorf("set memory limit: %w", err)
-		}
-		memSet = true
-	}
-
-	startErr := cmd.Start()
-
-	if cpuSet {
-		_ = syscall.Setrlimit(syscall.RLIMIT_CPU, &cpuOrig)
-	}
-	if memSet {
-		_ = syscall.Setrlimit(syscall.RLIMIT_AS, &memOrig)
-	}
-
-	return startErr
-}
-
-func killProcessGroup(cmd *exec.Cmd) {
-	if cmd.Process == nil {
-		return
-	}
-	pid := cmd.Process.Pid
-	if runtime.GOOS == "windows" {
-		_ = cmd.Process.Kill()
-		return
-	}
-	// Negative PID targets the process group.
-	_ = syscall.Kill(-pid, syscall.SIGKILL)
 }
