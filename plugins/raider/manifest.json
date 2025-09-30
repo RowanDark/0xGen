@@ -4,5 +4,9 @@
   "entry": "plugin.js",
   "artifact": "plugin.js",
   "capabilities": ["CAP_HTTP_ACTIVE", "CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
-  "config": {}
+  "config": {},
+  "signature": {
+    "signature": "plugin.js.sig",
+    "publicKey": "../keys/glyph-plugin.pub"
+  }
 }

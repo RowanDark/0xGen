@@ -15,8 +15,9 @@ supporting artifacts.
 
 The [threat model](threat-model.md) explains how Glyph isolates untrusted plugins,
 limits network access, and captures audit trails for every run. Combine it with the
-[build provenance](provenance.md) guide to verify that downloaded binaries and
-containers were produced by the official CI pipelines.
+[build provenance](provenance.md) and [supply-chain hardening](supply-chain.md)
+guides to verify that downloaded binaries and containers were produced by the
+official CI pipelines and signed by trusted automation.
 
 ## Hardening checklist
 

@@ -67,3 +67,23 @@ go run ./cmd/glyphctl plugin run --sample emit-on-start --server 127.0.0.1:50051
 Set `GLYPH_E2E_SMOKE=1` in the environment to enable the demo sample. The
 manifest and source live under `plugins/samples/emit-on-start` and serve as a
 compact reference for authoring new plugins.
+
+## Signing requirements
+
+All official plugins are signed using [Sigstore Cosign](https://docs.sigstore.dev/cosign/overview/).
+Each manifest must include a `signature` block that points to a detached
+signature (`<artifact>.sig`) and either a public key or Fulcio certificate.
+
+To generate a signature with a cosign key pair:
+
+```bash
+cosign sign-blob \
+  --key /path/to/glyph-plugin.key \
+  --output-signature plugin.js.sig \
+  --output-certificate plugin.js.pem \
+  plugin.js
+```
+
+Commit the updated signature file and reference the certificate or public key in
+the manifest. Glyph refuses to run plugins whose signature does not match the
+allowlisted hash and public key.

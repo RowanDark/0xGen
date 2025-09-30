@@ -16,6 +16,10 @@ func validManifest() plugins.Manifest {
 		Entry:        "plugin.js",
 		Artifact:     "plugin.js",
 		Capabilities: []string{"CAP_HTTP_PASSIVE"},
+		Signature: &plugins.Signature{
+			Signature: "plugin.js.sig",
+			PublicKey: "glyph-plugin.pub",
+		},
 	}
 }
 
@@ -82,10 +86,23 @@ func TestValidateRequiresMetadata(t *testing.T) {
 	}
 }
 
+func TestValidateRequiresSignature(t *testing.T) {
+	m := validManifest()
+	m.Signature = nil
+
+	err := m.Validate()
+	if err == nil {
+		t.Fatalf("expected validation error when signature metadata is missing")
+	}
+	if !strings.Contains(err.Error(), "signature") {
+		t.Fatalf("expected signature error, got: %v", err)
+	}
+}
+
 func TestLoadManifestRejectsUnknownField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manifest.json")
-	if err := os.WriteFile(path, []byte(`{"name":"demo","version":"1.0.0","entry":"plugin.js","artifact":"plugin.js","capabilities":["CAP_HTTP_PASSIVE"],"unexpected":true}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"name":"demo","version":"1.0.0","entry":"plugin.js","artifact":"plugin.js","capabilities":["CAP_HTTP_PASSIVE"],"signature":{"signature":"plugin.js.sig","publicKey":"glyph-plugin.pub"},"unexpected":true}`), 0o644); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
 	err := plugins.ValidateManifest(path)

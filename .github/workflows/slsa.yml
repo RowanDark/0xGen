@@ -28,6 +28,13 @@ jobs:
       subject-path: |
         dist/*.tar.gz
         dist/*SHA256SUMS.txt
+        dist/*.zip
+        dist/*.tar.gz.sig
+        dist/*.tar.gz.pem
+        dist/*.zip.sig
+        dist/*.zip.pem
+        dist/*SHA256SUMS.txt.sig
+        dist/*SHA256SUMS.txt.pem
       upload-assets: true
 
   container-provenance:

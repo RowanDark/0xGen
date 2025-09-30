@@ -1,0 +1,41 @@
+name: JS Supply Chain
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit plugin dependencies
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for manifest in plugins/*/package.json; do
+            dir=$(dirname "$manifest")
+            if [ ! -f "$dir/package-lock.json" ]; then
+              echo "Missing package-lock.json for $dir" >&2
+              exit 1
+            fi
+            echo "\n>>> auditing ${dir##*/}"
+            npm ci --omit=dev --prefix "$dir"
+            npm audit --omit=dev --audit-level=high --prefix "$dir"
+            found=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No Node.js plugins found"
+          fi
