@@ -3,5 +3,9 @@
   "version": "0.1.0",
   "entry": "emit-on-start",
   "artifact": "plugins/samples/emit-on-start/main.go",
-  "capabilities": ["CAP_EMIT_FINDINGS"]
+  "capabilities": ["CAP_EMIT_FINDINGS"],
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../../keys/glyph-plugin.pub"
+  }
 }

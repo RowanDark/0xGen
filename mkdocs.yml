@@ -17,6 +17,7 @@ nav:
       - Overview: security/index.md
       - Threat Model: security/threat-model.md
       - Build Provenance: security/provenance.md
+      - Supply Chain: security/supply-chain.md
 
 theme:
   name: material

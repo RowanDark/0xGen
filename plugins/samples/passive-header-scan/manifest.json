@@ -6,5 +6,9 @@
   "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
   "config": {
     "includeResponseHeaders": true
+  },
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../../keys/glyph-plugin.pub"
   }
 }

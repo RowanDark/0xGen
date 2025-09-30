@@ -63,6 +63,10 @@ func runPluginRun(args []string) int {
 		fmt.Fprintf(os.Stderr, "artifact verification failed: %v\n", err)
 		return 1
 	}
+	if err := integrity.VerifySignature(artifactPath, filepath.Dir(manifestPath), root, manifest.Signature); err != nil {
+		fmt.Fprintf(os.Stderr, "artifact signature verification failed: %v\n", err)
+		return 1
+	}
 
 	pluginDir := filepath.Dir(manifestPath)
 	binaryDir, err := os.MkdirTemp("", "glyph-plugin-build-")

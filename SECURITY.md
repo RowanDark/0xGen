@@ -24,6 +24,8 @@ coordinate a fix, publish release notes, and credit reporters who opt in to disc
   and artifact expectations.
 * [Build provenance verification](docs/security/provenance.md) – how to validate
   release signatures before installing.
+* [Supply-chain hardening](docs/security/supply-chain.md) – dependency policy,
+  SBOMs, and plugin signature verification.
 
 ## Scope
 

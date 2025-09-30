@@ -3,5 +3,9 @@
   "version": "0.1.0",
   "entry": "example-hello",
   "artifact": "plugins/example-hello/main.go",
-  "capabilities": ["CAP_EMIT_FINDINGS"]
+  "capabilities": ["CAP_EMIT_FINDINGS"],
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../keys/glyph-plugin.pub"
+  }
 }

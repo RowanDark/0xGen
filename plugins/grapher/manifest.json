@@ -4,5 +4,9 @@
   "entry": "grapher",
   "artifact": "plugins/grapher/main.go",
   "capabilities": ["CAP_STORAGE", "CAP_EMIT_FINDINGS"],
-  "config": {}
+  "config": {},
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../keys/glyph-plugin.pub"
+  }
 }

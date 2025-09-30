@@ -1,0 +1,35 @@
+name: SBOM
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate repository SBOM
+        uses: anchore/syft-action@v0.9.0
+        with:
+          path: .
+          output: sbom/glyph-repo.spdx.json
+
+      - name: Generate plugin SBOMs
+        uses: anchore/syft-action@v0.9.0
+        with:
+          path: plugins
+          output: sbom/glyph-plugins.spdx.json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: glyph-sboms
+          path: sbom/
+          if-no-files-found: error

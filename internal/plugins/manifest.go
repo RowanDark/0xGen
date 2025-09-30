@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 )
 
 type Manifest struct {
@@ -16,6 +17,7 @@ type Manifest struct {
 	Artifact     string         `json:"artifact"`
 	Capabilities []string       `json:"capabilities"`
 	Config       map[string]any `json:"config,omitempty"`
+	Signature    *Signature     `json:"signature"`
 }
 
 var allowedCaps = map[string]struct{}{
@@ -50,6 +52,37 @@ func (m *Manifest) Validate() error {
 		seen[c] = struct{}{}
 	}
 
+	if m.Signature == nil {
+		return errors.New("signature metadata is required")
+	}
+	if err := m.Signature.Validate(); err != nil {
+		return fmt.Errorf("signature: %w", err)
+	}
+
+	return nil
+}
+
+// Signature captures the metadata required to verify an artifact's detached
+// signature.
+type Signature struct {
+	Signature   string `json:"signature"`
+	Certificate string `json:"certificate,omitempty"`
+	PublicKey   string `json:"publicKey,omitempty"`
+}
+
+// Validate ensures the signature metadata is well formed.
+func (s *Signature) Validate() error {
+	if s == nil {
+		return errors.New("signature metadata missing")
+	}
+	if strings.TrimSpace(s.Signature) == "" {
+		return errors.New("signature path is required")
+	}
+	hasCert := strings.TrimSpace(s.Certificate) != ""
+	hasKey := strings.TrimSpace(s.PublicKey) != ""
+	if !hasCert && !hasKey {
+		return errors.New("either certificate or publicKey must be provided")
+	}
 	return nil
 }
 
