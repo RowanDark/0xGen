@@ -71,6 +71,7 @@ test('crawlSite normalises URLs, respects depth limits, and returns canonical sc
     fetchPage,
     now: nowStub(['2024-01-01T00:00:00Z', '2024-01-01T00:00:05Z']),
     scope: 'origin',
+    scopeAllowlist: ['^https://example\\.com'],
   });
 
   assert.deepStrictEqual(Object.keys(result).sort(), ['links', 'meta', 'scripts', 'target']);
@@ -380,6 +381,221 @@ test('crawlSite retains cookies, enforces scope, and honours delay/max page limi
   assert.ok(seenCookies.some((cookieHeader) => cookieHeader.includes('pref=blue')));
   assert.deepStrictEqual(waitDurations, [15]);
   assert.ok(result.links.every((link) => /origin\.test|allowed\.test/.test(new URL(link).hostname)));
+});
+
+test('crawlSite logs violations for disallowed links and supports punycode domains', async () => {
+  const pages = new Map([
+    [
+      'https://seed.test/',
+      {
+        url: 'https://seed.test/',
+        status: 200,
+        title: 'Seed',
+        links: [
+          'https://allowed.test/resource',
+          'https://bücher.example/catalog',
+          'https://outside.test/',
+        ],
+        scripts: [],
+      },
+    ],
+    [
+      'https://allowed.test/resource',
+      {
+        url: 'https://allowed.test/resource',
+        status: 200,
+        title: 'Allowed',
+        links: [],
+        scripts: [],
+      },
+    ],
+    [
+      'https://xn--bcher-kva.example/catalog',
+      {
+        url: 'https://xn--bcher-kva.example/catalog',
+        status: 200,
+        title: 'Books',
+        links: [],
+        scripts: [],
+      },
+    ],
+  ]);
+
+  const fetchPage = async (url) => {
+    const key = url.endsWith('/') ? url : `${url}`;
+    const entry =
+      pages.get(key) || pages.get(`${key}/`) || pages.get(key.replace(/\/+$/, ''));
+    if (!entry) {
+      throw new Error(`unexpected fetch for ${url}`);
+    }
+    return entry;
+  };
+
+  const violations = [];
+  const result = await crawlSite({
+    seed: 'https://seed.test',
+    depth: 1,
+    hostLimit: 3,
+    fetchPage,
+    now: nowStub(['2024-01-05T00:00:00Z', '2024-01-05T00:00:03Z']),
+    scope: 'custom',
+    scopeAllowlist: [
+      '^https://seed\\.test',
+      '^https://allowed\\.test',
+      '^https://xn--bcher-kva\\.example',
+    ],
+    scopeLogger: (entry) => {
+      if (entry && entry.type === 'scope_violation') {
+        violations.push(entry);
+      }
+    },
+  });
+
+  assert.ok(result.links.includes('https://allowed.test/resource'));
+  assert.ok(
+    result.links.some((link) => link.startsWith('https://xn--bcher-kva.example'))
+  );
+  assert.ok(!result.links.some((link) => link.startsWith('https://outside.test')));
+  assert.ok(
+    violations.some(
+      (entry) => entry.reason === 'not_in_allowlist' && entry.url.startsWith('https://outside.test')
+    )
+  );
+});
+
+test('crawlSite blocks private network links even when allowlisted', async () => {
+  const pages = new Map([
+    [
+      'http://seed.test/',
+      {
+        url: 'http://seed.test/',
+        status: 200,
+        title: 'Seed',
+        links: [
+          'http://192.168.0.5/internal',
+          'http://[fd00::1]/internal',
+          'http://seed.test/public',
+        ],
+        scripts: [],
+      },
+    ],
+    [
+      'http://seed.test/public',
+      {
+        url: 'http://seed.test/public',
+        status: 200,
+        title: 'Public',
+        links: [],
+        scripts: [],
+      },
+    ],
+  ]);
+
+  const fetchPage = async (url) => {
+    const key = url.endsWith('/') ? url : `${url}`;
+    const entry =
+      pages.get(key) || pages.get(`${key}/`) || pages.get(key.replace(/\/+$/, ''));
+    if (!entry) {
+      throw new Error(`unexpected fetch for ${url}`);
+    }
+    return entry;
+  };
+
+  const violations = [];
+  const result = await crawlSite({
+    seed: 'http://seed.test',
+    depth: 1,
+    hostLimit: 3,
+    fetchPage,
+    now: nowStub(['2024-01-06T00:00:00Z', '2024-01-06T00:00:02Z']),
+    scope: 'custom',
+    scopeAllowlist: [
+      '^http://seed\\.test',
+      '^http://192\\.168\\.0\\.5',
+      '^http://\\[fd00::1\\]',
+    ],
+    scopeLogger: (entry) => {
+      if (entry && entry.type === 'scope_violation') {
+        violations.push(entry);
+      }
+    },
+  });
+
+  assert.ok(result.links.includes('http://seed.test/public'));
+  assert.ok(!result.links.includes('http://192.168.0.5/internal'));
+  assert.ok(!result.links.includes('http://[fd00::1]/internal'));
+  assert.equal(
+    violations.filter((entry) => entry.reason === 'private_address_blocked').length,
+    2
+  );
+});
+
+test('crawlSite enforces protocol whitelist and honours allowed protocol overrides', async () => {
+  const pages = new Map([
+    [
+      'https://proto.test/',
+      {
+        url: 'https://proto.test/',
+        status: 200,
+        title: 'Protocols',
+        links: ['ftp://files.example/archive', 'https://proto.test/safe'],
+        scripts: [],
+      },
+    ],
+    [
+      'https://proto.test/safe',
+      {
+        url: 'https://proto.test/safe',
+        status: 200,
+        title: 'Safe',
+        links: [],
+        scripts: [],
+      },
+    ],
+  ]);
+
+  const fetchPage = async (url) => {
+    const key = url.endsWith('/') ? url : `${url}`;
+    const entry =
+      pages.get(key) || pages.get(`${key}/`) || pages.get(key.replace(/\/+$/, ''));
+    if (!entry) {
+      throw new Error(`unexpected fetch for ${url}`);
+    }
+    return entry;
+  };
+
+  const violations = [];
+  const result = await crawlSite({
+    seed: 'https://proto.test',
+    depth: 1,
+    hostLimit: 2,
+    fetchPage,
+    now: nowStub(['2024-01-07T00:00:00Z', '2024-01-07T00:00:02Z']),
+    scope: 'custom',
+    scopeAllowlist: ['^https://proto\\.test', '^ftp://files\\.example'],
+    scopeLogger: (entry) => {
+      if (entry && entry.type === 'scope_violation') {
+        violations.push(entry);
+      }
+    },
+  });
+
+  assert.ok(result.links.includes('https://proto.test/safe'));
+  assert.ok(!result.links.includes('ftp://files.example/archive'));
+  assert.ok(violations.some((entry) => entry.reason === 'protocol_blocked'));
+
+  const ftpAllowed = await crawlSite({
+    seed: 'https://proto.test',
+    depth: 1,
+    hostLimit: 2,
+    fetchPage,
+    now: nowStub(['2024-01-08T00:00:00Z', '2024-01-08T00:00:02Z']),
+    scope: 'custom',
+    scopeAllowlist: ['^https://proto\\.test', '^ftp://files\\.example'],
+    allowedProtocols: ['http', 'https', 'ftp'],
+  });
+
+  assert.ok(ftpAllowed.links.includes('ftp://files.example/archive'));
 });
 
 function createCookieFetcher(defaultPort) {
