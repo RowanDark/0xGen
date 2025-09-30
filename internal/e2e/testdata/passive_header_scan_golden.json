@@ -1,0 +1,42 @@
+[
+  {
+    "plugin": "passive-header-scan",
+    "type": "missing-security-header",
+    "message": "response missing Content-Security-Policy header",
+    "severity": "med",
+    "metadata": {
+      "header": "Content-Security-Policy",
+      "recommendation": "default-src 'none'"
+    }
+  },
+  {
+    "plugin": "passive-header-scan",
+    "type": "missing-security-header",
+    "message": "response missing Strict-Transport-Security header",
+    "severity": "med",
+    "metadata": {
+      "header": "Strict-Transport-Security",
+      "recommendation": "max-age=63072000; includeSubDomains; preload"
+    }
+  },
+  {
+    "plugin": "passive-header-scan",
+    "type": "missing-security-header",
+    "message": "response missing X-Content-Type-Options header",
+    "severity": "med",
+    "metadata": {
+      "header": "X-Content-Type-Options",
+      "recommendation": "nosniff"
+    }
+  },
+  {
+    "plugin": "passive-header-scan",
+    "type": "missing-security-header",
+    "message": "response missing X-Frame-Options header",
+    "severity": "med",
+    "metadata": {
+      "header": "X-Frame-Options",
+      "recommendation": "DENY"
+    }
+  }
+]
