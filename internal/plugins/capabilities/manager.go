@@ -86,10 +86,13 @@ func (m *Manager) Issue(plugin string, capabilities []string) (token string, exp
 	}
 	token = base64.RawURLEncoding.EncodeToString(raw)
 
-	expires = m.clock().Add(m.ttl)
+	now := m.clock()
+	expires = now.Add(m.ttl)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.pruneExpiredLocked(now)
 	m.grants[token] = grant{plugin: plugin, capabilities: capSet, expires: expires}
 	return token, expires, nil
 }
@@ -151,4 +154,12 @@ func (m *Manager) Remaining() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.grants)
+}
+
+func (m *Manager) pruneExpiredLocked(now time.Time) {
+	for token, grant := range m.grants {
+		if now.After(grant.expires) {
+			delete(m.grants, token)
+		}
+	}
 }

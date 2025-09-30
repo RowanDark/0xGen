@@ -72,3 +72,28 @@ func TestManagerValidateRejectsExpired(t *testing.T) {
 		t.Fatal("expected expired token to be rejected")
 	}
 }
+
+func TestManagerIssuePrunesExpiredGrants(t *testing.T) {
+	now := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	current := now
+	manager := NewManager(WithClock(func() time.Time { return current }), WithTTL(time.Minute))
+
+	token, _, err := manager.Issue("plugin", []string{"CAP_ONE"})
+	if err != nil {
+		t.Fatalf("issue first grant: %v", err)
+	}
+
+	current = current.Add(2 * time.Minute)
+
+	if _, _, err := manager.Issue("plugin", []string{"CAP_ONE"}); err != nil {
+		t.Fatalf("issue second grant: %v", err)
+	}
+
+	if remaining := manager.Remaining(); remaining != 1 {
+		t.Fatalf("expected only active grant to remain, have %d", remaining)
+	}
+
+	if _, err := manager.Validate(token, "plugin", []string{"CAP_ONE"}); err == nil {
+		t.Fatal("expected expired grant to be pruned")
+	}
+}
