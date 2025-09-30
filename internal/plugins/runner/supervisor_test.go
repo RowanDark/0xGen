@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -40,7 +41,7 @@ func buildBinary(t *testing.T, program string) string {
 	if err := os.WriteFile(source, []byte(program), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
-	binary := filepath.Join(dir, "plugin")
+	binary := executablePath(dir, "plugin")
 	cmd := exec.Command("go", "build", "-o", binary, source)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build binary: %v\noutput: %s", err, output)
@@ -104,6 +105,9 @@ func main() {
 }
 
 func TestSupervisorTerminatesOnMemoryLimit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("memory limits are not enforced on Windows runners")
+	}
 	program := `package main
 func main() {
         chunks := make([][]byte, 0)
