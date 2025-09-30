@@ -5,6 +5,8 @@ const http = require('node:http');
 const https = require('node:https');
 const { URL } = require('url');
 
+const { createScopeChecker } = require('./scope');
+
 const MAX_LINKS = 200;
 const MAX_SCRIPTS = 100;
 const MAX_LINK_ELEMENTS = 400;
@@ -31,7 +33,7 @@ function normaliseURL(href, base) {
   }
   try {
     const url = base ? new URL(href, base) : new URL(href);
-    if (!/^https?:$/.test(url.protocol)) {
+    if (!/^(https?|ftp):$/.test(url.protocol)) {
       return null;
     }
     url.hash = '';
@@ -76,7 +78,7 @@ function normaliseURL(href, base) {
   }
 }
 
-function collectScripts(list, baseURL, aggregate, seen) {
+function collectScripts(list, baseURL, aggregate, seen, scopeGuard) {
   if (aggregate.length >= MAX_SCRIPTS) {
     return;
   }
@@ -92,6 +94,17 @@ function collectScripts(list, baseURL, aggregate, seen) {
     const content = typeof entry.content === 'string' ? entry.content : '';
     const snippet = content.trim().slice(0, SCRIPT_SNIPPET_LIMIT);
     if (!src && !snippet) {
+      if (rawSrc && scopeGuard) {
+        try {
+          const parsed = new URL(rawSrc, baseURL).toString();
+          scopeGuard.check(parsed, { stage: 'script', from: baseURL });
+        } catch (error) {
+          // ignore parse errors
+        }
+      }
+      continue;
+    }
+    if (src && scopeGuard && !scopeGuard.check(src, { stage: 'script', from: baseURL })) {
       continue;
     }
     const fingerprint = `${src || ''}|${snippet}`;
@@ -115,6 +128,10 @@ async function crawlSite(options) {
     now = () => new Date(),
     scope = 'origin',
     scopeAllowlist = [],
+    unsafeFollow = false,
+    allowPrivate = false,
+    allowedProtocols,
+    scopeLogger,
     delayMs = 0,
     maxPages = MAX_VISITED_PAGES,
     wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -139,12 +156,29 @@ async function crawlSite(options) {
   const delayInterval = Number.isFinite(delayMs) && delayMs > 0 ? Math.floor(delayMs) : 0;
   const maxPagesLimit = Number.isFinite(maxPages) && maxPages > 0 ? Math.floor(maxPages) : MAX_VISITED_PAGES;
 
-  const scopeChecker = createScopeChecker(scope, {
+  const unsafeFollowEnabled = parseBoolean(unsafeFollow);
+  const allowPrivateEnabled = parseBoolean(allowPrivate);
+  const allowlist = (Array.isArray(scopeAllowlist) ? scopeAllowlist : [scopeAllowlist])
+    .filter((value) => typeof value === 'string' && value.trim() !== '');
+
+  if (allowlist.length === 0) {
+    throw new Error('scope allowlist must contain at least one entry');
+  }
+
+  const scopeGuard = createScopeChecker(scope, {
     seedUrl,
     seedHost,
     seedOrigin,
-    allowlist: Array.isArray(scopeAllowlist) ? scopeAllowlist : [scopeAllowlist],
+    allowlist,
+    unsafeFollow: unsafeFollowEnabled,
+    allowPrivate: allowPrivateEnabled,
+    allowedProtocols,
+    logger: typeof scopeLogger === 'function' ? scopeLogger : undefined,
   });
+
+  if (!scopeGuard.check(seedNormalised, { stage: 'seed' })) {
+    throw new Error('seed URL is outside the configured scope allowlist');
+  }
 
   // Prime the clock so deterministic tests can control the finish timestamp.
   now();
@@ -187,7 +221,7 @@ async function crawlSite(options) {
       resolvedHost = seedHost;
     }
 
-    if (!scopeChecker(resolved)) {
+    if (!scopeGuard.check(resolved, { stage: 'page', from: current.url })) {
       visited.add(resolved);
       continue;
     }
@@ -207,8 +241,17 @@ async function crawlSite(options) {
 
     const links = Array.isArray(pageData.links) ? pageData.links : [];
     for (const raw of links) {
+      let candidate;
+      try {
+        candidate = new URL(raw, resolved);
+      } catch (error) {
+        continue;
+      }
+
+      const candidateSerialised = candidate.toString();
       const normalised = normaliseURL(raw, resolved);
       if (!normalised) {
+        scopeGuard.check(candidateSerialised, { stage: 'link', from: resolved });
         continue;
       }
 
@@ -219,16 +262,18 @@ async function crawlSite(options) {
         continue;
       }
 
+      const followableProtocol = linkURL.protocol === 'http:' || linkURL.protocol === 'https:';
       const linkHost = linkURL.hostname.toLowerCase();
       const hostAlreadyAllowed = allowedHosts.has(linkHost);
       const canAdmitHost = hostAlreadyAllowed || allowedHosts.size < hostLimitValue;
-      const canIncludeLink = hostAlreadyAllowed || depthLimit === 0 || canAdmitHost;
+      const canIncludeLink = hostAlreadyAllowed || !followableProtocol || depthLimit === 0 || canAdmitHost;
 
-      if (!scopeChecker(normalised) || !canIncludeLink) {
+      if (!scopeGuard.check(normalised, { stage: 'link', from: resolved }) || !canIncludeLink) {
         continue;
       }
 
       if (
+        followableProtocol &&
         current.depth < depthLimit &&
         canAdmitHost &&
         !visited.has(normalised) &&
@@ -244,7 +289,13 @@ async function crawlSite(options) {
       aggregateLinks.add(normalised);
     }
 
-    collectScripts(pageData.scripts || [], resolved, aggregateScripts, scriptFingerprints);
+    collectScripts(
+      pageData.scripts || [],
+      resolved,
+      aggregateScripts,
+      scriptFingerprints,
+      scopeGuard
+    );
   }
 
   const finishedAt = now();
@@ -331,6 +382,36 @@ async function run() {
 
   const normalisedSeed = normaliseURL(seed);
 
+  const scopeArg = typeof args.scope === 'string' ? args.scope : undefined;
+  const allowlistArg = (Array.isArray(args.allowlist) ? args.allowlist : args.allowlist ? [args.allowlist] : [])
+    .map((value) => (typeof value === 'string' ? value.trim() : value))
+    .filter((value) => typeof value === 'string' && value !== '');
+  const unsafeFollowArg = args.unsafeFollow;
+  const allowPrivateArg = args.allowPrivate;
+  const allowedProtocolsRaw = Array.isArray(args.allowedProtocols)
+    ? args.allowedProtocols
+    : args.allowedProtocols
+    ? [args.allowedProtocols]
+    : [];
+  const allowedProtocolsArg = allowedProtocolsRaw
+    .map((value) => (typeof value === 'string' ? value.trim() : value))
+    .filter((value) => typeof value === 'string' && value !== '');
+  const allowedProtocolsList = allowedProtocolsArg.length > 0 ? allowedProtocolsArg : undefined;
+
+  if (allowlistArg.length === 0) {
+    throw new Error('at least one --scope-allow entry is required');
+  }
+
+  if (parseBoolean(unsafeFollowArg)) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        type: 'scope_warning',
+        message: '--unsafe-follow enabled; out-of-allowlist URLs will be followed.',
+      })
+    );
+  }
+
   const proxyServer =
     (typeof args.proxy === 'string' && args.proxy.trim() !== '' && args.proxy) ||
     process.env.EXCAVATOR_PROXY ||
@@ -355,6 +436,11 @@ async function run() {
         proxy: typeof proxyServer === 'string' ? proxyServer.trim() : '',
         now: () => new Date(),
         timeout,
+        scope: scopeArg,
+        scopeAllowlist: allowlistArg,
+        unsafeFollow: unsafeFollowArg,
+        allowPrivate: allowPrivateArg,
+        allowedProtocols: allowedProtocolsList,
       });
       console.log(JSON.stringify(fallback, null, 2));
       process.exit(0);
@@ -382,12 +468,6 @@ async function run() {
     const hostLimitArg = parseInteger(args.hostLimit);
     const delayArg = parseInteger(args.delayMs);
     const maxPagesArg = parseInteger(args.maxPages);
-    const scopeArg = typeof args.scope === 'string' ? args.scope : undefined;
-    const allowlistArg = Array.isArray(args.allowlist)
-      ? args.allowlist
-      : args.allowlist
-      ? [args.allowlist]
-      : [];
 
     const result = await crawlSite({
       seed,
@@ -402,6 +482,9 @@ async function run() {
       fetchPage: (targetUrl) => fetchWithPlaywright(page, targetUrl, timeout),
       scope: scopeArg,
       scopeAllowlist: allowlistArg,
+      unsafeFollow: unsafeFollowArg,
+      allowPrivate: allowPrivateArg,
+      allowedProtocols: allowedProtocolsList,
       delayMs: delayArg !== null ? delayArg : undefined,
       maxPages: maxPagesArg !== null ? maxPagesArg : undefined,
       wait: sleep,
@@ -500,6 +583,32 @@ function parseArgs(argv) {
           }
         }
         break;
+      case 'unsafe-follow':
+        result.unsafeFollow = value;
+        break;
+      case 'allow-private':
+        result.allowPrivate = value;
+        break;
+      case 'allow-protocol':
+      case 'allow-protocols':
+      case 'protocol-allow':
+      case 'scope-allow-protocol':
+        if (value !== undefined) {
+          if (!result.allowedProtocols) {
+            result.allowedProtocols = [];
+          }
+          const entries = Array.isArray(value)
+            ? value
+            : typeof value === 'string'
+            ? value.split(',')
+            : [value];
+          for (const entry of entries) {
+            if (typeof entry === 'string' && entry.trim() !== '') {
+              result.allowedProtocols.push(entry.trim());
+            }
+          }
+        }
+        break;
       case 'cookie':
         if (!result.cookie) {
           result.cookie = [];
@@ -542,6 +651,26 @@ function parseInteger(value) {
   return null;
 }
 
+function parseBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === '') {
+      return true;
+    }
+    return !['false', '0', 'no', 'off'].includes(trimmed);
+  }
+  if (value === null || value === undefined) {
+    return false;
+  }
+  return Boolean(value);
+}
+
 module.exports = { crawlSite, normaliseURL, parseArgs };
 
 function isMissingBrowserError(error) {
@@ -557,15 +686,58 @@ function isMissingBrowserError(error) {
 }
 
 async function crawlWithHTTP(options) {
-  const { seed, proxy, now = () => new Date(), timeout } = options;
+  const {
+    seed,
+    proxy,
+    now = () => new Date(),
+    timeout,
+    scope = 'origin',
+    scopeAllowlist = [],
+    unsafeFollow = false,
+    allowPrivate = false,
+    allowedProtocols,
+    scopeLogger,
+  } = options;
   const normalised = normaliseURL(seed);
   if (!normalised) {
     throw new Error('seed URL must be an absolute HTTP(S) URL');
   }
   const response = await fetchViaHTTP(normalised, proxy, timeout);
   const baseURL = normaliseURL(response.url) || normalised;
-  const links = extractLinks(response.body, baseURL);
-  const scripts = extractScripts(response.body, baseURL);
+
+  const seedUrl = new URL(normalised);
+  const allowlist = (Array.isArray(scopeAllowlist) ? scopeAllowlist : [scopeAllowlist])
+    .filter((value) => typeof value === 'string' && value.trim() !== '');
+
+  if (allowlist.length === 0) {
+    throw new Error('scope allowlist must contain at least one entry');
+  }
+
+  const scopeGuard = createScopeChecker(scope, {
+    seedUrl,
+    seedHost: seedUrl.hostname.toLowerCase(),
+    seedOrigin: seedUrl.origin,
+    allowlist,
+    unsafeFollow: parseBoolean(unsafeFollow),
+    allowPrivate: parseBoolean(allowPrivate),
+    allowedProtocols,
+    logger: typeof scopeLogger === 'function' ? scopeLogger : undefined,
+  });
+
+  if (!scopeGuard.check(normalised, { stage: 'seed' })) {
+    throw new Error('seed URL is outside the configured scope allowlist');
+  }
+
+  if (!scopeGuard.check(baseURL, { stage: 'page', from: normalised })) {
+    throw new Error('resolved URL is outside the configured scope allowlist');
+  }
+
+  const rawLinks = extractLinks(response.body, baseURL);
+  const links = rawLinks.filter((link) => scopeGuard.check(link, { stage: 'link', from: baseURL }));
+  const rawScripts = extractScripts(response.body, baseURL);
+  const scripts = rawScripts.filter(
+    (entry) => !entry.src || scopeGuard.check(entry.src, { stage: 'script', from: baseURL })
+  );
   const host = new URL(baseURL).hostname.toLowerCase();
 
   return {
@@ -676,76 +848,6 @@ async function fetchViaHTTP(target, proxy, timeout) {
     });
     req.end();
   });
-}
-
-function createScopeChecker(mode, context) {
-  const normalisedMode = typeof mode === 'string' ? mode.toLowerCase() : 'origin';
-  const { seedUrl, seedHost, seedOrigin, allowlist } = context;
-  const seedDomain = deriveRegistrableDomain(seedHost);
-  const allowExpressions = Array.isArray(allowlist)
-    ? allowlist
-        .map((pattern) => {
-          if (typeof pattern !== 'string' || pattern.trim() === '') {
-            return null;
-          }
-          try {
-            return new RegExp(pattern);
-          } catch (error) {
-            return null;
-          }
-        })
-        .filter(Boolean)
-    : [];
-
-  switch (normalisedMode) {
-    case 'domain':
-      return (value) => {
-        try {
-          const candidate = new URL(value);
-          const candidateDomain = deriveRegistrableDomain(candidate.hostname.toLowerCase());
-          return candidateDomain === seedDomain;
-        } catch (error) {
-          return false;
-        }
-      };
-    case 'custom':
-      return (value) => {
-        try {
-          const candidate = new URL(value);
-          if (allowExpressions.length === 0) {
-            return candidate.origin === seedOrigin;
-          }
-          return allowExpressions.some((expression) => expression.test(candidate.toString()));
-        } catch (error) {
-          return false;
-        }
-      };
-    case 'origin':
-    default:
-      return (value) => {
-        try {
-          const candidate = new URL(value);
-          return candidate.origin === seedOrigin;
-        } catch (error) {
-          return false;
-        }
-      };
-  }
-}
-
-function deriveRegistrableDomain(hostname) {
-  if (typeof hostname !== 'string') {
-    return '';
-  }
-  const trimmed = hostname.trim().toLowerCase();
-  if (trimmed === '') {
-    return '';
-  }
-  const labels = trimmed.split('.').filter((label) => label !== '');
-  if (labels.length <= 2) {
-    return labels.join('.');
-  }
-  return labels.slice(-2).join('.');
 }
 
 function collectCookieHeaders(args) {
