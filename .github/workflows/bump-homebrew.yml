@@ -21,6 +21,8 @@ jobs:
     env:
       TAG_NAME: ${{ github.event.release.tag_name }}
       TAP_REPO: RowanDark/homebrew-glyph
+    outputs:
+      should-run: ${{ steps.guard.outputs.should-run }}
     steps:
       - name: Check release and secrets
         id: guard
@@ -50,8 +52,8 @@ jobs:
         if: steps.guard.outputs.should-run == 'true'
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          run: |
-            git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
 
       - name: Update formula
         if: steps.guard.outputs.should-run == 'true'
@@ -70,4 +72,17 @@ jobs:
             git push origin HEAD
           else
             echo "Homebrew formula already up to date"
-          fi
+
+  smoke-test:
+    needs: bump
+    if: github.repository_owner == 'RowanDark' && needs.bump.outputs.should-run == 'true'
+    runs-on: macos-latest
+    env:
+      TAG_NAME: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Brew install Glyph
+        run: |
+          set -euo pipefail
+          brew update
+          brew install rowandark/glyph/glyph
+          glyph --version
