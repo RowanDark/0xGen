@@ -12,6 +12,29 @@ import (
 	"strings"
 )
 
+// isWithinBase reports whether the target path resides within the base directory.
+func isWithinBase(base, target string) (bool, error) {
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return false, err
+	}
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return false, err
+	}
+	rel, err := filepath.Rel(absBase, absTarget)
+	if err != nil {
+		return false, err
+	}
+	if rel == "." {
+		return true, nil
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return false, nil
+	}
+	return true, nil
+}
+
 const (
 	manifestName = "manifest.json"
 	filesDir     = "files"
@@ -176,6 +199,13 @@ func ExtractArtifact(path, dest string) (Manifest, error) {
 			return manifest, fmt.Errorf("invalid entry name %q", hdr.Name)
 		}
 		target := filepath.Join(dest, name)
+		within, err := isWithinBase(dest, target)
+		if err != nil {
+			return manifest, fmt.Errorf("validate entry path for %q: %w", hdr.Name, err)
+		}
+		if !within {
+			return manifest, fmt.Errorf("entry %q would escape destination", hdr.Name)
+		}
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
