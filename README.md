@@ -40,10 +40,13 @@ Highlights include:
 * [CLI reference](https://rowandark.github.io/Glyph/cli/)
 * [Developer guide](https://rowandark.github.io/Glyph/dev-guide/)
 * [Security overview](https://rowandark.github.io/Glyph/security/)
+* [Threat model](THREAT_MODEL.md)
+* [Plugin security guide](PLUGIN_GUIDE.md)
 
 ## Security
 
 Please review our [security policy](SECURITY.md) for instructions on reporting
-vulnerabilities and understanding the supported scope. For a deeper look at the
-runtime isolation model and artifact expectations, see the
-[threat model overview](https://rowandark.github.io/Glyph/security/threat-model/).
+vulnerabilities, supported versions, and the disclosure timeline. The
+[Glyph threat model](THREAT_MODEL.md) outlines major attack vectors and
+assumptions, while the [plugin security guide](PLUGIN_GUIDE.md) captures safe
+patterns for new integrations.
