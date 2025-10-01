@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { URL } = require('node:url');
 const { crawlSite } = require('../crawl');
+const { createScopeChecker } = require('../scope');
 
 function nowStub(sequence) {
   let index = 0;
@@ -13,6 +14,47 @@ function nowStub(sequence) {
     return new Date(sequence[sequence.length - 1]);
   };
 }
+
+test('createScopeChecker blocks denylist paths', () => {
+  const guard = createScopeChecker('origin', {
+    seedUrl: new URL('https://example.com'),
+    seedHost: 'example.com',
+    seedOrigin: 'https://example.com',
+    allowlist: [{ type: 'domain', value: 'example.com' }],
+    denylist: [{ type: 'path', value: '/forbidden' }],
+  });
+
+  assert.equal(guard.check('https://example.com/allowed'), true);
+  assert.equal(guard.check('https://example.com/forbidden'), false);
+});
+
+test('createScopeChecker supports CIDR rules', () => {
+  const guard = createScopeChecker('custom', {
+    seedUrl: new URL('https://10.0.0.1'),
+    seedHost: '10.0.0.1',
+    seedOrigin: 'https://10.0.0.1',
+    allowlist: [{ type: 'cidr', value: '10.0.0.0/24' }],
+    denylist: [],
+    allowPrivate: true,
+  });
+
+  assert.equal(guard.check('https://10.0.0.25/page'), true);
+  assert.equal(guard.check('https://192.168.1.1'), false);
+});
+
+test('createScopeChecker supports IPv6 CIDR rules', () => {
+  const guard = createScopeChecker('custom', {
+    seedUrl: new URL('https://[2001:db8::1]'),
+    seedHost: '2001:db8::1',
+    seedOrigin: 'https://[2001:db8::1]',
+    allowlist: [{ type: 'cidr', value: '2001:db8::/32' }],
+    denylist: [],
+    allowPrivate: true,
+  });
+
+  assert.equal(guard.check('https://[2001:db8::dead:beef]'), true);
+  assert.equal(guard.check('https://[2001:db9::1]'), false);
+});
 
 test('crawlSite normalises URLs, respects depth limits, and returns canonical schema', async () => {
   const pages = new Map([
