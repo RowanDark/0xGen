@@ -38,8 +38,7 @@ checks=(
 
 failed=0
 for check in "${checks[@]}"; do
-  pattern=${check/- [x]/- \[x\]}
-  if ! grep -Fiq "$pattern" <<<"$BODY"; then
+  if ! grep -Fiq "$check" <<<"$BODY"; then
     echo "Security checklist item missing or unchecked: ${check/- [x] /}" >&2
     failed=1
   fi
