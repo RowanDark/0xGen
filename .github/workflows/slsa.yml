@@ -44,6 +44,88 @@ jobs:
         dist/*SHA256SUMS.txt.pem
       upload-assets: true
 
+  sign-and-sbom:
+    needs: release-provenance
+    if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Determine release tag
+        id: release
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          DISPLAY_TITLE: ${{ github.event.workflow_run.display_title }}
+        run: |
+          set -euo pipefail
+          tag="${HEAD_BRANCH}"
+          if [ -z "${tag}" ] || [ "${tag}" = "null" ]; then
+            tag="${HEAD_SHA}"
+          fi
+          if [ -z "${tag}" ] || [ "${tag}" = "null" ]; then
+            tag="${DISPLAY_TITLE:-release}"
+            tag=${tag// /-}
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.RELEASE_RUN_ID }}
+          name: release-dist
+          path: dist
+
+      - name: Generate release SBOM
+        uses: anchore/syft-action@v0.9.0
+        with:
+          path: dist
+          output: dist/glyph-${{ steps.release.outputs.tag }}-sbom.spdx.json
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - name: Sign release artifacts
+        env:
+          COSIGN_YES: "true"
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for artifact in dist/*; do
+            case "$artifact" in
+              *.sig|*.pem|*.intoto.jsonl) continue ;;
+            esac
+            base=$(basename "$artifact")
+            cosign sign-blob "$artifact" \
+              --output-signature "dist/${base}.sig" \
+              --output-certificate "dist/${base}.pem"
+          done
+
+      - name: Upload SBOM and signatures to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=()
+          for pattern in dist/*.sig dist/*.pem dist/*-sbom.spdx.json; do
+            for f in $pattern; do
+              [ -e "$f" ] || continue
+              files+=("$f")
+            done
+          done
+          if [ ${#files[@]} -gt 0 ]; then
+            gh release upload "${TAG_NAME}" "${files[@]}" --clobber
+          else
+            echo "No files to upload"
+          fi
+
   container-provenance:
     if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release Container Image' && github.event.workflow_run.conclusion == 'success'
     permissions:

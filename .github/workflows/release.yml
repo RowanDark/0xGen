@@ -9,7 +9,6 @@ on:
 permissions:
   contents: write
   packages: write
-  id-token: write
 
 jobs:
   goreleaser:
@@ -49,37 +48,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3.5.0
-
-      - name: Sign release artifacts
-        env:
-          COSIGN_YES: "true"
-          COSIGN_EXPERIMENTAL: "1"
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for artifact in dist/*; do
-            case "$artifact" in
-              *.sig|*.pem|*.intoto.jsonl) continue ;;
-            esac
-            base=$(basename "$artifact")
-            cosign sign-blob "$artifact" \
-              --output-signature "dist/${base}.sig" \
-              --output-certificate "dist/${base}.pem"
-          done
-
-      - name: Upload signatures to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          files=()
-          for f in dist/*.sig dist/*.pem; do
-            [ -e "$f" ] || continue
-            files+=("$f")
-          done
-          if [ ${#files[@]} -gt 0 ]; then
-            gh release upload "${GITHUB_REF_NAME}" "${files[@]}" --clobber
-          fi
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist
+          path: dist/
+          if-no-files-found: error
