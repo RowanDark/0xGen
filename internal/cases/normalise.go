@@ -1,6 +1,8 @@
 package cases
 
 import (
+	"bytes"
+	"encoding/json"
 	"net"
 	"net/url"
 	"sort"
@@ -158,7 +160,7 @@ type NormalisedFinding struct {
 	Message  string            `json:"message"`
 	Evidence string            `json:"evidence,omitempty"`
 	Severity findings.Severity `json:"severity"`
-	Metadata map[string]string `json:"metadata,omitempty"`
+	Metadata orderedStringMap  `json:"metadata,omitempty"`
 }
 
 func normaliseFinding(f findings.Finding) NormalisedFinding {
@@ -168,6 +170,39 @@ func normaliseFinding(f findings.Finding) NormalisedFinding {
 		Message:  f.Message,
 		Evidence: f.Evidence,
 		Severity: f.Severity,
-		Metadata: cloneMetadata(f.Metadata),
+		Metadata: orderedStringMap(cloneMetadata(f.Metadata)),
 	}
+}
+
+type orderedStringMap map[string]string
+
+func (m orderedStringMap) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return []byte("null"), nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var buf bytes.Buffer
+	buf.WriteByte('{')
+	for i, k := range keys {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		keyBytes, err := json.Marshal(k)
+		if err != nil {
+			return nil, err
+		}
+		valueBytes, err := json.Marshal(m[k])
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(keyBytes)
+		buf.WriteByte(':')
+		buf.Write(valueBytes)
+	}
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
 }
