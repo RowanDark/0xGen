@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/RowanDark/Glyph/internal/bus"
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
@@ -77,6 +77,14 @@ func selectProxyAddr(addrFlag, portFlag string) string {
 }
 
 func run(ctx context.Context, cfg config) error {
+	coreLogger, err := newAuditLogger("glyphd")
+	if err != nil {
+		return fmt.Errorf("configure audit logger: %w", err)
+	}
+	defer coreLogger.Close()
+
+	busLogger := coreLogger.WithComponent("plugin_bus")
+
 	proxyEnabled := cfg.enableProxy || os.Getenv("GLYPH_ENABLE_PROXY") == "1"
 
 	cancelProxy := func() {}
@@ -89,6 +97,14 @@ func run(ctx context.Context, cfg config) error {
 		var err error
 		proxySrv, err = proxy.New(cfg.proxy)
 		if err != nil {
+			emitAudit(coreLogger, logging.AuditEvent{
+				EventType: logging.EventProxyLifecycle,
+				Decision:  logging.DecisionDeny,
+				Reason:    err.Error(),
+				Metadata: map[string]any{
+					"phase": "initialise",
+				},
+			})
 			return fmt.Errorf("initialise proxy: %w", err)
 		}
 
@@ -107,12 +123,27 @@ func run(ctx context.Context, cfg config) error {
 			select {
 			case errRun := <-proxyErrCh:
 				if errRun != nil {
-					log.Printf("proxy startup error: %v", errRun)
+					emitAudit(coreLogger, logging.AuditEvent{
+						EventType: logging.EventProxyLifecycle,
+						Decision:  logging.DecisionDeny,
+						Reason:    errRun.Error(),
+						Metadata: map[string]any{
+							"phase": "startup",
+						},
+					})
 				}
 			default:
 			}
 			return fmt.Errorf("start proxy: %w", err)
 		}
+		emitAudit(coreLogger, logging.AuditEvent{
+			EventType: logging.EventProxyLifecycle,
+			Decision:  logging.DecisionAllow,
+			Metadata: map[string]any{
+				"phase":   "ready",
+				"address": proxySrv.Addr(),
+			},
+		})
 	}
 
 	lis, err := net.Listen("tcp", cfg.addr)
@@ -120,14 +151,28 @@ func run(ctx context.Context, cfg config) error {
 		cancelProxy()
 		if proxyErrCh != nil {
 			if errRun := <-proxyErrCh; errRun != nil {
-				log.Printf("proxy terminated: %v", errRun)
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventProxyLifecycle,
+					Decision:  logging.DecisionDeny,
+					Reason:    errRun.Error(),
+					Metadata: map[string]any{
+						"phase": "listen_failed",
+					},
+				})
 			}
 		}
 		return fmt.Errorf("failed to listen on %s: %w", cfg.addr, err)
 	}
 	defer func() {
 		if err := lis.Close(); err != nil {
-			log.Printf("failed to close listener: %v", err)
+			emitAudit(coreLogger, logging.AuditEvent{
+				EventType: logging.EventRPCCall,
+				Decision:  logging.DecisionInfo,
+				Reason:    err.Error(),
+				Metadata: map[string]any{
+					"phase": "close_listener",
+				},
+			})
 		}
 	}()
 
@@ -136,7 +181,7 @@ func run(ctx context.Context, cfg config) error {
 
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger)
 	}()
 
 	select {
@@ -144,7 +189,14 @@ func run(ctx context.Context, cfg config) error {
 		cancelProxy()
 		if proxyErrCh != nil {
 			if pErr := <-proxyErrCh; pErr != nil {
-				log.Printf("proxy terminated: %v", pErr)
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventProxyLifecycle,
+					Decision:  logging.DecisionDeny,
+					Reason:    pErr.Error(),
+					Metadata: map[string]any{
+						"phase": "grpc_shutdown",
+					},
+				})
 			}
 		}
 		return err
@@ -160,33 +212,53 @@ func run(ctx context.Context, cfg config) error {
 		cancelProxy()
 		if proxyErrCh != nil {
 			if pErr := <-proxyErrCh; pErr != nil {
-				log.Printf("proxy terminated: %v", pErr)
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventProxyLifecycle,
+					Decision:  logging.DecisionDeny,
+					Reason:    pErr.Error(),
+					Metadata: map[string]any{
+						"phase": "context_cancel",
+					},
+				})
 			}
 		}
 		return ctx.Err()
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
 
 	findingsBus := findings.NewBus()
 	findingsPath := resolveFindingsPath()
-	log.Printf("writing findings to %s", findingsPath)
+	emitAudit(coreLogger, logging.AuditEvent{
+		EventType: logging.EventReporter,
+		Decision:  logging.DecisionInfo,
+		Metadata: map[string]any{
+			"findings_path": findingsPath,
+		},
+	})
 	jsonlWriter := reporter.NewJSONL(findingsPath)
 	findingsCh := findingsBus.Subscribe(ctx)
 	go func() {
 		for finding := range findingsCh {
 			if err := jsonlWriter.Write(finding); err != nil {
-				log.Printf("failed to persist finding: %v", err)
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventReporter,
+					Decision:  logging.DecisionDeny,
+					Reason:    err.Error(),
+					Metadata: map[string]any{
+						"action": "persist_finding",
+					},
+				})
 			}
 		}
 	}()
 
 	srv := grpc.NewServer()
-	busServer := bus.NewServer(token, findingsBus)
+	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger))
 	pb.RegisterPluginBusServer(srv, busServer)
 
 	// Create a background context used by the event generator. It is cancelled
@@ -227,4 +299,29 @@ func resolveFindingsPath() string {
 		return filepath.Join(custom, "findings.jsonl")
 	}
 	return reporter.DefaultFindingsPath
+}
+
+func newAuditLogger(component string) (*logging.AuditLogger, error) {
+	opts := []logging.Option{}
+	if disableStdout(os.Getenv("GLYPH_AUDIT_LOG_STDOUT")) {
+		opts = append(opts, logging.WithoutStdout())
+	}
+	if path := strings.TrimSpace(os.Getenv("GLYPH_AUDIT_LOG_PATH")); path != "" {
+		opts = append(opts, logging.WithFile(path))
+	}
+	return logging.NewAuditLogger(component, opts...)
+}
+
+func disableStdout(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return value == "0" || value == "false" || value == "no"
+}
+
+func emitAudit(logger *logging.AuditLogger, event logging.AuditEvent) {
+	if logger == nil {
+		return
+	}
+	if err := logger.Emit(event); err != nil {
+		fmt.Fprintf(os.Stderr, "audit log error: %v\n", err)
+	}
 }

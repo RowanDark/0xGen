@@ -1,12 +1,15 @@
 package bus
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"testing"
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/logging"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -244,5 +247,50 @@ func TestEventStreamDeniesCapabilityEscalation(t *testing.T) {
 	}
 	if st.Code() != codes.PermissionDenied {
 		t.Fatalf("expected permission denied, got %v", st.Code())
+	}
+}
+
+func TestAuditLogEmittedOnDeniedAuth(t *testing.T) {
+	buf := &bytes.Buffer{}
+	audit, err := logging.NewAuditLogger("plugin_bus_test", logging.WithoutStdout(), logging.WithWriter(buf))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+	server := NewServer("secure-token", nil, WithAuditLogger(audit))
+	stream := newMockStream(context.Background())
+
+	go func() {
+		stream.RecvChan <- &pb.PluginEvent{
+			Event: &pb.PluginEvent_Hello{
+				Hello: &pb.PluginHello{
+					AuthToken:  "invalid",
+					PluginName: "audit-tester",
+					Pid:        100,
+				},
+			},
+		}
+	}()
+
+	if err := server.EventStream(stream); err == nil {
+		t.Fatalf("expected authentication failure")
+	}
+
+	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
+	if len(lines) == 0 {
+		t.Fatalf("expected audit log entries, got none")
+	}
+
+	var event logging.AuditEvent
+	if err := json.Unmarshal(lines[0], &event); err != nil {
+		t.Fatalf("failed to decode audit event: %v", err)
+	}
+	if event.EventType != logging.EventPluginLoad {
+		t.Fatalf("expected plugin_load event, got %s", event.EventType)
+	}
+	if event.Decision != logging.DecisionDeny {
+		t.Fatalf("expected decision deny, got %s", event.Decision)
+	}
+	if event.Reason == "" {
+		t.Fatal("expected reason to be populated")
 	}
 }

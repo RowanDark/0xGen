@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
 	"github.com/RowanDark/Glyph/internal/plugins/capabilities"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
@@ -33,7 +33,7 @@ type plugin struct {
 // Server implements the PluginBus service.
 type Server struct {
 	pb.UnimplementedPluginBusServer
-	logger      *slog.Logger
+	audit       *logging.AuditLogger
 	authToken   string
 	mu          sync.RWMutex
 	connections map[string]*plugin
@@ -43,18 +43,32 @@ type Server struct {
 }
 
 // NewServer creates a new bus server.
-func NewServer(authToken string, findingsBus *findings.Bus) *Server {
+type Option func(*Server)
+
+func WithAuditLogger(logger *logging.AuditLogger) Option {
+	return func(s *Server) {
+		if logger != nil {
+			s.audit = logger
+		}
+	}
+}
+
+func NewServer(authToken string, findingsBus *findings.Bus, opts ...Option) *Server {
 	if findingsBus == nil {
 		findingsBus = findings.NewBus()
 	}
-	return &Server{
-		logger:      slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+	srv := &Server{
+		audit:       logging.MustNewAuditLogger("plugin_bus"),
 		authToken:   authToken,
 		connections: make(map[string]*plugin),
 		findings:    findingsBus,
 		gate:        netgate.New(nil),
 		caps:        capabilities.NewManager(),
 	}
+	for _, opt := range opts {
+		opt(srv)
+	}
+	return srv
 }
 
 // EventStream is the main bi-directional stream for plugin communication.
@@ -62,25 +76,41 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	// 1. Authenticate the plugin
 	hello, err := s.authenticate(stream)
 	if err != nil {
-		s.logger.Warn("Plugin authentication failed", "error", err)
+		s.emit(logging.AuditEvent{
+			EventType: logging.EventPluginLoad,
+			Decision:  logging.DecisionDeny,
+			Reason:    err.Error(),
+			Metadata: map[string]any{
+				"stage": "authenticate",
+			},
+		})
 		return err
 	}
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
 	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
 	if err != nil {
-		s.logger.Warn("Plugin capability validation failed",
-			"plugin", hello.GetPluginName(),
-			"pid", hello.GetPid(),
-			"error", err,
-		)
+		s.emit(logging.AuditEvent{
+			EventType: logging.EventCapabilityDenied,
+			Decision:  logging.DecisionDeny,
+			PluginID:  pluginID,
+			Reason:    err.Error(),
+			Metadata: map[string]any{
+				"plugin": hello.GetPluginName(),
+				"pid":    hello.GetPid(),
+			},
+		})
 		return status.Errorf(codes.PermissionDenied, "capability validation failed: %v", err)
 	}
 
-	s.logger.Info("Plugin connected and authenticated",
-		"plugin_id", pluginID,
-		"subscriptions", hello.GetSubscriptions(),
-		"capabilities", validatedCaps,
-	)
+	s.emit(logging.AuditEvent{
+		EventType: logging.EventPluginLoad,
+		Decision:  logging.DecisionAllow,
+		PluginID:  pluginID,
+		Metadata: map[string]any{
+			"subscriptions": hello.GetSubscriptions(),
+			"capabilities":  validatedCaps,
+		},
+	})
 
 	// 2. Register the plugin connection
 	subs := make(map[string]struct{})
@@ -114,6 +144,11 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
 	if req.GetAuthToken() != s.authToken {
+		s.emit(logging.AuditEvent{
+			EventType: logging.EventCapabilityDenied,
+			Decision:  logging.DecisionDeny,
+			Reason:    "invalid auth token",
+		})
 		return nil, status.Error(codes.PermissionDenied, "invalid auth token")
 	}
 	pluginName := strings.TrimSpace(req.GetPluginName())
@@ -122,13 +157,26 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 	}
 	token, expires, err := s.caps.Issue(pluginName, req.GetCapabilities())
 	if err != nil {
+		s.emit(logging.AuditEvent{
+			EventType: logging.EventCapabilityDenied,
+			Decision:  logging.DecisionDeny,
+			PluginID:  pluginName,
+			Reason:    err.Error(),
+			Metadata: map[string]any{
+				"requested_capabilities": req.GetCapabilities(),
+			},
+		})
 		return nil, status.Errorf(codes.InvalidArgument, "issue token: %v", err)
 	}
-	s.logger.Info("Issued capability grant",
-		"plugin", pluginName,
-		"capabilities", req.GetCapabilities(),
-		"expires_at", expires.UTC(),
-	)
+	s.emit(logging.AuditEvent{
+		EventType: logging.EventCapabilityGrant,
+		Decision:  logging.DecisionAllow,
+		PluginID:  pluginName,
+		Metadata: map[string]any{
+			"capabilities": req.GetCapabilities(),
+			"expires_at":   expires.UTC(),
+		},
+	})
 	return &pb.PluginCapabilityGrant{CapabilityToken: token, ExpiresAtUnix: expires.UTC().Unix()}, nil
 }
 
@@ -160,11 +208,21 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 	for {
 		select {
 		case <-stream.Context().Done():
-			s.logger.Info("Client stream context done.", "plugin_id", pluginID)
+			s.emit(logging.AuditEvent{
+				EventType: logging.EventPluginDisconnect,
+				Decision:  logging.DecisionInfo,
+				PluginID:  pluginID,
+				Reason:    "context done",
+			})
 			return
 		case event := <-eventChan:
 			if err := stream.Send(event); err != nil {
-				s.logger.Warn("Failed to send event to plugin", "plugin_id", pluginID, "error", err)
+				s.emit(logging.AuditEvent{
+					EventType: logging.EventRPCDenied,
+					Decision:  logging.DecisionDeny,
+					PluginID:  pluginID,
+					Reason:    err.Error(),
+				})
 				return
 			}
 		}
@@ -176,31 +234,55 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 	for {
 		event, err := stream.Recv()
 		if err == io.EOF {
-			s.logger.Info("Plugin disconnected gracefully", "plugin_id", pluginID)
+			s.emit(logging.AuditEvent{
+				EventType: logging.EventPluginDisconnect,
+				Decision:  logging.DecisionInfo,
+				PluginID:  pluginID,
+				Reason:    "graceful disconnect",
+			})
 			return nil
 		}
 		if err != nil {
-			s.logger.Warn("Error receiving from plugin", "plugin_id", pluginID, "error", err)
+			s.emit(logging.AuditEvent{
+				EventType: logging.EventRPCDenied,
+				Decision:  logging.DecisionDeny,
+				PluginID:  pluginID,
+				Reason:    err.Error(),
+			})
 			return err
 		}
 
 		switch e := event.Event.(type) {
 		case *pb.PluginEvent_Finding:
 			if _, ok := p.capabilities[CapEmitFindings]; !ok {
-				s.logger.Warn("Plugin sent a finding without declaring capability",
-					"plugin_id", pluginID,
-					"capability", CapEmitFindings,
-				)
+				s.emit(logging.AuditEvent{
+					EventType: logging.EventScopeViolation,
+					Decision:  logging.DecisionDeny,
+					PluginID:  pluginID,
+					Reason:    "missing CAP_EMIT_FINDINGS",
+					Metadata: map[string]any{
+						"attempted_capability": CapEmitFindings,
+					},
+				})
 				continue // Ignore the finding
 			}
-			s.logger.Info("Received finding from plugin",
-				"plugin_id", pluginID,
-				"finding_type", e.Finding.Type,
-				"finding_message", e.Finding.Message,
-			)
+			s.emit(logging.AuditEvent{
+				EventType: logging.EventFindingReceived,
+				Decision:  logging.DecisionAllow,
+				PluginID:  pluginID,
+				Metadata: map[string]any{
+					"finding_type":    e.Finding.Type,
+					"finding_message": e.Finding.Message,
+				},
+			})
 			s.publishFinding(pluginID, e.Finding)
 		default:
-			s.logger.Warn("Received unknown event type from plugin", "plugin_id", pluginID)
+			s.emit(logging.AuditEvent{
+				EventType: logging.EventRPCCall,
+				Decision:  logging.DecisionInfo,
+				PluginID:  pluginID,
+				Reason:    "unknown event type",
+			})
 		}
 	}
 }
@@ -217,14 +299,27 @@ func (s *Server) removeConnection(id string) {
 	if p, ok := s.connections[id]; ok {
 		close(p.eventChan)
 		delete(s.connections, id)
-		s.logger.Info("Plugin unregistered", "plugin_id", id, "total_connections", len(s.connections))
+		s.emit(logging.AuditEvent{
+			EventType: logging.EventPluginDisconnect,
+			Decision:  logging.DecisionInfo,
+			PluginID:  id,
+			Metadata: map[string]any{
+				"total_connections": len(s.connections),
+			},
+		})
 	}
 	s.gate.Unregister(id)
 }
 
 // StartEventGenerator starts a ticker to send synthetic events to all connected plugins.
 func (s *Server) StartEventGenerator(ctx context.Context) {
-	s.logger.Info("Starting synthetic event generator", "interval", "2s")
+	s.emit(logging.AuditEvent{
+		EventType: logging.EventRPCCall,
+		Decision:  logging.DecisionInfo,
+		Metadata: map[string]any{
+			"interval": "2s",
+		},
+	})
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -263,16 +358,34 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 	}
 
 	eventType := getEventType(event)
-	s.logger.Info("Broadcasting event", "event_type", eventType)
+	s.emit(logging.AuditEvent{
+		EventType: logging.EventRPCCall,
+		Decision:  logging.DecisionInfo,
+		Metadata: map[string]any{
+			"event_type": eventType,
+		},
+	})
 
 	for id, plugin := range s.connections {
 		if _, subscribed := plugin.subscriptions[eventType]; subscribed {
-			s.logger.Info("Sending event to subscribed plugin", "plugin_id", id, "event_type", eventType)
+			s.emit(logging.AuditEvent{
+				EventType: logging.EventRPCCall,
+				Decision:  logging.DecisionInfo,
+				PluginID:  id,
+				Metadata: map[string]any{
+					"event_type": eventType,
+				},
+			})
 			select {
 			case plugin.eventChan <- event:
 				// Event sent
 			default:
-				s.logger.Warn("Plugin channel full, skipping event.", "plugin_id", id)
+				s.emit(logging.AuditEvent{
+					EventType: logging.EventRPCDenied,
+					Decision:  logging.DecisionDeny,
+					PluginID:  id,
+					Reason:    "channel full",
+				})
 			}
 		}
 	}
@@ -285,9 +398,23 @@ func (s *Server) publishFinding(pluginID string, incoming *pb.Finding) {
 
 	finding, err := findings.FromProto(pluginID, incoming)
 	if err != nil {
-		s.logger.Warn("Rejecting malformed finding", "plugin_id", pluginID, "error", err)
+		s.emit(logging.AuditEvent{
+			EventType: logging.EventFindingRejected,
+			Decision:  logging.DecisionDeny,
+			PluginID:  pluginID,
+			Reason:    err.Error(),
+		})
 		return
 	}
 
 	s.findings.Emit(finding)
+}
+
+func (s *Server) emit(event logging.AuditEvent) {
+	if s.audit == nil {
+		return
+	}
+	if err := s.audit.Emit(event); err != nil {
+		fmt.Fprintf(os.Stderr, "audit log error: %v\n", err)
+	}
 }

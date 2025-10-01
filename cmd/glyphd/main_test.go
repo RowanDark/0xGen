@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"io"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/RowanDark/Glyph/internal/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,9 +22,18 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 		t.Fatalf("failed to listen: %v", err)
 	}
 
+	coreLogger, err := logging.NewAuditLogger("glyphd_test", logging.WithoutStdout(), logging.WithWriter(io.Discard))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+	busLogger, err := logging.NewAuditLogger("plugin_bus_test", logging.WithoutStdout(), logging.WithWriter(io.Discard))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- serve(ctx, lis, "test-token")
+		errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger)
 	}()
 
 	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
