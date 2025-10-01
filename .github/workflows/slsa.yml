@@ -11,8 +11,15 @@ on:
 permissions: {}
 
 jobs:
+  skip-non-owner:
+    if: github.repository_owner != 'RowanDark'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip provenance generation
+        run: echo "Skipping SLSA provenance: workflow only runs in the RowanDark repository."
+
   release-provenance:
-    if: ${{ github.event.workflow_run.name == 'Release' && github.event.workflow_run.conclusion == 'success' }}
+    if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release' && github.event.workflow_run.conclusion == 'success'
     permissions:
       actions: read
       contents: write
@@ -38,7 +45,7 @@ jobs:
       upload-assets: true
 
   container-provenance:
-    if: ${{ github.event.workflow_run.name == 'Release Container Image' && github.event.workflow_run.conclusion == 'success' }}
+    if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release Container Image' && github.event.workflow_run.conclusion == 'success'
     permissions:
       actions: read
       contents: write

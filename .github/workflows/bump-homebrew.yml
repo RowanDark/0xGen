@@ -8,26 +8,58 @@ permissions:
   contents: read
 
 jobs:
+  skip-non-owner:
+    if: github.repository_owner != 'RowanDark'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip Homebrew bump
+        run: echo "Skipping Homebrew formula update: workflow only runs in the RowanDark repository."
+
   bump:
-    if: startsWith(github.event.release.tag_name, 'v') && secrets.HOMEBREW_TAP_TOKEN != ''
+    if: github.repository_owner == 'RowanDark'
     runs-on: ubuntu-latest
     env:
       TAG_NAME: ${{ github.event.release.tag_name }}
       TAP_REPO: RowanDark/homebrew-glyph
-      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
     steps:
+      - name: Check release and secrets
+        id: guard
+        env:
+          TAG_NAME: ${{ env.TAG_NAME }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [[ -z "${TAG_NAME}" || "${TAG_NAME}" != v* ]]; then
+            echo "::notice::Skipping Homebrew bump: release tag '${TAG_NAME}' does not start with 'v'."
+            echo "should-run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [ -z "${TAP_TOKEN}" ]; then
+            echo "::warning::Skipping Homebrew bump: HOMEBREW_TAP_TOKEN secret is not configured."
+            echo "should-run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "should-run=true" >> "${GITHUB_OUTPUT}"
+
       - name: Checkout Glyph
+        if: steps.guard.outputs.should-run == 'true'
         uses: actions/checkout@v4
 
       - name: Clone tap repository
-        run: |
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+        if: steps.guard.outputs.should-run == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          run: |
+            git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
 
       - name: Update formula
+        if: steps.guard.outputs.should-run == 'true'
         run: |
           scripts/update_homebrew_formula.sh "${TAG_NAME}" tap
 
       - name: Commit and push changes
+        if: steps.guard.outputs.should-run == 'true'
         run: |
           cd tap
           if git status --porcelain | grep . >/dev/null 2>&1; then
