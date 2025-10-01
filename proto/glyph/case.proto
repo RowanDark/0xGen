@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package glyph.casebuilder;
+
+option go_package = "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph";
+
+import "glyph/common.proto";
+
+message Case {
+  string version = 1;
+  string id = 2;
+  Asset asset = 3;
+  AttackVector vector = 4;
+  string summary = 5;
+  repeated Evidence evidence = 6;
+  ProofOfConcept proof = 7;
+  Risk risk = 8;
+  double confidence = 9;
+  string confidence_log = 10;
+  repeated SourceFinding sources = 11;
+  string generated_at = 12;
+  map<string, string> labels = 13;
+}
+
+message Asset {
+  string kind = 1;
+  string identifier = 2;
+  string details = 3;
+}
+
+message AttackVector {
+  string kind = 1;
+  string value = 2;
+}
+
+message Evidence {
+  string plugin = 1;
+  string type = 2;
+  string message = 3;
+  string evidence = 4;
+  map<string, string> metadata = 5;
+}
+
+message ProofOfConcept {
+  string summary = 1;
+  repeated string steps = 2;
+}
+
+message Risk {
+  glyph.common.Severity severity = 1;
+  double score = 2;
+  string rationale = 3;
+}
+
+message SourceFinding {
+  string id = 1;
+  string plugin = 2;
+  string type = 3;
+  glyph.common.Severity severity = 4;
+  string target = 5;
+}
+
+message CaseExport {
+  repeated Case cases = 1;
+}

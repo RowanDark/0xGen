@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "id": "TFYQRWYLW5TXVDTX7357DBU4BT",
+  "asset": {
+    "kind": "web",
+    "identifier": "corp.example.com",
+    "details": "https://corp.example.com/logs"
+  },
+  "vector": {
+    "kind": "source_code"
+  },
+  "summary": "2 plugin signal(s) indicate an issue affecting corp.example.com (https://corp.example.com/logs).\n\nKey evidence:\n- [Excavator] Public log leak (MED)\n- [Seer] Email address found (LOW)",
+  "evidence": [
+    {
+      "plugin": "excavator",
+      "type": "excavator.exposed_file",
+      "message": "Public log leak",
+      "evidence": "access.log"
+    },
+    {
+      "plugin": "seer",
+      "type": "seer.email",
+      "message": "Email address found"
+    }
+  ],
+  "proof": {
+    "summary": "Reproduce the issue on corp.example.com by following 2 synthesised steps.",
+    "steps": [
+      "Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: corp.example.com (web)\nAttack vector: source_code\nEvidence:\n- Plugin=excavator Severity=MED Message=Public log leak\n- Plugin=seer Severity=LOW Message=Email address found\nProvide a concise narrative and highlight overlapping evidence.",
+      "Execute reproduction instructions synthesised from prompt: Synthesize deterministic reproduction steps for asset corp.example.com (web).\nUse at most 4 steps. Incorporate plugin observations:\n- Excavator evidence: access.log\n- Seer observed: Email address found\nReturn concise imperative steps."
+    ]
+  },
+  "risk": {
+    "severity": "med",
+    "score": 5.5,
+    "rationale": "Highest severity reported by contributing plugins: MED"
+  },
+  "confidence": 0.55,
+  "confidence_log": "2 plugin(s), 2 finding(s)",
+  "sources": [
+    {
+      "id": "2",
+      "plugin": "excavator",
+      "type": "excavator.exposed_file",
+      "severity": "med",
+      "target": "https://corp.example.com/logs"
+    },
+    {
+      "id": "1",
+      "plugin": "seer",
+      "type": "seer.email",
+      "severity": "low",
+      "target": "https://corp.example.com"
+    }
+  ],
+  "generated_at": "2023-11-14T23:03:20Z"
+}
