@@ -96,11 +96,16 @@ func WithoutStdout() Option {
 	}
 }
 
+type auditCore struct {
+	mu      sync.Mutex
+	encoder *json.Encoder
+	closers []io.Closer
+}
+
 type AuditLogger struct {
-	mu        sync.Mutex
-	encoder   *json.Encoder
-	component string
-	closers   []io.Closer
+	component   string
+	core        *auditCore
+	ownsClosers bool
 }
 
 func NewAuditLogger(component string, opts ...Option) (*AuditLogger, error) {
@@ -120,9 +125,9 @@ func NewAuditLogger(component string, opts ...Option) (*AuditLogger, error) {
 	enc := json.NewEncoder(writer)
 	enc.SetEscapeHTML(false)
 	return &AuditLogger{
-		encoder:   enc,
-		component: component,
-		closers:   cfg.closers,
+		component:   component,
+		core:        &auditCore{encoder: enc, closers: cfg.closers},
+		ownsClosers: true,
 	}, nil
 }
 
@@ -135,21 +140,27 @@ func MustNewAuditLogger(component string, opts ...Option) *AuditLogger {
 }
 
 func (l *AuditLogger) Close() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	if l == nil || !l.ownsClosers || l.core == nil {
+		return nil
+	}
+	l.core.mu.Lock()
+	defer l.core.mu.Unlock()
 	var firstErr error
-	for _, closer := range l.closers {
+	for _, closer := range l.core.closers {
 		if err := closer.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
-	l.closers = nil
+	l.core.closers = nil
 	return firstErr
 }
 
 func (l *AuditLogger) Emit(event AuditEvent) error {
 	if l == nil {
 		return errors.New("nil audit logger")
+	}
+	if l.core == nil {
+		return errors.New("nil audit logger core")
 	}
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now().UTC()
@@ -159,7 +170,18 @@ func (l *AuditLogger) Emit(event AuditEvent) error {
 	if event.Component == "" {
 		event.Component = l.component
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.encoder.Encode(event)
+	l.core.mu.Lock()
+	defer l.core.mu.Unlock()
+	return l.core.encoder.Encode(event)
+}
+
+func (l *AuditLogger) WithComponent(component string) *AuditLogger {
+	if l == nil || l.core == nil {
+		return nil
+	}
+	return &AuditLogger{
+		component:   component,
+		core:        l.core,
+		ownsClosers: false,
+	}
 }

@@ -83,11 +83,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 	defer coreLogger.Close()
 
-	busLogger, err := newAuditLogger("plugin_bus")
-	if err != nil {
-		return fmt.Errorf("configure plugin bus logger: %w", err)
-	}
-	defer busLogger.Close()
+	busLogger := coreLogger.WithComponent("plugin_bus")
 
 	proxyEnabled := cfg.enableProxy || os.Getenv("GLYPH_ENABLE_PROXY") == "1"
 
