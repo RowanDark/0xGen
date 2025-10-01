@@ -40,6 +40,8 @@ Highlights include:
 * [CLI reference](https://rowandark.github.io/Glyph/cli/)
 * [Developer guide](https://rowandark.github.io/Glyph/dev-guide/)
 * [Security overview](https://rowandark.github.io/Glyph/security/)
+* [Build provenance](https://rowandark.github.io/Glyph/security/provenance/)
+* [Supply chain security](https://rowandark.github.io/Glyph/security/supply-chain/)
 * [Threat model](THREAT_MODEL.md)
 * [Plugin security guide](PLUGIN_GUIDE.md)
 
