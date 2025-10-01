@@ -21,6 +21,7 @@ function createScopeChecker(mode, context = {}) {
     seedHost,
     seedOrigin,
     allowlist = [],
+    denylist = [],
     unsafeFollow = false,
     allowPrivate = false,
     allowedProtocols,
@@ -28,26 +29,8 @@ function createScopeChecker(mode, context = {}) {
   } = context;
 
   const seedDomain = deriveRegistrableDomain(seedHost);
-  const allowPatterns = Array.isArray(allowlist)
-    ? allowlist
-        .map((pattern) => {
-          if (typeof pattern !== 'string' || pattern.trim() === '') {
-            return null;
-          }
-          try {
-            return { pattern, expression: new RegExp(pattern) };
-          } catch (error) {
-            logger({
-              type: 'scope_violation',
-              reason: 'invalid_allowlist_pattern',
-              url: seedUrl ? seedUrl.toString() : '',
-              details: { pattern, error: error.message },
-            });
-            return null;
-          }
-        })
-        .filter(Boolean)
-    : [];
+  const allowRules = buildRuleSet('allow', allowlist, seedUrl, logger);
+  const denyRules = buildRuleSet('deny', denylist, seedUrl, logger);
 
   const protocolList = Array.isArray(allowedProtocols) && allowedProtocols.length > 0
     ? allowedProtocols
@@ -65,11 +48,18 @@ function createScopeChecker(mode, context = {}) {
     logger({ type: 'scope_violation', reason, url, details });
   }
 
-  function matchesAllowlist(value) {
-    if (allowPatterns.length === 0) {
+  function matchesAllowlist(candidate, serialised) {
+    if (allowRules.matchers.length === 0) {
       return unsafeFollow;
     }
-    return allowPatterns.some((entry) => entry.expression.test(value));
+    return allowRules.matchers.some((fn) => safeInvoke(fn, candidate, serialised));
+  }
+
+  function matchesDenylist(candidate, serialised) {
+    if (denyRules.matchers.length === 0) {
+      return false;
+    }
+    return denyRules.matchers.some((fn) => safeInvoke(fn, candidate, serialised));
   }
 
   function withinBaseScope(candidate) {
@@ -77,7 +67,7 @@ function createScopeChecker(mode, context = {}) {
       case 'domain':
         return deriveRegistrableDomain(candidate.hostname.toLowerCase()) === seedDomain;
       case 'custom':
-        if (allowPatterns.length > 0) {
+        if (allowRules.matchers.length > 0) {
           return true;
         }
         return candidate.origin === seedOrigin;
@@ -114,16 +104,25 @@ function createScopeChecker(mode, context = {}) {
       return false;
     }
 
+    if (matchesDenylist(candidate, serialised)) {
+      logViolation(
+        serialised,
+        'denied_by_policy',
+        Object.assign({ denylist: denyRules.descriptors }, meta)
+      );
+      return false;
+    }
+
     if (!withinBaseScope(candidate)) {
       logViolation(serialised, 'out_of_scope', Object.assign({ mode: normalisedMode }, meta));
       return false;
     }
 
-    if (!unsafeFollow && !matchesAllowlist(serialised)) {
+    if (!unsafeFollow && !matchesAllowlist(candidate, serialised)) {
       logViolation(
         serialised,
         'not_in_allowlist',
-        Object.assign({ allowlist: allowPatterns.map((entry) => entry.pattern) }, meta)
+        Object.assign({ allowlist: allowRules.descriptors }, meta)
       );
       return false;
     }
@@ -132,6 +131,275 @@ function createScopeChecker(mode, context = {}) {
   }
 
   return { check };
+}
+
+function buildRuleSet(kind, entries, seedUrl, logger) {
+  const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
+  const matchers = [];
+  const descriptors = [];
+  for (const entry of list) {
+    const compiled = compileRule(kind, entry, seedUrl, logger);
+    if (compiled) {
+      matchers.push(compiled.matches);
+      descriptors.push(compiled.describe);
+    }
+  }
+  return { matchers, descriptors };
+}
+
+function compileRule(kind, entry, seedUrl, logger) {
+  if (typeof entry === 'string') {
+    return compilePatternRule(kind, entry, seedUrl, logger);
+  }
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const rawType = typeof entry.type === 'string' ? entry.type.trim().toLowerCase() : '';
+  const rawPattern = typeof entry.pattern === 'string' ? entry.pattern.trim() : '';
+  const rawValue = typeof entry.value === 'string' ? entry.value.trim() : '';
+  const type = rawType || (rawPattern !== '' ? 'pattern' : '');
+  const value = rawValue || rawPattern;
+
+  if (type === '' || value === '') {
+    return null;
+  }
+
+  switch (type) {
+    case 'pattern':
+    case 'regex':
+      return compilePatternRule(kind, value, seedUrl, logger);
+    case 'domain': {
+      const domain = value.toLowerCase();
+      return {
+        matches: (candidate) => hostMatchesDomain(candidate.hostname, domain),
+        describe: `domain:${domain}`,
+      };
+    }
+    case 'wildcard': {
+      const regex = wildcardToRegExp(value);
+      if (!regex) {
+        logRuleError(kind, seedUrl, logger, { pattern: value, error: 'invalid wildcard pattern' });
+        return null;
+      }
+      return {
+        matches: (candidate) => regex.test((candidate.hostname || '').toLowerCase()),
+        describe: `wildcard:${value}`,
+      };
+    }
+    case 'url':
+      return {
+        matches: (_, serialised) => serialised === value,
+        describe: `url:${value}`,
+      };
+    case 'url_prefix':
+      return {
+        matches: (_, serialised) => serialised.startsWith(value),
+        describe: `url_prefix:${value}`,
+      };
+    case 'path': {
+      const normalised = value.startsWith('/') ? value : `/${value}`;
+      return {
+        matches: (candidate) => candidate.pathname.startsWith(normalised),
+        describe: `path:${normalised}`,
+      };
+    }
+    case 'cidr': {
+      const cidr = parseCIDR(value);
+      if (!cidr) {
+        logRuleError(kind, seedUrl, logger, { value, error: 'invalid cidr' });
+        return null;
+      }
+      return {
+        matches: (candidate) => cidrContains(cidr, candidate.hostname),
+        describe: `cidr:${value}`,
+      };
+    }
+    case 'ip':
+      return {
+        matches: (candidate) => (candidate.hostname || '').toLowerCase() === value.toLowerCase(),
+        describe: `ip:${value.toLowerCase()}`,
+      };
+    default:
+      logRuleError(kind, seedUrl, logger, {
+        type,
+        value,
+        error: 'unsupported rule type',
+      });
+      return null;
+  }
+}
+
+function compilePatternRule(kind, pattern, seedUrl, logger) {
+  if (typeof pattern !== 'string' || pattern.trim() === '') {
+    return null;
+  }
+  try {
+    const expression = new RegExp(pattern);
+    return {
+      matches: (_, serialised) => expression.test(serialised),
+      describe: `pattern:${pattern}`,
+    };
+  } catch (error) {
+    logRuleError(kind, seedUrl, logger, { pattern, error: error.message });
+    return null;
+  }
+}
+
+function logRuleError(kind, seedUrl, logger, details) {
+  if (typeof logger !== 'function') {
+    return;
+  }
+  const reason = kind === 'allow' ? 'invalid_allowlist_pattern' : 'invalid_denylist_rule';
+  try {
+    logger({
+      type: 'scope_violation',
+      reason,
+      url: seedUrl ? seedUrl.toString() : '',
+      details,
+    });
+  } catch (error) {
+    // ignore logger failures
+  }
+}
+
+function wildcardToRegExp(pattern) {
+  if (typeof pattern !== 'string') {
+    return null;
+  }
+  const trimmed = pattern.trim();
+  if (trimmed === '') {
+    return null;
+  }
+  const escaped = trimmed.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const regex = `^${escaped.replace(/\\\*/g, '.*')}$`;
+  try {
+    return new RegExp(regex.toLowerCase());
+  } catch (error) {
+    return null;
+  }
+}
+
+function hostMatchesDomain(hostname, domain) {
+  if (typeof hostname !== 'string' || typeof domain !== 'string') {
+    return false;
+  }
+  const host = hostname.trim().toLowerCase();
+  const target = domain.trim().toLowerCase();
+  if (host === '' || target === '') {
+    return false;
+  }
+  return host === target || host.endsWith(`.${target}`);
+}
+
+function safeInvoke(fn, candidate, serialised) {
+  try {
+    return fn(candidate, serialised);
+  } catch (error) {
+    return false;
+  }
+}
+
+function parseCIDR(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return null;
+  }
+  const parts = trimmed.split('/');
+  if (parts.length !== 2) {
+    return null;
+  }
+  const rawAddress = parts[0].trim();
+  const address = unwrapHost(rawAddress);
+  const prefix = Number.parseInt(parts[1], 10);
+  if (!Number.isFinite(prefix)) {
+    return null;
+  }
+
+  const version = net.isIP(address);
+  if (version === 4) {
+    if (prefix < 0 || prefix > 32) {
+      return null;
+    }
+    const octets = address.split('.').map((segment) => Number.parseInt(segment, 10));
+    if (octets.length !== 4 || octets.some((segment) => !Number.isFinite(segment) || segment < 0 || segment > 255)) {
+      return null;
+    }
+    const baseInt = ipToInteger(octets);
+    if (baseInt === null) {
+      return null;
+    }
+    const mask = prefix === 0 ? 0 : ((0xffffffff << (32 - prefix)) >>> 0) >>> 0;
+    return { version: 4, base: baseInt, mask };
+  }
+
+  if (version === 6) {
+    if (prefix < 0 || prefix > 128) {
+      return null;
+    }
+    const parsed = parseIPv6(address);
+    if (parsed === null) {
+      return null;
+    }
+    const mask = prefix === 0 ? 0n : BigInt.asUintN(128, (-1n << BigInt(128 - prefix)));
+    return { version: 6, base: parsed, mask };
+  }
+
+  return null;
+}
+
+function cidrContains(cidr, host) {
+  if (!cidr || typeof host !== 'string') {
+    return false;
+  }
+  const cleaned = host.trim();
+  if (cleaned === '') {
+    return false;
+  }
+  const address = unwrapHost(cleaned);
+  const version = net.isIP(address);
+  if (version === 4 && cidr.version === 4) {
+    const ip = ipToInteger(address.split('.').map((segment) => Number.parseInt(segment, 10)));
+    if (ip === null) {
+      return false;
+    }
+    return (ip & cidr.mask) === (cidr.base & cidr.mask);
+  }
+  if (version === 6 && cidr.version === 6) {
+    const target = parseIPv6(address);
+    if (target === null) {
+      return false;
+    }
+    return (target & cidr.mask) === (cidr.base & cidr.mask);
+  }
+  return false;
+}
+
+function unwrapHost(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  if (value.startsWith('[') && value.endsWith(']')) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function ipToInteger(parts) {
+  if (!Array.isArray(parts) || parts.length !== 4) {
+    return null;
+  }
+  let value = 0;
+  for (const part of parts) {
+    if (!Number.isFinite(part) || part < 0 || part > 255) {
+      return null;
+    }
+    value = (value << 8) | part;
+  }
+  return value >>> 0;
 }
 
 function deriveRegistrableDomain(hostname) {

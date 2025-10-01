@@ -6,6 +6,7 @@ const https = require('node:https');
 const { URL } = require('url');
 
 const { createScopeChecker } = require('./scope');
+const { loadScopePolicy } = require('./scope_policy');
 
 const MAX_LINKS = 200;
 const MAX_SCRIPTS = 100;
@@ -128,6 +129,7 @@ async function crawlSite(options) {
     now = () => new Date(),
     scope = 'origin',
     scopeAllowlist = [],
+    scopeDenylist = [],
     unsafeFollow = false,
     allowPrivate = false,
     allowedProtocols,
@@ -158,18 +160,19 @@ async function crawlSite(options) {
 
   const unsafeFollowEnabled = parseBoolean(unsafeFollow);
   const allowPrivateEnabled = parseBoolean(allowPrivate);
-  const allowlist = (Array.isArray(scopeAllowlist) ? scopeAllowlist : [scopeAllowlist])
-    .filter((value) => typeof value === 'string' && value.trim() !== '');
-
+  const allowlist = flattenRuleInput(scopeAllowlist);
   if (allowlist.length === 0) {
     throw new Error('scope allowlist must contain at least one entry');
   }
+
+  const denylist = flattenRuleInput(scopeDenylist);
 
   const scopeGuard = createScopeChecker(scope, {
     seedUrl,
     seedHost,
     seedOrigin,
     allowlist,
+    denylist,
     unsafeFollow: unsafeFollowEnabled,
     allowPrivate: allowPrivateEnabled,
     allowedProtocols,
@@ -387,7 +390,6 @@ async function run() {
     .map((value) => (typeof value === 'string' ? value.trim() : value))
     .filter((value) => typeof value === 'string' && value !== '');
   const unsafeFollowArg = args.unsafeFollow;
-  const allowPrivateArg = args.allowPrivate;
   const allowedProtocolsRaw = Array.isArray(args.allowedProtocols)
     ? args.allowedProtocols
     : args.allowedProtocols
@@ -398,8 +400,50 @@ async function run() {
     .filter((value) => typeof value === 'string' && value !== '');
   const allowedProtocolsList = allowedProtocolsArg.length > 0 ? allowedProtocolsArg : undefined;
 
-  if (allowlistArg.length === 0) {
-    throw new Error('at least one --scope-allow entry is required');
+  const policyPathArg = typeof args.scopePolicy === 'string' ? args.scopePolicy.trim() : '';
+  const policyEnv =
+    (typeof process.env.SCOPE_POLICY === 'string' && process.env.SCOPE_POLICY.trim() !== '' && process.env.SCOPE_POLICY.trim()) ||
+    (typeof process.env.SCOPE_POLICY_PATH === 'string' && process.env.SCOPE_POLICY_PATH.trim() !== ''
+      ? process.env.SCOPE_POLICY_PATH.trim()
+      : '');
+  const policyPath = policyPathArg || policyEnv;
+
+  let scopePolicy = null;
+  if (policyPath) {
+    try {
+      scopePolicy = loadScopePolicy(policyPath);
+    } catch (error) {
+      throw new Error(`load scope policy ${policyPath}: ${error.message}`);
+    }
+  }
+
+  const allowEntries = [];
+  if (scopePolicy && Array.isArray(scopePolicy.allow)) {
+    for (const entry of scopePolicy.allow) {
+      allowEntries.push(entry);
+    }
+  }
+  for (const pattern of allowlistArg) {
+    allowEntries.push({ type: 'pattern', value: pattern });
+  }
+  if (allowEntries.length === 0) {
+    throw new Error('scope allowlist must contain at least one entry');
+  }
+
+  const denyEntries = [];
+  if (scopePolicy && Array.isArray(scopePolicy.deny)) {
+    for (const entry of scopePolicy.deny) {
+      denyEntries.push(entry);
+    }
+  }
+
+  let allowPrivateEffective;
+  if (args.allowPrivate !== undefined) {
+    allowPrivateEffective = parseBoolean(args.allowPrivate);
+  } else if (scopePolicy && typeof scopePolicy.privateNetworks === 'string') {
+    allowPrivateEffective = scopePolicy.privateNetworks === 'allow';
+  } else {
+    allowPrivateEffective = false;
   }
 
   if (parseBoolean(unsafeFollowArg)) {
@@ -437,9 +481,10 @@ async function run() {
         now: () => new Date(),
         timeout,
         scope: scopeArg,
-        scopeAllowlist: allowlistArg,
+        scopeAllowlist: allowEntries,
+        scopeDenylist: denyEntries,
         unsafeFollow: unsafeFollowArg,
-        allowPrivate: allowPrivateArg,
+        allowPrivate: allowPrivateEffective,
         allowedProtocols: allowedProtocolsList,
       });
       console.log(JSON.stringify(fallback, null, 2));
@@ -481,9 +526,10 @@ async function run() {
           : undefined,
       fetchPage: (targetUrl) => fetchWithPlaywright(page, targetUrl, timeout),
       scope: scopeArg,
-      scopeAllowlist: allowlistArg,
+      scopeAllowlist: allowEntries,
+      scopeDenylist: denyEntries,
       unsafeFollow: unsafeFollowArg,
-      allowPrivate: allowPrivateArg,
+      allowPrivate: allowPrivateEffective,
       allowedProtocols: allowedProtocolsList,
       delayMs: delayArg !== null ? delayArg : undefined,
       maxPages: maxPagesArg !== null ? maxPagesArg : undefined,
@@ -561,6 +607,10 @@ function parseArgs(argv) {
       case 'scope':
         result.scope = value;
         break;
+      case 'scope-policy':
+      case 'scope-policy-path':
+        result.scopePolicy = value;
+        break;
       case 'proxy':
         result.proxy = value;
         break;
@@ -637,6 +687,36 @@ function parseArgs(argv) {
   return result;
 }
 
+function flattenRuleInput(value) {
+  if (Array.isArray(value)) {
+    const entries = [];
+    for (const item of value) {
+      if (item === null || item === undefined) {
+        continue;
+      }
+      if (typeof item === 'string') {
+        const trimmed = item.trim();
+        if (trimmed !== '') {
+          entries.push(trimmed);
+        }
+        continue;
+      }
+      if (typeof item === 'object') {
+        entries.push(item);
+      }
+    }
+    return entries;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? [] : [trimmed];
+  }
+  if (value && typeof value === 'object') {
+    return [value];
+  }
+  return [];
+}
+
 function parseInteger(value) {
   if (value === undefined || value === null || value === '') {
     return null;
@@ -693,6 +773,7 @@ async function crawlWithHTTP(options) {
     timeout,
     scope = 'origin',
     scopeAllowlist = [],
+    scopeDenylist = [],
     unsafeFollow = false,
     allowPrivate = false,
     allowedProtocols,
@@ -706,18 +787,19 @@ async function crawlWithHTTP(options) {
   const baseURL = normaliseURL(response.url) || normalised;
 
   const seedUrl = new URL(normalised);
-  const allowlist = (Array.isArray(scopeAllowlist) ? scopeAllowlist : [scopeAllowlist])
-    .filter((value) => typeof value === 'string' && value.trim() !== '');
-
+  const allowlist = flattenRuleInput(scopeAllowlist);
   if (allowlist.length === 0) {
     throw new Error('scope allowlist must contain at least one entry');
   }
+
+  const denylist = flattenRuleInput(scopeDenylist);
 
   const scopeGuard = createScopeChecker(scope, {
     seedUrl,
     seedHost: seedUrl.hostname.toLowerCase(),
     seedOrigin: seedUrl.origin,
     allowlist,
+    denylist,
     unsafeFollow: parseBoolean(unsafeFollow),
     allowPrivate: parseBoolean(allowPrivate),
     allowedProtocols,
