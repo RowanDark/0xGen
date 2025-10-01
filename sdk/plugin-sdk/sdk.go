@@ -95,6 +95,8 @@ type Config struct {
 	AuthToken string
 	// CapabilityToken binds this invocation to the capabilities granted by the host.
 	CapabilityToken string
+	// SecretsToken authorises this invocation to retrieve secrets from the broker.
+	SecretsToken string
 	// Capabilities is the set of capabilities granted by the manifest.
 	Capabilities []Capability
 	// Subscriptions lists the host events the plugin wants to receive.
@@ -294,6 +296,11 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 		_ = conn.Close()
 	}()
 
+	broker := cfg.Broker
+	if broker == nil {
+		broker = newRemoteBroker(cfg.PluginName, cfg.SecretsToken, conn)
+	}
+
 	client := pb.NewPluginBusClient(conn)
 	stream, err := client.EventStream(ctx)
 	if err != nil {
@@ -321,7 +328,7 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 		logger:       logger.With("plugin", cfg.PluginName),
 		capabilities: caps,
 		pluginName:   cfg.PluginName,
-		broker:       cfg.Broker,
+		broker:       broker,
 	}
 
 	if hooks.OnStart != nil {
