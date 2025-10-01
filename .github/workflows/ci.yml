@@ -68,9 +68,13 @@ jobs:
             if ! ajv validate -s "$SCHEMA" -d "$mf" --strict=true --errors=lineNumbers; then
               echo "  ✗ schema validation failed"; rc=2; continue
             fi
-            echo "  ✓ ok"
-          done
-          exit "$rc"
+          echo "  ✓ ok"
+        done
+        exit "$rc"
+
+      - name: Enforce security checklist
+        if: matrix.os == 'ubuntu-latest'
+        run: scripts/check_security_checklist.sh
 
       - name: Test (race)
         run: go test -race ./...
