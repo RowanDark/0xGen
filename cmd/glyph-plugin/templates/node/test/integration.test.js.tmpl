@@ -1,0 +1,34 @@
+const { createPlugin } = require('../src/index.js');
+
+async function run() {
+  const events = [];
+  const plugin = createPlugin({
+    broker: {
+      fs: {
+        async readFile(path) {
+          if (path === 'task.json') {
+            return Buffer.from('{"task":"demo"}');
+          }
+          const err = new Error('not found');
+          err.code = 'NOT_FOUND';
+          throw err;
+        }
+      }
+    },
+    logger: {
+      info: (...args) => events.push(['info', ...args])
+    }
+  });
+
+  await plugin.onStart({});
+  await plugin.onHTTPPassive({ response: { statusLine: 'HTTP/1.1 200 OK' } });
+
+  if (events.length === 0) {
+    throw new Error('expected log output');
+  }
+}
+
+run().catch(err => {
+  console.error(err);
+  process.exitCode = 1;
+});

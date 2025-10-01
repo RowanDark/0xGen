@@ -1,0 +1,21 @@
+function createPlugin({ broker, logger }) {
+  return {
+    async onStart(context) {
+      try {
+        const data = await broker.fs.readFile('task.json');
+        logger.info('Loaded task file', { bytes: data.length });
+      } catch (err) {
+        if (err.code === 'NOT_FOUND') {
+          logger.info('No task file provided');
+        } else {
+          throw err;
+        }
+      }
+    },
+    async onHTTPPassive(event, context) {
+      logger.info('Passive response observed', { status: event.response?.statusLine });
+    }
+  };
+}
+
+module.exports = { createPlugin };

@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+const forbidden = [/\bfs\.(readFile|writeFile)\b/, /\bnet\.connect\b/];
+const fs = require('fs');
+const path = require('path');
+
+function walk(dir) {
+  for (const entry of fs.readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    const stat = fs.statSync(full);
+    if (stat.isDirectory()) {
+      walk(full);
+    } else if (full.endsWith('.js') || full.endsWith('.ts')) {
+      const src = fs.readFileSync(full, 'utf8');
+      for (const rule of forbidden) {
+        if (rule.test(src)) {
+          console.error(`forbidden API ${rule} in ${full}`);
+          process.exitCode = 1;
+        }
+      }
+    }
+  }
+}
+
+walk(path.resolve('src'));
+if (process.exitCode) {
+  process.exit(1);
+}

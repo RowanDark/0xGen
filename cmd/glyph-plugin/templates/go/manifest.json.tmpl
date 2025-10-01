@@ -1,0 +1,13 @@
+{
+  "name": "{{.PluginName}}",
+  "version": "0.1.0",
+  "entry": "./cmd/{{.BinaryName}}/main.go",
+  "capabilities": [
+    "CAP_EMIT_FINDINGS",
+    "CAP_HTTP_PASSIVE",
+    "CAP_WORKSPACE_READ",
+    "CAP_WORKSPACE_WRITE",
+    "CAP_NET_OUTBOUND",
+    "CAP_SECRETS_READ"
+  ]
+}

@@ -31,6 +31,14 @@ const (
 	CapabilityEmitFindings Capability = "CAP_EMIT_FINDINGS"
 	// CapabilityHTTPPassive allows the plugin to receive passive HTTP events.
 	CapabilityHTTPPassive Capability = "CAP_HTTP_PASSIVE"
+	// CapabilityWorkspaceRead allows the plugin to read from its allocated workspace.
+	CapabilityWorkspaceRead Capability = "CAP_WORKSPACE_READ"
+	// CapabilityWorkspaceWrite allows the plugin to write to its allocated workspace.
+	CapabilityWorkspaceWrite Capability = "CAP_WORKSPACE_WRITE"
+	// CapabilityNetOutbound allows the plugin to make outbound network requests via the broker.
+	CapabilityNetOutbound Capability = "CAP_NET_OUTBOUND"
+	// CapabilitySecretsRead allows the plugin to retrieve secrets from the broker.
+	CapabilitySecretsRead Capability = "CAP_SECRETS_READ"
 )
 
 // Subscription identifies the type of host events a plugin is interested in.
@@ -93,6 +101,8 @@ type Config struct {
 	Subscriptions []Subscription
 	// Logger allows callers to customise logging output. A sensible default is used otherwise.
 	Logger *slog.Logger
+	// Broker injects broker helpers for filesystem, network, and secrets access.
+	Broker Broker
 }
 
 // HTTPResponse summarises an HTTP response derived from a passive flow event.
@@ -109,11 +119,16 @@ type HTTPPassiveEvent struct {
 }
 
 // Context provides helpers for hooks to interact with the host safely.
+type eventSink interface {
+	sendFinding(*pb.Finding) error
+}
+
 type Context struct {
-	runtime      *runtimeState
+	runtime      eventSink
 	logger       *slog.Logger
 	capabilities map[Capability]struct{}
 	pluginName   string
+	broker       Broker
 }
 
 // Logger returns the logger bound to the plugin context.
@@ -169,6 +184,10 @@ func (c *Context) EmitFinding(f Finding) error {
 	metadata["detected_at"] = detectedAt.Format(time.RFC3339)
 	if len(metadata) > 0 {
 		pbFinding.Metadata = metadata
+	}
+
+	if c.runtime == nil {
+		return errors.New("runtime not initialised")
 	}
 
 	return c.runtime.sendFinding(pbFinding)
@@ -302,6 +321,7 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 		logger:       logger.With("plugin", cfg.PluginName),
 		capabilities: caps,
 		pluginName:   cfg.PluginName,
+		broker:       cfg.Broker,
 	}
 
 	if hooks.OnStart != nil {
