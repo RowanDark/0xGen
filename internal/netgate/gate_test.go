@@ -348,6 +348,57 @@ func TestGateBudgetExhaustion(t *testing.T) {
 	}
 }
 
+func TestGateBuildTransportEnablesHTTP2(t *testing.T) {
+	gate := New(dummyDialer{}, WithTransportConfig(TransportConfig{EnableHTTP2: true, EnableHTTP3: false}))
+	transport, err := gate.buildTransport()
+	if err != nil {
+		t.Fatalf("build transport: %v", err)
+	}
+	httpTransport, ok := transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected *http.Transport, got %T", transport)
+	}
+	if !httpTransport.ForceAttemptHTTP2 {
+		t.Fatal("expected HTTP/2 to be enabled")
+	}
+	if !containsProto(httpTransport.TLSClientConfig.NextProtos, "h2") {
+		t.Fatalf("expected h2 ALPN, got %v", httpTransport.TLSClientConfig.NextProtos)
+	}
+}
+
+func TestGateBuildTransportLayeredWhenHTTP3Enabled(t *testing.T) {
+	gate := New(dummyDialer{})
+	transport, err := gate.buildTransport()
+	if err != nil {
+		t.Fatalf("build transport: %v", err)
+	}
+	if _, ok := transport.(*layeredTransport); !ok {
+		t.Fatalf("expected layered transport, got %T", transport)
+	}
+}
+
+func TestLayeredTransportShouldFallback(t *testing.T) {
+	lt := &layeredTransport{}
+	if lt.shouldFallback(nil) {
+		t.Fatal("unexpected fallback for nil error")
+	}
+	if lt.shouldFallback(context.Canceled) {
+		t.Fatal("context cancellation should not trigger fallback")
+	}
+	if !lt.shouldFallback(errHTTP3Unavailable) {
+		t.Fatal("expected fallback for HTTP/3 unavailability")
+	}
+}
+
+func containsProto(list []string, proto string) bool {
+	for _, v := range list {
+		if strings.EqualFold(v, proto) {
+			return true
+		}
+	}
+	return false
+}
+
 type slowDialer struct {
 	delay time.Duration
 }

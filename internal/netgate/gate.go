@@ -2,6 +2,7 @@ package netgate
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/logging"
+	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
 )
 
 const (
@@ -31,6 +33,21 @@ const (
 var supportedCaps = map[string]struct{}{
 	capHTTPActive:  {},
 	capHTTPPassive: {},
+}
+
+// TransportConfig controls the negotiated HTTP protocols available to clients.
+type TransportConfig struct {
+	EnableHTTP2 bool
+	EnableHTTP3 bool
+}
+
+var defaultTransportConfig = TransportConfig{EnableHTTP2: true, EnableHTTP3: true}
+
+func sanitizeTransportConfig(cfg TransportConfig) TransportConfig {
+	if !cfg.EnableHTTP2 && !cfg.EnableHTTP3 {
+		cfg.EnableHTTP2 = true
+	}
+	return cfg
 }
 
 // Config controls the runtime limits enforced by the gate.
@@ -69,6 +86,31 @@ func WithRequestBudget(budget int) Option {
 	}
 }
 
+// WithTransportConfig customises the HTTP protocol support for new clients.
+func WithTransportConfig(cfg TransportConfig) Option {
+	return func(g *Gate) {
+		g.tcfg = sanitizeTransportConfig(cfg)
+	}
+}
+
+// WithFingerprintStrategy replaces the default JA3/JA4 strategy.
+func WithFingerprintStrategy(strategy *fingerprint.Strategy) Option {
+	return func(g *Gate) {
+		if strategy != nil {
+			g.fp = strategy
+		}
+	}
+}
+
+// WithTLSConfig applies a base TLS configuration to all outbound clients.
+func WithTLSConfig(cfg *tls.Config) Option {
+	return func(g *Gate) {
+		if cfg != nil {
+			g.tlsCfg = cfg.Clone()
+		}
+	}
+}
+
 // Gate ensures all outbound network operations performed on behalf of plugins
 // respect the declared capabilities and configured limits.
 type Gate struct {
@@ -78,6 +120,9 @@ type Gate struct {
 	budgets map[string]int
 	config  Config
 	audit   *logging.AuditLogger
+	tlsCfg  *tls.Config
+	fp      *fingerprint.Strategy
+	tcfg    TransportConfig
 }
 
 // New creates a gate wrapping the provided dialer. If dialer is nil a sane
@@ -89,11 +134,17 @@ func New(dialer Dialer, opts ...Option) *Gate {
 		perms:   make(map[string]map[string]struct{}),
 		budgets: make(map[string]int),
 		config:  cfg,
+		fp:      fingerprint.DefaultStrategy(),
+		tcfg:    defaultTransportConfig,
 	}
 	for _, opt := range opts {
 		opt(g)
 	}
 	g.config = sanitizeConfig(g.config)
+	g.tcfg = sanitizeTransportConfig(g.tcfg)
+	if g.fp == nil {
+		g.fp = fingerprint.DefaultStrategy()
+	}
 	if g.dialer == nil {
 		g.dialer = &net.Dialer{Timeout: g.config.Timeout}
 	}
@@ -193,25 +244,16 @@ func (g *Gate) HTTPClient(pluginID, capability string) (*HTTPClient, error) {
 		g.auditDenied(pluginID, capability, metadata, err)
 		return nil, err
 	}
-	base := http.DefaultTransport
-	transport, ok := base.(*http.Transport)
-	if !ok {
-		transport = &http.Transport{}
-	} else {
-		transport = transport.Clone()
+	transport, err := g.buildTransport()
+	if err != nil {
+		g.auditDenied(pluginID, capability, metadata, err)
+		return nil, err
 	}
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		ctx, cancel := g.withTimeout(ctx)
-		defer cancel()
-		return g.dialer.DialContext(ctx, network, address)
+	client := &http.Client{
+		Transport: &gatedTransport{gate: g, pluginID: pluginID, capability: capability, transport: transport},
+		Timeout:   g.config.Timeout,
 	}
-	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		if err := g.validateHTTPRequest(pluginID, capability, req); err != nil {
-			return nil, err
-		}
-		return transport.RoundTrip(req)
-	}), Timeout: g.config.Timeout}
-	return &HTTPClient{gate: g, pluginID: pluginID, capability: capability, client: client}, nil
+	return &HTTPClient{gate: g, pluginID: pluginID, capability: capability, client: client, transport: transport}, nil
 }
 
 func (g *Gate) ensureCapability(pluginID, capability string) error {
@@ -303,6 +345,13 @@ func (g *Gate) auditDenied(pluginID, capability string, metadata map[string]any,
 	})
 }
 
+func (g *Gate) decorateRequest(req *http.Request) {
+	if req == nil || g.fp == nil {
+		return
+	}
+	g.fp.DecorateRequest(req)
+}
+
 func dialMetadata(network, address string) map[string]any {
 	md := map[string]any{"operation": "dial"}
 	if netName := strings.TrimSpace(network); netName != "" {
@@ -334,6 +383,7 @@ type HTTPClient struct {
 	pluginID   string
 	capability string
 	client     *http.Client
+	transport  http.RoundTripper
 }
 
 // Do dispatches the HTTP request after applying capability and timeout checks.
@@ -351,12 +401,13 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 		defer cancel()
 	}
 	cloned := req.Clone(ctx)
+	c.gate.decorateRequest(cloned)
 	return c.client.Do(cloned)
 }
 
 // CloseIdleConnections releases idle connections held by the underlying transport.
 func (c *HTTPClient) CloseIdleConnections() {
-	if closer, ok := c.client.Transport.(interface{ CloseIdleConnections() }); ok {
+	if closer, ok := c.transport.(interface{ CloseIdleConnections() }); ok {
 		closer.CloseIdleConnections()
 	}
 }
