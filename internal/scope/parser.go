@@ -77,16 +77,16 @@ func detectHeading(lower, original string) (section, string) {
 	allowKeywords := []string{"in scope", "scope includes", "eligible", "targets", "permitted"}
 	denyKeywords := []string{"out of scope", "not in scope", "excluded", "forbidden", "prohibited"}
 
-	for _, kw := range allowKeywords {
-		if strings.Contains(lower, kw) {
-			remainder := extractRemainder(original, kw)
-			return sectionAllow, remainder
-		}
-	}
 	for _, kw := range denyKeywords {
 		if strings.Contains(lower, kw) {
 			remainder := extractRemainder(original, kw)
 			return sectionDeny, remainder
+		}
+	}
+	for _, kw := range allowKeywords {
+		if strings.Contains(lower, kw) {
+			remainder := extractRemainder(original, kw)
+			return sectionAllow, remainder
 		}
 	}
 	return sectionUnknown, ""
@@ -143,12 +143,17 @@ func extractRules(line string) []Rule {
 		addRule(Rule{Type: RuleTypeIP, Value: match})
 	}
 
+	cleanedLower := strings.ToLower(cleaned)
+
 	for _, match := range domainPattern.FindAllString(cleaned, -1) {
 		token := strings.ToLower(cleanToken(match))
 		if strings.Contains(token, "@") {
 			continue
 		}
 		if ipPattern.MatchString(token) {
+			continue
+		}
+		if strings.Contains(cleanedLower, "://"+token) {
 			continue
 		}
 		if strings.Contains(token, "*") {
