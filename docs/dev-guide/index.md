@@ -60,7 +60,10 @@ you debug the plugin in real time.
 2. Run `make test` and `glyphctl demo` to ensure critical paths pass.
 3. Execute `scripts/build_release.sh` to produce signed archives and checksums.
 4. Follow the prompts in `scripts/update_homebrew_formula.sh` if the Homebrew tap
-   needs a new version.
+   needs a new version. The script keeps the
+   [`RowanDark/homebrew-glyph`](https://github.com/RowanDark/homebrew-glyph)
+   formula in sync and the `bump-homebrew` workflow opens a pull request with the
+   changes.
 5. Push a Git tag (for example `v1.2.3`) to trigger the release workflows and publish
    versioned documentation.
 
