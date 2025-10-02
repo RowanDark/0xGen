@@ -44,11 +44,23 @@ function createConcurrencyManager(options = {}) {
     }
 
     if (!released) {
+      let releaseOptions;
+      let releaseOptionsError;
+
       try {
-        const releaseOptions = await resolveReleaseOptions(task, result, runError);
+        releaseOptions = await resolveReleaseOptions(task, result, runError);
+      } catch (error) {
+        releaseOptionsError = error;
+      }
+
+      try {
         await release(releaseOptions);
       } catch (error) {
         releaseError = error;
+      }
+
+      if (!releaseError && releaseOptionsError) {
+        releaseError = releaseOptionsError;
       }
     }
 
