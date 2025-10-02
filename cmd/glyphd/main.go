@@ -18,6 +18,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/Glyph/internal/secrets"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 )
@@ -260,6 +261,11 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	srv := grpc.NewServer()
 	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger))
 	pb.RegisterPluginBusServer(srv, busServer)
+
+	secretsLogger := coreLogger.WithComponent("secrets_broker")
+	secretsManager := secrets.NewManager(secrets.FromEnv(os.Environ()), secrets.WithAuditLogger(secretsLogger))
+	secretsServer := secrets.NewServer(secretsManager, secrets.WithServerAuditLogger(secretsLogger))
+	pb.RegisterSecretsBrokerServer(srv, secretsServer)
 
 	// Create a background context used by the event generator. It is cancelled
 	// once the gRPC server begins shutting down.

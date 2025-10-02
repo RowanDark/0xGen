@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/redact"
 )
 
 type EventType string
@@ -24,6 +26,9 @@ const (
 	EventFindingRejected  EventType = "finding_rejected"
 	EventProxyLifecycle   EventType = "proxy_lifecycle"
 	EventReporter         EventType = "reporter_event"
+	EventSecretsToken     EventType = "secrets_token_issue"
+	EventSecretsAccess    EventType = "secrets_access"
+	EventSecretsDenied    EventType = "secrets_denied"
 )
 
 type Decision string
@@ -169,6 +174,10 @@ func (l *AuditLogger) Emit(event AuditEvent) error {
 	}
 	if event.Component == "" {
 		event.Component = l.component
+	}
+	event.Reason = redact.String(event.Reason)
+	if len(event.Metadata) > 0 {
+		event.Metadata = redact.Map(event.Metadata)
 	}
 	l.core.mu.Lock()
 	defer l.core.mu.Unlock()
