@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/RowanDark/Glyph/internal/scope"
@@ -59,6 +60,16 @@ func runScopeDerive(args []string) int {
 
 	policy := scope.ParsePolicyFromText(scopeText)
 	policy.Normalise()
+
+	summary := scope.Summarize(policy)
+	summaryWriter := os.Stdout
+	if !*writeOut {
+		summaryWriter = os.Stderr
+	}
+	printPolicySummary(summaryWriter, summary)
+	if summaryWriter == os.Stdout {
+		fmt.Fprintln(os.Stdout)
+	}
 
 	rendered, err := encodePolicy(policy)
 	if err != nil {
@@ -281,4 +292,68 @@ func writePolicyFile(path string, content []byte) error {
 		}
 	}
 	return os.WriteFile(path, content, 0o600)
+}
+
+func printPolicySummary(out io.Writer, summary scope.Summary) {
+	if out == nil {
+		return
+	}
+	fmt.Fprintln(out, "Extracted scope policy:")
+	fmt.Fprintf(out, "  Private networks: %s\n", summary.PrivateNetworks)
+	if summary.PIIMode != scope.PIIModeUnspecified {
+		fmt.Fprintf(out, "  PII mode: %s\n", summary.PIIMode)
+	}
+	printRuleGroup(out, "Allow", summary.Allow)
+	printRuleGroup(out, "Deny", summary.Deny)
+	fmt.Fprintln(out)
+}
+
+func printRuleGroup(out io.Writer, label string, group map[string][]string) {
+	total := 0
+	for _, values := range group {
+		total += len(values)
+	}
+	if total == 0 {
+		fmt.Fprintf(out, "  %s rules: none\n", label)
+		return
+	}
+	fmt.Fprintf(out, "  %s rules:\n", label)
+	for _, key := range orderedRuleTypes(group) {
+		values := group[key]
+		fmt.Fprintf(out, "    - %s (%d)\n", key, len(values))
+		for _, value := range values {
+			fmt.Fprintf(out, "        • %s\n", value)
+		}
+	}
+}
+
+func orderedRuleTypes(group map[string][]string) []string {
+	predefined := []string{
+		scope.RuleTypeDomain,
+		scope.RuleTypeWildcard,
+		scope.RuleTypeURL,
+		scope.RuleTypePrefix,
+		scope.RuleTypePath,
+		scope.RuleTypeCIDR,
+		scope.RuleTypeIP,
+		scope.RuleTypePattern,
+	}
+	seen := make(map[string]struct{}, len(group))
+	var order []string
+	for _, typ := range predefined {
+		if _, ok := group[typ]; ok {
+			order = append(order, typ)
+			seen[typ] = struct{}{}
+		}
+	}
+	var rest []string
+	for typ := range group {
+		if _, ok := seen[typ]; ok {
+			continue
+		}
+		rest = append(rest, typ)
+	}
+	sort.Strings(rest)
+	order = append(order, rest...)
+	return order
 }
