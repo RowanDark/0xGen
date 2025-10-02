@@ -62,12 +62,16 @@ func NewServer(authToken string, findingsBus *findings.Bus, opts ...Option) *Ser
 		authToken:   authToken,
 		connections: make(map[string]*plugin),
 		findings:    findingsBus,
-		gate:        netgate.New(nil),
 		caps:        capabilities.NewManager(),
 	}
 	for _, opt := range opts {
 		opt(srv)
 	}
+	var gateAudit *logging.AuditLogger
+	if srv.audit != nil {
+		gateAudit = srv.audit.WithComponent("netgate")
+	}
+	srv.gate = netgate.New(nil, netgate.WithAuditLogger(gateAudit))
 	return srv
 }
 
