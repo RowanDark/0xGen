@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/redact"
 )
 
 // Builder reduces raw plugin findings into high-confidence Cases.
@@ -168,7 +169,7 @@ func (b *Builder) assembleCase(proto Case, fs []findings.Finding, summary Summar
 	caseCopy.ConfidenceLog = summary.ConfidenceLog
 	caseCopy.Evidence = append(caseCopy.Evidence, buildEvidence(fs)...)
 	caseCopy.Sources = append(caseCopy.Sources, buildSources(fs)...)
-	return caseCopy
+	return sanitizeCase(caseCopy)
 }
 
 func (b *Builder) resolveNow() time.Time {
@@ -324,4 +325,48 @@ func cloneMetadata(in map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+func sanitizeCase(c Case) Case {
+	c.Asset.Identifier = redact.String(c.Asset.Identifier)
+	c.Asset.Details = redact.String(c.Asset.Details)
+	c.Vector.Value = redact.String(c.Vector.Value)
+	c.Summary = redact.String(c.Summary)
+	c.ConfidenceLog = redact.String(c.ConfidenceLog)
+	c.Proof.Summary = redact.String(c.Proof.Summary)
+	if len(c.Proof.Steps) > 0 {
+		c.Proof.Steps = redact.Slice(c.Proof.Steps)
+	}
+	c.Risk.Rationale = redact.String(c.Risk.Rationale)
+	if len(c.Labels) > 0 {
+		sanitized := make(map[string]string, len(c.Labels))
+		for k, v := range c.Labels {
+			sanitized[k] = redact.String(v)
+		}
+		c.Labels = sanitized
+	}
+	if len(c.Evidence) > 0 {
+		for i := range c.Evidence {
+			c.Evidence[i] = sanitizeEvidence(c.Evidence[i])
+		}
+	}
+	if len(c.Sources) > 0 {
+		for i := range c.Sources {
+			c.Sources[i].Target = redact.String(c.Sources[i].Target)
+		}
+	}
+	return c
+}
+
+func sanitizeEvidence(e EvidenceItem) EvidenceItem {
+	e.Message = redact.String(e.Message)
+	e.Evidence = redact.String(e.Evidence)
+	if len(e.Metadata) > 0 {
+		sanitized := make(map[string]string, len(e.Metadata))
+		for k, v := range e.Metadata {
+			sanitized[k] = redact.String(v)
+		}
+		e.Metadata = sanitized
+	}
+	return e
 }

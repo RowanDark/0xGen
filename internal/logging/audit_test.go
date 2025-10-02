@@ -3,6 +3,7 @@ package logging
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -78,5 +79,51 @@ func TestAuditLoggerWithComponent(t *testing.T) {
 	}
 	if second.Component != "child" {
 		t.Fatalf("expected second component 'child', got %q", second.Component)
+	}
+}
+
+func TestAuditLoggerRedactsSensitiveValues(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger, err := NewAuditLogger("test", WithoutStdout(), WithWriter(buf))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+	event := AuditEvent{
+		EventType: EventRPCCall,
+		Decision:  DecisionInfo,
+		Reason:    "API_TOKEN=AKIA123456789012345678901234",
+		Metadata: map[string]any{
+			"token":   "Bearer AKIA123456789012345678901234",
+			"contact": "alice@example.com",
+			"details": []any{"secret=supersecretvalue123456"},
+		},
+	}
+	if err := logger.Emit(event); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &decoded); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	reason, _ := decoded["reason"].(string)
+	if !strings.Contains(reason, "[REDACTED_SECRET]") {
+		t.Fatalf("expected secret redaction in reason, got %q", reason)
+	}
+	metadata, ok := decoded["metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected metadata object, got %T", decoded["metadata"])
+	}
+	if token, _ := metadata["token"].(string); !strings.Contains(token, "[REDACTED_SECRET]") {
+		t.Fatalf("expected token redaction, got %q", token)
+	}
+	if contact, _ := metadata["contact"].(string); contact != "[REDACTED_EMAIL]" {
+		t.Fatalf("expected email redaction, got %q", contact)
+	}
+	details, _ := metadata["details"].([]any)
+	if len(details) != 1 {
+		t.Fatalf("expected redacted details slice, got %#v", metadata["details"])
+	}
+	if detail, _ := details[0].(string); !strings.Contains(detail, "[REDACTED_SECRET]") {
+		t.Fatalf("expected redacted detail, got %q", detail)
 	}
 }

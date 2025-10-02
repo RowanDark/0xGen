@@ -12,6 +12,14 @@ import (
 	"github.com/RowanDark/Glyph/internal/findings"
 )
 
+type stubSummarizer struct {
+	output SummaryOutput
+}
+
+func (s stubSummarizer) Summarize(_ context.Context, _ SummaryInput) (SummaryOutput, error) {
+	return s.output, nil
+}
+
 func TestBuilderCollapsesFindings(t *testing.T) {
 	builder := NewBuilder(
 		WithDeterministicMode(42),
@@ -202,6 +210,70 @@ func TestGoldenSampleWebService(t *testing.T) {
 
 	if string(want) != string(got) {
 		t.Fatalf("golden mismatch\nwant:\n%s\ngot:\n%s", string(want), string(got))
+	}
+}
+
+func TestBuilderRedactsSecrets(t *testing.T) {
+	builder := NewBuilder(
+		WithSummarizer(stubSummarizer{output: SummaryOutput{
+			Summary:      "Token AKIA123456789012345678901234 leaked",
+			ProofSummary: "Contact alice@example.com",
+			ReproductionSteps: []string{
+				"Use secret token=AKIA123456789012345678901234",
+			},
+			RiskSeverity:    findings.SeverityHigh,
+			RiskRationale:   "API key exposed secret=supersecretvalue123456",
+			ConfidenceScore: 0.9,
+		}}),
+		WithDeterministicMode(7),
+	)
+	fs := []findings.Finding{{
+		Version:  findings.SchemaVersion,
+		ID:       "sec-1",
+		Plugin:   "seer",
+		Type:     "seer.secret",
+		Message:  "Token AKIA123456789012345678901234 discovered",
+		Target:   "https://example.com/?token=AKIA123456789012345678901234",
+		Evidence: "token=AKIA123456789012345678901234",
+		Severity: findings.SeverityHigh,
+		Metadata: map[string]string{
+			"leak":  "user@example.com",
+			"token": "Bearer AKIA123456789012345678901234",
+		},
+	}}
+
+	cases, err := builder.Build(context.Background(), fs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("expected single case, got %d", len(cases))
+	}
+	c := cases[0]
+	if strings.Contains(c.Summary, "AKIA123456789012345678901234") {
+		t.Fatalf("summary leaked secret: %q", c.Summary)
+	}
+	if c.Proof.Summary != "Contact [REDACTED_EMAIL]" {
+		t.Fatalf("proof summary not redacted: %q", c.Proof.Summary)
+	}
+	if len(c.Proof.Steps) != 1 || !strings.Contains(c.Proof.Steps[0], "[REDACTED_SECRET]") {
+		t.Fatalf("proof steps not redacted: %#v", c.Proof.Steps)
+	}
+	if !strings.Contains(c.Risk.Rationale, "[REDACTED_SECRET]") {
+		t.Fatalf("risk rationale not redacted: %q", c.Risk.Rationale)
+	}
+	if len(c.Evidence) == 0 {
+		t.Fatalf("expected evidence entries")
+	}
+	evidence := c.Evidence[0]
+	if evidence.Evidence != "token=[REDACTED_SECRET]" {
+		t.Fatalf("evidence not redacted: %q", evidence.Evidence)
+	}
+	if leak := evidence.Metadata["leak"]; leak != "[REDACTED_EMAIL]" {
+		t.Fatalf("metadata email not redacted: %q", leak)
+	}
+	if token := evidence.Metadata["token"]; !strings.Contains(token, "[REDACTED_SECRET]") {
+		t.Fatalf("metadata token not redacted: %q", token)
 	}
 }
 
