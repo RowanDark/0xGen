@@ -29,6 +29,7 @@ const (
 	EventSecretsToken     EventType = "secrets_token_issue"
 	EventSecretsAccess    EventType = "secrets_access"
 	EventSecretsDenied    EventType = "secrets_denied"
+	EventNetworkDenied    EventType = "network_denied"
 )
 
 type Decision string

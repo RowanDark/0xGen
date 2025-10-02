@@ -3,12 +3,16 @@ package netgate
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/logging"
 )
 
 func TestGateDeniesMissingCapability(t *testing.T) {
@@ -42,12 +46,68 @@ func TestGateHTTPClientRequiresCapability(t *testing.T) {
 	}
 }
 
+func TestGateHTTPClientRequiresCapabilityAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(nil, WithAuditLogger(audit))
+	gate.Register("plugin", []string{})
+
+	if _, err := gate.HTTPClient("plugin", capHTTPActive); err == nil {
+		t.Fatal("expected error for missing capability")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for missing capability")
+	}
+	event := events[len(events)-1]
+	if event.Metadata["capability"] != capHTTPActive {
+		t.Fatalf("unexpected capability metadata: %v", event.Metadata["capability"])
+	}
+	if !strings.Contains(event.Reason, "missing capability") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
+	}
+}
+
 func TestGateDialBlocksRawNetwork(t *testing.T) {
 	gate := New(dummyDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
 
 	if _, err := gate.DialContext(context.Background(), "plugin", capHTTPActive, "ip4:1", "198.51.100.1:80"); err == nil {
 		t.Fatal("expected raw network to be blocked")
+	}
+}
+
+func TestGateDialBlocksRawNetworkAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(dummyDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	if _, err := gate.DialContext(context.Background(), "plugin", capHTTPActive, "ip4:1", "198.51.100.1:80"); err == nil {
+		t.Fatal("expected raw network to be blocked")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for denied dial")
+	}
+	event := events[len(events)-1]
+	if event.EventType != logging.EventNetworkDenied {
+		t.Fatalf("unexpected event type: %s", event.EventType)
+	}
+	if event.PluginID != "plugin" {
+		t.Fatalf("unexpected plugin id: %s", event.PluginID)
+	}
+	if capName := event.Metadata["capability"]; capName != capHTTPActive {
+		t.Fatalf("unexpected capability metadata: %v", capName)
+	}
+	if network := event.Metadata["network"]; network != "ip4:1" {
+		t.Fatalf("unexpected network metadata: %v", network)
+	}
+	if addr := event.Metadata["address"]; addr != "198.51.100.1:80" {
+		t.Fatalf("unexpected address metadata: %v", addr)
+	}
+	if !strings.Contains(event.Reason, "not permitted") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
 	}
 }
 
@@ -100,6 +160,43 @@ func TestGateHTTPClientBlocksLoopback(t *testing.T) {
 	}
 }
 
+func TestGateHTTPClientBlocksLoopbackAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(httpPipeDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1/", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected loopback request to be denied")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for loopback request")
+	}
+	event := events[len(events)-1]
+	if event.EventType != logging.EventNetworkDenied {
+		t.Fatalf("unexpected event type: %s", event.EventType)
+	}
+	if event.Metadata["url"] != "http://127.0.0.1/" {
+		t.Fatalf("unexpected url metadata: %v", event.Metadata["url"])
+	}
+	if event.Metadata["capability"] != capHTTPActive {
+		t.Fatalf("unexpected capability metadata: %v", event.Metadata["capability"])
+	}
+	if !strings.Contains(event.Reason, "loopback") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
+	}
+}
+
 func TestGateHTTPClientBlocksPrivate(t *testing.T) {
 	gate := New(httpPipeDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -136,6 +233,37 @@ func TestGateHTTPClientBlocksFileScheme(t *testing.T) {
 	}
 }
 
+func TestGateHTTPClientBlocksFileSchemeAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(httpPipeDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "file:///etc/passwd", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected file scheme to be denied")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for file scheme request")
+	}
+	event := events[len(events)-1]
+	if event.Metadata["url"] != "file:///etc/passwd" {
+		t.Fatalf("unexpected url metadata: %v", event.Metadata["url"])
+	}
+	if !strings.Contains(event.Reason, "not permitted") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
+	}
+}
+
 func TestGateHTTPClientBlocksDataScheme(t *testing.T) {
 	gate := New(httpPipeDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -151,6 +279,37 @@ func TestGateHTTPClientBlocksDataScheme(t *testing.T) {
 	}
 	if _, err := client.Do(req); err == nil {
 		t.Fatal("expected data scheme to be denied")
+	}
+}
+
+func TestGateHTTPClientBlocksDataSchemeAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(httpPipeDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "data:text/plain;base64,SGVsbG8=", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected data scheme to be denied")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for data scheme request")
+	}
+	event := events[len(events)-1]
+	if event.Metadata["url"] != "data:text/plain;base64,SGVsbG8=" {
+		t.Fatalf("unexpected url metadata: %v", event.Metadata["url"])
+	}
+	if !strings.Contains(event.Reason, "not permitted") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
 	}
 }
 
@@ -214,6 +373,41 @@ func (dummyDialer) DialContext(ctx context.Context, network, address string) (ne
 		_ = c2.Close()
 	}()
 	return c1, nil
+}
+
+func newAuditRecorder(t *testing.T) (*logging.AuditLogger, *bytes.Buffer) {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	logger, err := logging.NewAuditLogger("netgate_test", logging.WithoutStdout(), logging.WithWriter(buf))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = logger.Close()
+	})
+	return logger, buf
+}
+
+func decodeAuditEvents(t *testing.T, buf *bytes.Buffer) []logging.AuditEvent {
+	t.Helper()
+	raw := bytes.TrimSpace(buf.Bytes())
+	if len(raw) == 0 {
+		return nil
+	}
+	lines := bytes.Split(raw, []byte("\n"))
+	events := make([]logging.AuditEvent, 0, len(lines))
+	for _, line := range lines {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+		var event logging.AuditEvent
+		if err := json.Unmarshal(line, &event); err != nil {
+			t.Fatalf("decode audit event: %v", err)
+		}
+		events = append(events, event)
+	}
+	return events
 }
 
 type httpPipeDialer struct {

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/logging"
 )
 
 const (
@@ -75,6 +77,7 @@ type Gate struct {
 	perms   map[string]map[string]struct{}
 	budgets map[string]int
 	config  Config
+	audit   *logging.AuditLogger
 }
 
 // New creates a gate wrapping the provided dialer. If dialer is nil a sane
@@ -95,6 +98,15 @@ func New(dialer Dialer, opts ...Option) *Gate {
 		g.dialer = &net.Dialer{Timeout: g.config.Timeout}
 	}
 	return g
+}
+
+// WithAuditLogger configures the gate to emit audit entries for denied operations.
+func WithAuditLogger(logger *logging.AuditLogger) Option {
+	return func(g *Gate) {
+		if logger != nil {
+			g.audit = logger
+		}
+	}
 }
 
 func loadConfigFromEnv() Config {
@@ -159,10 +171,13 @@ func (g *Gate) Unregister(pluginID string) {
 // DialContext enforces the requested capability before delegating to the
 // underlying dialer.
 func (g *Gate) DialContext(ctx context.Context, pluginID, capability, network, address string) (net.Conn, error) {
+	metadata := dialMetadata(network, address)
 	if err := g.authorize(pluginID, capability); err != nil {
+		g.auditDenied(pluginID, capability, metadata, err)
 		return nil, err
 	}
 	if err := validateDialTarget(network, address); err != nil {
+		g.auditDenied(pluginID, capability, metadata, err)
 		return nil, err
 	}
 	ctx, cancel := g.withTimeout(ctx)
@@ -173,7 +188,9 @@ func (g *Gate) DialContext(ctx context.Context, pluginID, capability, network, a
 // HTTPClient returns a client that performs capability and budget checks per
 // request before allowing HTTP egress.
 func (g *Gate) HTTPClient(pluginID, capability string) (*HTTPClient, error) {
+	metadata := map[string]any{"operation": "http_client_init"}
 	if err := g.ensureCapability(pluginID, capability); err != nil {
+		g.auditDenied(pluginID, capability, metadata, err)
 		return nil, err
 	}
 	base := http.DefaultTransport
@@ -189,7 +206,7 @@ func (g *Gate) HTTPClient(pluginID, capability string) (*HTTPClient, error) {
 		return g.dialer.DialContext(ctx, network, address)
 	}
 	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		if err := validateHTTPRequest(req); err != nil {
+		if err := g.validateHTTPRequest(pluginID, capability, req); err != nil {
 			return nil, err
 		}
 		return transport.RoundTrip(req)
@@ -255,6 +272,62 @@ func (g *Gate) withTimeout(ctx context.Context) (context.Context, context.Cancel
 	return newCtx, cancel
 }
 
+func (g *Gate) validateHTTPRequest(pluginID, capability string, req *http.Request) error {
+	err := validateHTTPRequest(req)
+	if err != nil {
+		g.auditDenied(pluginID, capability, httpMetadata(req), err)
+	}
+	return err
+}
+
+func (g *Gate) auditDenied(pluginID, capability string, metadata map[string]any, err error) {
+	if g == nil || g.audit == nil || err == nil {
+		return
+	}
+	md := make(map[string]any, len(metadata)+1)
+	for k, v := range metadata {
+		if v == nil {
+			continue
+		}
+		md[k] = v
+	}
+	if capName := strings.TrimSpace(capability); capName != "" {
+		md["capability"] = capName
+	}
+	_ = g.audit.Emit(logging.AuditEvent{
+		EventType: logging.EventNetworkDenied,
+		Decision:  logging.DecisionDeny,
+		PluginID:  strings.TrimSpace(pluginID),
+		Reason:    err.Error(),
+		Metadata:  md,
+	})
+}
+
+func dialMetadata(network, address string) map[string]any {
+	md := map[string]any{"operation": "dial"}
+	if netName := strings.TrimSpace(network); netName != "" {
+		md["network"] = netName
+	}
+	if addr := strings.TrimSpace(address); addr != "" {
+		md["address"] = addr
+	}
+	return md
+}
+
+func httpMetadata(req *http.Request) map[string]any {
+	md := map[string]any{"operation": "http_request"}
+	if req == nil {
+		return md
+	}
+	if method := strings.TrimSpace(req.Method); method != "" {
+		md["method"] = method
+	}
+	if req.URL != nil {
+		md["url"] = req.URL.String()
+	}
+	return md
+}
+
 // HTTPClient wraps a standard http.Client with capability enforcement.
 type HTTPClient struct {
 	gate       *Gate
@@ -268,7 +341,9 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
+	metadata := httpMetadata(req)
 	if err := c.gate.authorize(c.pluginID, c.capability); err != nil {
+		c.gate.auditDenied(c.pluginID, c.capability, metadata, err)
 		return nil, err
 	}
 	ctx, cancel := c.gate.withTimeout(req.Context())
@@ -276,9 +351,6 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 		defer cancel()
 	}
 	cloned := req.Clone(ctx)
-	if err := validateHTTPRequest(cloned); err != nil {
-		return nil, err
-	}
 	return c.client.Do(cloned)
 }
 
