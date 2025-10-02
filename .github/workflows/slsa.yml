@@ -87,12 +87,16 @@ jobs:
           output: dist/glyph-${{ steps.release.outputs.tag }}-sbom.spdx.json
 
       - name: Install cosign
+        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
         uses: sigstore/cosign-installer@v3.5.0
 
       - name: Sign release artifacts
+        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
         env:
           COSIGN_YES: "true"
           COSIGN_EXPERIMENTAL: "1"
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -102,9 +106,14 @@ jobs:
             esac
             base=$(basename "$artifact")
             cosign sign-blob "$artifact" \
+              --key env://COSIGN_PRIVATE_KEY \
               --output-signature "dist/${base}.sig" \
               --output-certificate "dist/${base}.pem"
           done
+
+      - name: Note skipped signing
+        if: ${{ !(secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '') }}
+        run: echo "Signing skipped: missing COSIGN_* secrets."
 
       - name: Upload SBOM and signatures to release
         env:
