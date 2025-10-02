@@ -1,0 +1,56 @@
+[
+  {
+    "version": "0.2",
+    "id": "01J0Y7AHAZ3ZKAB1Y7P5Z9Q4C6",
+    "plugin": "galdr",
+    "type": "galdr.banner",
+    "message": "Response discloses login banner",
+    "target": "https://app.example/login",
+    "evidence": "Example Service v1.2.3",
+    "severity": "low",
+    "ts": "2024-03-04T10:00:00Z",
+    "meta": {
+      "case_key": "app.example/login",
+      "asset_kind": "web",
+      "asset_id": "app.example",
+      "asset_detail": "https://app.example/login",
+      "vector": "web|login"
+    }
+  },
+  {
+    "version": "0.2",
+    "id": "01J0Y7AHAZ3ZKAB1Y7P5Z9Q4C7",
+    "plugin": "excavator",
+    "type": "excavator.exposed_backup",
+    "message": "Backup archive exposed",
+    "target": "https://app.example/login/backup.zip",
+    "evidence": "backup.zip",
+    "severity": "med",
+    "ts": "2024-03-04T10:05:00Z",
+    "meta": {
+      "case_key": "app.example/login",
+      "asset_kind": "web",
+      "asset_id": "app.example",
+      "asset_detail": "https://app.example/login",
+      "vector": "web|login"
+    }
+  },
+  {
+    "version": "0.2",
+    "id": "01J0Y7AHAZ3ZKAB1Y7P5Z9Q4C8",
+    "plugin": "seer",
+    "type": "seer.secret",
+    "message": "Hardcoded API key leaked",
+    "target": "https://app.example/login/static/app.js",
+    "evidence": "API_KEY=abcd1234",
+    "severity": "high",
+    "ts": "2024-03-04T10:10:00Z",
+    "meta": {
+      "case_key": "app.example/login",
+      "asset_kind": "web",
+      "asset_id": "app.example",
+      "asset_detail": "https://app.example/login",
+      "vector": "web|login"
+    }
+  }
+]
