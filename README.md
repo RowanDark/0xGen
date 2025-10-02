@@ -10,7 +10,7 @@ ranked findings and human-readable reports.
 ## Installation
 
 macOS users can install the prebuilt `glyphctl` binary via Homebrew using the
-[RowanDark/homebrew-glyph tap](https://github.com/RowanDark/homebrew-glyph):
+[RowanDark/homebrew-tap tap](https://github.com/RowanDark/homebrew-tap):
 
 ```bash
 brew install rowandark/glyph/glyph
