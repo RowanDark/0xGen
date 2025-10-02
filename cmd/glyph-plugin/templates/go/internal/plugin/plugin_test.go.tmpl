@@ -13,16 +13,16 @@ func TestHooksWithCapabilities(t *testing.T) {
     broker := pluginsdk.NewFakeBroker()
     broker.SetFile("task.json", []byte(`{"task":"demo"}`))
     broker.SetSecret("API_TOKEN", "token123")
+    broker.SetHTTPResponse("HEAD", "https://example.com/health", pluginsdk.HTTPResult{StatusCode: 204})
+
+    original := plugin.CapabilityMacros
+    plugin.CapabilityMacros.NetOutbound = true
+    plugin.CapabilityMacros.SecretsRead = true
+    t.Cleanup(func() { plugin.CapabilityMacros = original })
 
     cfg := pluginsdk.LocalRunConfig{
         PluginName: "{{.PluginName}}",
-        Capabilities: []pluginsdk.Capability{
-            pluginsdk.CapabilityEmitFindings,
-            pluginsdk.CapabilityWorkspaceRead,
-            pluginsdk.CapabilitySecretsRead,
-            pluginsdk.CapabilityNetOutbound,
-            pluginsdk.CapabilityHTTPPassive,
-        },
+        Capabilities: plugin.CapabilityMacros.List(),
         Broker: broker,
         Hooks:  plugin.Hooks(),
         PassiveEvents: []pluginsdk.HTTPPassiveEvent{

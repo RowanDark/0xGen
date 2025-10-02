@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "entry": "./src/index.js",
   "capabilities": [
-    "CAP_EMIT_FINDINGS",
-    "CAP_HTTP_PASSIVE",
-    "CAP_WORKSPACE_READ"
+{{- range $i, $cap := .Capabilities }}{{if $i}},
+{{end}}    "{{$cap}}"{{end}}
   ]
 }
