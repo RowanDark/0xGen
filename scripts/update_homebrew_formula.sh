@@ -40,6 +40,7 @@ class Glyph < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/${RELEASE_OWNER}/${RELEASE_REPO}"
   version "${VERSION}"
+  license "Apache-2.0"
 
   on_macos do
     on_arm do
@@ -61,7 +62,7 @@ class Glyph < Formula
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/glyphctl version")
+    assert_match version.to_s, shell_output("#{bin}/glyphctl --version")
   end
 end
 FORMULA

@@ -67,16 +67,41 @@ jobs:
 
       - name: Commit and push changes
         if: steps.guard.outputs.should-run == 'true'
+        id: commit
         run: |
+          set -euo pipefail
           cd tap
           if git status --porcelain | grep . >/dev/null 2>&1; then
             git config user.name "glyph-bot"
             git config user.email "glyph-bot@users.noreply.github.com"
+            branch="bump/glyph-${TAG_NAME}"
+            git checkout -b "${branch}"
             git add Formula/glyph.rb
             git commit -m "Bump glyph to ${TAG_NAME}"
-            git push origin HEAD
+            git push --force --set-upstream origin "${branch}"
+            echo "branch=${branch}" >> "${GITHUB_OUTPUT}"
           else
             echo "Homebrew formula already up to date"
+            echo "branch=" >> "${GITHUB_OUTPUT}"
+
+      - name: Open pull request
+        if: steps.guard.outputs.should-run == 'true' && steps.commit.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd tap
+          branch="${{ steps.commit.outputs.branch }}"
+          if gh pr view "${branch}" --repo "${TAP_REPO}" >/dev/null 2>&1; then
+            echo "Pull request for ${branch} already exists"
+          else
+            gh pr create \
+              --repo "${TAP_REPO}" \
+              --head "${branch}" \
+              --base main \
+              --title "Bump glyph to ${TAG_NAME}" \
+              --body "Automated update for Glyph ${TAG_NAME}."
+          fi
 
   smoke-test:
     needs: bump
@@ -89,5 +114,6 @@ jobs:
         run: |
           set -euo pipefail
           brew update
-          brew install rowandark/glyph/glyph
-          glyph --version
+          brew tap rowandark/glyph
+          brew install glyph
+          glyphctl --version
