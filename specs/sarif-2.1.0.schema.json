@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SARIF 2.1.0 (subset for Glyph exports)",
+  "type": "object",
+  "required": ["version", "runs"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {
+      "type": "string",
+      "const": "2.1.0"
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["tool", "results"],
+        "properties": {
+          "tool": {
+            "type": "object",
+            "required": ["driver"],
+            "properties": {
+              "driver": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "version": {"type": "string"},
+                  "informationUri": {"type": "string"},
+                  "rules": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/reportingDescriptor"}
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          },
+          "results": {
+            "type": "array",
+            "items": {"$ref": "#/definitions/result"}
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "reportingDescriptor": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "shortDescription": {"$ref": "#/definitions/multiformatMessage"},
+        "fullDescription": {"$ref": "#/definitions/multiformatMessage"},
+        "help": {"$ref": "#/definitions/multiformatMessage"},
+        "defaultConfiguration": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "enum": ["none", "note", "warning", "error"]
+            }
+          },
+          "additionalProperties": true
+        },
+        "properties": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "ruleId": {"type": "string"},
+        "ruleIndex": {"type": "integer", "minimum": 0},
+        "level": {
+          "type": "string",
+          "enum": ["none", "note", "warning", "error"]
+        },
+        "message": {"$ref": "#/definitions/message"},
+        "locations": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/location"}
+        },
+        "partialFingerprints": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "properties": {"type": "object"},
+        "fixes": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/fix"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "text": {"type": "string"},
+        "markdown": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "multiformatMessage": {
+      "type": "object",
+      "properties": {
+        "text": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "physicalLocation": {
+          "type": "object",
+          "properties": {
+            "artifactLocation": {
+              "type": "object",
+              "properties": {
+                "uri": {"type": "string"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "logicalLocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {"type": "string"},
+              "name": {"type": "string"},
+              "fullyQualifiedName": {"type": "string"}
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "fix": {
+      "type": "object",
+      "properties": {
+        "description": {"$ref": "#/definitions/message"}
+      },
+      "additionalProperties": true
+    }
+  }
+}
