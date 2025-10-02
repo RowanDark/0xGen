@@ -24,6 +24,8 @@ func main() {
 	switch args[0] {
 	case "report":
 		os.Exit(runReport(args[1:]))
+	case "demo":
+		os.Exit(runDemo(args[1:]))
 	case "findings":
 		os.Exit(runFindings(args[1:]))
 	case "osint-well":
@@ -62,25 +64,25 @@ func main() {
 			fmt.Fprintf(os.Stderr, "unknown history subcommand: %s\n", args[1])
 			os.Exit(2)
 		}
-        case "repeater":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "repeater subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "send":
-                        os.Exit(runRepeaterSend(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown repeater subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
-        case "replay":
-                os.Exit(runReplay(args[1:]))
-        case "version":
-                os.Exit(runVersion(args[1:]))
-        default:
-                fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
-                flag.Usage()
+	case "repeater":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "repeater subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "send":
+			os.Exit(runRepeaterSend(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown repeater subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	case "replay":
+		os.Exit(runReplay(args[1:]))
+	case "version":
+		os.Exit(runVersion(args[1:]))
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
+		flag.Usage()
 		os.Exit(2)
 	}
 }

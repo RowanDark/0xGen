@@ -81,34 +81,7 @@ crawl-demo:
 
 .PHONY: demo
 demo:
-	@set -euo pipefail; \
-		out_dir="out"; \
-		rm -rf "$$out_dir"; \
-		mkdir -p "$$out_dir"; \
-		npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null; \
-		seer_pid=0; \
-		export GLYPH_OUT="$$out_dir"; \
-		export GLYPH_AUTH_TOKEN="quickstart-token"; \
-		go build -o "$$out_dir/glyphd" ./cmd/glyphd; \
-		go build -o "$$out_dir/seer" ./plugins/seer; \
-		GLYPH_ENABLE_PROXY=1 "$$out_dir/glyphd" --token "$$GLYPH_AUTH_TOKEN" --proxy-addr 127.0.0.1:8080 --proxy-history "$$out_dir/proxy-history.jsonl" --proxy-rules examples/quickstart/galdr-rules.json >"$$out_dir/glyphd.log" 2>&1 & \
-		glyphd_pid=$$!; \
-		trap 'if [ "$$seer_pid" -ne 0 ]; then kill "$$seer_pid" >/dev/null 2>&1 || true; fi; kill "$$glyphd_pid" >/dev/null 2>&1 || true' EXIT; \
-		sleep 2; \
-		"$$out_dir/seer" --server 127.0.0.1:50051 --token "$$GLYPH_AUTH_TOKEN" >"$$out_dir/seer.log" 2>&1 & \
-		seer_pid=$$!; \
-		sleep 2; \
-		EXCAVATOR_PROXY="http://127.0.0.1:8080" node plugins/excavator/crawl.js --target=http://example.com --depth=0 >"$$out_dir/excavator.json"; \
-		sleep 2; \
-		kill "$$seer_pid" >/dev/null 2>&1 || true; \
-		kill "$$glyphd_pid" >/dev/null 2>&1 || true; \
-		wait "$$seer_pid" 2>/dev/null || true; \
-		wait "$$glyphd_pid" 2>/dev/null || true; \
-		if [ ! -s "$$out_dir/findings.jsonl" ]; then go run ./cmd/quickstartseed --html examples/quickstart/demo-response.html --out "$$out_dir/findings.jsonl" --target http://example.com >/dev/null; fi; \
-                go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl rank --input "$$out_dir/findings.jsonl" --out "$$out_dir/ranked.jsonl" >/dev/null; \
-                go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl report --input "$$out_dir/findings.jsonl" --out "$$out_dir/report.html" --format html >/dev/null; \
-                report_path="$$(cd "$$out_dir" && pwd)/report.html"; \
-                echo "Quickstart report available at $$report_path"
+@go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl demo --out out/demo
 
 .PHONY: verify
 verify: build

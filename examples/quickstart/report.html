@@ -2,118 +2,631 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Glyph Findings Report</title>
   <style>:root {
  color-scheme: light dark;
  --bg-color: #f8fafc;
- --text-color: #1f2933;
- --muted-color: #52606d;
- --border-color: #d2d6dc;
- --table-stripe: #e4e7eb;
- --severity-critical-bg: #b71c1c;
+ --surface-color: #ffffff;
+ --surface-muted: #f1f5f9;
+ --border-color: #d8dee9;
+ --text-color: #0f172a;
+ --muted-color: #64748b;
+ --accent-color: #2563eb;
+ --accent-contrast: #ffffff;
+ --severity-critical-bg: #b91c1c;
  --severity-critical-text: #ffffff;
  --severity-high-bg: #c2410c;
  --severity-high-text: #ffffff;
  --severity-medium-bg: #ca8a04;
- --severity-medium-text: #1f2933;
- --severity-low-bg: #2563eb;
+ --severity-medium-text: #1f2937;
+ --severity-low-bg: #1d4ed8;
  --severity-low-text: #ffffff;
  --severity-info-bg: #475569;
  --severity-info-text: #ffffff;
+ --scope-in-bg: #0f766e;
+ --scope-in-text: #ecfdf5;
+ --scope-out-bg: #b91c1c;
+ --scope-out-text: #fef2f2;
+ --scope-neutral-bg: #475569;
+ --scope-neutral-text: #f8fafc;
 }
 
 @media (prefers-color-scheme: dark) {
  :root {
   --bg-color: #0f172a;
+  --surface-color: #111827;
+  --surface-muted: #1e293b;
+  --border-color: #1f2937;
   --text-color: #e2e8f0;
   --muted-color: #94a3b8;
-  --border-color: #334155;
-  --table-stripe: #1e293b;
-  --severity-critical-bg: #ef4444;
+  --accent-color: #38bdf8;
+  --accent-contrast: #0f172a;
+  --severity-critical-bg: #f87171;
   --severity-critical-text: #0f172a;
-  --severity-high-bg: #f97316;
+  --severity-high-bg: #fb923c;
   --severity-high-text: #0f172a;
   --severity-medium-bg: #facc15;
   --severity-medium-text: #0f172a;
-  --severity-low-bg: #3b82f6;
+  --severity-low-bg: #38bdf8;
   --severity-low-text: #0f172a;
-  --severity-info-bg: #38bdf8;
+  --severity-info-bg: #64748b;
   --severity-info-text: #0f172a;
+  --scope-in-bg: #14b8a6;
+  --scope-in-text: #022c22;
+  --scope-out-bg: #ef4444;
+  --scope-out-text: #450a0a;
+  --scope-neutral-bg: #94a3b8;
+  --scope-neutral-text: #0f172a;
  }
 }
 
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: var(--text-color); background-color: var(--bg-color); transition: background-color 0.3s ease, color 0.3s ease; }
-h1 { margin-bottom: 0.25rem; }
-.meta { color: var(--muted-color); margin: 0.25rem 0; }
-.section { margin-top: 2rem; }
-table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
-th, td { border: 1px solid var(--border-color); padding: 0.5rem; text-align: left; vertical-align: top; }
-thead tr { background-color: var(--table-stripe); }
-tbody tr:nth-child(even) { background-color: var(--table-stripe); }
-th.numeric, td.numeric { text-align: right; }
-ol { margin-top: 0.75rem; padding-left: 1.5rem; }
-.severity-band { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-weight: 600; }
-.severity-critical { background-color: var(--severity-critical-bg); color: var(--severity-critical-text); }
-.severity-high { background-color: var(--severity-high-bg); color: var(--severity-high-text); }
-.severity-medium { background-color: var(--severity-medium-bg); color: var(--severity-medium-text); }
-.severity-low { background-color: var(--severity-low-bg); color: var(--severity-low-text); }
-.severity-info { background-color: var(--severity-info-bg); color: var(--severity-info-text); }
+* { box-sizing: border-box; }
+body {
+ margin: 0;
+ padding: 32px;
+ font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+ background-color: var(--bg-color);
+ color: var(--text-color);
+ line-height: 1.6;
+}
+
+h1, h2, h3 { color: var(--text-color); margin-top: 0; }
+p { margin: 0; }
+a { color: inherit; }
+
+.header {
+ display: flex;
+ justify-content: space-between;
+ align-items: flex-start;
+ gap: 24px;
+ flex-wrap: wrap;
+ margin-bottom: 32px;
+}
+
+.meta { color: var(--muted-color); margin-top: 4px; }
+
+.header-actions { display: flex; gap: 12px; align-items: center; }
+.docs-link {
+ display: inline-flex;
+ align-items: center;
+ gap: 8px;
+ background: var(--accent-color);
+ color: var(--accent-contrast);
+ padding: 10px 16px;
+ border-radius: 9999px;
+ text-decoration: none;
+ font-weight: 600;
+ box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+ transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.docs-link:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
+
+.section { margin-bottom: 40px; }
+
+.stat-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+ gap: 16px;
+ margin-bottom: 24px;
+}
+
+.stat-card {
+ background: var(--surface-color);
+ border: 1px solid var(--border-color);
+ border-radius: 16px;
+ padding: 20px;
+ box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card .label { display: block; color: var(--muted-color); font-size: 0.9rem; margin-bottom: 8px; }
+.stat-card .value { font-size: 1.8rem; font-weight: 700; }
+
+.panel-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+ gap: 20px;
+}
+
+.panel {
+ background: var(--surface-color);
+ border: 1px solid var(--border-color);
+ border-radius: 18px;
+ padding: 20px;
+ box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.panel table { width: 100%; border-collapse: collapse; }
+.panel th, .panel td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); text-align: left; }
+.panel th.numeric, .panel td.numeric { text-align: right; }
+.panel tbody tr:last-child td { border-bottom: none; }
+
+.recent-table {
+ width: 100%;
+ border-collapse: collapse;
+ margin-top: 16px;
+ background: var(--surface-color);
+ border: 1px solid var(--border-color);
+ border-radius: 16px;
+ overflow: hidden;
+ box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.recent-table th, .recent-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; }
+.recent-table tr:last-child td { border-bottom: none; }
+.recent-table tbody tr:nth-child(even) { background: var(--surface-muted); }
+
+.case-list { display: flex; flex-direction: column; gap: 16px; }
+
+.case {
+ background: var(--surface-color);
+ border: 1px solid var(--border-color);
+ border-radius: 18px;
+ box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+ overflow: hidden;
+}
+
+.case summary {
+ list-style: none;
+ padding: 18px 22px;
+ display: grid;
+ grid-template-columns: auto 1fr auto;
+ gap: 12px;
+ align-items: center;
+ cursor: pointer;
+}
+
+.case summary::-webkit-details-marker { display: none; }
+
+.case summary .case-title { font-weight: 600; font-size: 1.05rem; }
+.case summary .case-target { color: var(--muted-color); font-size: 0.9rem; }
+.case summary .case-meta { text-align: right; font-size: 0.85rem; color: var(--muted-color); }
+
+.case[open] summary { background: var(--surface-muted); border-bottom: 1px solid var(--border-color); }
+
+.case-body { padding: 22px; display: grid; gap: 20px; }
+
+.case-meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.case-meta-grid span { display: block; font-size: 0.85rem; color: var(--muted-color); }
+.case-meta-grid strong { display: block; font-size: 0.95rem; color: var(--text-color); }
+
+.case-evidence, .case-poc, .case-meta { background: var(--surface-muted); border-radius: 12px; padding: 16px; }
+
+.case-evidence-header, .case-poc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+.copy-button {
+ border: none;
+ background: var(--accent-color);
+ color: var(--accent-contrast);
+ padding: 6px 12px;
+ border-radius: 8px;
+ cursor: pointer;
+ font-size: 0.85rem;
+ font-weight: 600;
+ transition: opacity 0.2s ease;
+}
+.copy-button:hover { opacity: 0.85; }
+
+pre {
+ background: transparent;
+ margin: 0;
+ padding: 0;
+ font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+ font-size: 0.85rem;
+ overflow-x: auto;
+ white-space: pre-wrap;
+ word-break: break-word;
+}
+
+.thumbnail-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+ gap: 12px;
+}
+
+.thumbnail-grid img {
+ width: 100%;
+ border-radius: 12px;
+ border: 1px solid var(--border-color);
+ box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+}
+
+.scope-badge {
+ display: inline-flex;
+ align-items: center;
+ padding: 4px 10px;
+ border-radius: 9999px;
+ font-size: 0.75rem;
+ font-weight: 600;
+ letter-spacing: 0.02em;
+ text-transform: uppercase;
+}
+
+.scope-in { background: var(--scope-in-bg); color: var(--scope-in-text); }
+.scope-out { background: var(--scope-out-bg); color: var(--scope-out-text); }
+.scope-neutral { background: var(--scope-neutral-bg); color: var(--scope-neutral-text); }
+
+.severity-pill {
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ padding: 6px 12px;
+ border-radius: 9999px;
+ font-weight: 600;
+ font-size: 0.85rem;
+}
+
+.severity-critical { background: var(--severity-critical-bg); color: var(--severity-critical-text); }
+.severity-high { background: var(--severity-high-bg); color: var(--severity-high-text); }
+.severity-medium { background: var(--severity-medium-bg); color: var(--severity-medium-text); }
+.severity-low { background: var(--severity-low-bg); color: var(--severity-low-text); }
+.severity-info { background: var(--severity-info-bg); color: var(--severity-info-text); }
+
+.metadata-list { display: grid; gap: 12px; }
+.metadata-entry { display: flex; flex-direction: column; gap: 4px; }
+.metadata-entry span { color: var(--muted-color); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.metadata-entry strong { font-size: 0.95rem; word-break: break-word; }
+
+.empty-state {
+ padding: 24px;
+ background: var(--surface-muted);
+ border-radius: 16px;
+ color: var(--muted-color);
+ text-align: center;
+}
+
+@media (max-width: 720px) {
+ body { padding: 20px; }
+ .case summary { grid-template-columns: 1fr; text-align: left; }
+ .case summary .case-meta { text-align: left; }
+ .header { flex-direction: column; }
+}
 </style>
+  <script>(function(){
+  function resetLabel(button, original){
+    setTimeout(function(){ button.textContent = original; }, 1800);
+  }
+  document.addEventListener('click', function(evt){
+    var button = evt.target.closest('[data-copy-target]');
+    if (!button) { return; }
+    var target = document.querySelector(button.getAttribute('data-copy-target'));
+    if (!target) { return; }
+    var text = target.textContent || '';
+    var original = button.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){
+        button.textContent = 'Copied!';
+        resetLabel(button, original);
+      }).catch(function(){
+        button.textContent = 'Copy failed';
+        resetLabel(button, original);
+      });
+    } else {
+      var textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        button.textContent = 'Copied!';
+      } catch (err) {
+        button.textContent = 'Copy failed';
+      }
+      document.body.removeChild(textarea);
+      resetLabel(button, original);
+    }
+  });
+})();</script>
 </head>
 <body>
-  <h1>Findings Report</h1>
-  <p class="meta">Generated at 2025-09-25T14:03:50Z (UTC)</p>
-  <p class="meta">Reporting window: All findings through 2025-09-25T14:03:50Z (UTC)</p>
-  <p class="meta">Total findings: 6</p>
+  <header class="header">
+    <div>
+      <h1>Glyph Findings Report</h1>
+      <p class="meta">Generated at 2025-10-02T00:42:12Z (UTC)</p>
+      <p class="meta">Reporting window: All findings through 2025-10-02T00:42:12Z (UTC)</p>
+      <p class="meta">Total findings: 7</p>
+    </div>
+    <div class="header-actions">
+      <a class="docs-link" href="https://rowandark.github.io/Glyph/" target="_blank" rel="noreferrer noopener">
+        View Documentation
+      </a>
+    </div>
+  </header>
   <section class="section">
-    <h2>Totals by Severity</h2>
-    <table>
-      <thead>
-        <tr><th scope="col">Severity</th><th scope="col" class="numeric">Count</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><span class="severity-band severity-critical">Critical</span></td><td class="numeric">0</td></tr>
-        <tr><td><span class="severity-band severity-high">High</span></td><td class="numeric">2</td></tr>
-        <tr><td><span class="severity-band severity-medium">Medium</span></td><td class="numeric">3</td></tr>
-        <tr><td><span class="severity-band severity-low">Low</span></td><td class="numeric">1</td></tr>
-        <tr><td><span class="severity-band severity-info">Informational</span></td><td class="numeric">0</td></tr>
-      </tbody>
-    </table>
-  </section>
-  <section class="section">
-    <h2>Findings by Plugin (top 5)</h2>
-    <p>Showing top 1 plugins by finding volume.</p>
-    <table>
-      <thead>
-        <tr><th scope="col">Plugin</th><th scope="col" class="numeric">Findings</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>seer</td><td class="numeric">6</td></tr>
-      </tbody>
-    </table>
-  </section>
-  <section class="section">
-    <h2>Top 10 Targets</h2>
-    <p>Showing top 1 targets by finding volume.</p>
-    <ol>
-      <li><strong>http://example.com</strong> — 6 findings</li>
-    </ol>
+    <h2>At a glance</h2>
+    <div class="stat-grid">
+      <div class="stat-card"><span class="label">Findings</span><span class="value">7</span></div>
+      <div class="stat-card"><span class="label">Critical / High</span><span class="value">0 / 2</span></div>
+      <div class="stat-card"><span class="label">Medium</span><span class="value">4</span></div>
+      <div class="stat-card"><span class="label">Low / Informational</span><span class="value">1 / 0</span></div>
+    </div>
+    <div class="panel-grid">
+      <article class="panel">
+        <h3>Totals by Severity</h3>
+        <table>
+          <thead><tr><th scope="col">Severity</th><th scope="col" class="numeric">Count</th></tr></thead>
+          <tbody>
+            <tr><td><span class="severity-pill severity-critical">Critical</span></td><td class="numeric">0</td></tr>
+            <tr><td><span class="severity-pill severity-high">High</span></td><td class="numeric">2</td></tr>
+            <tr><td><span class="severity-pill severity-medium">Medium</span></td><td class="numeric">4</td></tr>
+            <tr><td><span class="severity-pill severity-low">Low</span></td><td class="numeric">1</td></tr>
+            <tr><td><span class="severity-pill severity-info">Informational</span></td><td class="numeric">0</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <article class="panel">
+        <h3>Findings by Plugin</h3>
+        <table>
+          <thead><tr><th scope="col">Plugin</th><th scope="col" class="numeric">Findings</th></tr></thead>
+          <tbody>
+            <tr><td>seer</td><td class="numeric">6</td></tr>
+            <tr><td>glyphctl</td><td class="numeric">1</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <article class="panel">
+        <h3>Top Targets</h3>
+        <table>
+          <thead><tr><th scope="col">Target</th><th scope="col" class="numeric">Findings</th></tr></thead>
+          <tbody>
+            <tr><td>http://127.0.0.1:36165</td><td class="numeric">6</td></tr>
+            <tr><td>http://127.0.0.1:36165/login</td><td class="numeric">1</td></tr>
+          </tbody>
+        </table>
+      </article>
+    </div>
   </section>
   <section class="section">
     <h2>Last 20 Findings</h2>
-    <table>
-      <thead>
-        <tr><th scope="col">Plugin</th><th scope="col">Target</th><th scope="col">Evidence</th><th scope="col">Detected At</th></tr>
-      </thead>
+    <table class="recent-table">
+      <thead><tr><th scope="col">Plugin</th><th scope="col">Target</th><th scope="col">Evidence</th><th scope="col">Detected At</th></tr></thead>
       <tbody>
-        <tr><td>seer</td><td>http://example.com</td><td>eyJh…sw5c</td><td>2025-09-25T14:03:49Z</td></tr>
-        <tr><td>seer</td><td>http://example.com</td><td>AKIA…1234</td><td>2025-09-25T14:03:49Z</td></tr>
-        <tr><td>seer</td><td>http://example.com</td><td>xoxb…7890</td><td>2025-09-25T14:03:49Z</td></tr>
-        <tr><td>seer</td><td>http://example.com</td><td>AIza…0000</td><td>2025-09-25T14:03:49Z</td></tr>
-        <tr><td>seer</td><td>http://example.com</td><td>Z9fA…S9tU</td><td>2025-09-25T14:03:49Z</td></tr>
-        <tr><td>seer</td><td>http://example.com</td><td>aler…@….com</td><td>2025-09-25T14:03:49Z</td></tr>
+        <tr><td>seer</td><td>http://127.0.0.1:36165</td><td>AIza…0000</td><td>2025-10-02T00:42:12Z</td></tr>
+        <tr><td>seer</td><td>http://127.0.0.1:36165</td><td>xoxb…7890</td><td>2025-10-02T00:42:12Z</td></tr>
+        <tr><td>seer</td><td>http://127.0.0.1:36165</td><td>AKIA…1234</td><td>2025-10-02T00:42:12Z</td></tr>
+        <tr><td>seer</td><td>http://127.0.0.1:36165</td><td>eyJh…sw5c</td><td>2025-10-02T00:42:12Z</td></tr>
+        <tr><td>seer</td><td>http://127.0.0.1:36165</td><td>Z9fA…S9tU</td><td>2025-10-02T00:42:12Z</td></tr>
+        <tr><td>seer</td><td>http://127.0.0.1:36165</td><td>aler…@….com</td><td>2025-10-02T00:42:12Z</td></tr>
+        <tr><td>glyphctl</td><td>http://127.0.0.1:36165/login</td><td>Screenshot thumbnail available</td><td>2025-10-02T00:40:42Z</td></tr>
       </tbody>
     </table>
+  </section>
+  <section class="section">
+    <h2>Cases</h2>
+    <div class="case-list">
+      <details class="case" open>
+        <summary>
+          <span class="severity-pill severity-high">High</span>
+          <span class="case-title">Potential Slack token detected</span>
+          <span class="case-meta">Detected 2025-10-02T00:42:12Z</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>seer</strong></div>
+            <div><span>Type</span><strong>seer.slack_token</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-0">Copy</button>
+            </div>
+            <pre id="evidence-0">xoxb…7890</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>match_length</span><strong>40</strong></div>
+              <div class="metadata-entry"><span>pattern</span><strong>seer.slack_token</strong></div>
+              <div class="metadata-entry"><span>redacted_match</span><strong>xoxb…7890</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="case">
+        <summary>
+          <span class="severity-pill severity-high">High</span>
+          <span class="case-title">Potential Google API key detected</span>
+          <span class="case-meta">Detected 2025-10-02T00:42:12Z</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>seer</strong></div>
+            <div><span>Type</span><strong>seer.google_api_key</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-1">Copy</button>
+            </div>
+            <pre id="evidence-1">AIza…0000</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>entropy</span><strong>4.03</strong></div>
+              <div class="metadata-entry"><span>entropy_threshold</span><strong>3.50</strong></div>
+              <div class="metadata-entry"><span>match_length</span><strong>39</strong></div>
+              <div class="metadata-entry"><span>pattern</span><strong>seer.google_api_key</strong></div>
+              <div class="metadata-entry"><span>redacted_match</span><strong>AIza…0000</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="case">
+        <summary>
+          <span class="severity-pill severity-medium">Medium</span>
+          <span class="case-title">High-entropy API key candidate detected</span>
+          <span class="case-meta">Detected 2025-10-02T00:42:12Z</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>seer</strong></div>
+            <div><span>Type</span><strong>seer.generic_api_key</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-2">Copy</button>
+            </div>
+            <pre id="evidence-2">Z9fA…S9tU</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>entropy</span><strong>4.83</strong></div>
+              <div class="metadata-entry"><span>entropy_threshold</span><strong>3.50</strong></div>
+              <div class="metadata-entry"><span>match_length</span><strong>31</strong></div>
+              <div class="metadata-entry"><span>pattern</span><strong>seer.generic_api_key</strong></div>
+              <div class="metadata-entry"><span>redacted_match</span><strong>Z9fA…S9tU</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="case">
+        <summary>
+          <span class="severity-pill severity-medium">Medium</span>
+          <span class="case-title">Potential JSON Web Token detected</span>
+          <span class="case-meta">Detected 2025-10-02T00:42:12Z</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>seer</strong></div>
+            <div><span>Type</span><strong>seer.jwt_token</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-3">Copy</button>
+            </div>
+            <pre id="evidence-3">eyJh…sw5c</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>entropy</span><strong>5.30</strong></div>
+              <div class="metadata-entry"><span>entropy_threshold</span><strong>3.00</strong></div>
+              <div class="metadata-entry"><span>jwt_alg</span><strong>HS256</strong></div>
+              <div class="metadata-entry"><span>match_length</span><strong>108</strong></div>
+              <div class="metadata-entry"><span>pattern</span><strong>seer.jwt_token</strong></div>
+              <div class="metadata-entry"><span>redacted_match</span><strong>eyJh…sw5c</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="case">
+        <summary>
+          <span class="severity-pill severity-medium">Medium</span>
+          <span class="case-title">High-entropy API key candidate detected</span>
+          <span class="case-meta">Detected 2025-10-02T00:42:12Z</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>seer</strong></div>
+            <div><span>Type</span><strong>seer.generic_api_key</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-4">Copy</button>
+            </div>
+            <pre id="evidence-4">AKIA…1234</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>entropy</span><strong>3.65</strong></div>
+              <div class="metadata-entry"><span>entropy_threshold</span><strong>3.50</strong></div>
+              <div class="metadata-entry"><span>match_length</span><strong>21</strong></div>
+              <div class="metadata-entry"><span>pattern</span><strong>seer.generic_api_key</strong></div>
+              <div class="metadata-entry"><span>redacted_match</span><strong>AKIA…1234</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="case">
+        <summary>
+          <span class="severity-pill severity-medium">Medium</span>
+          <span class="case-title">Captured login preview containing a session token</span>
+          <span class="case-meta">Detected 2025-10-02T00:40:42Z</span>
+          <span class="scope-badge scope-in">In Scope</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>glyphctl</strong></div>
+            <div><span>Type</span><strong>demo.case.thumbnail</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165/login</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-5">Copy</button>
+            </div>
+            <pre id="evidence-5">Screenshot thumbnail available</pre>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence thumbnails</strong>
+            </div>
+            <div class="thumbnail-grid">
+              <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSczMDBweCcgaGVpZ2h0PScxNzVweCcgdmlld0JveD0nMCAwIDMwMCAxNzUnPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0nZy1iYWNrZ3JvdW5kJyB4MT0nMCclIHkxPScwJyB4Mj0nMTAwJScgeTI9JzEwMCUnPjxzdG9wIG9mZnNldD0nMCUnIHN0b3AtY29sb3I9JyMyMDQ2ZmYnLz48c3RvcCBvZmZzZXQ9JzEwMCUnIHN0b3AtY29sb3I9JyM0YTZhZmYnLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2ctYmFja2dyb3VuZCkiIHdpZHRoPSczMDAnIGhlaWdodD0nMTc1JyByeD0nMjQnLz48dGV4dCB4PScxNScgeT0nNjAnIGZvbnQtc2l6ZT0nMjRweCcgZm9udC1mYW1pbHk9J0NvdXJpZXIsIHNhbnMtc2VyaWYnIGZpbGw9JyNmZmYnPkRlbW8gTm92YTwvdGV4dD48dGV4dCB4PScxNScgeT0nOTAnIGZvbnQtc2l6ZT0nMTVweCcgZmlsbD0nI2ZmZic+U2Vzc2lvbiB0b2tlbjogZGVtby10b2stc2Vzc2lvbjwvdGV4dD48dGV4dCB4PScxNScgeT0nMTE4JyBmb250LXNpemU9JzE1cHgnIGZpbGw9JyNmZmYnPkxvZ2luIGFzIDxhIGhyZWY9J2h0dHBzOi8vZXhhbXBsZS5jb20vbG9naW4nIHN0eWxlPSdjb2xvcjojZmZmOyc+ZXhhbXBsZSB1c2VyPC9hPjwvdGV4dD48L3N2Zz4=" alt="Evidence thumbnail">
+            </div>
+          </div>
+          <div class="case-poc">
+            <div class="case-poc-header">
+              <strong>Proof of Concept</strong>
+              <button type="button" class="copy-button" data-copy-target="#poc-5-0">Copy</button>
+            </div>
+            <pre id="poc-5-0">curl -H &#39;Authorization: Bearer demo-token&#39; http://127.0.0.1:36165/api/health</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>glyph.case_note</span><strong>Auto-generated by glyphctl demo</strong></div>
+              <div class="metadata-entry"><span>glyph.case_owner</span><strong>Glyph Demo</strong></div>
+              <div class="metadata-entry"><span>session_token</span><strong>demo-tok-session</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="case">
+        <summary>
+          <span class="severity-pill severity-low">Low</span>
+          <span class="case-title">Email address discovered</span>
+          <span class="case-meta">Detected 2025-10-02T00:42:12Z</span>
+        </summary>
+        <div class="case-body">
+          <div class="case-meta-grid">
+            <div><span>Plugin</span><strong>seer</strong></div>
+            <div><span>Type</span><strong>seer.email_address</strong></div>
+            <div><span>Target</span><strong>http://127.0.0.1:36165</strong></div>
+          </div>
+          <div class="case-evidence">
+            <div class="case-evidence-header">
+              <strong>Evidence</strong>
+              <button type="button" class="copy-button" data-copy-target="#evidence-6">Copy</button>
+            </div>
+            <pre id="evidence-6">aler…@….com</pre>
+          </div>
+          <div class="case-meta">
+            <div class="case-poc-header"><strong>Metadata</strong></div>
+            <div class="metadata-list">
+              <div class="metadata-entry"><span>domain</span><strong>example.com</strong></div>
+              <div class="metadata-entry"><span>match_length</span><strong>18</strong></div>
+              <div class="metadata-entry"><span>pattern</span><strong>seer.email_address</strong></div>
+              <div class="metadata-entry"><span>redacted_match</span><strong>aler…@….com</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
   </section>
 </body>
 </html>

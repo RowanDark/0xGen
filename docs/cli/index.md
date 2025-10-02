@@ -5,6 +5,20 @@ launch plugins, inspect findings, and generate analyst-facing reports. This page
 summarises the most common workflows; run `glyphctl --help` to explore every
 subcommand.
 
+## Try the demo pipeline
+
+Generate a full set of demo artifacts—target traffic, ranked findings, and a
+shareable HTML report—with a single command:
+
+```bash
+glyphctl demo
+```
+
+The command spins up a local demo target, feeds it to the Seer detector, writes
+JSONL outputs under `out/demo/`, and renders `out/demo/report.html`. The output is
+safe to share with stakeholders and mirrors the examples under
+[`examples/quickstart/`]({{ config.repo_url }}/tree/main/examples/quickstart).
+
 ## Inspect configuration
 
 Print the resolved runtime configuration to confirm the active server address,

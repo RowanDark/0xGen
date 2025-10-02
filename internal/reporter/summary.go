@@ -40,33 +40,7 @@ type reportSummary struct {
 }
 
 func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
-	since, now, filtered := opts.reportingWindow()
-	if now.IsZero() {
-		now = time.Now().UTC()
-	} else {
-		now = now.UTC()
-	}
-
-	var windowStart *time.Time
-	if filtered {
-		windowStart = &since
-	}
-
-	filteredList := list
-	if windowStart != nil {
-		trimmed := make([]findings.Finding, 0, len(list))
-		for _, f := range list {
-			ts := f.DetectedAt.Time().UTC()
-			if ts.Before(*windowStart) {
-				continue
-			}
-			if ts.After(now) {
-				continue
-			}
-			trimmed = append(trimmed, f)
-		}
-		filteredList = trimmed
-	}
+	filteredList, now, windowStart := filterFindings(list, opts)
 
 	counts := map[findings.Severity]int{
 		findings.SeverityCritical: 0,
@@ -161,6 +135,33 @@ func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
 		Plugins:       rankedPlugins,
 		Recent:        recent,
 	}
+}
+
+func filterFindings(list []findings.Finding, opts ReportOptions) ([]findings.Finding, time.Time, *time.Time) {
+	since, now, filtered := opts.reportingWindow()
+	if now.IsZero() {
+		now = time.Now().UTC()
+	} else {
+		now = now.UTC()
+	}
+
+	if !filtered {
+		return list, now, nil
+	}
+
+	since = since.UTC()
+	trimmed := make([]findings.Finding, 0, len(list))
+	for _, f := range list {
+		ts := f.DetectedAt.Time().UTC()
+		if ts.Before(since) {
+			continue
+		}
+		if ts.After(now) {
+			continue
+		}
+		trimmed = append(trimmed, f)
+	}
+	return trimmed, now, &since
 }
 
 func canonicalSeverity(input findings.Severity) findings.Severity {
