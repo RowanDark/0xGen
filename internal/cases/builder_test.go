@@ -172,6 +172,39 @@ func TestGoldenSummary(t *testing.T) {
 	}
 }
 
+func TestGoldenSampleWebService(t *testing.T) {
+	builder := NewBuilder(
+		WithDeterministicMode(5150),
+		WithClock(func() time.Time { return time.Unix(1700009000, 0).UTC() }),
+	)
+
+	fs := loadFindingsFixture(t, filepath.Join("testdata", "sample_web_service_findings.json"))
+
+	cases, err := builder.Build(context.Background(), fs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("expected single case, got %d", len(cases))
+	}
+
+	got, err := json.MarshalIndent(cases[0], "", "  ")
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	got = append(got, '\n')
+
+	goldenPath := filepath.Join("testdata", "sample_web_service_case.json")
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
+	}
+
+	if string(want) != string(got) {
+		t.Fatalf("golden mismatch\nwant:\n%s\ngot:\n%s", string(want), string(got))
+	}
+}
+
 func TestPromptsIncludeEvidence(t *testing.T) {
 	proto := Case{Asset: Asset{Identifier: "api.example.com", Kind: "web"}, Vector: AttackVector{Kind: "web_crawl"}}
 	findings := []NormalisedFinding{{
@@ -188,4 +221,17 @@ func TestPromptsIncludeEvidence(t *testing.T) {
 	if !strings.Contains(prompts.ReproductionPrompt, "AKIA") {
 		t.Fatalf("reproduction prompt missing evidence: %q", prompts.ReproductionPrompt)
 	}
+}
+
+func loadFindingsFixture(t *testing.T, path string) []findings.Finding {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read findings fixture: %v", err)
+	}
+	var fs []findings.Finding
+	if err := json.Unmarshal(data, &fs); err != nil {
+		t.Fatalf("unmarshal findings fixture: %v", err)
+	}
+	return fs
 }

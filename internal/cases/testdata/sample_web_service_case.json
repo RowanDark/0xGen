@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "id": "TZLB22243HGZ7RJDGEQY5WLMMZ",
+  "asset": {
+    "kind": "web",
+    "identifier": "app.example",
+    "details": "https://app.example/login"
+  },
+  "vector": {
+    "kind": "web",
+    "value": "login"
+  },
+  "summary": "3 plugin signal(s) indicate an issue affecting app.example (https://app.example/login).\n\nKey evidence:\n- [Excavator] Backup archive exposed (MED)\n- [Galdr] Response discloses login banner (LOW)\n- [Seer] Hardcoded API key leaked (HIGH)",
+  "evidence": [
+    {
+      "plugin": "excavator",
+      "type": "excavator.exposed_backup",
+      "message": "Backup archive exposed",
+      "evidence": "backup.zip",
+      "metadata": {
+        "asset_detail": "https://app.example/login",
+        "asset_id": "app.example",
+        "asset_kind": "web",
+        "case_key": "app.example/login",
+        "vector": "web|login"
+      }
+    },
+    {
+      "plugin": "galdr",
+      "type": "galdr.banner",
+      "message": "Response discloses login banner",
+      "evidence": "Example Service v1.2.3",
+      "metadata": {
+        "asset_detail": "https://app.example/login",
+        "asset_id": "app.example",
+        "asset_kind": "web",
+        "case_key": "app.example/login",
+        "vector": "web|login"
+      }
+    },
+    {
+      "plugin": "seer",
+      "type": "seer.secret",
+      "message": "Hardcoded API key leaked",
+      "evidence": "API_KEY=abcd1234",
+      "metadata": {
+        "asset_detail": "https://app.example/login",
+        "asset_id": "app.example",
+        "asset_kind": "web",
+        "case_key": "app.example/login",
+        "vector": "web|login"
+      }
+    }
+  ],
+  "proof": {
+    "summary": "Reproduce the issue on app.example by following 2 synthesised steps.",
+    "steps": [
+      "Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: app.example (web)\nAttack vector: web (login)\nEvidence:\n- Plugin=excavator Severity=MED Message=Backup archive exposed\n- Plugin=galdr Severity=LOW Message=Response discloses login banner\n- Plugin=seer Severity=HIGH Message=Hardcoded API key leaked\nProvide a concise narrative and highlight overlapping evidence.",
+      "Execute reproduction instructions synthesised from prompt: Synthesize deterministic reproduction steps for asset app.example (web).\nUse at most 4 steps. Incorporate plugin observations:\n- Excavator evidence: backup.zip\n- Galdr evidence: Example Service v1.2.3\n- Seer evidence: API_KEY=abcd1234\nReturn concise imperative steps."
+    ]
+  },
+  "risk": {
+    "severity": "high",
+    "score": 8,
+    "rationale": "Highest severity reported by contributing plugins: HIGH"
+  },
+  "confidence": 0.75,
+  "confidence_log": "3 plugin(s), 3 finding(s)",
+  "sources": [
+    {
+      "id": "01J0Y7AHAZ3ZKAB1Y7P5Z9Q4C7",
+      "plugin": "excavator",
+      "type": "excavator.exposed_backup",
+      "severity": "med",
+      "target": "https://app.example/login/backup.zip"
+    },
+    {
+      "id": "01J0Y7AHAZ3ZKAB1Y7P5Z9Q4C6",
+      "plugin": "galdr",
+      "type": "galdr.banner",
+      "severity": "low",
+      "target": "https://app.example/login"
+    },
+    {
+      "id": "01J0Y7AHAZ3ZKAB1Y7P5Z9Q4C8",
+      "plugin": "seer",
+      "type": "seer.secret",
+      "severity": "high",
+      "target": "https://app.example/login/static/app.js"
+    }
+  ],
+  "generated_at": "2023-11-15T00:43:20Z"
+}

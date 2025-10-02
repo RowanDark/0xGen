@@ -129,7 +129,7 @@ func extractVectorFromFinding(f findings.Finding) string {
 		return "source_code"
 	case "excavator":
 		return "web_crawl"
-	case "proxy":
+	case "proxy", "galdr":
 		return "http_proxy"
 	default:
 		return "unknown"

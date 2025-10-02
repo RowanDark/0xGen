@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RowanDark/Glyph/specs/case.schema.json",
+  "title": "Glyph Case v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "id",
+    "asset",
+    "vector",
+    "summary",
+    "evidence",
+    "proof",
+    "risk",
+    "confidence",
+    "sources",
+    "generated_at"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version marker."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Stable ULID identifier for the case."
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identifier"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Normalised asset category (for example web, repo, account)."
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Primary identifier for the affected asset."
+        },
+        "details": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional human readable asset detail."
+        }
+      }
+    },
+    "vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Normalised attack vector grouping overlapping evidence."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional free-form qualifier for the attack vector."
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Consolidated narrative describing the case."
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Raw plugin evidence rolled up into the case.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["plugin", "type", "message"],
+        "properties": {
+          "plugin": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plugin that produced the evidence."
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Machine readable evidence type from the plugin."
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human readable explanation of the evidence."
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional structured artefact captured by the plugin."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Plugin-supplied metadata preserved for debugging."
+          }
+        }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-line overview of the reproduction approach."
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Deterministic reproduction steps synthesised from plugin evidence."
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "score"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["info", "low", "med", "high", "crit"],
+          "description": "Highest severity represented within the case."
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "description": "CVSS-like numeric score derived from severity."
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Supporting context that justifies the assigned risk."
+        }
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence score derived from corroborating evidence."
+    },
+    "confidence_log": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human readable explanation of the confidence score."
+    },
+    "sources": {
+      "type": "array",
+      "description": "Source findings that were rolled up into the case.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "plugin", "type", "severity"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "Identifier of the contributing finding."
+          },
+          "plugin": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plugin responsible for the finding."
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Machine readable finding type."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "low", "med", "high", "crit"],
+            "description": "Severity assigned to the finding."
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional target recorded for the finding."
+          }
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the case was generated."
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Optional case-scoped labels derived from findings."
+    }
+  }
+}
