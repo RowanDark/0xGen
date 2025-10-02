@@ -89,3 +89,23 @@ func TestRunVersion(t *testing.T) {
 		t.Fatalf("expected version command to exit 0, got %d", code)
 	}
 }
+
+func TestRunDemo(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	outDir := filepath.Join(t.TempDir(), "demo-out")
+	if code := runDemo([]string{"--out", outDir}); code != 0 {
+		t.Fatalf("expected demo command to exit 0, got %d", code)
+	}
+
+	if _, err := os.Stat(filepath.Join(outDir, "report.html")); err != nil {
+		t.Fatalf("expected report.html to be written: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "findings.jsonl")); err != nil {
+		t.Fatalf("expected findings.jsonl to be written: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "ranked.jsonl")); err != nil {
+		t.Fatalf("expected ranked.jsonl to be written: %v", err)
+	}
+}

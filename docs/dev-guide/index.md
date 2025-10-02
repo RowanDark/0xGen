@@ -29,7 +29,7 @@ make build
 make test
 
 # Execute the end-to-end quickstart demo
-make demo
+glyphctl demo
 ```
 
 You can also build the CLI manually with `go build ./cmd/glyphctl`. Tests that rely on
@@ -57,7 +57,7 @@ you debug the plugin in real time.
 ## Release checklist
 
 1. Update [`CHANGELOG.md`]({{ config.repo_url }}/blob/main/CHANGELOG.md) with user-facing notes.
-2. Run `make test` and `make demo` to ensure critical paths pass.
+2. Run `make test` and `glyphctl demo` to ensure critical paths pass.
 3. Execute `scripts/build_release.sh` to produce signed archives and checksums.
 4. Follow the prompts in `scripts/update_homebrew_formula.sh` if the Homebrew tap
    needs a new version.

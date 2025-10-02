@@ -18,17 +18,17 @@ brew install rowandark/glyph/glyph
 
 ## Quickstart
 
-Clone the repository and run the end-to-end demo target:
+Clone the repository and run the zero-touch demo pipeline:
 
 ```bash
-make demo
+glyphctl demo
 ```
 
-The pipeline builds fresh binaries, starts Galdr and Seer locally, captures a crawl
-with Excavator, ranks any emitted findings, and renders an HTML summary. The terminal
-prints the absolute path to `report.html` once the run completes. See the
-[Quickstart walkthrough](https://rowandark.github.io/Glyph/quickstart/) for a full
-tour and troubleshooting notes.
+The command spins up a local demo target, runs the Seer detector against it, ranks
+the generated findings, and emits an interactive HTML report under `out/demo/`.
+`make demo` remains available as a thin wrapper if you prefer a Make-based entry
+point. See the [Quickstart walkthrough](https://rowandark.github.io/Glyph/quickstart/)
+for a full tour and troubleshooting notes.
 
 ## Documentation
 
