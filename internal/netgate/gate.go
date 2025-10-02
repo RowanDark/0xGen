@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -160,6 +162,9 @@ func (g *Gate) DialContext(ctx context.Context, pluginID, capability, network, a
 	if err := g.authorize(pluginID, capability); err != nil {
 		return nil, err
 	}
+	if err := validateDialTarget(network, address); err != nil {
+		return nil, err
+	}
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
 	return g.dialer.DialContext(ctx, network, address)
@@ -183,7 +188,12 @@ func (g *Gate) HTTPClient(pluginID, capability string) (*HTTPClient, error) {
 		defer cancel()
 		return g.dialer.DialContext(ctx, network, address)
 	}
-	client := &http.Client{Transport: transport, Timeout: g.config.Timeout}
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if err := validateHTTPRequest(req); err != nil {
+			return nil, err
+		}
+		return transport.RoundTrip(req)
+	}), Timeout: g.config.Timeout}
 	return &HTTPClient{gate: g, pluginID: pluginID, capability: capability, client: client}, nil
 }
 
@@ -266,6 +276,9 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 		defer cancel()
 	}
 	cloned := req.Clone(ctx)
+	if err := validateHTTPRequest(cloned); err != nil {
+		return nil, err
+	}
 	return c.client.Do(cloned)
 }
 
@@ -279,4 +292,96 @@ func (c *HTTPClient) CloseIdleConnections() {
 // Client exposes the underlying http.Client for advanced use cases.
 func (c *HTTPClient) Client() *http.Client {
 	return c.client
+}
+
+func validateDialTarget(network, address string) error {
+	netName := strings.ToLower(strings.TrimSpace(network))
+	switch netName {
+	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+	default:
+		return fmt.Errorf("network %s not permitted", network)
+	}
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return fmt.Errorf("invalid address: %w", err)
+	}
+	return validateHost(host)
+}
+
+func validateHTTPRequest(req *http.Request) error {
+	if req == nil || req.URL == nil {
+		return errors.New("request URL required")
+	}
+	if err := validateURL(req.URL); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateURL(u *url.URL) error {
+	scheme := strings.ToLower(strings.TrimSpace(u.Scheme))
+	switch scheme {
+	case "http", "https":
+	default:
+		return fmt.Errorf("scheme %s not permitted", u.Scheme)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return errors.New("request host required")
+	}
+	return validateHost(host)
+}
+
+var (
+	privatePrefixes = []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+		netip.MustParsePrefix("172.16.0.0/12"),
+		netip.MustParsePrefix("192.168.0.0/16"),
+		netip.MustParsePrefix("fc00::/7"),
+	}
+	linkLocalPrefixes = []netip.Prefix{
+		netip.MustParsePrefix("169.254.0.0/16"),
+		netip.MustParsePrefix("fe80::/10"),
+	}
+)
+
+func validateHost(host string) error {
+	hostname := strings.TrimSpace(host)
+	if hostname == "" {
+		return errors.New("host required")
+	}
+	if strings.EqualFold(hostname, "localhost") {
+		return errors.New("loopback destinations are not permitted")
+	}
+	base := hostname
+	if i := strings.Index(hostname, "%"); i > -1 {
+		base = hostname[:i]
+	}
+	if addr, err := netip.ParseAddr(base); err == nil {
+		if addr.IsLoopback() {
+			return errors.New("loopback destinations are not permitted")
+		}
+		if inPrefixes(addr, privatePrefixes) {
+			return errors.New("private address ranges are not permitted")
+		}
+		if inPrefixes(addr, linkLocalPrefixes) {
+			return errors.New("link-local destinations are not permitted")
+		}
+	}
+	return nil
+}
+
+func inPrefixes(addr netip.Addr, prefixes []netip.Prefix) bool {
+	for _, prefix := range prefixes {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
