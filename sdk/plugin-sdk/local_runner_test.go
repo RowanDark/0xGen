@@ -10,6 +10,7 @@ import (
 func TestRunLocalEnforcesCapabilities(t *testing.T) {
 	broker := pluginsdk.NewFakeBroker()
 	broker.SetFile("input.json", []byte(`{"hello":"world"}`))
+	broker.DenyNetwork("GET", "https://example.com", "denied in test")
 
 	hooks := pluginsdk.Hooks{
 		OnStart: func(ctx *pluginsdk.Context) error {
@@ -48,6 +49,11 @@ func TestRunLocalEnforcesCapabilities(t *testing.T) {
 	if _, err := pluginsdk.RunLocal(context.Background(), cfg); err != nil {
 		t.Fatalf("RunLocal: %v", err)
 	}
+
+	audits := broker.AuditLog()
+	if len(audits) == 0 {
+		t.Fatalf("expected audit entries")
+	}
 }
 
 func TestRunLocalPassiveEvents(t *testing.T) {
@@ -75,5 +81,37 @@ func TestRunLocalPassiveEvents(t *testing.T) {
 	}
 	if len(result.Findings) != 1 {
 		t.Fatalf("expected 1 finding, got %d", len(result.Findings))
+	}
+}
+
+func TestFakeBrokerDenials(t *testing.T) {
+	broker := pluginsdk.NewFakeBroker()
+	broker.SetFile("task.json", []byte("ok"))
+	broker.SetSecret("token", "value")
+	broker.DenyFilesystem("task.json", "workspace revoked")
+	broker.DenySecret("token", "secret revoked")
+	broker.DenyNetwork("POST", "https://api.example.com", "network denied")
+
+	if _, err := broker.Filesystem().ReadFile(context.Background(), "task.json"); err == nil {
+		t.Fatalf("expected filesystem denial")
+	}
+	if _, err := broker.Secrets().Get(context.Background(), "token"); err == nil {
+		t.Fatalf("expected secret denial")
+	}
+	if _, err := broker.Network().Do(context.Background(), pluginsdk.HTTPRequest{Method: "POST", URL: "https://api.example.com"}); err == nil {
+		t.Fatalf("expected network denial")
+	}
+
+	audits := broker.AuditLog()
+	if len(audits) != 3 {
+		t.Fatalf("expected 3 audit entries, got %d", len(audits))
+	}
+	for _, entry := range audits {
+		if entry.Allowed {
+			t.Fatalf("expected denial entry, got allowed for %s", entry.Operation)
+		}
+		if entry.Message == "" {
+			t.Fatalf("expected message for %s", entry.Operation)
+		}
 	}
 }

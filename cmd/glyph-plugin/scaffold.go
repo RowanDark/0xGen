@@ -14,10 +14,11 @@ import (
 var templateFS embed.FS
 
 type scaffoldData struct {
-	Module     string
-	PluginName string
-	BinaryName string
-	SDKReplace string
+	Module       string
+	PluginName   string
+	BinaryName   string
+	SDKReplace   string
+	Capabilities []string
 }
 
 func scaffoldGo(name, module string) error {
@@ -37,17 +38,21 @@ func scaffoldGo(name, module string) error {
 
 	base := filepath.Base(name)
 	data := scaffoldData{
-		Module:     module,
-		PluginName: strings.ReplaceAll(base, "_", "-"),
-		BinaryName: base,
-		SDKReplace: rel,
+		Module:       module,
+		PluginName:   strings.ReplaceAll(base, "_", "-"),
+		BinaryName:   base,
+		SDKReplace:   rel,
+		Capabilities: []string{"CAP_EMIT_FINDINGS", "CAP_HTTP_PASSIVE", "CAP_WORKSPACE_READ"},
 	}
 	return renderTemplates(name, "templates/go", data)
 }
 
 func scaffoldNode(name string) error {
 	base := filepath.Base(name)
-	data := scaffoldData{PluginName: strings.ReplaceAll(base, "_", "-")}
+	data := scaffoldData{
+		PluginName:   strings.ReplaceAll(base, "_", "-"),
+		Capabilities: []string{"CAP_EMIT_FINDINGS", "CAP_HTTP_PASSIVE", "CAP_WORKSPACE_READ"},
+	}
 	return renderTemplates(name, "templates/node", data)
 }
 

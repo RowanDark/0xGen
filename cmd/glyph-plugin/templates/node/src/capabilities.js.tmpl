@@ -1,0 +1,22 @@
+const macros = {
+  emitFindings: true,
+  httpPassive: true,
+  workspaceRead: true,
+  workspaceWrite: false,
+  netOutbound: false,
+  secretsRead: false
+};
+
+function toList() {
+  const mapping = [
+    ['emitFindings', 'CAP_EMIT_FINDINGS'],
+    ['httpPassive', 'CAP_HTTP_PASSIVE'],
+    ['workspaceRead', 'CAP_WORKSPACE_READ'],
+    ['workspaceWrite', 'CAP_WORKSPACE_WRITE'],
+    ['netOutbound', 'CAP_NET_OUTBOUND'],
+    ['secretsRead', 'CAP_SECRETS_READ']
+  ];
+  return mapping.filter(([key]) => macros[key]).map(([, cap]) => cap);
+}
+
+module.exports = { macros, toList };

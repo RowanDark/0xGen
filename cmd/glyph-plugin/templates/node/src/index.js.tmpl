@@ -1,19 +1,49 @@
+const { macros } = require('./capabilities');
+
 function createPlugin({ broker, logger }) {
   return {
     async onStart(context) {
-      try {
-        const data = await broker.fs.readFile('task.json');
-        logger.info('Loaded task file', { bytes: data.length });
-      } catch (err) {
-        if (err.code === 'NOT_FOUND') {
-          logger.info('No task file provided');
-        } else {
-          throw err;
+      if (macros.workspaceRead && broker.fs) {
+        try {
+          const data = await broker.fs.readFile('task.json');
+          logger.info('Loaded task file', { bytes: data.length });
+        } catch (err) {
+          if (err.code === 'NOT_FOUND') {
+            logger.info('No task file provided');
+          } else {
+            throw err;
+          }
         }
+      } else {
+        logger.info('Workspace read capability disabled; skipping task.json load');
+      }
+
+      if (macros.secretsRead && broker.secrets) {
+        try {
+          const secret = await broker.secrets.get('API_TOKEN');
+          logger.info('Secret retrieved', { name: 'API_TOKEN', length: secret.length });
+        } catch (err) {
+          if (err.code === 'NOT_FOUND') {
+            logger.info('API_TOKEN not provisioned');
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        logger.info('Secrets capability disabled; skipping API_TOKEN lookup');
       }
     },
     async onHTTPPassive(event, context) {
       logger.info('Passive response observed', { status: event.response?.statusLine });
+      if (macros.netOutbound && broker.net) {
+        try {
+          await broker.net.request({ method: 'HEAD', url: 'https://example.com/health' });
+        } catch (err) {
+          logger.warn('Network request denied', { error: err.message });
+        }
+      } else {
+        logger.info('Network capability disabled; skipping outbound request');
+      }
     }
   };
 }

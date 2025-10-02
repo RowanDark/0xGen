@@ -18,14 +18,7 @@ func main() {
 		AuthToken:       os.Getenv("GLYPH_AUTH_TOKEN"),
 		CapabilityToken: os.Getenv("GLYPH_CAPABILITY_TOKEN"),
 		SecretsToken:    strings.TrimSpace(os.Getenv("GLYPH_SECRETS_TOKEN")),
-		Capabilities: []pluginsdk.Capability{
-			pluginsdk.CapabilityEmitFindings,
-			pluginsdk.CapabilityHTTPPassive,
-			pluginsdk.CapabilityWorkspaceRead,
-			pluginsdk.CapabilityWorkspaceWrite,
-			pluginsdk.CapabilityNetOutbound,
-			pluginsdk.CapabilitySecretsRead,
-		},
+                Capabilities: plugin.CapabilityMacros.List(),
 		Logger: logger,
 	}
 

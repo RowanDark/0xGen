@@ -21,26 +21,26 @@ type Diagnostic struct {
 }
 
 var forbidden = map[string]map[string]string{
-	"net": {
-		"Dial":        "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND",
-		"DialContext": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND",
-		"DialTimeout": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND",
-	},
-	"net/http": {
-		"Get":  "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND",
-		"Post": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND",
-		"Head": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND",
-	},
-	"os": {
-		"Open":      "use pluginsdk.UseFilesystem with workspace capabilities",
-		"OpenFile":  "use pluginsdk.UseFilesystem with workspace capabilities",
-		"ReadFile":  "use pluginsdk.UseFilesystem with workspace capabilities",
-		"WriteFile": "use pluginsdk.UseFilesystem with workspace capabilities",
-	},
-	"io/ioutil": {
-		"ReadFile":  "use pluginsdk.UseFilesystem with workspace capabilities",
-		"WriteFile": "use pluginsdk.UseFilesystem with workspace capabilities",
-	},
+        "net": {
+                "Dial":        "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND (enable via plugin.CapabilityMacros)",
+                "DialContext": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND (enable via plugin.CapabilityMacros)",
+                "DialTimeout": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND (enable via plugin.CapabilityMacros)",
+        },
+        "net/http": {
+                "Get":  "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND (enable via plugin.CapabilityMacros)",
+                "Post": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND (enable via plugin.CapabilityMacros)",
+                "Head": "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND (enable via plugin.CapabilityMacros)",
+        },
+        "os": {
+                "Open":      "use pluginsdk.UseFilesystem with workspace capabilities (enable via plugin.CapabilityMacros)",
+                "OpenFile":  "use pluginsdk.UseFilesystem with workspace capabilities (enable via plugin.CapabilityMacros)",
+                "ReadFile":  "use pluginsdk.UseFilesystem with workspace capabilities (enable via plugin.CapabilityMacros)",
+                "WriteFile": "use pluginsdk.UseFilesystem with workspace capabilities (enable via plugin.CapabilityMacros)",
+        },
+        "io/ioutil": {
+                "ReadFile":  "use pluginsdk.UseFilesystem with workspace capabilities (enable via plugin.CapabilityMacros)",
+                "WriteFile": "use pluginsdk.UseFilesystem with workspace capabilities (enable via plugin.CapabilityMacros)",
+        },
 }
 
 // Run lints the provided package patterns.

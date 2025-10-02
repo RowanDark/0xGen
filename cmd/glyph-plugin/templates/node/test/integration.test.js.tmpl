@@ -1,7 +1,13 @@
 const { createPlugin } = require('../src/index.js');
+const { macros } = require('../src/capabilities.js');
 
 async function run() {
   const events = [];
+  const audit = [];
+  const original = { ...macros };
+  macros.netOutbound = true;
+  macros.secretsRead = true;
+
   const plugin = createPlugin({
     broker: {
       fs: {
@@ -13,18 +19,47 @@ async function run() {
           err.code = 'NOT_FOUND';
           throw err;
         }
+      },
+      secrets: {
+        async get(name) {
+          if (name === 'API_TOKEN') {
+            return 'token123';
+          }
+          const err = new Error('not found');
+          err.code = 'NOT_FOUND';
+          throw err;
+        }
+      },
+      net: {
+        async request({ method, url }) {
+          audit.push({ method, url });
+          if (url.includes('deny')) {
+            const err = new Error('denied by broker');
+            err.code = 'DENIED';
+            throw err;
+          }
+          return { statusCode: 204 };
+        }
       }
     },
     logger: {
-      info: (...args) => events.push(['info', ...args])
+      info: (...args) => events.push(['info', ...args]),
+      warn: (...args) => events.push(['warn', ...args])
     }
   });
 
-  await plugin.onStart({});
-  await plugin.onHTTPPassive({ response: { statusLine: 'HTTP/1.1 200 OK' } });
+  try {
+    await plugin.onStart({});
+    await plugin.onHTTPPassive({ response: { statusLine: 'HTTP/1.1 200 OK' } });
+  } finally {
+    Object.assign(macros, original);
+  }
 
   if (events.length === 0) {
     throw new Error('expected log output');
+  }
+  if (audit.length === 0) {
+    throw new Error('expected network audit entries');
   }
 }
 
