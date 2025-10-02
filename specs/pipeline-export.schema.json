@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Glyph pipeline export entry",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["telemetry", "case"]
+    },
+    "telemetry": {
+      "$ref": "#/definitions/telemetry"
+    },
+    "case": {
+      "$ref": "./case.schema.json"
+    },
+    "metrics": {
+      "$ref": "#/definitions/metrics"
+    }
+  },
+  "required": ["type"],
+  "additionalProperties": false,
+  "definitions": {
+    "telemetry": {
+      "type": "object",
+      "required": [
+        "generated_at",
+        "case_count",
+        "finding_count",
+        "severity_counts",
+        "plugin_counts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "case_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "finding_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "severity_counts": {
+          "type": "object",
+          "required": ["crit", "high", "med", "low", "info"],
+          "additionalProperties": false,
+          "properties": {
+            "crit": {"type": "integer", "minimum": 0},
+            "high": {"type": "integer", "minimum": 0},
+            "med": {"type": "integer", "minimum": 0},
+            "low": {"type": "integer", "minimum": 0},
+            "info": {"type": "integer", "minimum": 0}
+          }
+        },
+        "plugin_counts": {
+          "type": "object",
+          "patternProperties": {
+            ".+": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["source_count", "evidence_count"],
+      "additionalProperties": false,
+      "properties": {
+        "source_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {"const": "telemetry"}
+        }
+      },
+      "then": {
+        "required": ["telemetry"],
+        "properties": {
+          "telemetry": {"$ref": "#/definitions/telemetry"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {"const": "case"}
+        }
+      },
+      "then": {
+        "required": ["case"],
+        "properties": {
+          "case": {"$ref": "./case.schema.json"},
+          "metrics": {"$ref": "#/definitions/metrics"}
+        }
+      }
+    }
+  ]
+}
