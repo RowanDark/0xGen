@@ -9,7 +9,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -62,7 +64,7 @@ func runDemo(args []string) int {
 	fmt.Fprintf(os.Stdout, "Target served at %s\n", result.TargetURL)
 	fmt.Fprintf(os.Stdout, "Findings written to %s\n", result.FindingsOut)
 	fmt.Fprintf(os.Stdout, "Ranked findings written to %s\n", result.RankedOut)
-	fmt.Fprintf(os.Stdout, "Report available at %s\n", result.ReportOut)
+	fmt.Fprintf(os.Stdout, "Report available at %s\n", fileURLFromPath(result.ReportOut))
 	return 0
 }
 
@@ -197,6 +199,44 @@ func demoShowcaseFinding(target string, now time.Time) findings.Finding {
 		DetectedAt: findings.NewTimestamp(now.Add(-90 * time.Second)),
 		Metadata:   metadata,
 	}
+}
+
+func fileURLFromPath(p string) string {
+	if strings.TrimSpace(p) == "" {
+		return ""
+	}
+
+	normalized := filepath.ToSlash(p)
+	if strings.Contains(normalized, "\\") {
+		normalized = strings.ReplaceAll(normalized, "\\", "/")
+	}
+
+	if strings.HasPrefix(normalized, "//") {
+		trimmed := strings.TrimPrefix(normalized, "//")
+		trimmed = strings.TrimLeft(trimmed, "/")
+		if trimmed == "" {
+			return (&url.URL{Scheme: "file", Path: "/"}).String()
+		}
+		parts := strings.SplitN(trimmed, "/", 2)
+		host := parts[0]
+		rest := "/"
+		if len(parts) == 2 {
+			clean := path.Clean("/" + parts[1])
+			if clean == "." {
+				clean = "/"
+			}
+			rest = clean
+		}
+		u := url.URL{Scheme: "file", Host: host, Path: rest}
+		return u.String()
+	}
+
+	normalized = path.Clean(normalized)
+	if !strings.HasPrefix(normalized, "/") {
+		normalized = "/" + normalized
+	}
+	u := url.URL{Scheme: "file", Path: normalized}
+	return u.String()
 }
 
 func writeExcavatorSummary(outDir, target string, headers http.Header, bodyBytes int, ts time.Time) error {
