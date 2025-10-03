@@ -54,5 +54,6 @@ markdown_extensions:
       permalink: true
 
 extra:
+  cname: glyph.rowandark.com
   version:
     provider: mike
