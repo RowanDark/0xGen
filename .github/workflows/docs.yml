@@ -7,7 +7,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-pages
+  cancel-in-progress: false
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -31,23 +37,36 @@ jobs:
           python -m pip install --upgrade pip
           pip install mkdocs mkdocs-material mkdocs-redirects
 
-      - name: Configure Git user
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Build documentation
         run: mkdocs build --strict
 
-      - name: Deploy documentation
-        run: mkdocs gh-deploy --force --clean --remote-name origin --remote-branch gh-pages
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   smoke:
-    needs: build
+    needs: deploy
     runs-on: ubuntu-latest
     steps:
       - name: Check published pages
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.page_url }}
         run: |
+          url="${BASE_URL%/}"
           for p in "" "quickstart/" "cli/" "plugins/" "security/"; do
-            curl -fSL "https://rowandark.github.io/Glyph/${p}" >/dev/null
+            curl -fSL "${url}/${p}" >/dev/null
           done
