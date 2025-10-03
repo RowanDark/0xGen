@@ -192,6 +192,56 @@ func TestBuilderCorrelatesAcrossAssets(t *testing.T) {
 	}
 }
 
+func TestBuilderMasksNeverPersistMetadata(t *testing.T) {
+	builder := NewBuilder(
+		WithSummarizer(stubSummarizer{output: SummaryOutput{
+			Summary:           "summary",
+			ProofSummary:      "proof",
+			ReproductionSteps: []string{"step"},
+			RiskSeverity:      findings.SeverityLow,
+			RiskScore:         1.0,
+			ConfidenceScore:   0.5,
+		}}),
+		WithClock(func() time.Time { return time.Unix(1700020000, 0).UTC() }),
+	)
+
+	fs := []findings.Finding{{
+		Version:    findings.SchemaVersion,
+		ID:         "META1",
+		Plugin:     "seer",
+		Type:       "seer.exposure",
+		Message:    "sensitive data exposed",
+		Severity:   findings.SeverityLow,
+		DetectedAt: findings.NewTimestamp(time.Unix(1700020000, 0)),
+		Metadata: map[string]string{
+			"api_token":     "abcd-1234-secret",
+			"never_persist": "api_token",
+			"note":          "contextual info",
+		},
+	}}
+
+	cases, err := builder.Build(context.Background(), fs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("expected single case, got %d", len(cases))
+	}
+	if len(cases[0].Evidence) != 1 {
+		t.Fatalf("expected single evidence entry, got %d", len(cases[0].Evidence))
+	}
+	metadata := cases[0].Evidence[0].Metadata
+	if _, exists := metadata["never_persist"]; exists {
+		t.Fatalf("never_persist marker should be removed")
+	}
+	if got := metadata["api_token"]; got != "[REDACTED_SECRET]" {
+		t.Fatalf("expected api_token to be masked, got %q", got)
+	}
+	if got := metadata["note"]; got != "contextual info" {
+		t.Fatalf("unexpected note value %q", got)
+	}
+}
+
 func TestGoldenSummary(t *testing.T) {
 	builder := NewBuilder(
 		WithDeterministicMode(2024),

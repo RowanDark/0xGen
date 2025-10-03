@@ -127,3 +127,40 @@ func TestAuditLoggerRedactsSensitiveValues(t *testing.T) {
 		t.Fatalf("expected redacted detail, got %q", detail)
 	}
 }
+
+func TestAuditLoggerNeverPersistMasksValues(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger, err := NewAuditLogger("test", WithoutStdout(), WithWriter(buf))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+	event := AuditEvent{
+		EventType: EventSecretsAccess,
+		Decision:  DecisionAllow,
+		Metadata: map[string]any{
+			"api_token":     "super-secret-value",
+			"never_persist": []string{"api_token", "missing"},
+			"another_field": "ok",
+		},
+	}
+	if err := logger.Emit(event); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &decoded); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	metadata, ok := decoded["metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected metadata map, got %T", decoded["metadata"])
+	}
+	if _, exists := metadata["never_persist"]; exists {
+		t.Fatalf("never_persist marker should not be persisted")
+	}
+	if val, _ := metadata["api_token"].(string); val != "[REDACTED_SECRET]" {
+		t.Fatalf("expected masked api_token, got %q", val)
+	}
+	if val, _ := metadata["another_field"].(string); val != "ok" {
+		t.Fatalf("unexpected value for another_field: %q", val)
+	}
+}

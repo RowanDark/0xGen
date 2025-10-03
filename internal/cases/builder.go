@@ -344,11 +344,7 @@ func sanitizeCase(c Case) Case {
 	}
 	c.Risk.Rationale = redact.String(c.Risk.Rationale)
 	if len(c.Labels) > 0 {
-		sanitized := make(map[string]string, len(c.Labels))
-		for k, v := range c.Labels {
-			sanitized[k] = redact.String(v)
-		}
-		c.Labels = sanitized
+		c.Labels = redact.MapString(c.Labels)
 	}
 	if len(c.Evidence) > 0 {
 		for i := range c.Evidence {
@@ -369,11 +365,7 @@ func sanitizeEvidence(e EvidenceItem) EvidenceItem {
 	e.Message = redact.String(e.Message)
 	e.Evidence = redact.String(e.Evidence)
 	if len(e.Metadata) > 0 {
-		sanitized := make(map[string]string, len(e.Metadata))
-		for k, v := range e.Metadata {
-			sanitized[k] = redact.String(v)
-		}
-		e.Metadata = sanitized
+		e.Metadata = redact.MapString(e.Metadata)
 	}
 	return e
 }

@@ -52,6 +52,7 @@ func (s *Server) GetSecret(ctx context.Context, req *pb.SecretAccessRequest) (*p
 	}
 	plugin := strings.TrimSpace(req.GetPluginName())
 	token := strings.TrimSpace(req.GetToken())
+	scope := strings.TrimSpace(req.GetScopeId())
 	name := strings.TrimSpace(req.GetSecretName())
 	if plugin == "" {
 		return nil, status.Error(codes.InvalidArgument, "plugin_name is required")
@@ -59,11 +60,14 @@ func (s *Server) GetSecret(ctx context.Context, req *pb.SecretAccessRequest) (*p
 	if token == "" {
 		return nil, status.Error(codes.InvalidArgument, "token is required")
 	}
+	if scope == "" {
+		return nil, status.Error(codes.InvalidArgument, "scope_id is required")
+	}
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "secret_name is required")
 	}
 
-	value, err := s.manager.Resolve(token, plugin, name)
+	value, err := s.manager.Resolve(token, plugin, scope, name)
 	if err != nil {
 		return nil, s.handleResolveError(plugin, name, err)
 	}
@@ -84,8 +88,10 @@ func (s *Server) handleResolveError(plugin, name string, err error) error {
 	case errors.Is(err, ErrTokenNotRecognised),
 		errors.Is(err, ErrTokenExpired),
 		errors.Is(err, ErrTokenPluginMismatch),
+		errors.Is(err, ErrTokenScopeMismatch),
 		errors.Is(err, ErrSecretNotGranted),
 		errors.Is(err, ErrPluginRequired),
+		errors.Is(err, ErrScopeRequired),
 		errors.Is(err, ErrSecretRequired):
 		code = codes.PermissionDenied
 	default:

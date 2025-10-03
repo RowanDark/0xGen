@@ -17,6 +17,8 @@ var (
 	ErrPluginRequired = errors.New("plugin name is required")
 	// ErrSecretRequired indicates no secrets were requested.
 	ErrSecretRequired = errors.New("at least one secret is required")
+	// ErrScopeRequired indicates the token scope identifier is missing.
+	ErrScopeRequired = errors.New("token scope is required")
 	// ErrSecretNotProvisioned signals the requested secret has not been provisioned.
 	ErrSecretNotProvisioned = errors.New("requested secret not provisioned")
 	// ErrTokenNotRecognised indicates the broker does not recognise the provided token.
@@ -25,6 +27,8 @@ var (
 	ErrTokenExpired = errors.New("secrets token expired")
 	// ErrTokenPluginMismatch indicates the token was issued for a different plugin.
 	ErrTokenPluginMismatch = errors.New("secrets token issued for different plugin")
+	// ErrTokenScopeMismatch indicates the token was issued for a different execution scope.
+	ErrTokenScopeMismatch = errors.New("secrets token issued for different scope")
 	// ErrSecretNotGranted signals the requested secret was not included in the grant.
 	ErrSecretNotGranted = errors.New("secret not granted for token")
 )
@@ -33,6 +37,7 @@ const defaultTokenTTL = time.Minute
 
 type secretGrant struct {
 	plugin  string
+	scope   string
 	secrets map[string]string
 	expires time.Time
 }
@@ -121,10 +126,16 @@ func (m *Manager) Set(plugin, name, value string) {
 }
 
 // Issue generates a short-lived token authorising the provided secrets for the plugin.
-func (m *Manager) Issue(plugin string, requested []string) (string, time.Time, error) {
+// The issued token is bound to the provided scope identifier, ensuring tokens cannot
+// be reused across plugin runs.
+func (m *Manager) Issue(plugin, scope string, requested []string) (string, time.Time, error) {
 	pluginName := strings.TrimSpace(plugin)
 	if pluginName == "" {
 		return "", time.Time{}, ErrPluginRequired
+	}
+	scopeID := strings.TrimSpace(scope)
+	if scopeID == "" {
+		return "", time.Time{}, ErrScopeRequired
 	}
 	if len(requested) == 0 {
 		return "", time.Time{}, ErrSecretRequired
@@ -169,7 +180,7 @@ func (m *Manager) Issue(plugin string, requested []string) (string, time.Time, e
 	if m.grants == nil {
 		m.grants = make(map[string]secretGrant)
 	}
-	m.grants[token] = secretGrant{plugin: pluginKey, secrets: granted, expires: expires}
+	m.grants[token] = secretGrant{plugin: pluginKey, scope: scopeID, secrets: granted, expires: expires}
 	if m.audit != nil {
 		_ = m.audit.Emit(logging.AuditEvent{
 			EventType: logging.EventSecretsToken,
@@ -185,7 +196,7 @@ func (m *Manager) Issue(plugin string, requested []string) (string, time.Time, e
 }
 
 // Resolve returns the secret value authorised for the provided token.
-func (m *Manager) Resolve(token, plugin, secret string) (string, error) {
+func (m *Manager) Resolve(token, plugin, scope, secret string) (string, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
 		return "", ErrTokenNotRecognised
@@ -193,6 +204,10 @@ func (m *Manager) Resolve(token, plugin, secret string) (string, error) {
 	pluginName := strings.TrimSpace(plugin)
 	if pluginName == "" {
 		return "", ErrPluginRequired
+	}
+	scopeID := strings.TrimSpace(scope)
+	if scopeID == "" {
+		return "", ErrScopeRequired
 	}
 	secretName := strings.TrimSpace(secret)
 	if secretName == "" {
@@ -211,6 +226,9 @@ func (m *Manager) Resolve(token, plugin, secret string) (string, error) {
 	pluginKey := normalise(pluginName)
 	if grant.plugin != pluginKey {
 		return "", ErrTokenPluginMismatch
+	}
+	if grant.scope != scopeID {
+		return "", ErrTokenScopeMismatch
 	}
 	if now.After(grant.expires) {
 		delete(m.grants, token)

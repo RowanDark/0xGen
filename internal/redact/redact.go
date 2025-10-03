@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+const (
+	neverPersistKey = "never_persist"
+	redactedSecret  = "[REDACTED_SECRET]"
+)
+
 type stringer interface {
 	String() string
 }
@@ -27,7 +32,7 @@ func String(in string) string {
 	})
 	masked = kvSecretRe.ReplaceAllString(masked, `$1$2[REDACTED_SECRET]$4`)
 	masked = bearerRe.ReplaceAllString(masked, `$1 [REDACTED_SECRET]`)
-	masked = longTokenRe.ReplaceAllString(masked, "[REDACTED_SECRET]")
+	masked = longTokenRe.ReplaceAllString(masked, redactedSecret)
 	return masked
 }
 
@@ -72,8 +77,9 @@ func Map(in map[string]any) map[string]any {
 	if len(in) == 0 {
 		return nil
 	}
-	out := make(map[string]any, len(in))
-	for k, v := range in {
+	masked := applyNeverPersistAny(in)
+	out := make(map[string]any, len(masked))
+	for k, v := range masked {
 		out[k] = Interface(v)
 	}
 	return out
@@ -84,8 +90,9 @@ func MapString(in map[string]string) map[string]string {
 	if len(in) == 0 {
 		return nil
 	}
-	out := make(map[string]string, len(in))
-	for k, v := range in {
+	masked := applyNeverPersistString(in)
+	out := make(map[string]string, len(masked))
+	for k, v := range masked {
 		out[k] = String(v)
 	}
 	return out
@@ -99,6 +106,108 @@ func Slice(in []string) []string {
 	out := make([]string, len(in))
 	for i, v := range in {
 		out[i] = String(v)
+	}
+	return out
+}
+
+func applyNeverPersistAny(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	var toMask []string
+	for k, v := range in {
+		if strings.EqualFold(k, neverPersistKey) {
+			toMask = append(toMask, collectNeverPersist(v)...)
+			continue
+		}
+		out[k] = v
+	}
+	if len(toMask) == 0 {
+		return out
+	}
+	keys := normaliseNeverPersistKeys(toMask)
+	for key := range keys {
+		if _, ok := out[key]; ok {
+			out[key] = redactedSecret
+		}
+	}
+	return out
+}
+
+func applyNeverPersistString(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	var rawList []string
+	for k, v := range in {
+		if strings.EqualFold(k, neverPersistKey) {
+			rawList = append(rawList, collectNeverPersistStrings(v)...)
+			continue
+		}
+		out[k] = v
+	}
+	if len(rawList) == 0 {
+		return out
+	}
+	keys := normaliseNeverPersistKeys(rawList)
+	for key := range keys {
+		if _, ok := out[key]; ok {
+			out[key] = redactedSecret
+		}
+	}
+	return out
+}
+
+func collectNeverPersist(value any) []string {
+	switch v := value.(type) {
+	case string:
+		return collectNeverPersistStrings(v)
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, elem := range v {
+			if s, ok := elem.(string); ok {
+				out = append(out, s)
+				continue
+			}
+			out = append(out, fmt.Sprint(elem))
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func collectNeverPersistStrings(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+func normaliseNeverPersistKeys(keys []string) map[string]struct{} {
+	if len(keys) == 0 {
+		return nil
+	}
+	out := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		trimmed := strings.TrimSpace(key)
+		if trimmed == "" {
+			continue
+		}
+		out[trimmed] = struct{}{}
 	}
 	return out
 }

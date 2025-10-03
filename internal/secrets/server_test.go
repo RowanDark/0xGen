@@ -17,7 +17,7 @@ func TestServerGetSecret(t *testing.T) {
 	mgr := NewManager(map[string]map[string]string{
 		"seer": {"api_token": "top-secret"},
 	})
-	token, _, err := mgr.Issue("seer", []string{"API_TOKEN"})
+	token, _, err := mgr.Issue("seer", "scope-1", []string{"API_TOKEN"})
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
 	}
@@ -27,6 +27,7 @@ func TestServerGetSecret(t *testing.T) {
 	resp, err := srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
 		PluginName: "seer",
 		Token:      token,
+		ScopeId:    "scope-1",
 		SecretName: "API_TOKEN",
 	})
 	if err != nil {
@@ -51,7 +52,7 @@ func TestServerDeniesUnrequestedSecret(t *testing.T) {
 	mgr := NewManager(map[string]map[string]string{
 		"seer": {"api_token": "top-secret"},
 	})
-	token, _, err := mgr.Issue("seer", []string{"API_TOKEN"})
+	token, _, err := mgr.Issue("seer", "scope-1", []string{"API_TOKEN"})
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
 	}
@@ -61,6 +62,7 @@ func TestServerDeniesUnrequestedSecret(t *testing.T) {
 	_, err = srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
 		PluginName: "seer",
 		Token:      token,
+		ScopeId:    "scope-1",
 		SecretName: "DB_PASSWORD",
 	})
 	if status.Code(err) != codes.PermissionDenied {
@@ -76,6 +78,31 @@ func TestServerDeniesUnrequestedSecret(t *testing.T) {
 	}
 	if event.Decision != logging.DecisionDeny {
 		t.Fatalf("expected deny decision, got %q", event.Decision)
+	}
+}
+
+func TestServerDeniesMismatchedScope(t *testing.T) {
+	mgr := NewManager(map[string]map[string]string{
+		"seer": {"api_token": "top-secret"},
+	})
+	token, _, err := mgr.Issue("seer", "scope-a", []string{"API_TOKEN"})
+	if err != nil {
+		t.Fatalf("issue token: %v", err)
+	}
+	logger, buf := newAuditLogger(t)
+	srv := NewServer(mgr, WithServerAuditLogger(logger))
+
+	_, err = srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
+		PluginName: "seer",
+		Token:      token,
+		ScopeId:    "scope-b",
+		SecretName: "API_TOKEN",
+	})
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+	if !bytes.Contains(buf.Bytes(), []byte("secrets_denied")) {
+		t.Fatalf("expected denial to be audited")
 	}
 }
 
