@@ -29,3 +29,25 @@ func guardedNetwork(ctx *pluginsdk.Context) error {
 	}
 	return nil
 }
+
+var debug bool
+
+func networkWithDebug(ctx *pluginsdk.Context) error {
+	if CapabilityMacros.NetOutbound || debug {
+		return pluginsdk.UseNetwork(ctx, func(net pluginsdk.NetworkBroker) error {
+			_, err := net.Do(context.Background(), pluginsdk.HTTPRequest{Method: "GET", URL: "https://example.com/ping"})
+			return err
+		}) // want "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND"
+	}
+	return nil
+}
+
+func negatedCapability(ctx *pluginsdk.Context) error {
+	if !CapabilityMacros.NetOutbound {
+		return pluginsdk.UseNetwork(ctx, func(net pluginsdk.NetworkBroker) error {
+			_, err := net.Do(context.Background(), pluginsdk.HTTPRequest{Method: "GET", URL: "https://example.com/ping"})
+			return err
+		}) // want "use pluginsdk.UseNetwork with CAP_NET_OUTBOUND"
+	}
+	return nil
+}

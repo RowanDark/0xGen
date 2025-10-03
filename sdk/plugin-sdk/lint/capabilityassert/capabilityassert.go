@@ -235,7 +235,7 @@ func (fi *fileInspector) callGuarded(call *ast.CallExpr, req capabilityRequireme
 		if !within(call, ifStmt.Body) {
 			continue
 		}
-		if usesCapability(ifStmt.Cond, req) {
+		if guardRequiresCapability(ifStmt.Cond, req) {
 			return true
 		}
 	}
@@ -249,37 +249,114 @@ func within(node ast.Node, block *ast.BlockStmt) bool {
 	return node.Pos() >= block.Lbrace && node.End() <= block.Rbrace
 }
 
-func usesCapability(expr ast.Expr, req capabilityRequirement) bool {
-	found := false
-	ast.Inspect(expr, func(n ast.Node) bool {
-		if found {
-			return false
+type truthTable struct {
+	canBeTrue  bool
+	canBeFalse bool
+}
+
+func guardRequiresCapability(expr ast.Expr, req capabilityRequirement) bool {
+	truth, mentions := evaluateGuard(expr, req, false)
+	if !mentions {
+		return false
+	}
+	return !truth.canBeTrue
+}
+
+func evaluateGuard(expr ast.Expr, req capabilityRequirement, capabilityValue bool) (truthTable, bool) {
+	switch v := expr.(type) {
+	case *ast.ParenExpr:
+		return evaluateGuard(v.X, req, capabilityValue)
+	case *ast.UnaryExpr:
+		if v.Op == token.NOT {
+			inner, mentions := evaluateGuard(v.X, req, capabilityValue)
+			return truthTable{canBeTrue: inner.canBeFalse, canBeFalse: inner.canBeTrue}, mentions
 		}
-		switch v := n.(type) {
-		case *ast.SelectorExpr:
-			if isCapabilityMacrosExpr(v.X) {
-				for _, field := range req.fields {
-					if v.Sel.Name == field {
-						found = true
-						return false
+		return truthTable{canBeTrue: true, canBeFalse: true}, false
+	case *ast.BinaryExpr:
+		left, leftMentions := evaluateGuard(v.X, req, capabilityValue)
+		right, rightMentions := evaluateGuard(v.Y, req, capabilityValue)
+		switch v.Op {
+		case token.LAND:
+			return truthTable{
+				canBeTrue:  left.canBeTrue && right.canBeTrue,
+				canBeFalse: left.canBeFalse || right.canBeFalse,
+			}, leftMentions || rightMentions
+		case token.LOR:
+			return truthTable{
+				canBeTrue:  left.canBeTrue || right.canBeTrue,
+				canBeFalse: left.canBeFalse && right.canBeFalse,
+			}, leftMentions || rightMentions
+		case token.EQL, token.NEQ:
+			result := truthTable{}
+			// Iterate over possible value combinations.
+			for _, lv := range []bool{true, false} {
+				if (lv && !left.canBeTrue) || (!lv && !left.canBeFalse) {
+					continue
+				}
+				for _, rv := range []bool{true, false} {
+					if (rv && !right.canBeTrue) || (!rv && !right.canBeFalse) {
+						continue
+					}
+					outcome := (lv == rv)
+					if v.Op == token.NEQ {
+						outcome = !outcome
+					}
+					if outcome {
+						result.canBeTrue = true
+					} else {
+						result.canBeFalse = true
 					}
 				}
 			}
-		case *ast.CallExpr:
-			sel, ok := v.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "Enabled" || !isCapabilityMacrosExpr(sel.X) {
-				return true
+			if !result.canBeTrue && !result.canBeFalse {
+				result.canBeFalse = true
 			}
-			for _, arg := range v.Args {
-				if matchesCapabilityConst(arg, req.constants) {
-					found = true
-					return false
+			return result, leftMentions || rightMentions
+		default:
+			return truthTable{canBeTrue: true, canBeFalse: true}, leftMentions || rightMentions
+		}
+	case *ast.SelectorExpr:
+		if isCapabilityMacrosExpr(v.X) {
+			for _, field := range req.fields {
+				if v.Sel.Name == field {
+					if capabilityValue {
+						return truthTable{canBeTrue: true, canBeFalse: false}, true
+					}
+					return truthTable{canBeTrue: false, canBeFalse: true}, true
 				}
 			}
 		}
-		return true
-	})
-	return found
+		return truthTable{canBeTrue: true, canBeFalse: true}, false
+	case *ast.CallExpr:
+		sel, ok := v.Fun.(*ast.SelectorExpr)
+		if ok && sel.Sel.Name == "Enabled" && isCapabilityMacrosExpr(sel.X) {
+			mentions := false
+			for _, arg := range v.Args {
+				if matchesCapabilityConst(arg, req.constants) {
+					mentions = true
+					break
+				}
+			}
+			if mentions {
+				if capabilityValue {
+					return truthTable{canBeTrue: true, canBeFalse: false}, true
+				}
+				return truthTable{canBeTrue: false, canBeFalse: true}, true
+			}
+		}
+		return truthTable{canBeTrue: true, canBeFalse: true}, false
+	case *ast.Ident:
+		switch v.Name {
+		case "true":
+			return truthTable{canBeTrue: true, canBeFalse: false}, false
+		case "false":
+			return truthTable{canBeTrue: false, canBeFalse: true}, false
+		default:
+			return truthTable{canBeTrue: true, canBeFalse: true}, false
+		}
+	default:
+		return truthTable{canBeTrue: true, canBeFalse: true}, false
+	}
 }
 
 func isCapabilityMacrosExpr(expr ast.Expr) bool {
@@ -344,7 +421,7 @@ func extractMacros(file *ast.File, macros *macroSet) {
 				if !ok || sel.Sel.Name != "CapabilitySet" {
 					continue
 				}
-                                macros.known = true
+				macros.known = true
 				for _, elt := range lit.Elts {
 					kv, ok := elt.(*ast.KeyValueExpr)
 					if !ok {
