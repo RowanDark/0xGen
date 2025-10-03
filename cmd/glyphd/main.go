@@ -16,6 +16,8 @@ import (
 	"github.com/RowanDark/Glyph/internal/bus"
 	"github.com/RowanDark/Glyph/internal/findings"
 	"github.com/RowanDark/Glyph/internal/logging"
+	"github.com/RowanDark/Glyph/internal/netgate"
+	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
 	"github.com/RowanDark/Glyph/internal/secrets"
@@ -24,10 +26,11 @@ import (
 )
 
 type config struct {
-	addr        string
-	token       string
-	proxy       proxy.Config
-	enableProxy bool
+	addr              string
+	token             string
+	proxy             proxy.Config
+	enableProxy       bool
+	fingerprintRotate bool
 }
 
 func main() {
@@ -40,6 +43,7 @@ func main() {
 	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
+	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	flag.Parse()
 
 	if *token == "" {
@@ -60,7 +64,8 @@ func main() {
 			CACertPath:  *proxyCACert,
 			CAKeyPath:   *proxyCAKey,
 		},
-		enableProxy: *enableProxy,
+		enableProxy:       *enableProxy,
+		fingerprintRotate: *fingerprintRotate,
 	}
 
 	if err := run(ctx, cfg); err != nil {
@@ -182,7 +187,7 @@ func run(ctx context.Context, cfg config) error {
 
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate)
 	}()
 
 	select {
@@ -227,7 +232,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
@@ -259,7 +264,13 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	}()
 
 	srv := grpc.NewServer()
-	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger))
+	gateOpts := []netgate.Option{}
+	if rotateFingerprints {
+		strategy := fingerprint.DefaultStrategy()
+		strategy.EnableRotation(true)
+		gateOpts = append(gateOpts, netgate.WithFingerprintStrategy(strategy))
+	}
+	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger), bus.WithGateOptions(gateOpts...))
 	pb.RegisterPluginBusServer(srv, busServer)
 
 	secretsLogger := coreLogger.WithComponent("secrets_broker")

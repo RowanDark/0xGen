@@ -3,11 +3,13 @@ package netgate
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -387,6 +389,62 @@ func TestLayeredTransportShouldFallback(t *testing.T) {
 	}
 	if !lt.shouldFallback(errHTTP3Unavailable) {
 		t.Fatal("expected fallback for HTTP/3 unavailability")
+	}
+}
+
+func TestLayeredTransportRoundTripFallsBackToPrimary(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	t.Cleanup(server.Close)
+
+	primary, ok := server.Client().Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected *http.Transport, got %T", server.Client().Transport)
+	}
+	primary = primary.Clone()
+	primary.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
+	lt := &layeredTransport{
+		primary: primary,
+		baseTLS: &tls.Config{InsecureSkipVerify: true},
+	}
+	lt.h3attempt = func(req *http.Request, addr string, cfg *tls.Config) (*http.Response, error) {
+		return nil, errHTTP3Unavailable
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+
+	resp, err := lt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected %d, got %d", http.StatusAccepted, resp.StatusCode)
+	}
+}
+
+func TestLayeredTransportHTTP3SuccessShortCircuits(t *testing.T) {
+	lt := &layeredTransport{}
+	lt.h3attempt = func(req *http.Request, addr string, cfg *tls.Config) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Request: req}, nil
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+
+	resp, err := lt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status: %d", resp.StatusCode)
 	}
 }
 

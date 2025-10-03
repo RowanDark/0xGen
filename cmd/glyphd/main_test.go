@@ -33,7 +33,7 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger)
+		errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger, false)
 	}()
 
 	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)

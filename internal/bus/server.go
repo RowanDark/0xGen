@@ -40,6 +40,7 @@ type Server struct {
 	findings    *findings.Bus
 	gate        *netgate.Gate
 	caps        *capabilities.Manager
+	gateOpts    []netgate.Option
 }
 
 // NewServer creates a new bus server.
@@ -50,6 +51,16 @@ func WithAuditLogger(logger *logging.AuditLogger) Option {
 		if logger != nil {
 			s.audit = logger
 		}
+	}
+}
+
+// WithGateOptions applies custom netgate options when constructing the gate.
+func WithGateOptions(opts ...netgate.Option) Option {
+	return func(s *Server) {
+		if len(opts) == 0 {
+			return
+		}
+		s.gateOpts = append(s.gateOpts, opts...)
 	}
 }
 
@@ -71,7 +82,8 @@ func NewServer(authToken string, findingsBus *findings.Bus, opts ...Option) *Ser
 	if srv.audit != nil {
 		gateAudit = srv.audit.WithComponent("netgate")
 	}
-	srv.gate = netgate.New(nil, netgate.WithAuditLogger(gateAudit))
+	gateOpts := append([]netgate.Option{netgate.WithAuditLogger(gateAudit)}, srv.gateOpts...)
+	srv.gate = netgate.New(nil, gateOpts...)
 	return srv
 }
 

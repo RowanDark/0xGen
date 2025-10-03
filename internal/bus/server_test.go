@@ -10,6 +10,7 @@ import (
 
 	"github.com/RowanDark/Glyph/internal/findings"
 	"github.com/RowanDark/Glyph/internal/logging"
+	"github.com/RowanDark/Glyph/internal/netgate"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -46,6 +47,19 @@ func newMockStream(ctx context.Context) *mockEventStream {
 		RecvChan: make(chan *pb.PluginEvent, 1),
 		SendChan: make(chan *pb.HostEvent, 1),
 		ctx:      ctx,
+	}
+}
+
+func TestWithGateOptionsApplied(t *testing.T) {
+	applied := false
+	server := NewServer("token", nil, WithGateOptions(func(*netgate.Gate) {
+		applied = true
+	}))
+	if server == nil {
+		t.Fatal("expected server instance")
+	}
+	if !applied {
+		t.Fatal("expected gate option to be applied")
 	}
 }
 
