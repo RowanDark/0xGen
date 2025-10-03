@@ -60,6 +60,12 @@ jobs:
           build-args: |
             VERSION=${{ github.ref_name }}
 
+      - name: Select primary tag
+        id: tag
+        run: |
+          primary=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | head -n 1)
+          echo "ref=$primary" >>"$GITHUB_OUTPUT"
+
       - name: Upload image digest for provenance
         run: |
           echo "${{ steps.build.outputs.digest }}" >image-digest.txt
@@ -89,3 +95,20 @@ jobs:
               cosign sign "${tag}@${DIGEST}"
             fi
           done <<< "$tags"
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.22.0
+        with:
+          image-ref: ${{ steps.tag.outputs.ref }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Grype vulnerability scan
+        uses: anchore/grype-action@v0.9.1
+        with:
+          image: ${{ steps.tag.outputs.ref }}
+          fail-build: true
+          severity-cutoff: high

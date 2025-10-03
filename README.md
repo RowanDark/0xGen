@@ -9,11 +9,53 @@ ranked findings and human-readable reports.
 
 ## Installation
 
+### macOS (Homebrew)
+
 macOS users can install the prebuilt `glyphctl` binary via Homebrew using the
 [RowanDark/homebrew-glyph tap](https://github.com/RowanDark/homebrew-glyph):
 
 ```bash
 brew install rowandark/glyph/glyph
+```
+
+### Linux (Debian/Ubuntu)
+
+Download the `.deb` package from the
+[GitHub Releases page](https://github.com/RowanDark/Glyph/releases) and install
+it with `dpkg`:
+
+```bash
+sudo dpkg -i glyphctl_<version>_linux_amd64.deb
+```
+
+Replace `<version>` with the release you want to install. The package installs
+`glyphctl` into `/usr/local/bin`.
+
+### Linux (Fedora/RHEL/OpenSUSE)
+
+RPM packages are published alongside each release. Install them with `rpm`:
+
+```bash
+sudo rpm -i glyphctl_<version>_linux_amd64.rpm
+```
+
+### Windows (Scoop)
+
+Add this repository as a Scoop bucket and install the manifest:
+
+```powershell
+scoop bucket add glyph https://github.com/RowanDark/Glyph
+scoop install glyphctl
+```
+
+### Container image
+
+A hardened container image is pushed to GitHub Container Registry with every
+release. Pull and run it with:
+
+```bash
+docker pull ghcr.io/rowandark/glyphctl:latest
+docker run --rm ghcr.io/rowandark/glyphctl:latest --version
 ```
 
 ## Quickstart

@@ -73,6 +73,23 @@ archives:
 checksum:
   name_template: "glyph_{{ .Version }}_checksums.txt"
 
+nfpms:
+  - id: glyphctl-linux-packages
+    package_name: glyphctl
+    builds:
+      - glyphctl
+    formats:
+      - deb
+      - rpm
+    maintainer: Rowan Dark <security@rowandark.dev>
+    description: Glyph automation toolkit command-line interface.
+    homepage: https://github.com/RowanDark/Glyph
+    license: Apache-2.0
+    bindir: /usr/local/bin
+    priority: optional
+    section: utils
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
+
 dockers:
   - id: glyphctl-image
     use: buildx

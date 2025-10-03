@@ -1,0 +1,76 @@
+name: scoop-release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Download release archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "glyphctl_${TAG}_windows_amd64.zip" -D dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "glyphctl_${TAG}_windows_arm64.zip" -D dist
+
+      - name: Update Scoop manifest
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          AMD64_HASH=$(sha256sum "dist/glyphctl_${TAG}_windows_amd64.zip" | awk '{print $1}')
+          ARM64_HASH=$(sha256sum "dist/glyphctl_${TAG}_windows_arm64.zip" | awk '{print $1}')
+          export AMD64_HASH ARM64_HASH
+          python <<'PY'
+import json
+import os
+from pathlib import Path
+
+tag = os.environ["TAG"]
+version = tag[1:] if tag.startswith("v") else tag
+amd64_hash = os.environ["AMD64_HASH"]
+arm64_hash = os.environ["ARM64_HASH"]
+manifest_path = Path("scoop/bucket/glyphctl.json")
+manifest = json.loads(manifest_path.read_text())
+manifest["version"] = version
+manifest["architecture"]["64bit"]["url"] = f"https://github.com/RowanDark/Glyph/releases/download/{tag}/glyphctl_{tag}_windows_amd64.zip"
+manifest["architecture"]["64bit"]["hash"] = f"sha256:{amd64_hash}"
+manifest["architecture"]["arm64"]["url"] = f"https://github.com/RowanDark/Glyph/releases/download/{tag}/glyphctl_{tag}_windows_arm64.zip"
+manifest["architecture"]["arm64"]["hash"] = f"sha256:{arm64_hash}"
+manifest["autoupdate"]["architecture"]["64bit"]["url"] = "https://github.com/RowanDark/Glyph/releases/download/v$version/glyphctl_v$version_windows_amd64.zip"
+manifest["autoupdate"]["architecture"]["arm64"]["url"] = "https://github.com/RowanDark/Glyph/releases/download/v$version/glyphctl_v$version_windows_arm64.zip"
+manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+PY
+
+      - name: Commit manifest
+        run: |
+          set -euo pipefail
+          if git diff --quiet scoop/bucket/glyphctl.json; then
+            echo "Manifest already up to date"
+            exit 0
+          fi
+          git add scoop/bucket/glyphctl.json
+          git commit -m "chore: update Scoop manifest for $TAG"
+          git push origin HEAD:main
+        env:
+          TAG: ${{ github.event.release.tag_name }}
