@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "entry": "./cmd/{{.BinaryName}}/main.go",
   "capabilities": [
-{{- range $i, $cap := .Capabilities }}{{if $i}},
-{{end}}    "{{$cap}}"{{end}}
+{{.CapabilitiesBlock}}
   ]
 }

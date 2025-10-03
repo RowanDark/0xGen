@@ -10,6 +10,7 @@ nav:
   - Quickstart: quickstart.md
   - Plugins:
       - Overview: plugins/index.md
+      - Go Safe Starter: plugins/safe-starter-go.md
   - CLI:
       - Overview: cli/index.md
       - Configuration: cli/configuration.md

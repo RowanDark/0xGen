@@ -27,17 +27,20 @@ fixtures to accelerate future development.
 
 ## Getting started
 
-1. Scaffold a new plugin with `make new-plugin name=<id>`. The target creates a
-   directory under [`plugins/<id>/`]({{ config.repo_url }}/tree/main/plugins) with a manifest and Go stub
-   wired to the SDK. The stub compiles out of the box so you can iterate from a
-   working baseline.
-2. Study [`plugins/example-hello/`]({{ config.repo_url }}/tree/main/plugins/example-hello) for a compact
-   end-to-end example. It includes a manifest, runnable plugin, and test fixture
-   demonstrating how to assert emitted findings.
+1. Scaffold a new plugin with `glyph-plugin init`. The CLI generates Node and
+   Go projects that already depend on the broker helpers, capability macros, and
+   lint/test automation used in production. See the
+   [safe starter walkthrough](safe-starter-go.md) for a tour of the generated Go
+   project layout. The legacy `make new-plugin` target remains available for
+   existing automation but defers to the same templates.
+2. Study [`examples/plugin-safe-go/`]({{ config.repo_url }}/tree/main/examples/plugin-safe-go)
+   for a compact end-to-end example produced by the scaffolder. It includes a
+   manifest, runnable plugin, tests that exercise the fake broker, and a README
+   describing the default linting workflow.
 3. Run `go test ./...` frequently to execute plugin unit tests alongside the rest
-   of the repository. The example plugin test shows how to stand up the in-memory
-   bus exposed by [`internal/bus`]({{ config.repo_url }}/tree/main/internal/bus) so findings can be asserted
-   without a full Glyph deployment.
+   of the repository. The example plugin test shows how to stand up the
+   in-memory broker exposed by [`sdk/plugin-sdk`]({{ config.repo_url }}/tree/main/sdk/plugin-sdk)
+   so findings can be asserted without a full Glyph deployment.
 
 ## Lifecycle hooks
 

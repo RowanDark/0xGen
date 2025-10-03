@@ -7,11 +7,11 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	diags, err := capabilityassert.Run([]string{"./testdata/src/a"})
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	if len(diags) != 4 {
-		t.Fatalf("expected 4 diagnostics, got %d", len(diags))
-	}
+        diags, err := capabilityassert.Run([]string{"./testdata/src/..."})
+        if err != nil {
+                t.Fatalf("Run: %v", err)
+        }
+        if len(diags) != 6 {
+                t.Fatalf("expected 6 diagnostics, got %d", len(diags))
+        }
 }
