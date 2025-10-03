@@ -14,11 +14,27 @@ import (
 var templateFS embed.FS
 
 type scaffoldData struct {
-	Module       string
-	PluginName   string
-	BinaryName   string
-	SDKReplace   string
-	Capabilities []string
+	Module            string
+	PluginName        string
+	BinaryName        string
+	SDKReplace        string
+	Capabilities      []string
+	CapabilitiesBlock string
+}
+
+func formatCapabilities(caps []string) string {
+	if len(caps) == 0 {
+		return ""
+	}
+	lines := make([]string, len(caps))
+	for i, cap := range caps {
+		suffix := ","
+		if i == len(caps)-1 {
+			suffix = ""
+		}
+		lines[i] = fmt.Sprintf("    %q%s", cap, suffix)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func scaffoldGo(name, module string) error {
@@ -44,6 +60,7 @@ func scaffoldGo(name, module string) error {
 		SDKReplace:   rel,
 		Capabilities: []string{"CAP_EMIT_FINDINGS", "CAP_HTTP_PASSIVE", "CAP_WORKSPACE_READ"},
 	}
+	data.CapabilitiesBlock = formatCapabilities(data.Capabilities)
 	return renderTemplates(name, "templates/go", data)
 }
 
@@ -53,6 +70,7 @@ func scaffoldNode(name string) error {
 		PluginName:   strings.ReplaceAll(base, "_", "-"),
 		Capabilities: []string{"CAP_EMIT_FINDINGS", "CAP_HTTP_PASSIVE", "CAP_WORKSPACE_READ"},
 	}
+	data.CapabilitiesBlock = formatCapabilities(data.Capabilities)
 	return renderTemplates(name, "templates/node", data)
 }
 
@@ -74,6 +92,7 @@ func renderTemplates(dir, base string, data scaffoldData) error {
 		}
 		rel = strings.TrimSuffix(rel, ".tmpl")
 		rel = strings.ReplaceAll(rel, "__BINARY__", data.BinaryName)
+		rel = strings.ReplaceAll(rel, "BINARY_NAME", data.BinaryName)
 		target := filepath.Join(dir, rel)
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)

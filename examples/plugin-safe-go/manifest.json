@@ -1,0 +1,10 @@
+{
+  "name": "plugin-safe-go",
+  "version": "0.1.0",
+  "entry": "./cmd/plugin-safe-go/main.go",
+  "capabilities": [
+    "CAP_EMIT_FINDINGS",
+    "CAP_HTTP_PASSIVE",
+    "CAP_WORKSPACE_READ"
+  ]
+}
