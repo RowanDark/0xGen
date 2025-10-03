@@ -146,7 +146,7 @@ func applyTLSProfile(cfg *tls.Config, profile TLSProfile) {
 		cfg.NextProtos = ensureProtocols(cfg.NextProtos, profile.NextProtos...)
 	}
 	if len(cfg.NextProtos) == 0 {
-		cfg.NextProtos = []string{"h2", "http/1.1"}
+		cfg.NextProtos = []string{"h3", "h2", "http/1.1"}
 	}
 	if cfg.MinVersion == 0 {
 		cfg.MinVersion = tls.VersionTLS12
@@ -209,7 +209,7 @@ func chromeProfile() Profile {
 				tls.CurveP256,
 				tls.CurveP384,
 			},
-			NextProtos: []string{"h2", "http/1.1"},
+			NextProtos: []string{"h3", "h2", "http/1.1"},
 		},
 	}
 }
@@ -247,7 +247,7 @@ func firefoxProfile() Profile {
 				tls.CurveP256,
 				tls.CurveP384,
 			},
-			NextProtos: []string{"h2", "http/1.1"},
+			NextProtos: []string{"h3", "h2", "http/1.1"},
 		},
 	}
 }
