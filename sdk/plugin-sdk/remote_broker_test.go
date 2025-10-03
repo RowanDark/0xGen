@@ -24,17 +24,20 @@ func (f *fakeSecretsClient) GetSecret(ctx context.Context, in *pb.SecretAccessRe
 }
 
 func TestRemoteSecretsRequiresToken(t *testing.T) {
-	if secrets := newRemoteSecrets("seer", "", &fakeSecretsClient{}); secrets != nil {
+	if secrets := newRemoteSecrets("seer", "", "scope", &fakeSecretsClient{}); secrets != nil {
 		t.Fatalf("expected nil secrets broker when token missing")
 	}
-	if secrets := newRemoteSecrets("seer", "token", nil); secrets != nil {
+	if secrets := newRemoteSecrets("seer", "token", "", &fakeSecretsClient{}); secrets != nil {
+		t.Fatalf("expected nil secrets broker when scope missing")
+	}
+	if secrets := newRemoteSecrets("seer", "token", "scope", nil); secrets != nil {
 		t.Fatalf("expected nil secrets broker when client missing")
 	}
 }
 
 func TestRemoteSecretsSuccess(t *testing.T) {
 	fake := &fakeSecretsClient{resp: &pb.SecretAccessResponse{Value: "super"}}
-	secrets := newRemoteSecrets(" seer ", " token ", fake)
+	secrets := newRemoteSecrets(" seer ", " token ", " scope ", fake)
 	if secrets == nil {
 		t.Fatalf("expected remote secrets instance")
 	}
@@ -56,6 +59,9 @@ func TestRemoteSecretsSuccess(t *testing.T) {
 	}
 	if got := fake.req.GetToken(); got != "token" {
 		t.Fatalf("unexpected token: %s", got)
+	}
+	if got := fake.req.GetScopeId(); got != "scope" {
+		t.Fatalf("unexpected scope: %s", got)
 	}
 }
 
@@ -90,7 +96,7 @@ func TestRemoteSecretsErrorMapping(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := &fakeSecretsClient{err: tc.err}
-			secrets := newRemoteSecrets("seer", "token", fake)
+			secrets := newRemoteSecrets("seer", "token", "scope", fake)
 			if secrets == nil {
 				t.Fatalf("expected remote secrets instance")
 			}
@@ -113,7 +119,7 @@ func TestRemoteSecretsErrorMapping(t *testing.T) {
 
 func TestRemoteSecretsValidatesName(t *testing.T) {
 	fake := &fakeSecretsClient{}
-	secrets := newRemoteSecrets("seer", "token", fake)
+	secrets := newRemoteSecrets("seer", "token", "scope", fake)
 	if secrets == nil {
 		t.Fatalf("expected remote secrets instance")
 	}

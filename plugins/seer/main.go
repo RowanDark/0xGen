@@ -59,6 +59,7 @@ func main() {
 	}
 
 	secretsToken := strings.TrimSpace(os.Getenv("GLYPH_SECRETS_TOKEN"))
+	secretsScope := strings.TrimSpace(os.Getenv("GLYPH_SECRETS_SCOPE"))
 
 	cfg := pluginsdk.Config{
 		PluginName:      "seer",
@@ -66,6 +67,7 @@ func main() {
 		AuthToken:       *authToken,
 		CapabilityToken: capToken,
 		SecretsToken:    secretsToken,
+		SecretsScope:    secretsScope,
 		Capabilities: []pluginsdk.Capability{
 			pluginsdk.CapabilityHTTPPassive,
 			pluginsdk.CapabilityEmitFindings,

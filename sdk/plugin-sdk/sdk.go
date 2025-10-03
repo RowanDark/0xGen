@@ -97,6 +97,9 @@ type Config struct {
 	CapabilityToken string
 	// SecretsToken authorises this invocation to retrieve secrets from the broker.
 	SecretsToken string
+	// SecretsScope binds the secrets token to the specific plugin run scope. If left blank
+	// the capability token is used as a fallback.
+	SecretsScope string
 	// Capabilities is the set of capabilities granted by the manifest.
 	Capabilities []Capability
 	// Subscriptions lists the host events the plugin wants to receive.
@@ -298,7 +301,11 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 
 	broker := cfg.Broker
 	if broker == nil {
-		broker = newRemoteBroker(cfg.PluginName, cfg.SecretsToken, conn)
+		secretsScope := strings.TrimSpace(cfg.SecretsScope)
+		if secretsScope == "" {
+			secretsScope = strings.TrimSpace(cfg.CapabilityToken)
+		}
+		broker = newRemoteBroker(cfg.PluginName, cfg.SecretsToken, secretsScope, conn)
 	}
 
 	client := pb.NewPluginBusClient(conn)

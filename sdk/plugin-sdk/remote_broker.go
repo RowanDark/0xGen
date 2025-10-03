@@ -16,10 +16,10 @@ type remoteBroker struct {
 	secrets SecretsBroker
 }
 
-func newRemoteBroker(pluginName, secretsToken string, conn grpc.ClientConnInterface) Broker {
+func newRemoteBroker(pluginName, secretsToken, secretsScope string, conn grpc.ClientConnInterface) Broker {
 	rb := &remoteBroker{}
 	if conn != nil {
-		rb.secrets = newRemoteSecrets(pluginName, secretsToken, pb.NewSecretsBrokerClient(conn))
+		rb.secrets = newRemoteSecrets(pluginName, secretsToken, secretsScope, pb.NewSecretsBrokerClient(conn))
 	}
 	return rb
 }
@@ -34,14 +34,16 @@ type secretsClient interface {
 	GetSecret(ctx context.Context, in *pb.SecretAccessRequest, opts ...grpc.CallOption) (*pb.SecretAccessResponse, error)
 }
 
-func newRemoteSecrets(pluginName, token string, client secretsClient) SecretsBroker {
+func newRemoteSecrets(pluginName, token, scope string, client secretsClient) SecretsBroker {
 	trimmedToken := strings.TrimSpace(token)
-	if trimmedToken == "" || client == nil {
+	trimmedScope := strings.TrimSpace(scope)
+	if trimmedToken == "" || trimmedScope == "" || client == nil {
 		return nil
 	}
 	return &remoteSecrets{
 		pluginName: strings.TrimSpace(pluginName),
 		token:      trimmedToken,
+		scope:      trimmedScope,
 		client:     client,
 	}
 }
@@ -49,6 +51,7 @@ func newRemoteSecrets(pluginName, token string, client secretsClient) SecretsBro
 type remoteSecrets struct {
 	pluginName string
 	token      string
+	scope      string
 	client     secretsClient
 }
 
@@ -63,6 +66,7 @@ func (r *remoteSecrets) Get(ctx context.Context, name string) (string, error) {
 	res, err := r.client.GetSecret(ctx, &pb.SecretAccessRequest{
 		PluginName: r.pluginName,
 		Token:      r.token,
+		ScopeId:    r.scope,
 		SecretName: secretName,
 	})
 	if err != nil {
