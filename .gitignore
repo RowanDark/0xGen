@@ -26,6 +26,8 @@ __pycache__/
 
 # Generated reports
 /out/
+plugins/excavator/benchmarks/latest.json
+plugins/excavator/benchmarks/summary.md
 
 # IDE files
 .idea/

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "generatedAt": "2025-10-03T16:40:57.025Z",
+  "scenarios": {
+    "fanout_3_depth_2": {
+      "medianUrlsPerMinute": 5776.3813910615,
+      "medianBanRate": 0,
+      "medianMemoryPeakBytes": 82038784,
+      "medianCpuPercent": 4.805504980333087,
+      "iterations": 5
+    },
+    "throttled_fanout_2_depth_3": {
+      "medianUrlsPerMinute": 3156.75602395501,
+      "medianBanRate": 0.15384615384615385,
+      "medianMemoryPeakBytes": 82038784,
+      "medianCpuPercent": 3.7837425594626635,
+      "iterations": 5
+    }
+  }
+}
