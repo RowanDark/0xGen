@@ -59,7 +59,7 @@ you debug the plugin in real time.
 1. Update [`CHANGELOG.md`]({{ config.repo_url }}/blob/main/CHANGELOG.md) with user-facing notes.
 2. Run `make test` and `glyphctl demo` to ensure critical paths pass.
 3. Execute `scripts/build_release.sh` to produce signed archives and checksums.
-4. Follow the prompts in `scripts/update_homebrew_formula.sh` if the Homebrew tap
+4. Follow the prompts in `scripts/update-brew-formula.sh` if the Homebrew tap
    needs a new version. The script keeps the
    [`RowanDark/homebrew-glyph`](https://github.com/RowanDark/homebrew-glyph)
    formula in sync and the `bump-homebrew` workflow opens a pull request with the

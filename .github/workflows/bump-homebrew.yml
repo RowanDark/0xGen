@@ -2,6 +2,10 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (vX.Y.Z)"
+        required: true
 
 jobs:
   bump:
@@ -9,9 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Determine tag
+        id: release_tag
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^v ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release tag available" >&2
+            exit 1
+          fi
       - name: Update tap (guarded)
         if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
-        run: ./scripts/update_homebrew_formula.sh "${{ github.event.release.tag_name }}"
+        run: ./scripts/update-brew-formula.sh "${{ steps.release_tag.outputs.tag }}"
         env:
           GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       - name: Note skipped tap bump

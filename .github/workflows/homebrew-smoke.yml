@@ -1,0 +1,22 @@
+name: homebrew-smoke
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  brew:
+    runs-on: macos-latest
+    steps:
+      - name: Update Homebrew
+        run: brew update
+      - name: Install glyphctl from tap
+        run: |
+          set -euxo pipefail
+          brew tap rowandark/glyph
+          brew install glyph
+          glyphctl --version
