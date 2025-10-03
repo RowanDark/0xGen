@@ -1,157 +1,42 @@
-name: SLSA Provenance
-
 on:
-  workflow_run:
-    workflows:
-      - Release
-      - Release Container Image
-    types:
-      - completed
-
-permissions: {}
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
 
 jobs:
-  skip-non-owner:
-    if: github.repository_owner != 'RowanDark'
+  build-provenance:
+    if: ${{ github.repository_owner == 'RowanDark' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Skip provenance generation
-        run: echo "Skipping SLSA provenance: workflow only runs in the RowanDark repository."
-
-  release-provenance:
-    if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release' && github.event.workflow_run.conclusion == 'success'
-    permissions:
-      actions: read
-      contents: write
-      id-token: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0
-    env:
-      RELEASE_REF: ${{ github.event.workflow_run.head_branch || github.event.workflow_run.head_sha || replace(github.event.workflow_run.display_title, ' ', '-') }}
-    with:
-      slsa-workflow-recipient: ${{ github.event.workflow_run.url }}
-      provenance-name: glyph-${{ env.RELEASE_REF }}-binaries.intoto.jsonl
-      download-artifacts: true
-      artifacts: release-dist
-      subject-path: |
-        dist/*.tar.gz
-        dist/*SHA256SUMS.txt
-        dist/*.zip
-        dist/*.tar.gz.sig
-        dist/*.tar.gz.pem
-        dist/*.zip.sig
-        dist/*.zip.pem
-        dist/*SHA256SUMS.txt.sig
-        dist/*SHA256SUMS.txt.pem
-      upload-assets: true
-
-  sign-and-sbom:
-    needs: release-provenance
-    if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release' && github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    env:
-      RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
-    steps:
-      - name: Determine release tag
-        id: release
-        env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          DISPLAY_TITLE: ${{ github.event.workflow_run.display_title }}
-        run: |
-          set -euo pipefail
-          tag="${HEAD_BRANCH}"
-          if [ -z "${tag}" ] || [ "${tag}" = "null" ]; then
-            tag="${HEAD_SHA}"
-          fi
-          if [ -z "${tag}" ] || [ "${tag}" = "null" ]; then
-            tag="${DISPLAY_TITLE:-release}"
-            tag=${tag// /-}
-          fi
-          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
-
-      - name: Download release artifacts
-        uses: actions/download-artifact@v4
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ env.RELEASE_RUN_ID }}
-          name: release-dist
-          path: dist
-
-      - name: Generate release SBOM
+      - uses: actions/checkout@v4
+      - name: Set up Cosign (guarded)
+        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
+        uses: sigstore/cosign-installer@v3
+      - name: Generate SBOM
         uses: anchore/syft-action@v0.9.0
         with:
-          path: dist
-          output: dist/glyph-${{ steps.release.outputs.tag }}-sbom.spdx.json
-
-      - name: Install cosign
+          path: .
+          output: sbom.spdx.json
+      - name: Sign artifacts (guarded)
         if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
-        uses: sigstore/cosign-installer@v3.5.0
-
-      - name: Sign release artifacts
-        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
-        env:
-          COSIGN_YES: "true"
-          COSIGN_EXPERIMENTAL: "1"
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for artifact in dist/*; do
-            case "$artifact" in
-              *.sig|*.pem|*.intoto.jsonl) continue ;;
-            esac
-            base=$(basename "$artifact")
-            cosign sign-blob "$artifact" \
+          artifacts=(dist/glyphctl_*.tar.gz)
+          if [ ${#artifacts[@]} -eq 0 ]; then
+            echo "No dist artifacts found to sign; skipping."
+            exit 0
+          fi
+          for artifact in "${artifacts[@]}"; do
+            cosign sign-blob \
               --key env://COSIGN_PRIVATE_KEY \
-              --output-signature "dist/${base}.sig" \
-              --output-certificate "dist/${base}.pem"
+              --output-signature "${artifact}.sig" \
+              --output-certificate "${artifact}.pem" \
+              "$artifact"
           done
-
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
       - name: Note skipped signing
         if: ${{ !(secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '') }}
         run: echo "Signing skipped: missing COSIGN_* secrets."
-
-      - name: Upload SBOM and signatures to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ steps.release.outputs.tag }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          files=()
-          for pattern in dist/*.sig dist/*.pem dist/*-sbom.spdx.json; do
-            for f in $pattern; do
-              [ -e "$f" ] || continue
-              files+=("$f")
-            done
-          done
-          if [ ${#files[@]} -gt 0 ]; then
-            gh release upload "${TAG_NAME}" "${files[@]}" --clobber
-          else
-            echo "No files to upload"
-          fi
-
-  container-provenance:
-    if: github.repository_owner == 'RowanDark' && github.event.workflow_run.name == 'Release Container Image' && github.event.workflow_run.conclusion == 'success'
-    permissions:
-      actions: read
-      contents: write
-      id-token: write
-      packages: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/container-post-push-provenance@v1.10.0
-    env:
-      RELEASE_REF: ${{ github.event.workflow_run.head_branch || github.event.workflow_run.head_sha || replace(github.event.workflow_run.display_title, ' ', '-') }}
-    with:
-      slsa-workflow-recipient: ${{ github.event.workflow_run.url }}
-      provenance-name: glyph-${{ env.RELEASE_REF }}-image.intoto.jsonl
-      download-artifacts: true
-      artifacts: release-image-metadata
-      digest-file: image-digest.txt
-      tags-file: image-tags.txt
-      upload-assets: true
-      registry-username: ${{ github.actor }}
-      registry-password: ${{ secrets.GITHUB_TOKEN }}
