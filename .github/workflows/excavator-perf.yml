@@ -1,0 +1,47 @@
+name: Excavator performance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/excavator/**'
+      - '.github/workflows/excavator-perf.yml'
+  pull_request:
+    paths:
+      - 'plugins/excavator/**'
+      - '.github/workflows/excavator-perf.yml'
+  workflow_dispatch: {}
+
+jobs:
+  benchmark:
+    name: Run synthetic crawl benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: plugins/excavator/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix plugins/excavator ci
+
+      - name: Run benchmarks
+        env:
+          EXCAVATOR_BENCH_BUDGET: '10'
+        run: |
+          npm --prefix plugins/excavator run perf -- \
+            --summary=benchmarks/summary.md
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: excavator-benchmark
+          path: |
+            plugins/excavator/benchmarks/latest.json
+            plugins/excavator/benchmarks/summary.md
+          if-no-files-found: error

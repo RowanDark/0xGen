@@ -23,6 +23,18 @@ Excavator is the Playwright-powered crawler foundation for Glyph. It provides a 
 ## Continuous integration
 
 - Manual smoke validation: [Excavator smoke workflow](../../.github/workflows/excavator-smoke.yml)
+- Synthetic performance guardrails: [Excavator performance workflow](../../.github/workflows/excavator-perf.yml)
+
+### Performance benchmarking
+
+Run deterministic crawl benchmarks locally to preview CI output:
+
+```bash
+npm --prefix plugins/excavator run perf
+```
+
+This executes the scenarios declared in `benchmarks/scenarios.json`, compares the measured URLs/minute throughput against the
+checked-in baseline, and emits Markdown plus JSON artifacts under `benchmarks/`.
 
 ### Runtime configuration
 

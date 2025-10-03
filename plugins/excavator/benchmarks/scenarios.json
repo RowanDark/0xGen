@@ -1,0 +1,23 @@
+[
+  {
+    "name": "fanout_3_depth_2",
+    "description": "Fanout of 3 across depth 2 (1 + 3 + 9 pages).",
+    "seed": "https://benchmark.local/fanout_3_depth_2/root",
+    "depth": 2,
+    "branching": 3,
+    "delayMs": 5,
+    "payloadBytes": 2048,
+    "throttleEvery": 0
+  },
+  {
+    "name": "throttled_fanout_2_depth_3",
+    "description": "Fanout of 2 across depth 3 with deterministic 429 responses.",
+    "seed": "https://benchmark.local/throttled_fanout_2_depth_3/root",
+    "depth": 3,
+    "branching": 2,
+    "delayMs": 8,
+    "payloadBytes": 4096,
+    "throttleEvery": 5,
+    "throttleStatus": 429
+  }
+]

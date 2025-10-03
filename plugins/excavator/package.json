@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "scripts": {
     "install-playwright-browsers": "npx playwright install --with-deps",
-        "crawl": "node crawl.js",
-    "test": "node --test tests"
+    "crawl": "node crawl.js",
+    "test": "node --test tests",
+    "perf": "node benchmarks/run.js --baseline=benchmarks/baseline.json --json=benchmarks/latest.json"
   },
   "dependencies": {
     "playwright": "^1.40.0"
