@@ -3,6 +3,7 @@ site_description: Documentation for the Glyph red-team and detection automation 
 site_url: https://rowandark.github.io/Glyph/
 repo_url: https://github.com/RowanDark/Glyph
 repo_name: RowanDark/Glyph
+use_directory_urls: true
 
 nav:
   - Home: index.md
@@ -40,6 +41,7 @@ theme:
 
 plugins:
   - search
+  - redirects
 
 markdown_extensions:
   - admonition

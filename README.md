@@ -42,7 +42,7 @@ Highlights include:
 * [Security overview](https://rowandark.github.io/Glyph/security/)
 * [Build provenance](https://rowandark.github.io/Glyph/security/provenance/)
 * [Supply chain security](https://rowandark.github.io/Glyph/security/supply-chain/)
-* [Threat model](THREAT_MODEL.md)
+* [Threat model](https://rowandark.github.io/Glyph/security/threat-model/)
 * [Plugin security guide](PLUGIN_GUIDE.md)
 
 ## Security
