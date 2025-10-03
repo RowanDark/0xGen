@@ -78,6 +78,8 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 			return fmt.Errorf("normalise robots[%d] body file: %w", i, err)
 		}
 	}
+	manifest.Normalize()
+
 	if err := manifest.Validate(); err != nil {
 		return err
 	}
