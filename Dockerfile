@@ -18,10 +18,14 @@ ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/glyphctl ./cmd/glyphctl
 
-FROM scratch
+FROM gcr.io/distroless/static-debian12:nonroot
+
+WORKDIR /home/nonroot
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /out/glyphctl /usr/local/bin/glyphctl
+COPY --from=builder --chown=nonroot:nonroot --chmod=0555 /out/glyphctl /usr/local/bin/glyphctl
+
+USER nonroot:nonroot
 
 ENTRYPOINT ["/usr/local/bin/glyphctl"]
 CMD ["--help"]

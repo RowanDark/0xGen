@@ -1,0 +1,100 @@
+name: packaging-smoke
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Determine latest release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName' || echo '')
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          if [ -z "$tag" ]; then
+            echo "No published releases found; skipping install"
+          fi
+
+      - name: Install Debian package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+        if: steps.release.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          asset="glyphctl_${TAG}_linux_amd64.deb"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "$asset"
+          sudo dpkg -i "$asset"
+          glyphctl --version
+
+  rpm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq rpm
+
+      - name: Determine latest release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName' || echo '')
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          if [ -z "$tag" ]; then
+            echo "No published releases found; skipping install"
+          fi
+
+      - name: Install RPM package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+        if: steps.release.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          asset="glyphctl_${TAG}_linux_amd64.rpm"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "$asset"
+          sudo rpm -i --replacepkgs --nosignature "$asset"
+          glyphctl --version
+
+  scoop:
+    runs-on: windows-latest
+    steps:
+      - name: Determine manifest status
+        id: manifest
+        shell: pwsh
+        run: |
+          $manifest = Invoke-RestMethod "https://raw.githubusercontent.com/${{ github.repository }}/main/scoop/bucket/glyphctl.json"
+          if ($manifest.version -eq '0.0.0') {
+            "placeholder=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "Scoop manifest still uses placeholder version; skipping install"
+          } else {
+            "placeholder=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+      - name: Install Scoop
+        if: steps.manifest.outputs.placeholder == 'false'
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          iwr -useb get.scoop.sh | iex
+
+      - name: Add Glyph bucket and install glyphctl
+        if: steps.manifest.outputs.placeholder == 'false'
+        shell: pwsh
+        run: |
+          scoop bucket add glyph https://github.com/${{ github.repository }}
+          scoop install glyphctl
+          glyphctl --version
