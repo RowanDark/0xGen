@@ -13,10 +13,27 @@ jobs:
         if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
         uses: sigstore/cosign-installer@v3
       - name: Generate SBOM
-        run: syft packages dir:. -o spdx-json > sbom.spdx.json
+        uses: anchore/syft-action@v0.9.0
+        with:
+          path: .
+          output: sbom.spdx.json
       - name: Sign artifacts (guarded)
         if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
-        run: cosign sign-blob --key env://COSIGN_PRIVATE_KEY --output-signature glyph.sig dist/glyphctl_*.tar.gz
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          artifacts=(dist/glyphctl_*.tar.gz)
+          if [ ${#artifacts[@]} -eq 0 ]; then
+            echo "No dist artifacts found to sign; skipping."
+            exit 0
+          fi
+          for artifact in "${artifacts[@]}"; do
+            cosign sign-blob \
+              --key env://COSIGN_PRIVATE_KEY \
+              --output-signature "${artifact}.sig" \
+              --output-certificate "${artifact}.pem" \
+              "$artifact"
+          done
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}

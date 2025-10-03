@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Update tap (guarded)
         if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
-        run: ./scripts/update-brew-formula.sh "${{ github.event.release.tag_name }}"
+        run: ./scripts/update_homebrew_formula.sh "${{ github.event.release.tag_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       - name: Note skipped tap bump
