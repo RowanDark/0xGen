@@ -1,0 +1,82 @@
+{
+  "version": "1.1",
+  "id": "R6PZLFDP2I3ZMVL77GNI2FQT4U",
+  "asset": {
+    "kind": "web",
+    "identifier": "c.internal",
+    "details": "https://c.internal/metadata"
+  },
+  "vector": {
+    "kind": "http_proxy"
+  },
+  "summary": "3 plugin signal(s) indicate an issue affecting c.internal (https://c.internal/metadata).\n\nKey evidence:\n- [Galdr] Open redirect observed (MED)\n- [Proxy] Captured authenticated flow (HIGH)\n- [Seer] Server-side request forgery (CRIT)",
+  "evidence": [
+    {
+      "plugin": "galdr",
+      "type": "galdr.redirect",
+      "message": "Open redirect observed",
+      "metadata": {
+        "redirect_chain": "https://auth.example/login -\u003e https://app.example/dashboard -\u003e https://c.internal/metadata?token=abc123"
+      }
+    },
+    {
+      "plugin": "proxy",
+      "type": "proxy.session",
+      "message": "Captured authenticated flow",
+      "metadata": {
+        "cookie_domain": ".example.com",
+        "param:token": "abc123"
+      }
+    },
+    {
+      "plugin": "seer",
+      "type": "seer.ssrf",
+      "message": "Server-side request forgery",
+      "metadata": {
+        "shared_param": "token=abc123"
+      }
+    }
+  ],
+  "proof": {
+    "summary": "Reproduce the issue on c.internal by following 2 synthesised steps.",
+    "steps": [
+      "Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: c.internal (web)\nAttack vector: http_proxy\nEvidence:\n- Plugin=galdr Severity=MED Message=Open redirect observed\n- Plugin=proxy Severity=HIGH Message=Captured authenticated flow\n- Plugin=seer Severity=CRIT Message=Server-side request forgery\nProvide a concise narrative and highlight overlapping evidence.",
+      "Execute reproduction instructions synthesised from prompt: Synthesize deterministic reproduction steps for asset c.internal (web).\nUse at most 4 steps. Incorporate plugin observations:\n- Galdr observed: Open redirect observed\n- Proxy observed: Captured authenticated flow\n- Seer observed: Server-side request forgery\nReturn concise imperative steps."
+    ]
+  },
+  "risk": {
+    "severity": "crit",
+    "score": 9.5,
+    "rationale": "Highest severity reported by contributing plugins: CRIT"
+  },
+  "confidence": 0.75,
+  "confidence_log": "3 plugin(s), 3 finding(s)",
+  "sources": [
+    {
+      "id": "01J123ABCEXAMPLE0000000002",
+      "plugin": "galdr",
+      "type": "galdr.redirect",
+      "severity": "med",
+      "target": "https://app.example/start"
+    },
+    {
+      "id": "01J123ABCEXAMPLE0000000001",
+      "plugin": "proxy",
+      "type": "proxy.session",
+      "severity": "high",
+      "target": "https://auth.example/login"
+    },
+    {
+      "id": "01J123ABCEXAMPLE0000000003",
+      "plugin": "seer",
+      "type": "seer.ssrf",
+      "severity": "crit",
+      "target": "https://c.internal/metadata"
+    }
+  ],
+  "generated_at": "2023-11-15T03:46:40Z",
+  "graph": {
+    "dot": "digraph ExploitPath {\n    rankdir=LR;\n    node [shape=box];\n    pre [label=\"Asset: c.internal\\\\nVector: http_proxy\"];\n    act [label=\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: c.internal (web)\nAttack vector: http_proxy\nEvidence:\n- Plugin=galdr Severity=MED Message=Open redirect observed\n- Plugin=proxy Severity=HIGH Message=Captured authenticated flow\n- Plugin=seer Severity=CRIT Message=Server-side request forgery\nProvide a concise narrative and highlight overlapping evidence.\"];\n    post [label=\"Impact: CRIT\\\\nHighest severity reported by contributing plugins: CRIT\"];\n    pre -\u003e act -\u003e post;\n}",
+    "mermaid": "graph TD\n    pre[\"Asset: c.internal\\\\nVector: http_proxy\"] --\u003e act[\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\u003cbr/\u003eAsset: c.internal (web)\u003cbr/\u003eAttack vector: http_proxy\u003cbr/\u003eEvidence:\u003cbr/\u003e- Plugin=galdr Severity=MED Message=Open redirect observed\u003cbr/\u003e- Plugin=proxy Severity=HIGH Message=Captured authenticated flow\u003cbr/\u003e- Plugin=seer Severity=CRIT Message=Server-side request forgery\u003cbr/\u003eProvide a concise narrative and highlight overlapping evidence.\"] --\u003e post[\"Impact: CRIT\\\\nHighest severity reported by contributing plugins: CRIT\"]\n"
+  }
+}

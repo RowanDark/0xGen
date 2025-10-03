@@ -9,7 +9,7 @@ import (
 )
 
 // CaseSchemaVersion captures the version of the Case JSON structure emitted by the builder.
-const CaseSchemaVersion = "1.0"
+const CaseSchemaVersion = "1.1"
 
 // Case represents a deduplicated issue that merges evidence from multiple plugins.
 type Case struct {
@@ -26,6 +26,7 @@ type Case struct {
 	Sources       []SourceFinding    `json:"sources"`
 	GeneratedAt   findings.Timestamp `json:"generated_at"`
 	Labels        map[string]string  `json:"labels,omitempty"`
+	Graph         ExploitGraph       `json:"graph"`
 }
 
 // Asset describes the affected resource in a normalised form.
@@ -54,6 +55,12 @@ type EvidenceItem struct {
 type ProofOfConcept struct {
 	Summary string   `json:"summary,omitempty"`
 	Steps   []string `json:"steps"`
+}
+
+// ExploitGraph captures a deterministic state machine illustrating the exploit path.
+type ExploitGraph struct {
+	DOT     string `json:"dot"`
+	Mermaid string `json:"mermaid"`
 }
 
 // Risk captures the severity and supporting rationale for the case.
@@ -94,6 +101,7 @@ func (c Case) Clone() Case {
 			clone.Labels[k] = v
 		}
 	}
+	clone.Graph = c.Graph
 	return clone
 }
 

@@ -130,6 +130,68 @@ func TestDeterministicReplayStableJSON(t *testing.T) {
 	}
 }
 
+func TestBuilderCorrelatesAcrossAssets(t *testing.T) {
+	builder := NewBuilder(
+		WithDeterministicMode(999),
+		WithClock(func() time.Time { return time.Unix(1700010000, 0).UTC() }),
+	)
+
+	fs := []findings.Finding{
+		{
+			Version:  findings.SchemaVersion,
+			ID:       "auth",
+			Plugin:   "proxy",
+			Type:     "proxy.session",
+			Message:  "Captured authenticated flow",
+			Target:   "https://auth.example/login",
+			Severity: findings.SeverityHigh,
+			Metadata: map[string]string{
+				"cookie_domain": ".example.com",
+				"param:token":   "abc123",
+			},
+		},
+		{
+			Version:  findings.SchemaVersion,
+			ID:       "redirect",
+			Plugin:   "galdr",
+			Type:     "galdr.redirect",
+			Message:  "Open redirect observed",
+			Target:   "https://app.example/start",
+			Severity: findings.SeverityMedium,
+			Metadata: map[string]string{
+				"redirect_chain": "https://auth.example/login -> https://app.example/dashboard -> https://c.internal/metadata?token=abc123",
+			},
+		},
+		{
+			Version:  findings.SchemaVersion,
+			ID:       "ssrf",
+			Plugin:   "seer",
+			Type:     "seer.ssrf",
+			Message:  "Server-side request forgery",
+			Target:   "https://c.internal/metadata",
+			Severity: findings.SeverityCritical,
+			Metadata: map[string]string{
+				"shared_param": "token=abc123",
+			},
+		},
+	}
+
+	cases, err := builder.Build(context.Background(), fs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("expected single case, got %d", len(cases))
+	}
+	c := cases[0]
+	if len(c.Sources) != len(fs) {
+		t.Fatalf("expected %d sources, got %d", len(fs), len(c.Sources))
+	}
+	if c.Graph.DOT == "" || c.Graph.Mermaid == "" {
+		t.Fatalf("expected graph representations to be populated")
+	}
+}
+
 func TestGoldenSummary(t *testing.T) {
 	builder := NewBuilder(
 		WithDeterministicMode(2024),
@@ -203,6 +265,39 @@ func TestGoldenSampleWebService(t *testing.T) {
 	got = append(got, '\n')
 
 	goldenPath := filepath.Join("testdata", "sample_web_service_case.json")
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden: %v", err)
+	}
+
+	if string(want) != string(got) {
+		t.Fatalf("golden mismatch\nwant:\n%s\ngot:\n%s", string(want), string(got))
+	}
+}
+
+func TestGoldenMultiHostCorrelation(t *testing.T) {
+	builder := NewBuilder(
+		WithDeterministicMode(4242),
+		WithClock(func() time.Time { return time.Unix(1700020000, 0).UTC() }),
+	)
+
+	fs := loadFindingsFixture(t, filepath.Join("testdata", "multi_host_findings.json"))
+
+	cases, err := builder.Build(context.Background(), fs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("expected single case, got %d", len(cases))
+	}
+
+	got, err := json.MarshalIndent(cases[0], "", "  ")
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	got = append(got, '\n')
+
+	goldenPath := filepath.Join("testdata", "multi_host_case.json")
 	want, err := os.ReadFile(goldenPath)
 	if err != nil {
 		t.Fatalf("read golden: %v", err)
