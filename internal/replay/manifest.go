@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sort"
+	"strings"
 	"time"
 )
 
 // ManifestVersion captures the schema version for replay artefact manifests.
-const ManifestVersion = "1.0"
+const ManifestVersion = "1.1"
 
 // Manifest describes the metadata captured for a replayable pipeline run.
 type Manifest struct {
@@ -16,6 +18,7 @@ type Manifest struct {
 	CreatedAt     time.Time         `json:"created_at"`
 	Seeds         map[string]int64  `json:"seeds,omitempty"`
 	DNS           []DNSRecord       `json:"dns,omitempty"`
+	TLS           []TLSRecord       `json:"tls,omitempty"`
 	Robots        []RobotsRecord    `json:"robots,omitempty"`
 	RateLimits    []RateLimitRecord `json:"rate_limits,omitempty"`
 	Cookies       []CookieRecord    `json:"cookies,omitempty"`
@@ -31,6 +34,15 @@ type Manifest struct {
 type DNSRecord struct {
 	Host      string   `json:"host"`
 	Addresses []string `json:"addresses"`
+}
+
+// TLSRecord stores observed TLS fingerprinting and ALPN negotiation metadata.
+type TLSRecord struct {
+	Host           string   `json:"host"`
+	JA3            string   `json:"ja3,omitempty"`
+	JA3Hash        string   `json:"ja3_hash,omitempty"`
+	NegotiatedALPN string   `json:"negotiated_alpn,omitempty"`
+	OfferedALPN    []string `json:"offered_alpn,omitempty"`
 }
 
 // RobotsRecord stores the contents of robots.txt for a host.
@@ -107,7 +119,123 @@ func (m Manifest) Validate() error {
 	if err := validateResponses(m.Responses); err != nil {
 		return err
 	}
+	if err := validateTLSRecords(m.TLS); err != nil {
+		return err
+	}
 	return nil
+}
+
+// Normalize enforces deterministic ordering across manifest collections so
+// that serialised artefacts remain stable for replay comparisons.
+func (m *Manifest) Normalize() {
+	if m == nil {
+		return
+	}
+	normalizeDNSRecords(m.DNS)
+	normalizeTLSRecords(m.TLS)
+	normalizeRobotsRecords(m.Robots)
+	normalizeRateLimitRecords(m.RateLimits)
+	normalizeCookieRecords(m.Cookies)
+	normalizeResponseRecords(m.Responses)
+	normalizePluginInfo(m.Plugins)
+}
+
+func normalizeDNSRecords(records []DNSRecord) {
+	for i := range records {
+		records[i].Host = strings.TrimSpace(strings.ToLower(records[i].Host))
+		records[i].Addresses = normalizeStrings(records[i].Addresses, true)
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		return records[i].Host < records[j].Host
+	})
+}
+
+func normalizeTLSRecords(records []TLSRecord) {
+	for i := range records {
+		records[i].Host = strings.TrimSpace(strings.ToLower(records[i].Host))
+		records[i].NegotiatedALPN = strings.TrimSpace(records[i].NegotiatedALPN)
+		records[i].JA3 = strings.TrimSpace(records[i].JA3)
+		records[i].JA3Hash = strings.TrimSpace(records[i].JA3Hash)
+		records[i].OfferedALPN = normalizeStrings(records[i].OfferedALPN, false)
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].Host == records[j].Host {
+			if records[i].JA3 == records[j].JA3 {
+				if records[i].JA3Hash == records[j].JA3Hash {
+					if records[i].NegotiatedALPN == records[j].NegotiatedALPN {
+						return strings.Join(records[i].OfferedALPN, ",") < strings.Join(records[j].OfferedALPN, ",")
+					}
+					return records[i].NegotiatedALPN < records[j].NegotiatedALPN
+				}
+				return records[i].JA3Hash < records[j].JA3Hash
+			}
+			return records[i].JA3 < records[j].JA3
+		}
+		return records[i].Host < records[j].Host
+	})
+}
+
+func normalizeRobotsRecords(records []RobotsRecord) {
+	for i := range records {
+		records[i].Host = strings.TrimSpace(strings.ToLower(records[i].Host))
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		return records[i].Host < records[j].Host
+	})
+}
+
+func normalizeRateLimitRecords(records []RateLimitRecord) {
+	for i := range records {
+		records[i].Host = strings.TrimSpace(strings.ToLower(records[i].Host))
+		records[i].Policy = strings.TrimSpace(records[i].Policy)
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].Host == records[j].Host {
+			return records[i].Policy < records[j].Policy
+		}
+		return records[i].Host < records[j].Host
+	})
+}
+
+func normalizeCookieRecords(records []CookieRecord) {
+	for i := range records {
+		records[i].Domain = strings.TrimSpace(strings.ToLower(records[i].Domain))
+		records[i].Name = strings.TrimSpace(records[i].Name)
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].Domain == records[j].Domain {
+			return records[i].Name < records[j].Name
+		}
+		return records[i].Domain < records[j].Domain
+	})
+}
+
+func normalizeResponseRecords(records []ResponseRecord) {
+	for i := range records {
+		records[i].RequestURL = strings.TrimSpace(records[i].RequestURL)
+		records[i].Method = strings.TrimSpace(strings.ToUpper(records[i].Method))
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].RequestURL == records[j].RequestURL {
+			if records[i].Method == records[j].Method {
+				if records[i].Status == records[j].Status {
+					return records[i].BodyFile < records[j].BodyFile
+				}
+				return records[i].Status < records[j].Status
+			}
+			return records[i].Method < records[j].Method
+		}
+		return records[i].RequestURL < records[j].RequestURL
+	})
+}
+
+func normalizePluginInfo(records []PluginInfo) {
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].Name == records[j].Name {
+			return records[i].Version < records[j].Version
+		}
+		return records[i].Name < records[j].Name
+	})
 }
 
 func validateResponses(responses []ResponseRecord) error {
@@ -117,6 +245,15 @@ func validateResponses(responses []ResponseRecord) error {
 		}
 		if resp.Status < 100 || resp.Status > 599 {
 			return fmt.Errorf("response[%d] has invalid status %d", i, resp.Status)
+		}
+	}
+	return nil
+}
+
+func validateTLSRecords(records []TLSRecord) error {
+	for i, rec := range records {
+		if stringsTrim(rec.Host) == "" {
+			return fmt.Errorf("tls[%d] missing host", i)
 		}
 	}
 	return nil
@@ -138,4 +275,31 @@ func stringsTrim(s string) string {
 		return s
 	}
 	return s[start:end]
+}
+
+func normalizeStrings(values []string, lower bool) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if lower {
+			v = strings.ToLower(v)
+		}
+		if _, exists := seen[v]; exists {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	sort.Strings(out)
+	return out
 }
