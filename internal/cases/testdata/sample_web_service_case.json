@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "id": "TZLB22243HGZ7RJDGEQY5WLMMZ",
   "asset": {
     "kind": "web",
@@ -89,5 +89,9 @@
       "target": "https://app.example/login/static/app.js"
     }
   ],
-  "generated_at": "2023-11-15T00:43:20Z"
+  "generated_at": "2023-11-15T00:43:20Z",
+  "graph": {
+    "dot": "digraph ExploitPath {\n    rankdir=LR;\n    node [shape=box];\n    pre [label=\"Asset: app.example\\\\nVector: web (login)\"];\n    act [label=\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: app.example (web)\nAttack vector: web (login)\nEvidence:\n- Plugin=excavator Severity=MED Message=Backup archive exposed\n- Plugin=galdr Severity=LOW Message=Response discloses login banner\n- Plugin=seer Severity=HIGH Message=Hardcoded API key leaked\nProvide a concise narrative and highlight overlapping evidence.\"];\n    post [label=\"Impact: HIGH\\\\nHighest severity reported by contributing plugins: HIGH\"];\n    pre -\u003e act -\u003e post;\n}",
+    "mermaid": "graph TD\n    pre[\"Asset: app.example\\\\nVector: web (login)\"] --\u003e act[\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\u003cbr/\u003eAsset: app.example (web)\u003cbr/\u003eAttack vector: web (login)\u003cbr/\u003eEvidence:\u003cbr/\u003e- Plugin=excavator Severity=MED Message=Backup archive exposed\u003cbr/\u003e- Plugin=galdr Severity=LOW Message=Response discloses login banner\u003cbr/\u003e- Plugin=seer Severity=HIGH Message=Hardcoded API key leaked\u003cbr/\u003eProvide a concise narrative and highlight overlapping evidence.\"] --\u003e post[\"Impact: HIGH\\\\nHighest severity reported by contributing plugins: HIGH\"]\n"
+  }
 }

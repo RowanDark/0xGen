@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "id": "TFYQRWYLW5TXVDTX7357DBU4BT",
   "asset": {
     "kind": "web",
@@ -53,5 +53,9 @@
       "target": "https://corp.example.com"
     }
   ],
-  "generated_at": "2023-11-14T23:03:20Z"
+  "generated_at": "2023-11-14T23:03:20Z",
+  "graph": {
+    "dot": "digraph ExploitPath {\n    rankdir=LR;\n    node [shape=box];\n    pre [label=\"Asset: corp.example.com\\\\nVector: source_code\"];\n    act [label=\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: corp.example.com (web)\nAttack vector: source_code\nEvidence:\n- Plugin=excavator Severity=MED Message=Public log leak\n- Plugin=seer Severity=LOW Message=Email address found\nProvide a concise narrative and highlight overlapping evidence.\"];\n    post [label=\"Impact: MED\\\\nHighest severity reported by contributing plugins: MED\"];\n    pre -\u003e act -\u003e post;\n}",
+    "mermaid": "graph TD\n    pre[\"Asset: corp.example.com\\\\nVector: source_code\"] --\u003e act[\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\u003cbr/\u003eAsset: corp.example.com (web)\u003cbr/\u003eAttack vector: source_code\u003cbr/\u003eEvidence:\u003cbr/\u003e- Plugin=excavator Severity=MED Message=Public log leak\u003cbr/\u003e- Plugin=seer Severity=LOW Message=Email address found\u003cbr/\u003eProvide a concise narrative and highlight overlapping evidence.\"] --\u003e post[\"Impact: MED\\\\nHighest severity reported by contributing plugins: MED\"]\n"
+  }
 }

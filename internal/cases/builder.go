@@ -84,26 +84,15 @@ func (b *Builder) Build(ctx context.Context, findingsList []findings.Finding) ([
 		return nil, nil
 	}
 
-	grouped := make(map[string][]findings.Finding)
-	order := make([]string, 0, len(findingsList))
+	groups := b.clusterFindings(findingsList)
 
-	for _, f := range findingsList {
-		key := b.groupKey(f)
-		grouped[key] = append(grouped[key], f)
-		order = append(order, key)
-	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		return b.componentOrderKey(groups[i]) < b.componentOrderKey(groups[j])
+	})
 
-	// Ensure deterministic ordering when iterating over maps.
-	sort.Strings(order)
-	order = dedupeStrings(order)
+	cases := make([]Case, 0, len(groups))
 
-	cases := make([]Case, 0, len(grouped))
-
-	for _, key := range order {
-		fs := grouped[key]
-		if len(fs) == 0 {
-			continue
-		}
+	for _, fs := range groups {
 		casePrototype := b.derivePrototype(fs)
 		summaryInput := b.buildSummaryInput(casePrototype, fs)
 		summaryOutput, err := b.summarize(ctx, summaryInput)
@@ -167,6 +156,7 @@ func (b *Builder) assembleCase(proto Case, fs []findings.Finding, summary Summar
 	}
 	caseCopy.Confidence = summary.ConfidenceScore
 	caseCopy.ConfidenceLog = summary.ConfidenceLog
+	caseCopy.Graph = buildExploitGraph(caseCopy, summary)
 	caseCopy.Evidence = append(caseCopy.Evidence, buildEvidence(fs)...)
 	caseCopy.Sources = append(caseCopy.Sources, buildSources(fs)...)
 	return sanitizeCase(caseCopy)
@@ -265,7 +255,22 @@ func mergeLabels(fs []findings.Finding) map[string]string {
 }
 
 func hashSummaryInput(input SummaryInput) string {
-	buf, _ := json.Marshal(input)
+	snapshot := struct {
+		Asset    Asset               `json:"asset"`
+		Vector   AttackVector        `json:"vector"`
+		Findings []NormalisedFinding `json:"findings"`
+		Prompts  PromptSet           `json:"prompts"`
+		Labels   orderedStringMap    `json:"labels,omitempty"`
+	}{
+		Asset:    input.Case.Asset,
+		Vector:   input.Case.Vector,
+		Findings: append([]NormalisedFinding(nil), input.Findings...),
+		Prompts:  input.Prompts,
+	}
+	if len(input.Case.Labels) > 0 {
+		snapshot.Labels = orderedStringMap(cloneMetadata(input.Case.Labels))
+	}
+	buf, _ := json.Marshal(snapshot)
 	sum := sha1.Sum(buf)
 	return hex.EncodeToString(sum[:])
 }
@@ -355,6 +360,8 @@ func sanitizeCase(c Case) Case {
 			c.Sources[i].Target = redact.String(c.Sources[i].Target)
 		}
 	}
+	c.Graph.DOT = redact.String(c.Graph.DOT)
+	c.Graph.Mermaid = redact.String(c.Graph.Mermaid)
 	return c
 }
 

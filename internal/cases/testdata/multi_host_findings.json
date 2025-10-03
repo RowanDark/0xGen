@@ -1,0 +1,42 @@
+[
+  {
+    "version": "0.2",
+    "id": "01J123ABCEXAMPLE0000000001",
+    "plugin": "proxy",
+    "type": "proxy.session",
+    "message": "Captured authenticated flow",
+    "target": "https://auth.example/login",
+    "severity": "high",
+    "ts": "2024-04-10T12:00:00Z",
+    "meta": {
+      "cookie_domain": ".example.com",
+      "param:token": "abc123"
+    }
+  },
+  {
+    "version": "0.2",
+    "id": "01J123ABCEXAMPLE0000000002",
+    "plugin": "galdr",
+    "type": "galdr.redirect",
+    "message": "Open redirect observed",
+    "target": "https://app.example/start",
+    "severity": "med",
+    "ts": "2024-04-10T12:05:00Z",
+    "meta": {
+      "redirect_chain": "https://auth.example/login -> https://app.example/dashboard -> https://c.internal/metadata?token=abc123"
+    }
+  },
+  {
+    "version": "0.2",
+    "id": "01J123ABCEXAMPLE0000000003",
+    "plugin": "seer",
+    "type": "seer.ssrf",
+    "message": "Server-side request forgery",
+    "target": "https://c.internal/metadata",
+    "severity": "crit",
+    "ts": "2024-04-10T12:10:00Z",
+    "meta": {
+      "shared_param": "token=abc123"
+    }
+  }
+]
