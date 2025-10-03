@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/net/publicsuffix"
+
 	"github.com/RowanDark/Glyph/internal/findings"
 )
 
@@ -187,13 +189,14 @@ func registrableDomain(host string) string {
 	if strings.HasSuffix(host, ".") {
 		host = strings.TrimSuffix(host, ".")
 	}
-	parts := strings.Split(host, ".")
-	if len(parts) < 2 {
-		return host
+	if host == "" {
+		return ""
 	}
-	last := parts[len(parts)-1]
-	secondLast := parts[len(parts)-2]
-	return secondLast + "." + last
+	domain, err := publicsuffix.EffectiveTLDPlusOne(host)
+	if err != nil {
+		return ""
+	}
+	return domain
 }
 
 type unionFind struct {
