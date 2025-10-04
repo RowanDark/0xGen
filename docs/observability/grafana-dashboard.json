@@ -1,0 +1,80 @@
+{
+  "title": "Glyph Telemetry",
+  "uid": "glyph-observability",
+  "tags": ["glyph", "observability"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total RPC Requests",
+      "id": 1,
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(glyph_rpc_requests_total)",
+          "legendFormat": "requests"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "RPC Error Rate",
+      "id": 2,
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(glyph_rpc_errors_total[5m]))",
+          "legendFormat": "errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Plugin Event Latency",
+      "id": 3,
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_plugin_event_duration_seconds_bucket[5m])) by (le, plugin))",
+          "legendFormat": "{{plugin}} p95"
+        },
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(glyph_plugin_event_duration_seconds_bucket[5m])) by (le, plugin))",
+          "legendFormat": "{{plugin}} p50"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Plugin Queue Depth",
+      "id": 4,
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "glyph_plugin_queue_length",
+          "legendFormat": "{{plugin}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Active Plugin Connections",
+      "id": 5,
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "glyph_active_plugins",
+          "legendFormat": "active"
+        }
+      ]
+    }
+  ]
+}

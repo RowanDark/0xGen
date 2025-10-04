@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
 	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
+	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
 	"github.com/RowanDark/Glyph/internal/plugins/hotreload"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
@@ -29,6 +31,7 @@ import (
 type config struct {
 	addr              string
 	token             string
+	metricsAddr       string
 	proxy             proxy.Config
 	enableProxy       bool
 	fingerprintRotate bool
@@ -47,6 +50,7 @@ func main() {
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
+	metricsAddr := flag.String("metrics-addr", ":9090", "address for the Prometheus metrics endpoint (empty to disable)")
 	flag.Parse()
 
 	if *token == "" {
@@ -58,8 +62,9 @@ func main() {
 	defer stop()
 
 	cfg := config{
-		addr:  *addr,
-		token: *token,
+		addr:        *addr,
+		token:       *token,
+		metricsAddr: strings.TrimSpace(*metricsAddr),
 		proxy: proxy.Config{
 			Addr:        selectProxyAddr(*proxyAddr, *proxyPort),
 			RulesPath:   *proxyRules,
@@ -92,6 +97,44 @@ func run(ctx context.Context, cfg config) error {
 		return fmt.Errorf("configure audit logger: %w", err)
 	}
 	defer coreLogger.Close()
+
+	var (
+		metricsSrv   *http.Server
+		metricsErrCh chan error
+	)
+	if cfg.metricsAddr != "" {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", obsmetrics.Handler())
+		metricsSrv = &http.Server{Addr: cfg.metricsAddr, Handler: mux}
+		metricsErrCh = make(chan error, 1)
+		go func() {
+			if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				metricsErrCh <- err
+			}
+		}()
+		emitAudit(coreLogger, logging.AuditEvent{
+			EventType: logging.EventRPCCall,
+			Decision:  logging.DecisionInfo,
+			Metadata: map[string]any{
+				"phase":   "metrics_ready",
+				"address": cfg.metricsAddr,
+			},
+		})
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsSrv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventRPCCall,
+					Decision:  logging.DecisionInfo,
+					Reason:    err.Error(),
+					Metadata: map[string]any{
+						"phase": "metrics_shutdown",
+					},
+				})
+			}
+		}()
+	}
 
 	busLogger := coreLogger.WithComponent("plugin_bus")
 
@@ -210,6 +253,25 @@ func run(ctx context.Context, cfg config) error {
 			}
 		}
 		return err
+	case err := <-metricsErrCh:
+		cancelService()
+		cancelProxy()
+		if err != nil {
+			return fmt.Errorf("metrics server failed: %w", err)
+		}
+		if proxyErrCh != nil {
+			if pErr := <-proxyErrCh; pErr != nil {
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventProxyLifecycle,
+					Decision:  logging.DecisionDeny,
+					Reason:    pErr.Error(),
+					Metadata: map[string]any{
+						"phase": "metrics_shutdown",
+					},
+				})
+			}
+		}
+		return <-grpcErrCh
 	case err := <-proxyErrCh:
 		cancelService()
 		cancelProxy()
