@@ -5,7 +5,7 @@ provided in [`sdk/plugin-sdk`]({{ config.repo_url }}/tree/main/sdk/plugin-sdk). 
 lifecycle hooks exposed by the runtime, the capabilities that can be requested in a
 manifest, and the rules for emitting JSONL findings safely.
 
-## Plugin Roster
+## Plugin Roster {#plugin-roster}
 
 The following plugins form the foundation of the Glyph platform. Each directory
 under `plugins/` contains a manifest, implementation, documentation, and test
@@ -25,7 +25,7 @@ fixtures to accelerate future development.
 | `cryptographer` | CyberChef-inspired utility UI for transforming payloads during investigations. |
 | `example-hello` | Minimal starter plugin that emits a greeting finding during startup. |
 
-## Getting started
+## Getting started {#getting-started}
 
 1. Scaffold a new plugin with `glyph-plugin init`. The CLI generates Node and
    Go projects that already depend on the broker helpers, capability macros, and
@@ -42,21 +42,21 @@ fixtures to accelerate future development.
    in-memory broker exposed by [`sdk/plugin-sdk`]({{ config.repo_url }}/tree/main/sdk/plugin-sdk)
    so findings can be asserted without a full Glyph deployment.
 
-## Lifecycle hooks
+## Lifecycle hooks {#lifecycle-hooks}
 
 Plugins implement behaviour by registering callbacks in `pluginsdk.Hooks` before
 calling `pluginsdk.Run` or `pluginsdk.Serve`. The SDK manages the connection to
 `glyphd`, performs capability enforcement, and invokes hooks on the same goroutine
 that receives events.
 
-### `OnStart(*pluginsdk.Context) error`
+### `OnStart(*pluginsdk.Context) error` {#onstart}
 
 Invoked once after the plugin authenticates with `glyphd`. Use the hook for
 lightweight initialisation, emitting startup findings, and launching background
 goroutines scoped to the supplied context. Returning an error terminates the
 plugin immediately.
 
-### `OnHTTPPassive(*pluginsdk.Context, pluginsdk.HTTPPassiveEvent) error`
+### `OnHTTPPassive(*pluginsdk.Context, pluginsdk.HTTPPassiveEvent) error` {#onhttppassive}
 
 Triggered for every passive HTTP response streamed to the plugin when
 `CAP_HTTP_PASSIVE` is granted. The hook is ideal for analytics that react to
@@ -67,7 +67,7 @@ The SDK automatically wires graceful shutdown through `pluginsdk.Run`, cancellin
 the context when the process receives `SIGINT` or `SIGTERM`. Long-running work
 should honour `ctx.Context().Done()` to exit promptly.
 
-## Capabilities
+## Capabilities {#capabilities}
 
 Capabilities gate access to host features. Declare them in `manifest.json` under
 `capabilities`, and ensure the same set is configured in `pluginsdk.Config` so the
@@ -89,7 +89,7 @@ missing or the plugin requests undeclared privileges.
 Only request capabilities the plugin actively needs. The manifest validator under
 `hack/validate_manifests.sh` enforces the whitelist above.
 
-## Emitting findings
+## Emitting findings {#emitting-findings}
 
 Findings are serialised to `findings.jsonl` using the schema defined in
 `plugins/findings.schema.json`. The SDK handles common safety checks when calling
@@ -109,7 +109,7 @@ schema described in [`specs/finding.md`]({{ config.repo_url }}/blob/main/specs/f
 `go run ./cmd/glyphctl findings validate --input <path>` to verify JSONL output
 before distribution.
 
-## Performance and safety guidelines
+## Performance and safety guidelines {#performance-and-safety-guidelines}
 
 - **Respect backpressure**: Hooks run on the gRPC receive loop. Avoid blocking
   operations inside handlers. Offload expensive work to goroutines and use the

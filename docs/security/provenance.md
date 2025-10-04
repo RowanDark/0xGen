@@ -13,7 +13,7 @@ signer/builder principle: when you trust the GitHub Actions workflow that the
 project maintains, you can validate that a release artifact originated from
 that workflow and was not tampered with after it was built.
 
-## Release binaries
+## Release binaries {#release-binaries}
 
 Every release attaches a provenance file alongside the tarballs and checksum
 files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
@@ -38,7 +38,7 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
    verification proves the archive was produced by the tagged commit through
    Glyph's release workflow.
 
-## Container image
+## Container image {#container-image}
 
 The container image published to `ghcr.io/rowandark/glyphctl` also carries a SLSA
 provenance statement. After pulling the image digest you wish to verify, run:

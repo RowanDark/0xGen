@@ -19,6 +19,6 @@ Use the navigation sidebar to explore:
 - **Security** – review Glyph's threat model, provenance guarantees, and vulnerability
   reporting process.
 
-If you are just getting started, the [Quickstart](quickstart.md) walkthrough is the best
+If you are just getting started, the [Quickstart](quickstart.md#getting-started) walkthrough is the best
 place to see the platform in action before diving deeper into configuration or plugin
 development.

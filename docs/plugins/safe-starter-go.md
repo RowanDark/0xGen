@@ -5,7 +5,7 @@ safe defaults: capability macros, broker clients, and CI-friendly tooling. This
 page walks through the generated layout and shows how to adapt it for your own
 integrations.
 
-## Generate a project
+## Generate a project {#generate-a-project}
 
 ```bash
 go run ./cmd/glyph-plugin init \
@@ -29,7 +29,7 @@ You can inspect the repository copy under
 [`examples/plugin-safe-go/`]({{ config.repo_url }}/tree/main/examples/plugin-safe-go) for a ready-made
 reference implementation.
 
-## Capability macros
+## Capability macros {#capability-macros}
 
 `internal/plugin/capabilities.go` centralises the manifest declaration:
 
@@ -50,7 +50,7 @@ Toggling a macro updates `pluginsdk.Config.Capabilities`, the generated
 filesystem, network, and secret access on the macros so the linter can verify
 that capabilities are either declared or safely ignored.
 
-## Tests and linting
+## Tests and linting {#tests-and-linting}
 
 Run the scaffolded targets from the plugin directory:
 

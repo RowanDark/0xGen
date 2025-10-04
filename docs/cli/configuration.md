@@ -4,7 +4,7 @@ Glyph reads configuration from a single resolved source that combines defaults,
 optional configuration files, and environment variable overrides. This keeps the
 platform easy to tune locally and in production deployments.
 
-## Resolution order
+## Resolution order {#resolution-order}
 
 1. Built-in defaults.
 2. `~/.glyph/config.toml` (optional).
@@ -15,7 +15,7 @@ Each subsequent source overrides values defined in the previous ones. Local
 project configuration therefore beats the user-level TOML file, and environment
 variables have the final say.
 
-## Supported fields
+## Supported fields {#supported-fields}
 
 ```yaml
 server_addr: 127.0.0.1:50051
@@ -32,7 +32,7 @@ proxy:
 
 The TOML representation uses matching keys and section names.
 
-## Environment overrides
+## Environment overrides {#environment-overrides}
 
 The loader accepts the following variables:
 
@@ -51,7 +51,7 @@ The loader accepts the following variables:
 All variables accept whitespace-trimmed values. Boolean variables treat `1`,
 `true`, `yes`, and `on` as true, and `0`, `false`, `no`, and `off` as false.
 
-## Inspecting the resolved configuration
+## Inspecting the resolved configuration {#inspect-the-resolved-configuration}
 
 Run the following command to print the merged configuration as seen by
 `glyphctl`:
