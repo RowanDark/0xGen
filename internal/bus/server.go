@@ -12,6 +12,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/findings"
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
+	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
 	"github.com/RowanDark/Glyph/internal/plugins/capabilities"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
@@ -89,6 +90,8 @@ func NewServer(authToken string, findingsBus *findings.Bus, opts ...Option) *Ser
 
 // EventStream is the main bi-directional stream for plugin communication.
 func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
+	obsmetrics.RecordRPCRequest("plugin_bus", "EventStream")
+
 	// 1. Authenticate the plugin
 	hello, err := s.authenticate(stream)
 	if err != nil {
@@ -105,6 +108,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
 	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
 	if err != nil {
+		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.PermissionDenied.String())
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
@@ -156,10 +160,13 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 
 // GrantCapabilities issues a short-lived capability token for a plugin invocation.
 func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapabilityRequest) (*pb.PluginCapabilityGrant, error) {
+	obsmetrics.RecordRPCRequest("plugin_bus", "GrantCapabilities")
 	if req == nil {
+		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
 	if req.GetAuthToken() != s.authToken {
+		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.PermissionDenied.String())
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
@@ -169,10 +176,12 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 	}
 	pluginName := strings.TrimSpace(req.GetPluginName())
 	if pluginName == "" {
+		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
 		return nil, status.Error(codes.InvalidArgument, "plugin_name is required")
 	}
 	token, expires, err := s.caps.Issue(pluginName, req.GetCapabilities())
 	if err != nil {
+		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
@@ -200,19 +209,23 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 func (s *Server) authenticate(stream pb.PluginBus_EventStreamServer) (*pb.PluginHello, error) {
 	msg, err := stream.Recv()
 	if err != nil {
+		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.Unauthenticated.String())
 		return nil, status.Errorf(codes.Unauthenticated, "failed to receive auth message: %v", err)
 	}
 
 	hello := msg.GetHello()
 	if hello == nil {
+		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.Unauthenticated.String())
 		return nil, status.Errorf(codes.Unauthenticated, "expected PluginHello as first message")
 	}
 
 	if hello.GetPluginName() == "" || hello.GetPid() == 0 {
+		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.InvalidArgument.String())
 		return nil, status.Errorf(codes.InvalidArgument, "PluginHello must include plugin_name and pid")
 	}
 
 	if hello.GetAuthToken() != s.authToken {
+		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.Unauthenticated.String())
 		return nil, status.Errorf(codes.Unauthenticated, "invalid auth token")
 	}
 
@@ -239,9 +252,11 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 					PluginID:  pluginID,
 					Reason:    "event stream closed",
 				})
+				obsmetrics.SetPluginQueueLength(pluginID, 0)
 				return
 			}
 			if err := stream.Send(event); err != nil {
+				obsmetrics.RecordRPCError("plugin_bus", "EventStreamSend", codes.Internal.String())
 				s.emit(logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
 					Decision:  logging.DecisionDeny,
@@ -250,6 +265,7 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 				})
 				return
 			}
+			obsmetrics.SetPluginQueueLength(pluginID, len(eventChan))
 		}
 	}
 }
@@ -274,12 +290,15 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 				PluginID:  pluginID,
 				Reason:    err.Error(),
 			})
+			obsmetrics.RecordRPCError("plugin_bus", "EventStreamRecv", codes.Internal.String())
 			return err
 		}
 
 		switch e := event.Event.(type) {
 		case *pb.PluginEvent_Finding:
+			start := time.Now()
 			if _, ok := p.capabilities[CapEmitFindings]; !ok {
+				obsmetrics.RecordRPCError("plugin_bus", "EventStreamRecv", codes.PermissionDenied.String())
 				s.emit(logging.AuditEvent{
 					EventType: logging.EventScopeViolation,
 					Decision:  logging.DecisionDeny,
@@ -301,6 +320,7 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 				},
 			})
 			s.publishFinding(pluginID, e.Finding)
+			obsmetrics.ObservePluginEventDuration(pluginID, "finding", time.Since(start))
 		default:
 			s.emit(logging.AuditEvent{
 				EventType: logging.EventRPCCall,
@@ -316,6 +336,8 @@ func (s *Server) addConnection(id string, p *plugin) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.connections[id] = p
+	obsmetrics.SetPluginQueueLength(id, len(p.eventChan))
+	obsmetrics.SetActivePlugins(len(s.connections))
 }
 
 func (s *Server) removeConnection(id string) {
@@ -352,11 +374,14 @@ func (s *Server) disconnectLocked(id, reason string) {
 	p, ok := s.connections[id]
 	if !ok {
 		s.gate.Unregister(id)
+		obsmetrics.RemovePlugin(id)
 		return
 	}
 	close(p.eventChan)
 	delete(s.connections, id)
 	s.gate.Unregister(id)
+	obsmetrics.RemovePlugin(id)
+	obsmetrics.SetActivePlugins(len(s.connections))
 	s.emit(logging.AuditEvent{
 		EventType: logging.EventPluginDisconnect,
 		Decision:  logging.DecisionInfo,
@@ -415,6 +440,7 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 	}
 
 	eventType := getEventType(event)
+	obsmetrics.RecordRPCRequest("plugin_bus", "Broadcast")
 	s.emit(logging.AuditEvent{
 		EventType: logging.EventRPCCall,
 		Decision:  logging.DecisionInfo,
@@ -436,7 +462,9 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 			select {
 			case plugin.eventChan <- event:
 				// Event sent
+				obsmetrics.SetPluginQueueLength(id, len(plugin.eventChan))
 			default:
+				obsmetrics.RecordRPCError("plugin_bus", "Broadcast", "channel_full")
 				s.emit(logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
 					Decision:  logging.DecisionDeny,
