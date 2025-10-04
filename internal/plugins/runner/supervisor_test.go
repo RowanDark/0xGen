@@ -180,3 +180,67 @@ func main() {
 		t.Fatalf("expected no findings to be emitted")
 	}
 }
+
+func TestSupervisorRespectsTaskTimeout(t *testing.T) {
+	program := `package main
+import "time"
+func main() {
+        for {
+                time.Sleep(20 * time.Millisecond)
+        }
+}`
+	binary := buildBinary(t, program)
+	emitter := &recordingEmitter{}
+	supervisor := NewSupervisor(WithEmitter(emitter))
+
+	result, err := supervisor.RunTask(context.Background(), Task{
+		ID:       "rpc-timeout",
+		PluginID: "timeout",
+		Config: Config{
+			Binary: binary,
+			Limits: Limits{WallTime: time.Second},
+		},
+		Timeout: 100 * time.Millisecond,
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected deadline exceeded, got %v", err)
+	}
+	if result.Termination == nil {
+		t.Fatalf("expected termination details")
+	}
+	if result.Termination.Reason != TerminationReasonTimeout {
+		t.Fatalf("unexpected termination reason: %s", result.Termination.Reason)
+	}
+	if len(emitter.All()) == 0 {
+		t.Fatalf("expected termination finding to be emitted")
+	}
+}
+
+func TestSupervisorHandlesPluginCrash(t *testing.T) {
+	program := `package main
+func main() {
+        panic("boom")
+}`
+	binary := buildBinary(t, program)
+	emitter := &recordingEmitter{}
+	supervisor := NewSupervisor(WithEmitter(emitter))
+
+	result, err := supervisor.RunTask(context.Background(), Task{
+		ID:       "crash",
+		PluginID: "crashy",
+		Config:   Config{Binary: binary},
+	})
+	if err == nil {
+		t.Fatal("expected crashy plugin to return an error")
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected exit error, got %T", err)
+	}
+	if result.Termination != nil {
+		t.Fatalf("expected no sandbox termination, got %+v", result.Termination)
+	}
+	if len(emitter.All()) != 0 {
+		t.Fatalf("expected no findings to be emitted for crash")
+	}
+}

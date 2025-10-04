@@ -40,3 +40,18 @@ func TestVerifySignatureTamper(t *testing.T) {
 		t.Fatalf("expected signature verification to fail for tampered artifact")
 	}
 }
+
+func TestVerifySignatureRejectsPathTraversal(t *testing.T) {
+	pluginDir := t.TempDir()
+	artifact := filepath.Join(pluginDir, "artifact.txt")
+	if err := os.WriteFile(artifact, []byte("data"), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	sig := &plugins.Signature{
+		Signature: "../escape.sig",
+		PublicKey: "../escape.pub",
+	}
+	if err := VerifySignature(artifact, pluginDir, filepath.Dir(pluginDir), sig); err == nil {
+		t.Fatalf("expected verification to fail for escaping signature paths")
+	}
+}

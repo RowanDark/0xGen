@@ -308,3 +308,86 @@ func TestAuditLogEmittedOnDeniedAuth(t *testing.T) {
 		t.Fatal("expected reason to be populated")
 	}
 }
+
+func TestEventStreamRejectsMalformedFinding(t *testing.T) {
+	buf := &bytes.Buffer{}
+	audit, err := logging.NewAuditLogger("plugin_bus_test", logging.WithoutStdout(), logging.WithWriter(buf))
+	if err != nil {
+		t.Fatalf("NewAuditLogger: %v", err)
+	}
+	findingsBus := findings.NewBus()
+	server := NewServer("secure-token", findingsBus, WithAuditLogger(audit))
+
+	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
+		AuthToken:    "secure-token",
+		PluginName:   "malformed",
+		Capabilities: []string{"CAP_EMIT_FINDINGS"},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := newMockStream(ctx)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.EventStream(stream)
+	}()
+
+	stream.RecvChan <- &pb.PluginEvent{
+		Event: &pb.PluginEvent_Hello{
+			Hello: &pb.PluginHello{
+				AuthToken:       "secure-token",
+				PluginName:      "malformed",
+				Pid:             7,
+				Subscriptions:   []string{"FLOW_RESPONSE"},
+				Capabilities:    []string{"CAP_EMIT_FINDINGS"},
+				CapabilityToken: grant.GetCapabilityToken(),
+			},
+		},
+	}
+
+	findingsCtx, findingsCancel := context.WithCancel(context.Background())
+	defer findingsCancel()
+	sub := findingsBus.Subscribe(findingsCtx)
+
+	stream.RecvChan <- &pb.PluginEvent{
+		Event: &pb.PluginEvent_Finding{
+			Finding: &pb.Finding{Message: "missing type"},
+		},
+	}
+	close(stream.RecvChan)
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("EventStream returned error: %v", err)
+	}
+
+	select {
+	case f := <-sub:
+		t.Fatalf("unexpected finding published: %+v", f)
+	default:
+	}
+
+	entries := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
+	var rejected bool
+	for _, line := range entries {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var event logging.AuditEvent
+		if err := json.Unmarshal(line, &event); err != nil {
+			t.Fatalf("decode audit event: %v", err)
+		}
+		if event.EventType == logging.EventFindingRejected {
+			rejected = true
+			if event.PluginID == "" {
+				t.Fatalf("expected plugin id on rejection event")
+			}
+			break
+		}
+	}
+	if !rejected {
+		t.Fatal("expected malformed finding to trigger audit rejection event")
+	}
+}
