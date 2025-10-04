@@ -18,6 +18,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
 	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
+	"github.com/RowanDark/Glyph/internal/plugins/hotreload"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
 	"github.com/RowanDark/Glyph/internal/secrets"
@@ -31,6 +32,7 @@ type config struct {
 	proxy             proxy.Config
 	enableProxy       bool
 	fingerprintRotate bool
+	pluginsDir        string
 }
 
 func main() {
@@ -44,6 +46,7 @@ func main() {
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
+	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
 	flag.Parse()
 
 	if *token == "" {
@@ -66,6 +69,7 @@ func main() {
 		},
 		enableProxy:       *enableProxy,
 		fingerprintRotate: *fingerprintRotate,
+		pluginsDir:        strings.TrimSpace(*pluginDir),
 	}
 
 	if err := run(ctx, cfg); err != nil {
@@ -187,7 +191,7 @@ func run(ctx context.Context, cfg config) error {
 
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir)
 	}()
 
 	select {
@@ -232,7 +236,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
@@ -278,6 +282,24 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	secretsServer := secrets.NewServer(secretsManager, secrets.WithServerAuditLogger(secretsLogger))
 	pb.RegisterSecretsBrokerServer(srv, secretsServer)
 
+	pluginManagerCancel := func() {}
+	if strings.TrimSpace(pluginsDir) != "" {
+		repoRoot, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("determine working directory: %w", err)
+		}
+		allowlistPath := filepath.Join(pluginsDir, "ALLOWLIST")
+		pluginLogger := coreLogger.WithComponent("plugin_manager")
+		reloader, err := hotreload.New(pluginsDir, repoRoot, allowlistPath, busServer, hotreload.WithAuditLogger(pluginLogger))
+		if err != nil {
+			return fmt.Errorf("configure plugin reloader: %w", err)
+		}
+		managerCtx, cancel := context.WithCancel(ctx)
+		pluginManagerCancel = cancel
+		go reloader.Start(managerCtx)
+	}
+	defer pluginManagerCancel()
+
 	// Create a background context used by the event generator. It is cancelled
 	// once the gRPC server begins shutting down.
 	generatorCtx, cancelGenerator := context.WithCancel(context.Background())
@@ -288,6 +310,7 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	go func() {
 		<-ctx.Done()
 		cancelGenerator()
+		pluginManagerCancel()
 
 		done := make(chan struct{})
 		go func() {

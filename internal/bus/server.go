@@ -231,7 +231,16 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 				Reason:    "context done",
 			})
 			return
-		case event := <-eventChan:
+		case event, ok := <-eventChan:
+			if !ok {
+				s.emit(logging.AuditEvent{
+					EventType: logging.EventPluginDisconnect,
+					Decision:  logging.DecisionInfo,
+					PluginID:  pluginID,
+					Reason:    "event stream closed",
+				})
+				return
+			}
 			if err := stream.Send(event); err != nil {
 				s.emit(logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
@@ -312,19 +321,51 @@ func (s *Server) addConnection(id string, p *plugin) {
 func (s *Server) removeConnection(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if p, ok := s.connections[id]; ok {
-		close(p.eventChan)
-		delete(s.connections, id)
-		s.emit(logging.AuditEvent{
-			EventType: logging.EventPluginDisconnect,
-			Decision:  logging.DecisionInfo,
-			PluginID:  id,
-			Metadata: map[string]any{
-				"total_connections": len(s.connections),
-			},
-		})
+	s.disconnectLocked(id, "connection closed")
+}
+
+// DisconnectPlugin forcibly tears down any active connections for the named plugin.
+func (s *Server) DisconnectPlugin(pluginName, reason string) int {
+	pluginName = strings.TrimSpace(pluginName)
+	if pluginName == "" {
+		return 0
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	prefix := pluginName + "-"
+	count := 0
+	for id := range s.connections {
+		if strings.HasPrefix(id, prefix) {
+			if reason == "" {
+				reason = "plugin disconnected"
+			}
+			s.disconnectLocked(id, reason)
+			count++
+		}
+	}
+	return count
+}
+
+func (s *Server) disconnectLocked(id, reason string) {
+	p, ok := s.connections[id]
+	if !ok {
+		s.gate.Unregister(id)
+		return
+	}
+	close(p.eventChan)
+	delete(s.connections, id)
 	s.gate.Unregister(id)
+	s.emit(logging.AuditEvent{
+		EventType: logging.EventPluginDisconnect,
+		Decision:  logging.DecisionInfo,
+		PluginID:  id,
+		Reason:    reason,
+		Metadata: map[string]any{
+			"total_connections": len(s.connections),
+		},
+	})
 }
 
 // StartEventGenerator starts a ticker to send synthetic events to all connected plugins.

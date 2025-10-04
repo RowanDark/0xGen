@@ -146,6 +146,32 @@ func TestEventStream_InvalidAuth(t *testing.T) {
 	t.Logf("Received expected error: %v", err)
 }
 
+func TestServerDisconnectPlugin(t *testing.T) {
+	server := NewServer("token", findings.NewBus())
+	pluginConn := &plugin{
+		eventChan:     make(chan *pb.HostEvent, 1),
+		subscriptions: make(map[string]struct{}),
+		capabilities:  make(map[string]struct{}),
+	}
+
+	server.addConnection("demo-123", pluginConn)
+	server.gate.Register("demo-123", []string{"CAP_EMIT_FINDINGS"})
+
+	if got := server.DisconnectPlugin("demo", "test"); got != 1 {
+		t.Fatalf("expected 1 disconnected plugin, got %d", got)
+	}
+	if len(server.connections) != 0 {
+		t.Fatalf("expected connections map to be empty, got %d", len(server.connections))
+	}
+	if _, ok := <-pluginConn.eventChan; ok {
+		t.Fatal("expected event channel to be closed")
+	}
+
+	if got := server.DisconnectPlugin("demo", "test"); got != 0 {
+		t.Fatalf("expected subsequent disconnect to return 0, got %d", got)
+	}
+}
+
 func TestEventStream_MissingHello(t *testing.T) {
 	server := NewServer("test-token", nil)
 	mockStream := newMockStream(context.Background())
