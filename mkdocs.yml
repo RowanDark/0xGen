@@ -42,7 +42,30 @@ theme:
 
 plugins:
   - search
-  - redirects
+  - redirects:
+      redirect_maps:
+        # Legacy single-page CLI docs
+        "cli.html": "cli/"
+        "CLI.html": "cli/"
+        "cli/index.html": "cli/"
+        "CLI/index.html": "cli/"
+        "docs/cli.html": "cli/"
+        "docs/CLI.html": "cli/"
+        "docs/cli/index.html": "cli/"
+        "docs/CLI/index.html": "cli/"
+        # Old quickstart locations (directory and capitalised variants)
+        "Quickstart/": "quickstart/"
+        "QuickStart/": "quickstart/"
+        "Quickstart.html": "quickstart/"
+        "QuickStart.html": "quickstart/"
+        "Quickstart/index.html": "quickstart/"
+        "QuickStart/index.html": "quickstart/"
+        "docs/Quickstart/": "quickstart/"
+        "docs/QuickStart/": "quickstart/"
+        "docs/Quickstart.html": "quickstart/"
+        "docs/QuickStart.html": "quickstart/"
+        "docs/Quickstart/index.html": "quickstart/"
+        "docs/QuickStart/index.html": "quickstart/"
 
 markdown_extensions:
   - admonition
