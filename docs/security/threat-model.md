@@ -4,7 +4,7 @@ Glyph runs untrusted analysis plugins while aggregating findings into signed,
 reproducible reports. This document captures the security goals, assumptions, and
 controls that underpin the default deployment model.
 
-## Goals and assumptions
+## Goals and assumptions {#goals-and-assumptions}
 
 - Keep the Glyph daemon (`glyphd`) and control surface (`glyphctl`) resilient to
   compromised plugins.
@@ -14,7 +14,7 @@ controls that underpin the default deployment model.
 - Assume attackers can supply arbitrary plugin binaries and task inputs but do not
   control the host operating system.
 
-## Plugin isolation and resource limits
+## Plugin isolation and resource limits {#plugin-isolation-and-resource-limits}
 
 Plugins execute in dedicated subprocesses with strict resource limits. Each run is
 assigned a temporary working directory and constrained environment variables so writes
@@ -28,7 +28,7 @@ The supervisor captures termination reasons and emits structured metadata such a
 task ID, CPU/heap usage, and configured timeouts. Operations teams can trace why a
 plugin stopped and correlate the event with downstream automation.
 
-## Network posture
+## Network posture {#network-posture}
 
 Glyph starts in a "no network" posture. The built-in configuration keeps
 `proxy.enable` set to `false`, leaving Glyph without outbound network access unless
@@ -40,7 +40,7 @@ Capabilities declared in a plugin's manifest (for example `CAP_HTTP_ACTIVE` or
 `CAP_WS`) gate access to outbound helpers exposed by the host. A plugin without the
 relevant capability cannot reach the network layer at all.
 
-## Finding provenance
+## Finding provenance {#finding-provenance}
 
 Every release artifact ships with SLSA v3 provenance that can be verified using
 `slsa-verifier`, as described in [Build Provenance](provenance.md). Glyph's supervisors
@@ -49,7 +49,7 @@ configuration fingerprints, and hashes of harvested evidence. This metadata allo
 downstream systems to prove which signed binary generated a finding and to trace it
 back to the exact task invocation.
 
-## Reproducing reports from artifacts
+## Reproducing reports from artifacts {#reproducing-reports-from-artifacts}
 
 The default workflow stores logs and JSONL transcripts for each run under the `out/`
 directory. To reproduce a report without executing untrusted plugins:

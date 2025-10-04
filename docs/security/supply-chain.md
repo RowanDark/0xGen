@@ -4,7 +4,7 @@ Glyph's CI pipelines enforce dependency hygiene, generate a software bill of
 materials (SBOM), and sign every published artifact. This page documents the
 controls and the steps operators can take to validate them independently.
 
-## Dependency policy
+## Dependency policy {#dependency-policy}
 
 - The `Dependency Review` GitHub Action blocks pull requests that introduce new
   transitive risks with a severity of **high** or **critical**.
@@ -18,7 +18,7 @@ If you maintain a plugin, run `npm audit --omit=dev --audit-level=high` locally
 before submitting patches. CI fails if the audit reports a high or critical
 vulnerability.
 
-## SBOM generation
+## SBOM generation {#sbom-generation}
 
 Syft generates SPDX SBOMs for both the repository and the plugin tree on every
 push and pull request. The artifacts are uploaded as `glyph-sboms` and contain:
@@ -29,7 +29,7 @@ push and pull request. The artifacts are uploaded as `glyph-sboms` and contain:
 Download the SBOMs from the workflow run summary to integrate with your own
 inventory or vulnerability scanners.
 
-## Release signing & provenance
+## Release signing & provenance {#release-signing-and-provenance}
 
 Tagged releases trigger the `Release` workflow, which now performs the
 following:
@@ -71,7 +71,7 @@ slsa-verifier verify-artifact \
 Successful verification proves the archive was produced by the trusted release
 workflow and signed with Sigstore.
 
-## Plugin signature verification
+## Plugin signature verification {#plugin-signature-verification}
 
 The `glyphctl plugin run` command now validates detached signatures before a
 plugin is compiled or executed. Each official plugin ships with:
@@ -94,7 +94,7 @@ You can rotate the signing key by updating the public key, regenerating the
 signatures, and adjusting the manifests. Glyph refuses to run a plugin when the
 signature is missing or invalid.
 
-## Trust chain summary
+## Trust chain summary {#trust-chain-summary}
 
 1. Dependency diffs and `npm audit` prevent risky packages from entering the
    tree.

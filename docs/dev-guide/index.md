@@ -3,7 +3,7 @@
 This guide helps contributors set up a development environment, iterate on new
 features, and ship releases with confidence.
 
-## Prerequisites
+## Prerequisites {#prerequisites}
 
 Glyph is written in Go with supporting tooling in Node.js and Python. Install the
 following before hacking on the repository:
@@ -16,7 +16,7 @@ following before hacking on the repository:
 Clone the repository and run `make deps` to download Go modules and Playwright
 browsers used by the integration tests.
 
-## Build and test
+## Build and test {#build-and-test}
 
 The [`Makefile`]({{ config.repo_url }}/blob/main/Makefile) contains convenience targets for the most common
 developer workflows:
@@ -36,7 +36,7 @@ You can also build the CLI manually with `go build ./cmd/glyphctl`. Tests that r
 Playwright or other external services automatically skip themselves when the
 prerequisites are missing, keeping `make test` fast on constrained environments.
 
-## Plugin development loop
+## Plugin development loop {#plugin-development-loop}
 
 Use `make new-plugin name=<id>` to scaffold a new plugin under `plugins/<id>/`. The
 scaffolding includes a manifest, Go stubs, and a sample test harness wired to the
@@ -54,7 +54,7 @@ glyphctl plugin run --path ./plugins/<id>/<id> --duration 30s
 The CLI connects to `glyphd`, streams findings back to `out/findings.jsonl`, and lets
 you debug the plugin in real time.
 
-## Release checklist
+## Release checklist {#release-checklist}
 
 1. Update [`CHANGELOG.md`]({{ config.repo_url }}/blob/main/CHANGELOG.md) with user-facing notes.
 2. Run `make test` and `glyphctl demo` to ensure critical paths pass.

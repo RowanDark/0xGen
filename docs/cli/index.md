@@ -5,7 +5,7 @@ launch plugins, inspect findings, and generate analyst-facing reports. This page
 summarises the most common workflows; run `glyphctl --help` to explore every
 subcommand.
 
-## Try the demo pipeline
+## Try the demo pipeline {#try-the-demo-pipeline}
 
 Generate a full set of demo artifacts—target traffic, ranked findings, and a
 shareable HTML report—with a single command:
@@ -19,7 +19,7 @@ JSONL outputs under `out/demo/`, and renders `out/demo/report.html`. The output 
 safe to share with stakeholders and mirrors the examples under
 [`examples/quickstart/`]({{ config.repo_url }}/tree/main/examples/quickstart).
 
-## Inspect configuration
+## Inspect configuration {#inspect-configuration}
 
 Print the resolved runtime configuration to confirm the active server address,
 authentication token, and output directory:
@@ -31,7 +31,7 @@ glyphctl config print
 See the [configuration reference](configuration.md) for the full resolution order and
 overridable fields.
 
-## Run plugins locally
+## Run plugins locally {#run-plugins-locally}
 
 Use the `plugin run` command to execute a bundled plugin against a running `glyphd`
 instance. The example below runs the `emit-on-start` sample for three seconds against
@@ -48,7 +48,7 @@ glyphctl plugin run \
 Add `--sample` to target the fixture binaries under `plugins/samples/`, or provide a
 `--path` to an arbitrary plugin executable.
 
-## Validate findings
+## Validate findings {#validate-findings}
 
 Glyph emits findings as JSON Lines (JSONL) records that conform to
 [`specs/finding.md`]({{ config.repo_url }}/blob/main/specs/finding.md). Lint generated output before shipping it
@@ -60,7 +60,7 @@ glyphctl findings validate --input out/findings.jsonl
 
 The validator reports schema violations and highlights the offending record numbers.
 
-## Generate reports
+## Generate reports {#generate-reports}
 
 Turn validated findings into Markdown or HTML reports for analysts:
 

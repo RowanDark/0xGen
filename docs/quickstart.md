@@ -5,7 +5,7 @@ It spins up a local demo target, scans the page with Seer, ranks the resulting
 findings, and renders a polished HTML report. Everything runs on localhost and
 falls back to bundled fixtures when external network access is restricted.
 
-## Prerequisites
+## Prerequisites {#prerequisites}
 
 * Go 1.21+ (for `go run ./cmd/glyphctl demo`) or a downloaded `glyphctl` binary
 * Git (to clone this repository)
@@ -15,7 +15,8 @@ external services are required—if Glyph cannot reach `example.com` the demo
 feeds Seer a synthetic response that mirrors the HTML shipped in
 `examples/quickstart/demo-response.html`.
 
-## Run the pipeline
+<div id="run-the-pipeline"></div>
+## Getting started {#getting-started}
 
 ```bash
 glyphctl demo
@@ -39,7 +40,7 @@ snippets. The JSONL artifacts under `out/demo/` and the reference copies in
 [`examples/quickstart/`]({{ config.repo_url }}/tree/main/examples/quickstart)
 are handy when writing tests or inspecting the data Seer emits.
 
-## Inspecting the run
+## Inspecting the run {#inspecting-the-run}
 
 Useful files after the demo completes:
 
@@ -54,7 +55,7 @@ The [`examples/quickstart/` directory]({{ config.repo_url }}/tree/main/examples/
 mirrors the expected outputs so you can diff future runs or plug sample data into
 other tools without re-running the pipeline.
 
-## Cleaning up
+## Cleaning up {#cleaning-up}
 
 Remove the generated artifacts with:
 
