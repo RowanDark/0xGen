@@ -278,6 +278,39 @@ func TestGateHTTPClientSkipsRetriesForStreamingBody(t *testing.T) {
 	}
 }
 
+func TestEnsureRewindableBodyClosesOriginalReader(t *testing.T) {
+	data := []byte("payload")
+	original := newTrackingBody(data)
+	req := &http.Request{
+		Body: original,
+		GetBody: func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(data)), nil
+		},
+		ContentLength: int64(len(data)),
+	}
+
+	rewindable, err := ensureRewindableBody(req)
+	if err != nil {
+		t.Fatalf("ensure rewindable: %v", err)
+	}
+	if !rewindable {
+		t.Fatal("expected body to be rewindable")
+	}
+	if !original.closed {
+		t.Fatal("expected original body to be closed")
+	}
+	if req.Body == original {
+		t.Fatal("expected request body to be replaced")
+	}
+	content, err := io.ReadAll(req.Body)
+	if err != nil {
+		t.Fatalf("read rewound body: %v", err)
+	}
+	if string(content) != string(data) {
+		t.Fatalf("unexpected rewound body: %q", content)
+	}
+}
+
 func TestGateHTTPClientBlocksLoopback(t *testing.T) {
 	gate := New(httpPipeDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -693,6 +726,27 @@ type emptyStreamingBody struct{}
 func (emptyStreamingBody) Read([]byte) (int, error) { return 0, io.EOF }
 
 func (emptyStreamingBody) Close() error { return nil }
+
+type trackingBody struct {
+	buf    *bytes.Reader
+	closed bool
+}
+
+func newTrackingBody(data []byte) *trackingBody {
+	return &trackingBody{buf: bytes.NewReader(data)}
+}
+
+func (b *trackingBody) Read(p []byte) (int, error) {
+	return b.buf.Read(p)
+}
+
+func (b *trackingBody) Close() error {
+	if b.closed {
+		return nil
+	}
+	b.closed = true
+	return nil
+}
 
 func (d *sequenceDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	c1, c2 := net.Pipe()

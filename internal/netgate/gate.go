@@ -665,9 +665,19 @@ func ensureRewindableBody(req *http.Request) (bool, error) {
 		return true, nil
 	}
 	if req.GetBody != nil {
+		original := req.Body
 		body, err := req.GetBody()
 		if err != nil {
+			if original != nil {
+				_ = original.Close()
+			}
 			return false, err
+		}
+		if original != nil {
+			if err := original.Close(); err != nil {
+				_ = body.Close()
+				return false, err
+			}
 		}
 		req.Body = body
 		return true, nil
