@@ -109,6 +109,29 @@ jobs:
           version: v2.1.6
           args: --out-format=github-actions ./...
 
+  perf-bench:
+    name: Performance benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run synthetic workloads
+        run: go run ./cmd/perfbench --baseline perf/baseline/findings_bus_v1.0.json --output perf/results/latest.json --threshold 0.10
+
+      - name: Upload metrics report
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-metrics
+          path: perf/results/latest.json
+          if-no-files-found: error
+
   container-scan:
     name: Container security scan
     runs-on: ubuntu-latest
