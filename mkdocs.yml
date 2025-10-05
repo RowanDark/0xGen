@@ -51,8 +51,6 @@ plugins:
       timezone: UTC
       locale: en
       format: "%b %-d, %Y"
-hooks:
-  - docs/hooks.py
   - redirects:
       redirect_maps:
         # Legacy single-page CLI docs
@@ -77,6 +75,9 @@ hooks:
         "docs/QuickStart.html": "quickstart/"
         "docs/Quickstart/index.html": "quickstart/"
         "docs/QuickStart/index.html": "quickstart/"
+
+hooks:
+  - docs/hooks.py
 
 markdown_extensions:
   - admonition
