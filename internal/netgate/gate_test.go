@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -141,6 +142,75 @@ func TestGateHTTPClientPerformsRequests(t *testing.T) {
 	}
 	if err := resp.Body.Close(); err != nil {
 		t.Fatalf("close response body: %v", err)
+	}
+}
+
+func TestGateHTTPClientRespectsPerHostRateLimit(t *testing.T) {
+	gate := New(
+		httpPipeDialer{response: "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"},
+		WithTimeout(30*time.Millisecond),
+		WithPerHostRateLimit(RateLimit{Requests: 1, Interval: time.Second}),
+	)
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/one", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("close response body: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	req2, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://example.com/two", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req2); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected deadline exceeded due to rate limit, got %v", err)
+	}
+}
+
+func TestGateHTTPClientRetriesOnServerErrors(t *testing.T) {
+	dialer := &sequenceDialer{responses: []string{
+		"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n",
+		"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+	}}
+	gate := New(dialer, WithRetryConfig(RetryConfig{MaxAttempts: 3, Initial: 10 * time.Millisecond, Max: 20 * time.Millisecond, Multiplier: 2, Jitter: 0}))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	start := time.Now()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/retry", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("close response body: %v", err)
+	}
+	if calls := dialer.CallCount(); calls != 2 {
+		t.Fatalf("expected 2 dial attempts, got %d", calls)
+	}
+	if elapsed := time.Since(start); elapsed < 8*time.Millisecond {
+		t.Fatalf("expected backoff delay, request finished too quickly: %v", elapsed)
 	}
 }
 
@@ -546,4 +616,51 @@ func (d httpPipeDialer) DialContext(ctx context.Context, network, address string
 		}
 	}()
 	return c1, nil
+}
+
+type sequenceDialer struct {
+	mu        sync.Mutex
+	responses []string
+	calls     int
+}
+
+func (d *sequenceDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	c1, c2 := net.Pipe()
+	d.mu.Lock()
+	idx := d.calls
+	resp := ""
+	if idx < len(d.responses) {
+		resp = d.responses[idx]
+	} else if len(d.responses) > 0 {
+		resp = d.responses[len(d.responses)-1]
+	}
+	d.calls++
+	d.mu.Unlock()
+	go func(expected string) {
+		defer c2.Close()
+		buf := make([]byte, 0, 512)
+		tmp := make([]byte, 256)
+		for {
+			n, err := c2.Read(tmp)
+			if n > 0 {
+				buf = append(buf, tmp[:n]...)
+				if bytes.Contains(buf, []byte("\r\n\r\n")) {
+					break
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+		if _, err := io.WriteString(c2, expected); err != nil {
+			return
+		}
+	}(resp)
+	return c1, nil
+}
+
+func (d *sequenceDialer) CallCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.calls
 }
