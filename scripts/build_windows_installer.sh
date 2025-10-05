@@ -35,8 +35,20 @@ case "$arch" in
 esac
 
 version=${tag#v}
-if [[ -z "$version" ]]; then
+if [[ -z "$version" || "$version" == "$tag" ]]; then
   echo "could not derive version from tag '$tag'" >&2
+  exit 1
+fi
+
+msi_version=${version%%[-+]*}
+if [[ -z "$msi_version" ]]; then
+  echo "tag '$tag' does not contain a numeric version component" >&2
+  exit 1
+fi
+
+if [[ ! "$msi_version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+  echo "tag '$tag' yields invalid MSI version '$msi_version'" >&2
+  echo "expected a version in 'major.minor.build(.revision)' format" >&2
   exit 1
 fi
 
@@ -55,7 +67,7 @@ cp README.md "$stage/README.txt"
 cp LICENSE "$stage/LICENSE.txt"
 
 wixl \
-  -DVersion="$version" \
+  -DVersion="$msi_version" \
   -DWixPlatform="$wix_platform" \
   -DPayloadDir="$stage" \
   -o "$output_dir/glyphctl_${tag}_windows_${arch}.msi" \
