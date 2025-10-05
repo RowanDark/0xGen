@@ -51,12 +51,29 @@ scoop install glyphctl
 ### Container image
 
 A hardened container image is pushed to GitHub Container Registry with every
-release. Pull and run it with:
+release. The image runs as an unprivileged user and expects a read-only root
+filesystem. Pull it and run `glyphctl` with the recommended least-privilege
+profile:
 
 ```bash
 docker pull ghcr.io/rowandark/glyphctl:latest
-docker run --rm ghcr.io/rowandark/glyphctl:latest --version
+docker run \
+  --rm \
+  --read-only \
+  --cap-drop=ALL \
+  --security-opt no-new-privileges \
+  --pids-limit=256 \
+  --memory=512m \
+  --cpus="1.0" \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
+  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
+  --mount type=volume,source=glyph-output,dst=/out \
+  ghcr.io/rowandark/glyphctl:latest --version
 ```
+
+See the [container hardening guide](docs/security/container.md) for additional
+context, CI integration notes, and plugin execution tips.
 
 ## Quickstart
 
