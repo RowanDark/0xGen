@@ -1,0 +1,22 @@
+.doc-last-updated {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--md-typeset-table-color);
+  color: var(--md-default-fg-color--lighter);
+  font-size: 0.875rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.doc-last-updated__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+}
+
+div[data-md-color-scheme="slate"] .doc-last-updated {
+  border-color: var(--md-typeset-table-color);
+}

@@ -1,3 +1,7 @@
+---
+search: false
+---
+
 # Performance Benchmarks
 
 Glyph now ships with a dedicated microbenchmark harness that exercises the
