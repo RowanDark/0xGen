@@ -52,13 +52,17 @@ var (
 
 // TransportConfig controls the negotiated HTTP protocols available to clients.
 type TransportConfig struct {
-	EnableHTTP2 bool
-	EnableHTTP3 bool
+	EnableHTTP2  bool
+	EnableHTTP3  bool
+	RequireHTTP3 bool
 }
 
 var defaultTransportConfig = TransportConfig{EnableHTTP2: true, EnableHTTP3: true}
 
 func sanitizeTransportConfig(cfg TransportConfig) TransportConfig {
+	if cfg.RequireHTTP3 {
+		cfg.EnableHTTP3 = true
+	}
 	if !cfg.EnableHTTP2 && !cfg.EnableHTTP3 {
 		cfg.EnableHTTP2 = true
 	}
