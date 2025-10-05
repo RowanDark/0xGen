@@ -214,6 +214,70 @@ func TestGateHTTPClientRetriesOnServerErrors(t *testing.T) {
 	}
 }
 
+func TestGateHTTPClientRetriesWithBufferedBody(t *testing.T) {
+	dialer := &sequenceDialer{responses: []string{
+		"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n",
+		"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+	}}
+	gate := New(dialer, WithRetryConfig(RetryConfig{MaxAttempts: 3, Initial: 10 * time.Millisecond, Max: 20 * time.Millisecond, Multiplier: 2, Jitter: 0}))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	body := bytes.NewBufferString("payload")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.com/retry-body", body)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 response, got %d", resp.StatusCode)
+	}
+	if calls := dialer.CallCount(); calls != 2 {
+		t.Fatalf("expected 2 dial attempts, got %d", calls)
+	}
+}
+
+func TestGateHTTPClientSkipsRetriesForStreamingBody(t *testing.T) {
+	dialer := &sequenceDialer{responses: []string{
+		"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n",
+		"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+	}}
+	gate := New(dialer, WithRetryConfig(RetryConfig{MaxAttempts: 3, Initial: 10 * time.Millisecond, Max: 20 * time.Millisecond, Multiplier: 2, Jitter: 0}))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.com/stream", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	req.Body = emptyStreamingBody{}
+	req.GetBody = nil
+	req.ContentLength = -1
+
+	resp, err := client.Do(req)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err == nil {
+		t.Fatal("expected request with streaming body to fail on first attempt")
+	}
+	if calls := dialer.CallCount(); calls != 1 {
+		t.Fatalf("expected 1 dial attempt, got %d", calls)
+	}
+}
+
 func TestGateHTTPClientBlocksLoopback(t *testing.T) {
 	gate := New(httpPipeDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -623,6 +687,12 @@ type sequenceDialer struct {
 	responses []string
 	calls     int
 }
+
+type emptyStreamingBody struct{}
+
+func (emptyStreamingBody) Read([]byte) (int, error) { return 0, io.EOF }
+
+func (emptyStreamingBody) Close() error { return nil }
 
 func (d *sequenceDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	c1, c2 := net.Pipe()

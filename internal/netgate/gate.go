@@ -38,6 +38,11 @@ const (
 	defaultRetryMax        = 10 * time.Second
 	defaultRetryMultiplier = 2.0
 	defaultRetryJitter     = 250 * time.Millisecond
+
+	// maxBufferedRetryBodyBytes bounds the amount of request body data that may be
+	// materialised in memory to enable retries. Requests with larger or
+	// unknown bodies are executed without retries to avoid unbounded buffering.
+	maxBufferedRetryBodyBytes = int64(1 << 20) // 1 MiB
 )
 
 var supportedCaps = map[string]struct{}{
@@ -587,16 +592,25 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if cancel != nil {
 		defer cancel()
 	}
+	attempts := c.gate.retryCfg.MaxAttempts
+	if attempts < 1 {
+		attempts = 1
+	}
 	cloned := req.Clone(ctx)
-	if err := ensureRewindableBody(cloned); err != nil {
-		return nil, err
+	if attempts > 1 {
+		rewindable, err := ensureRewindableBody(cloned)
+		if err != nil {
+			return nil, err
+		}
+		if !rewindable {
+			attempts = 1
+		}
 	}
 	c.gate.decorateRequest(cloned)
-	return c.executeWithRetry(cloned)
+	return c.executeWithRetry(cloned, attempts)
 }
 
-func (c *HTTPClient) executeWithRetry(template *http.Request) (*http.Response, error) {
-	attempts := c.gate.retryCfg.MaxAttempts
+func (c *HTTPClient) executeWithRetry(template *http.Request, attempts int) (*http.Response, error) {
 	if attempts < 1 {
 		attempts = 1
 	}
@@ -646,24 +660,48 @@ func (c *HTTPClient) Client() *http.Client {
 	return c.client
 }
 
-func ensureRewindableBody(req *http.Request) error {
-	if req == nil || req.Body == nil || req.GetBody != nil {
-		return nil
+func ensureRewindableBody(req *http.Request) (bool, error) {
+	if req == nil || req.Body == nil {
+		return true, nil
 	}
-	data, err := io.ReadAll(req.Body)
-	if err != nil {
-		return err
+	if req.GetBody != nil {
+		body, err := req.GetBody()
+		if err != nil {
+			return false, err
+		}
+		req.Body = body
+		return true, nil
 	}
-	_ = req.Body.Close()
+	if req.ContentLength < 0 {
+		return false, nil
+	}
+	if req.ContentLength == 0 {
+		if err := req.Body.Close(); err != nil {
+			return false, err
+		}
+		req.Body = http.NoBody
+		req.GetBody = func() (io.ReadCloser, error) { return http.NoBody, nil }
+		return true, nil
+	}
+	if req.ContentLength > maxBufferedRetryBodyBytes {
+		return false, nil
+	}
+	data := make([]byte, int(req.ContentLength))
+	if _, err := io.ReadFull(req.Body, data); err != nil {
+		return false, err
+	}
+	if err := req.Body.Close(); err != nil {
+		return false, err
+	}
 	req.GetBody = func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(data)), nil
 	}
 	body, err := req.GetBody()
 	if err != nil {
-		return err
+		return false, err
 	}
 	req.Body = body
-	return nil
+	return true, nil
 }
 
 func cloneRequestForAttempt(template *http.Request) (*http.Request, error) {
