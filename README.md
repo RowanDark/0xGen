@@ -39,13 +39,46 @@ RPM packages are published alongside each release. Install them with `rpm`:
 sudo rpm -i glyphctl_<version>_linux_amd64.rpm
 ```
 
-### Windows (Scoop)
+### Windows
 
-Add this repository as a Scoop bucket and install the manifest:
+There are three supported installation paths on Windows:
+
+#### Installer (MSI)
+
+Download the `glyphctl_v<version>_windows_amd64.msi` (or `arm64`) asset from the
+[Releases page](https://github.com/RowanDark/Glyph/releases). Launch it with a
+double-click or from PowerShell:
+
+```powershell
+msiexec /i .\glyphctl_v<version>_windows_amd64.msi /qn
+```
+
+The installer places `glyphctl.exe` under `C:\Program Files\Glyph` and updates
+`PATH` for future shells. Verify the installation:
+
+```powershell
+"C:\Program Files\Glyph\glyphctl.exe" --version
+```
+
+#### Portable ZIP
+
+Every release also ships a portable archive named
+`glyphctl_v<version>_windows_<arch>.zip`. Extract it anywhere you prefer and run
+the bundled binary:
+
+```powershell
+Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\Glyph
+C:\Tools\Glyph\glyphctl.exe --version
+```
+
+#### Scoop
+
+Add this repository as a Scoop bucket and install the published manifest:
 
 ```powershell
 scoop bucket add glyph https://github.com/RowanDark/Glyph
 scoop install glyphctl
+glyphctl --version
 ```
 
 ### Container image

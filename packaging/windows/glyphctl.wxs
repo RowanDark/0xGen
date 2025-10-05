@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?if $(var.WixPlatform) = "x64" ?>
+    <?define ProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?elseif $(var.WixPlatform) = "arm64" ?>
+    <?define ProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?else ?>
+    <?define ProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?endif ?>
+
+  <Product Id="*"
+           Name="Glyph"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="Glyph Project"
+           UpgradeCode="{CC62A8F1-7D7F-42A7-9C5F-8F71E21C09D6}">
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Platform="$(var.WixPlatform)" />
+    <MediaTemplate EmbedCab="yes" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Glyph is already installed." AllowSameVersionUpgrades="yes" />
+
+    <Feature Id="GlyphCLI" Title="Glyph CLI" Description="Installs the glyphctl command-line interface." Level="1">
+      <ComponentGroupRef Id="GlyphComponents" />
+    </Feature>
+  </Product>
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.ProgramFilesFolder)">
+        <Directory Id="INSTALLFOLDER" Name="Glyph" />
+      </Directory>
+    </Directory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="GlyphComponents">
+      <Component Id="GlyphExecutable" Guid="{2DFEEA0E-4FD0-4F71-83F2-5C2F11C278F7}" Directory="INSTALLFOLDER" Win64="yes">
+        <File Id="GlyphExecutableFile" Source="$(var.PayloadDir)/glyphctl.exe" KeyPath="yes" />
+        <File Id="GlyphLicenseFile" Source="$(var.PayloadDir)/LICENSE.txt" />
+        <File Id="GlyphReadmeFile" Source="$(var.PayloadDir)/README.txt" />
+        <Environment Id="GlyphPath"
+                     Name="PATH"
+                     Value="[INSTALLFOLDER]"
+                     Action="set"
+                     Part="last"
+                     System="yes"
+                     Permanent="no" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

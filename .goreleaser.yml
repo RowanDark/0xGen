@@ -51,27 +51,30 @@ archives:
   - id: glyphctl-archive
     builds:
       - glyphctl
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
     format_overrides:
       - goos: windows
         format: zip
   - id: glyphd-archive
     builds:
       - glyphd
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
   - id: quickstartseed-archive
     builds:
       - quickstartseed
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
 
 checksum:
-  name_template: "glyph_{{ .Version }}_checksums.txt"
+  name_template: "glyph_{{ .Tag }}_checksums.txt"
 
 nfpms:
   - id: glyphctl-linux-packages
@@ -88,7 +91,7 @@ nfpms:
     bindir: /usr/local/bin
     priority: optional
     section: utils
-    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
+    file_name_template: "{{ .PackageName }}_{{ .Tag }}_{{ .Arch }}"
 
 dockers:
   - id: glyphctl-image
