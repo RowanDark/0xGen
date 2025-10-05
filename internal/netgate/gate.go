@@ -1,10 +1,13 @@
 package netgate
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/netip"
@@ -17,6 +20,7 @@ import (
 
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
+	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
 )
 
 const (
@@ -28,12 +32,23 @@ const (
 
 	defaultTimeout = 5 * time.Second
 	defaultBudget  = 50
+
+	defaultRetryAttempts   = 3
+	defaultRetryInitial    = 500 * time.Millisecond
+	defaultRetryMax        = 10 * time.Second
+	defaultRetryMultiplier = 2.0
+	defaultRetryJitter     = 250 * time.Millisecond
 )
 
 var supportedCaps = map[string]struct{}{
 	capHTTPActive:  {},
 	capHTTPPassive: {},
 }
+
+var (
+	jitterMu  sync.Mutex
+	jitterRNG = rand.New(rand.NewSource(time.Now().UnixNano()))
+)
 
 // TransportConfig controls the negotiated HTTP protocols available to clients.
 type TransportConfig struct {
@@ -54,6 +69,25 @@ func sanitizeTransportConfig(cfg TransportConfig) TransportConfig {
 type Config struct {
 	Timeout       time.Duration
 	RequestBudget int
+	PerHostRate   RateLimit
+	GlobalRate    RateLimit
+	Retry         RetryConfig
+}
+
+// RateLimit describes a token bucket configuration.
+type RateLimit struct {
+	Requests int
+	Interval time.Duration
+	Burst    int
+}
+
+// RetryConfig controls retry and backoff behaviour for HTTP requests.
+type RetryConfig struct {
+	MaxAttempts int
+	Initial     time.Duration
+	Max         time.Duration
+	Multiplier  float64
+	Jitter      time.Duration
 }
 
 // Dialer defines the subset of net.Dialer we require. net.Dialer itself
@@ -86,6 +120,27 @@ func WithRequestBudget(budget int) Option {
 	}
 }
 
+// WithPerHostRateLimit configures the per-host rate limiter.
+func WithPerHostRateLimit(limit RateLimit) Option {
+	return func(g *Gate) {
+		g.config.PerHostRate = limit
+	}
+}
+
+// WithGlobalRateLimit configures the process-wide HTTP rate limiter.
+func WithGlobalRateLimit(limit RateLimit) Option {
+	return func(g *Gate) {
+		g.config.GlobalRate = limit
+	}
+}
+
+// WithRetryConfig overrides the default retry configuration.
+func WithRetryConfig(cfg RetryConfig) Option {
+	return func(g *Gate) {
+		g.config.Retry = cfg
+	}
+}
+
 // WithTransportConfig customises the HTTP protocol support for new clients.
 func WithTransportConfig(cfg TransportConfig) Option {
 	return func(g *Gate) {
@@ -114,15 +169,19 @@ func WithTLSConfig(cfg *tls.Config) Option {
 // Gate ensures all outbound network operations performed on behalf of plugins
 // respect the declared capabilities and configured limits.
 type Gate struct {
-	dialer  Dialer
-	mu      sync.RWMutex
-	perms   map[string]map[string]struct{}
-	budgets map[string]int
-	config  Config
-	audit   *logging.AuditLogger
-	tlsCfg  *tls.Config
-	fp      *fingerprint.Strategy
-	tcfg    TransportConfig
+	dialer        Dialer
+	mu            sync.RWMutex
+	perms         map[string]map[string]struct{}
+	budgets       map[string]int
+	config        Config
+	audit         *logging.AuditLogger
+	tlsCfg        *tls.Config
+	fp            *fingerprint.Strategy
+	tcfg          TransportConfig
+	rateMu        sync.Mutex
+	hostLimiters  map[string]*rateTracker
+	globalLimiter *rateTracker
+	retryCfg      RetryConfig
 }
 
 // New creates a gate wrapping the provided dialer. If dialer is nil a sane
@@ -130,12 +189,13 @@ type Gate struct {
 func New(dialer Dialer, opts ...Option) *Gate {
 	cfg := loadConfigFromEnv()
 	g := &Gate{
-		dialer:  dialer,
-		perms:   make(map[string]map[string]struct{}),
-		budgets: make(map[string]int),
-		config:  cfg,
-		fp:      fingerprint.DefaultStrategy(),
-		tcfg:    defaultTransportConfig,
+		dialer:       dialer,
+		perms:        make(map[string]map[string]struct{}),
+		budgets:      make(map[string]int),
+		config:       cfg,
+		fp:           fingerprint.DefaultStrategy(),
+		tcfg:         defaultTransportConfig,
+		hostLimiters: make(map[string]*rateTracker),
 	}
 	for _, opt := range opts {
 		opt(g)
@@ -144,6 +204,10 @@ func New(dialer Dialer, opts ...Option) *Gate {
 	g.tcfg = sanitizeTransportConfig(g.tcfg)
 	if g.fp == nil {
 		g.fp = fingerprint.DefaultStrategy()
+	}
+	g.retryCfg = g.config.Retry
+	if rl := g.config.GlobalRate; rateLimitEnabled(rl) {
+		g.globalLimiter = newRateLimiter(rl)
 	}
 	if g.dialer == nil {
 		g.dialer = &net.Dialer{Timeout: g.config.Timeout}
@@ -161,7 +225,7 @@ func WithAuditLogger(logger *logging.AuditLogger) Option {
 }
 
 func loadConfigFromEnv() Config {
-	cfg := Config{Timeout: defaultTimeout, RequestBudget: defaultBudget}
+	cfg := Config{Timeout: defaultTimeout, RequestBudget: defaultBudget, Retry: defaultRetryConfig()}
 	if raw := strings.TrimSpace(os.Getenv(envTimeout)); raw != "" {
 		if dur, err := time.ParseDuration(raw); err == nil {
 			cfg.Timeout = dur
@@ -181,6 +245,63 @@ func sanitizeConfig(cfg Config) Config {
 	}
 	if cfg.RequestBudget < 0 {
 		cfg.RequestBudget = 0
+	}
+	cfg.PerHostRate = sanitizeRateLimit(cfg.PerHostRate)
+	cfg.GlobalRate = sanitizeRateLimit(cfg.GlobalRate)
+	cfg.Retry = sanitizeRetryConfig(cfg.Retry)
+	return cfg
+}
+
+func defaultRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxAttempts: defaultRetryAttempts,
+		Initial:     defaultRetryInitial,
+		Max:         defaultRetryMax,
+		Multiplier:  defaultRetryMultiplier,
+		Jitter:      defaultRetryJitter,
+	}
+}
+
+func sanitizeRateLimit(limit RateLimit) RateLimit {
+	if limit.Requests <= 0 || limit.Interval <= 0 {
+		return RateLimit{}
+	}
+	if limit.Burst <= 0 {
+		limit.Burst = limit.Requests
+	}
+	return limit
+}
+
+func rateLimitEnabled(limit RateLimit) bool {
+	return limit.Requests > 0 && limit.Interval > 0 && limit.Burst > 0
+}
+
+func newRateLimiter(limit RateLimit) *rateTracker {
+	if !rateLimitEnabled(limit) {
+		return nil
+	}
+	return newRateTracker(limit)
+}
+
+func sanitizeRetryConfig(cfg RetryConfig) RetryConfig {
+	def := defaultRetryConfig()
+	if cfg.MaxAttempts < 1 {
+		cfg.MaxAttempts = def.MaxAttempts
+	}
+	if cfg.Initial <= 0 {
+		cfg.Initial = def.Initial
+	}
+	if cfg.Max <= 0 {
+		cfg.Max = def.Max
+	}
+	if cfg.Multiplier < 1 {
+		cfg.Multiplier = def.Multiplier
+	}
+	if cfg.Jitter < 0 {
+		cfg.Jitter = 0
+	}
+	if cfg.Max < cfg.Initial {
+		cfg.Max = cfg.Initial
 	}
 	return cfg
 }
@@ -386,6 +507,72 @@ type HTTPClient struct {
 	transport  http.RoundTripper
 }
 
+type rateTracker struct {
+	mu      sync.Mutex
+	window  time.Duration
+	max     int
+	entries []time.Time
+}
+
+func newRateTracker(limit RateLimit) *rateTracker {
+	return &rateTracker{window: limit.Interval, max: limit.Burst}
+}
+
+func (rt *rateTracker) reserve(now time.Time) (time.Duration, func()) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	rt.pruneLocked(now)
+	if len(rt.entries) < rt.max {
+		rt.entries = append(rt.entries, now)
+		return 0, func() {}
+	}
+	earliest := rt.entries[0]
+	waitUntil := earliest.Add(rt.window)
+	delay := waitUntil.Sub(now)
+	if delay < 0 {
+		delay = 0
+		waitUntil = now
+	}
+	rt.entries = append(rt.entries, waitUntil)
+	cancelled := false
+	cancel := func() {
+		rt.mu.Lock()
+		defer rt.mu.Unlock()
+		if cancelled {
+			return
+		}
+		for i, ts := range rt.entries {
+			if ts == waitUntil {
+				rt.entries = append(rt.entries[:i], rt.entries[i+1:]...)
+				break
+			}
+		}
+		cancelled = true
+	}
+	return delay, cancel
+}
+
+func (rt *rateTracker) pruneLocked(now time.Time) {
+	if rt.window <= 0 {
+		rt.entries = rt.entries[:0]
+		return
+	}
+	cutoff := now.Add(-rt.window)
+	idx := 0
+	for _, ts := range rt.entries {
+		if ts.After(cutoff) {
+			break
+		}
+		idx++
+	}
+	if idx > 0 {
+		rt.entries = append(rt.entries[:0], rt.entries[idx:]...)
+	}
+	if len(rt.entries) > rt.max {
+		rt.entries = rt.entries[len(rt.entries)-rt.max:]
+	}
+}
+
 // Do dispatches the HTTP request after applying capability and timeout checks.
 func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if req == nil {
@@ -401,8 +588,50 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 		defer cancel()
 	}
 	cloned := req.Clone(ctx)
+	if err := ensureRewindableBody(cloned); err != nil {
+		return nil, err
+	}
 	c.gate.decorateRequest(cloned)
-	return c.client.Do(cloned)
+	return c.executeWithRetry(cloned)
+}
+
+func (c *HTTPClient) executeWithRetry(template *http.Request) (*http.Response, error) {
+	attempts := c.gate.retryCfg.MaxAttempts
+	if attempts < 1 {
+		attempts = 1
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		req, err := cloneRequestForAttempt(template)
+		if err != nil {
+			return nil, err
+		}
+		if err := c.gate.waitForQuota(req.Context(), req.URL); err != nil {
+			return nil, err
+		}
+		resp, err := c.client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if !shouldRetry(resp.StatusCode) || attempt == attempts-1 {
+			return resp, nil
+		}
+		obsmetrics.RecordHTTPBackoff(resp.StatusCode)
+		delay := c.gate.computeBackoffDelay(attempt)
+		if delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-req.Context().Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
+				_ = resp.Body.Close()
+				return nil, req.Context().Err()
+			case <-timer.C:
+			}
+		}
+		_ = resp.Body.Close()
+	}
+	return nil, errors.New("exhausted retries without response")
 }
 
 // CloseIdleConnections releases idle connections held by the underlying transport.
@@ -415,6 +644,158 @@ func (c *HTTPClient) CloseIdleConnections() {
 // Client exposes the underlying http.Client for advanced use cases.
 func (c *HTTPClient) Client() *http.Client {
 	return c.client
+}
+
+func ensureRewindableBody(req *http.Request) error {
+	if req == nil || req.Body == nil || req.GetBody != nil {
+		return nil
+	}
+	data, err := io.ReadAll(req.Body)
+	if err != nil {
+		return err
+	}
+	_ = req.Body.Close()
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}
+	body, err := req.GetBody()
+	if err != nil {
+		return err
+	}
+	req.Body = body
+	return nil
+}
+
+func cloneRequestForAttempt(template *http.Request) (*http.Request, error) {
+	if template == nil {
+		return nil, errors.New("request template is nil")
+	}
+	clone := template.Clone(template.Context())
+	if template.GetBody != nil {
+		body, err := template.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		clone.Body = body
+	}
+	return clone, nil
+}
+
+func (g *Gate) waitForQuota(ctx context.Context, u *url.URL) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if u == nil {
+		return errors.New("request URL required")
+	}
+	if rateLimitEnabled(g.config.PerHostRate) {
+		host := strings.ToLower(u.Hostname())
+		if host != "" {
+			limiter := g.limiterForHost(host)
+			if err := g.waitOnLimiter(ctx, limiter, "host"); err != nil {
+				return err
+			}
+		}
+	}
+	if g.globalLimiter != nil {
+		if err := g.waitOnLimiter(ctx, g.globalLimiter, "global"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *Gate) limiterForHost(host string) *rateTracker {
+	if !rateLimitEnabled(g.config.PerHostRate) {
+		return nil
+	}
+	key := strings.ToLower(strings.TrimSpace(host))
+	if key == "" {
+		return nil
+	}
+	g.rateMu.Lock()
+	defer g.rateMu.Unlock()
+	limiter, ok := g.hostLimiters[key]
+	if ok {
+		return limiter
+	}
+	limiter = newRateLimiter(g.config.PerHostRate)
+	g.hostLimiters[key] = limiter
+	return limiter
+}
+
+func (g *Gate) waitOnLimiter(ctx context.Context, limiter *rateTracker, scope string) error {
+	if limiter == nil {
+		return nil
+	}
+	delay, cancel := limiter.reserve(time.Now())
+	if delay <= 0 {
+		return nil
+	}
+	obsmetrics.RecordHTTPThrottle(scope)
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		cancel()
+		return ctx.Err()
+	case <-timer.C:
+	}
+	return nil
+}
+
+func (g *Gate) computeBackoffDelay(attempt int) time.Duration {
+	if attempt < 0 {
+		attempt = 0
+	}
+	cfg := g.retryCfg
+	delay := cfg.Initial
+	for i := 0; i < attempt; i++ {
+		next := time.Duration(float64(delay) * cfg.Multiplier)
+		if next < delay {
+			delay = cfg.Max
+			break
+		}
+		delay = next
+		if delay >= cfg.Max {
+			delay = cfg.Max
+			break
+		}
+	}
+	if delay > cfg.Max {
+		delay = cfg.Max
+	}
+	if cfg.Jitter > 0 {
+		delay += randomJitter(cfg.Jitter)
+		if delay > cfg.Max {
+			delay = cfg.Max
+		}
+	}
+	if delay < 0 {
+		return cfg.Max
+	}
+	return delay
+}
+
+func randomJitter(max time.Duration) time.Duration {
+	if max <= 0 {
+		return 0
+	}
+	jitterMu.Lock()
+	defer jitterMu.Unlock()
+	upper := int64(max)
+	if upper <= 0 {
+		return 0
+	}
+	n := jitterRNG.Int63n(upper + 1)
+	return time.Duration(n)
+}
+
+func shouldRetry(status int) bool {
+	if status == http.StatusTooManyRequests {
+		return true
+	}
+	return status >= 500 && status < 600
 }
 
 func validateDialTarget(network, address string) error {

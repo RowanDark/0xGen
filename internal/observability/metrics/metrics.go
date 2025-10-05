@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -51,17 +52,19 @@ type histogramValue struct {
 var (
 	collectors []collector
 
-	rpcRequests = newCounterVec("glyph_rpc_requests_total", "Total number of RPC requests handled by Glyph components.", []string{"component", "method"})
-	rpcErrors   = newCounterVec("glyph_rpc_errors_total", "Total number of RPC errors emitted by Glyph components.", []string{"component", "method", "code"})
-	pluginEvent = newHistogramVec("glyph_plugin_event_duration_seconds", "Duration Glyph spends processing plugin events.", []string{"plugin", "event"})
-	pluginQueue = newGaugeVec("glyph_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
-	activePlugs = newGaugeVec("glyph_active_plugins", "Number of active plugin connections registered with the bus.", nil)
+	rpcRequests  = newCounterVec("glyph_rpc_requests_total", "Total number of RPC requests handled by Glyph components.", []string{"component", "method"})
+	rpcErrors    = newCounterVec("glyph_rpc_errors_total", "Total number of RPC errors emitted by Glyph components.", []string{"component", "method", "code"})
+	pluginEvent  = newHistogramVec("glyph_plugin_event_duration_seconds", "Duration Glyph spends processing plugin events.", []string{"plugin", "event"})
+	pluginQueue  = newGaugeVec("glyph_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
+	activePlugs  = newGaugeVec("glyph_active_plugins", "Number of active plugin connections registered with the bus.", nil)
+	httpThrottle = newCounterVec("glyph_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"})
+	httpBackoff  = newCounterVec("glyph_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"})
 
 	totalRequests uint64
 )
 
 func init() {
-	collectors = []collector{rpcRequests, rpcErrors, pluginEvent, pluginQueue, activePlugs}
+	collectors = []collector{rpcRequests, rpcErrors, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff}
 }
 
 func newCounterVec(name, help string, labels []string) *counterVec {
@@ -314,6 +317,16 @@ func RecordRPCRequest(component, method string) {
 // RecordRPCError increments the error counter for a component, method, and error code.
 func RecordRPCError(component, method, code string) {
 	rpcErrors.IncWith(component, method, code)
+}
+
+// RecordHTTPThrottle increments the counter for HTTP throttle events at the provided scope.
+func RecordHTTPThrottle(scope string) {
+	httpThrottle.IncWith(scope)
+}
+
+// RecordHTTPBackoff increments the counter for HTTP backoff events keyed by status code.
+func RecordHTTPBackoff(status int) {
+	httpBackoff.IncWith(strconv.Itoa(status))
 }
 
 // ObservePluginEventDuration records the latency for handling a plugin event.
