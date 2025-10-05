@@ -28,6 +28,7 @@ __pycache__/
 /out/
 plugins/excavator/benchmarks/latest.json
 plugins/excavator/benchmarks/summary.md
+perf/results/
 
 # IDE files
 .idea/

@@ -1,0 +1,97 @@
+{
+  "version": "v1.0.0",
+  "timestamp": "2025-10-05T19:46:06.066188056Z",
+  "git_ref": "7bf9d9f",
+  "workloads": [
+    {
+      "name": "fanout_wide",
+      "config": {
+        "name": "fanout_wide",
+        "fan_out": 16,
+        "depth": 1,
+        "concurrency": 4,
+        "events": 6000,
+        "payload_bytes": 256,
+        "failure_rate": 0,
+        "seed": 42
+      },
+      "duration": 26521322,
+      "successes": 6000,
+      "errors": 0,
+      "throughput_eps": 226233.06636071912,
+      "error_rate": 0,
+      "latency": {
+        "p50_ms": 0.057784,
+        "p95_ms": 0.528366,
+        "p99_ms": 0.961978,
+        "max_ms": 3.054844
+      },
+      "memory": {
+        "bytes_total": 3511920,
+        "bytes_per_event": 585.32,
+        "peak_goroutines": 40,
+        "baseline_goroutines": 35
+      }
+    },
+    {
+      "name": "fanout_deep",
+      "config": {
+        "name": "fanout_deep",
+        "fan_out": 6,
+        "depth": 3,
+        "concurrency": 8,
+        "events": 8000,
+        "payload_bytes": 384,
+        "failure_rate": 0,
+        "seed": 84
+      },
+      "duration": 35748599,
+      "successes": 8000,
+      "errors": 0,
+      "throughput_eps": 223784.9936440866,
+      "error_rate": 0,
+      "latency": {
+        "p50_ms": 0.154005,
+        "p95_ms": 0.497054,
+        "p99_ms": 0.943996,
+        "max_ms": 1.570654
+      },
+      "memory": {
+        "bytes_total": 4692488,
+        "bytes_per_event": 586.561,
+        "peak_goroutines": 38,
+        "baseline_goroutines": 29
+      }
+    },
+    {
+      "name": "high_concurrency",
+      "config": {
+        "name": "high_concurrency",
+        "fan_out": 8,
+        "depth": 2,
+        "concurrency": 16,
+        "events": 10000,
+        "payload_bytes": 192,
+        "failure_rate": 0,
+        "seed": 126
+      },
+      "duration": 47802959,
+      "successes": 10000,
+      "errors": 0,
+      "throughput_eps": 209192.07114354573,
+      "error_rate": 0,
+      "latency": {
+        "p50_ms": 0.065912,
+        "p95_ms": 0.309625,
+        "p99_ms": 0.771782,
+        "max_ms": 24.384567
+      },
+      "memory": {
+        "bytes_total": 5872400,
+        "bytes_per_event": 587.24,
+        "peak_goroutines": 45,
+        "baseline_goroutines": 28
+      }
+    }
+  ]
+}
