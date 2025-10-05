@@ -1,3 +1,7 @@
+---
+search: false
+---
+
 # Sprint Plan: Galdr, Excavator, Scribe, Seer, and OSINT Well
 
 ## Overview

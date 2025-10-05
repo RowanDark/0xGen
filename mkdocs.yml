@@ -28,9 +28,11 @@ theme:
     - navigation.instant
     - navigation.sections
     - navigation.indexes
+    - navigation.path
     - content.code.copy
     - search.suggest
     - search.highlight
+  custom_dir: docs/overrides
   palette:
     - scheme: default
       toggle:
@@ -43,6 +45,14 @@ theme:
 
 plugins:
   - search
+  - git-revision-date-localized:
+      fallback_to_build_date: true
+      type: datetime
+      timezone: UTC
+      locale: en
+      format: "%b %-d, %Y"
+hooks:
+  - docs/hooks.py
   - redirects:
       redirect_maps:
         # Legacy single-page CLI docs
@@ -81,3 +91,7 @@ extra:
   cname: glyph.rowandark.com
   version:
     provider: mike
+extra_css:
+  - stylesheets/last-updated.css
+extra_javascript:
+  - javascripts/search-fallback.js

@@ -1,3 +1,7 @@
+---
+search: false
+---
+
 # Glyph Telemetry
 
 Glyph now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation.
