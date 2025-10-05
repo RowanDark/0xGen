@@ -98,3 +98,52 @@ jobs:
           scoop bucket add glyph https://github.com/${{ github.repository }}
           scoop install glyphctl
           glyphctl --version
+
+  windows-msi:
+    runs-on: windows-latest
+    steps:
+      - name: Determine latest release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = ''
+          try {
+            $tag = gh release view --repo $env:GITHUB_REPOSITORY --json tagName -q '.tagName'
+          } catch {
+            Write-Host "No published releases found; skipping MSI install"
+          }
+          if ([string]::IsNullOrEmpty($tag)) {
+            "tag=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+      - name: Download MSI
+        if: steps.release.outputs.tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release download $env:TAG --repo $env:GITHUB_REPOSITORY -p "glyphctl_${env:TAG}_windows_amd64.msi" -D dist
+
+      - name: Install MSI
+        if: steps.release.outputs.tag != ''
+        shell: pwsh
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          $msi = "dist/glyphctl_${env:TAG}_windows_amd64.msi"
+          msiexec /i $msi /qn
+          & 'C:\Program Files\Glyph\glyphctl.exe' --version
+
+      - name: Uninstall MSI
+        if: steps.release.outputs.tag != ''
+        shell: pwsh
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          $msi = "dist/glyphctl_${env:TAG}_windows_amd64.msi"
+          msiexec /x $msi /qn

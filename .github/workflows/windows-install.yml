@@ -1,0 +1,50 @@
+name: windows-install
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build glyphctl snapshot
+        shell: pwsh
+        run: |
+          go build -trimpath -ldflags "-s -w -X main.version=ci-snapshot" -o dist/glyphctl.exe ./cmd/glyphctl
+
+      - name: Stage portable archive
+        shell: pwsh
+        run: |
+          $portable = Join-Path dist 'portable'
+          New-Item -ItemType Directory -Force -Path $portable | Out-Null
+          Copy-Item dist/glyphctl.exe (Join-Path $portable 'glyphctl.exe')
+          Copy-Item README.md (Join-Path $portable 'README.txt')
+          Copy-Item LICENSE (Join-Path $portable 'LICENSE.txt')
+          Compress-Archive -Path "$portable\*" -DestinationPath dist/glyphctl_ci_windows_portable.zip -Force
+
+      - name: Smoke test portable build
+        shell: pwsh
+        run: |
+          $extract = Join-Path $env:RUNNER_TEMP 'glyphctl-portable'
+          Expand-Archive -Path dist/glyphctl_ci_windows_portable.zip -DestinationPath $extract -Force
+          $glyph = Join-Path $extract 'glyphctl.exe'
+          & $glyph --version
+
+      - name: Verify plugin subsystem
+        shell: pwsh
+        run: |
+          $glyph = Join-Path $env:RUNNER_TEMP 'glyphctl-portable' 'glyphctl.exe'
+          $artifact = Resolve-Path 'plugins/samples/passive-header-scan/main.go'
+          $hash = (Get-FileHash $artifact -Algorithm SHA256).Hash
+          & $glyph plugin verify $artifact --hash $hash

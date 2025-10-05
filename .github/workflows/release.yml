@@ -48,6 +48,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install msitools
+        run: sudo apt-get update && sudo apt-get install -y msitools
+
+      - name: Build Windows installers
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            unzip -o "dist/glyphctl_${TAG}_windows_${arch}.zip" -d "dist/windows_${arch}"
+            ./scripts/build_windows_installer.sh "$TAG" "$arch" "dist/windows_${arch}" dist
+          done
+
+      - name: Upload Windows installers to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" \
+            "dist/glyphctl_${TAG}_windows_amd64.msi" \
+            "dist/glyphctl_${TAG}_windows_arm64.msi" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:

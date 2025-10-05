@@ -90,6 +90,18 @@ func TestRunVersion(t *testing.T) {
 	}
 }
 
+func TestVersionFlag(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	*showVersion = true
+	t.Cleanup(func() { *showVersion = false })
+
+	if handled := maybePrintVersion(); !handled {
+		t.Fatalf("expected maybePrintVersion to handle --version flag")
+	}
+}
+
 func TestRunDemo(t *testing.T) {
 	restore := silenceOutput(t)
 	defer restore()
