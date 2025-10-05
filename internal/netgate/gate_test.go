@@ -462,6 +462,16 @@ func TestLayeredTransportShouldFallback(t *testing.T) {
 	}
 }
 
+func TestLayeredTransportRequireHTTP3DisablesFallback(t *testing.T) {
+	lt := &layeredTransport{requireHTTP3: true}
+	if lt.shouldFallback(errors.New("boom")) {
+		t.Fatal("fallback should be disabled when HTTP/3 is required")
+	}
+	if lt.shouldFallback(errHTTP3Unavailable) {
+		t.Fatal("requireHTTP3 should prevent fallback on availability errors")
+	}
+}
+
 func TestLayeredTransportRoundTripFallsBackToPrimary(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)

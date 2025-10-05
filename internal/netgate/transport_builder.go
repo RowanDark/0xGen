@@ -44,10 +44,11 @@ func (g *Gate) buildTransport() (http.RoundTripper, error) {
 		return transport, nil
 	}
 	lt := &layeredTransport{
-		gate:    g,
-		primary: transport,
-		fp:      g.fp,
-		baseTLS: transport.TLSClientConfig,
+		gate:         g,
+		primary:      transport,
+		fp:           g.fp,
+		baseTLS:      transport.TLSClientConfig,
+		requireHTTP3: g.tcfg.RequireHTTP3,
 	}
 	lt.h3attempt = lt.roundTripHTTP3
 	return lt, nil
@@ -153,11 +154,12 @@ func (gt *gatedTransport) CloseIdleConnections() {
 }
 
 type layeredTransport struct {
-	gate      *Gate
-	primary   *http.Transport
-	fp        *fingerprint.Strategy
-	baseTLS   *tls.Config
-	h3attempt func(*http.Request, string, *tls.Config) (*http.Response, error)
+	gate         *Gate
+	primary      *http.Transport
+	fp           *fingerprint.Strategy
+	baseTLS      *tls.Config
+	requireHTTP3 bool
+	h3attempt    func(*http.Request, string, *tls.Config) (*http.Response, error)
 }
 
 func (lt *layeredTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -173,6 +175,9 @@ func (lt *layeredTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 func (lt *layeredTransport) shouldFallback(err error) bool {
 	if err == nil {
+		return false
+	}
+	if lt.requireHTTP3 {
 		return false
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {

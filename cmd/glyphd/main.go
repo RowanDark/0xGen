@@ -36,6 +36,7 @@ type config struct {
 	enableProxy       bool
 	fingerprintRotate bool
 	pluginsDir        string
+	http3Mode         string
 }
 
 func main() {
@@ -51,6 +52,7 @@ func main() {
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
 	metricsAddr := flag.String("metrics-addr", ":9090", "address for the Prometheus metrics endpoint (empty to disable)")
+	http3Mode := flag.String("http3", "auto", "HTTP/3 mode: auto, disable, or require")
 	flag.Parse()
 
 	if *token == "" {
@@ -75,6 +77,7 @@ func main() {
 		enableProxy:       *enableProxy,
 		fingerprintRotate: *fingerprintRotate,
 		pluginsDir:        strings.TrimSpace(*pluginDir),
+		http3Mode:         strings.TrimSpace(*http3Mode),
 	}
 
 	if err := run(ctx, cfg); err != nil {
@@ -234,7 +237,7 @@ func run(ctx context.Context, cfg config) error {
 
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode)
 	}()
 
 	select {
@@ -298,7 +301,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
@@ -331,6 +334,15 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 
 	srv := grpc.NewServer()
 	gateOpts := []netgate.Option{}
+	switch mode := strings.ToLower(strings.TrimSpace(http3Mode)); mode {
+	case "", "auto":
+	case "disable", "off":
+		gateOpts = append(gateOpts, netgate.WithTransportConfig(netgate.TransportConfig{EnableHTTP2: true, EnableHTTP3: false}))
+	case "require", "force":
+		gateOpts = append(gateOpts, netgate.WithTransportConfig(netgate.TransportConfig{EnableHTTP2: true, EnableHTTP3: true, RequireHTTP3: true}))
+	default:
+		return fmt.Errorf("unsupported http3 mode: %q", http3Mode)
+	}
 	if rotateFingerprints {
 		strategy := fingerprint.DefaultStrategy()
 		strategy.EnableRotation(true)
