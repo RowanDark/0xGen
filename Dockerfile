@@ -38,6 +38,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 COPY --from=builder --chown=nonroot:nonroot --chmod=0555 /out/glyphctl /usr/local/bin/glyphctl
 COPY --from=builder --chown=nonroot:nonroot --chmod=0700 /home/nonroot/.glyph /home/nonroot/.glyph
 COPY --from=builder --chown=nonroot:nonroot --chmod=0700 /home/nonroot/.cache /home/nonroot/.cache
+COPY --from=builder --chown=nonroot:nonroot --chmod=0755 /out /out
 
 VOLUME ["/home/nonroot/.glyph", "/home/nonroot/.cache", "/out"]
 
