@@ -2,3 +2,4 @@ mkdocs>=1.5
 mkdocs-material
 mkdocs-redirects
 mkdocs-git-revision-date-localized-plugin
+mkdocs-static-i18n

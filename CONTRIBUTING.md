@@ -25,4 +25,4 @@ Thanks for helping shape Glyph! To keep the project healthy and reproducible, pl
 - [ ] All generated artefacts, secrets, or large binaries are excluded from the diff.
 - [ ] Added configuration knobs are documented.
 
-We triage issues via the project board documented in `docs/project-board.md`. Feel free to propose improvements or new automations—just include the motivation and a high-level design sketch.
+We triage issues via the project board documented in `docs/en/projectboard.md`. Feel free to propose improvements or new automations—just include the motivation and a high-level design sketch.

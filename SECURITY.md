@@ -61,9 +61,9 @@ repository are out of scope.
   artifact expectations.
 * [Plugin security guide](PLUGIN_GUIDE.md) – recommended patterns for authoring
   safe integrations.
-* [Build provenance verification](docs/security/provenance.md) – how to validate
+* [Build provenance verification](docs/en/security/provenance.md) – how to validate
   release signatures before installing.
-* [Supply-chain hardening](docs/security/supply-chain.md) – dependency policy,
+* [Supply-chain hardening](docs/en/security/supply-chain.md) – dependency policy,
   SBOMs, and plugin signature verification.
 
 ## Coordinated disclosure

@@ -47,6 +47,20 @@ theme:
 
 plugins:
   - search
+  - i18n:
+      default_language: en
+      docs_structure: folder
+      languages:
+        en: English
+        es: Español
+      nav_translations:
+        es:
+          Home: Inicio
+          Quickstart: Inicio rápido
+          Plugins: Complementos
+          CLI: CLI
+          Developer Guide: Guía de desarrollo
+          Security: Seguridad
   - git-revision-date-localized:
       fallback_to_build_date: true
       type: datetime
@@ -94,6 +108,13 @@ extra:
   cname: glyph.rowandark.com
   version:
     provider: mike
+  alternate:
+    - name: English
+      link: /
+      lang: en
+    - name: Español
+      link: /es/
+      lang: es
 extra_css:
   - stylesheets/last-updated.css
   - stylesheets/marketplace.css

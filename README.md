@@ -7,6 +7,8 @@ It coordinates plugins such as Galdr (HTTP rewriting proxy), Excavator (Playwrig
 crawler), Seer (secret/PII detector), Ranker, and Scribe to turn raw telemetry into
 ranked findings and human-readable reports.
 
+> Read this page in [Spanish](README.es.md).
+
 ## Installation
 
 ### macOS (Homebrew)
@@ -105,7 +107,7 @@ docker run \
   ghcr.io/rowandark/glyphctl:latest --version
 ```
 
-See the [container hardening guide](docs/security/container.md) for additional
+See the [container hardening guide](docs/en/security/container.md) for additional
 context, CI integration notes, and plugin execution tips.
 
 ## Quickstart

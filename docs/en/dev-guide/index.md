@@ -65,7 +65,7 @@ you debug the plugin in real time.
    formula in sync and the `bump-homebrew` workflow opens a pull request with the
    changes.
 5. Run `scripts/snapshot_docs.py vX.Y.Z --latest` to archive the documentation
-   into `docs/versions/` and update the version selector manifest.
+   into `docs/en/versions/` and update the version selector manifest.
 6. Push a Git tag (for example `v1.2.3`) to trigger the release workflows and
    publish the freshly versioned documentation.
 
