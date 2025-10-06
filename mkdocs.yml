@@ -91,6 +91,27 @@ plugins:
         "docs/QuickStart.html": "quickstart/"
         "docs/Quickstart/index.html": "quickstart/"
         "docs/QuickStart/index.html": "quickstart/"
+        # Broader fallbacks for legacy flat HTML exports
+        "plugins.html": "plugins/"
+        "Plugins.html": "plugins/"
+        "plugins/index.html": "plugins/"
+        "Plugins/index.html": "plugins/"
+        "Developer-Guide.html": "dev-guide/"
+        "developer-guide.html": "dev-guide/"
+        "dev-guide.html": "dev-guide/"
+        "DeveloperGuide.html": "dev-guide/"
+        "docs/Developer-Guide.html": "dev-guide/"
+        "docs/dev-guide.html": "dev-guide/"
+        "Security.html": "security/"
+        "security.html": "security/"
+        "security/index.html": "security/"
+        "docs/Security.html": "security/"
+        "docs/security.html": "security/"
+        "docs/security/index.html": "security/"
+        "docs/index.html": "./"
+        "Glyph.html": "./"
+        "docs/Glyph.html": "./"
+        "docs/docs.html": "./"
 
 hooks:
   - docs/hooks.py
@@ -115,12 +136,29 @@ extra:
     - name: Español
       link: /Glyph/es/
       lang: es
+  pdf_download:
+    path: assets/offline/glyph-docs.epub
+    labels:
+      en: Download docs (EPUB)
+      es: Descargar documentación (EPUB)
+    descriptions:
+      en: Take the complete documentation offline as an EPUB snapshot.
+      es: Lleva la documentación completa sin conexión como un EPUB.
 extra_css:
   - stylesheets/accessibility.css
   - stylesheets/last-updated.css
   - stylesheets/marketplace.css
+  - stylesheets/experience.css
 extra_javascript:
-  - javascripts/search-fallback.js
-  - javascripts/sidebar-state.js
-  - javascripts/version-dropdown.js
-  - javascripts/plugin-catalog.js
+  - path: javascripts/search-fallback.js
+    defer: true
+  - path: javascripts/sidebar-state.js
+    defer: true
+  - path: javascripts/version-dropdown.js
+    defer: true
+  - path: javascripts/plugin-catalog.js
+    defer: true
+  - path: javascripts/lazy-media.js
+    defer: true
+  - path: javascripts/quickstart-demo.js
+    defer: true

@@ -15,6 +15,9 @@ si Glyph no puede llegar a `example.com`, la demostración alimenta a Seer con u
 el HTML incluido en `examples/quickstart/demo-response.html`.
 
 <div id="run-the-pipeline"></div>
+
+La caja interactiva anterior reproduce `glyphctl demo` directamente en tu
+navegador para que puedas explorar la canalización antes de instalar nada.
 ## Primeros pasos {#getting-started}
 
 ```bash

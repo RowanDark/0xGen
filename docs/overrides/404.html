@@ -1,0 +1,53 @@
+{% extends "main.html" %}
+
+{% block content %}
+  {% set locale = page.lang | d('en') %}
+  {% if locale.startswith('es') %}
+    {% set title = 'No encontramos esa página' %}
+    {% set summary = 'Tal vez el enlace cambió de nombre. Usa las opciones siguientes para volver a la documentación.' %}
+    {% set home_label = 'Volver al inicio' %}
+    {% set search_label = 'Buscar en la documentación' %}
+  {% else %}
+    {% set title = 'We couldn\'t find that page' %}
+    {% set summary = 'The link you followed may be outdated. Use the options below to get back on track.' %}
+    {% set home_label = 'Return home' %}
+    {% set search_label = 'Search the docs' %}
+  {% endif %}
+  <section class="glyph-404" aria-labelledby="glyph-404-title">
+    <h1 class="glyph-404__title" id="glyph-404-title">{{ title }}</h1>
+    <p class="glyph-404__summary">{{ summary }}</p>
+    <div class="glyph-404__actions" role="group" aria-label="404 navigation">
+      <a class="glyph-404__link" data-variant="primary" href="{{ nav.homepage.url | url }}">
+        {% set icon = config.theme.icon.home or 'material/home' %}
+        {% include '.icons/' ~ icon ~ '.svg' %}
+        <span>{{ home_label }}</span>
+      </a>
+      <button class="glyph-404__link" type="button" data-action="open-search">
+        {% set icon = config.theme.icon.search or 'material/magnify' %}
+        {% include '.icons/' ~ icon ~ '.svg' %}
+        <span>{{ search_label }}</span>
+      </button>
+    </div>
+  </section>
+  <script>
+    (function () {
+      const triggerSearch = () => {
+        const toggle = document.querySelector('label[for="__search"]');
+        if (toggle) {
+          toggle.click();
+          const searchField = document.querySelector('input[data-md-component="search-query"]');
+          if (searchField) {
+            searchField.focus({ preventScroll: false });
+          }
+        }
+      };
+      document.addEventListener('click', (event) => {
+        const control = event.target.closest('[data-action="open-search"]');
+        if (control) {
+          event.preventDefault();
+          triggerSearch();
+        }
+      });
+    })();
+  </script>
+{% endblock %}
