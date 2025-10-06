@@ -55,13 +55,23 @@
       return Promise.resolve(cachedScenario);
     }
     const docsRoot = resolveDocsRoot(scriptId);
+    const locale = resolveLocale();
     const url = new URL('data/quickstart-demo.json', docsRoot);
-    return fetch(url)
-      .then((response) => {
+    const fetchJson = (targetUrl) =>
+      fetch(targetUrl).then((response) => {
         if (!response.ok) {
           throw new Error(`Unable to load quickstart scenario: ${response.status}`);
         }
         return response.json();
+      });
+    return fetchJson(url)
+      .catch((error) => {
+        if (locale === 'en') {
+          throw error;
+        }
+        const englishRoot = new URL('../en/', docsRoot);
+        const fallbackUrl = new URL('data/quickstart-demo.json', englishRoot);
+        return fetchJson(fallbackUrl);
       })
       .then((scenario) => {
         cachedScenario = scenario;
