@@ -79,3 +79,48 @@ jobs:
           name: release-dist
           path: dist/
           if-no-files-found: error
+  linux-package-smoke:
+    name: Linux package smoke tests
+    runs-on: ubuntu-latest
+    needs:
+      - goreleaser
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:bookworm-slim
+            package_glob: glyphctl_*_linux_amd64.deb
+            setup: |
+              apt-get update
+            install: |
+              apt-get install -y "./$package_basename"
+          - image: quay.io/rockylinux/rockylinux:9
+            package_glob: glyphctl_*_linux_amd64.rpm
+            setup: |
+              dnf install -y --setopt=install_weak_deps=False ca-certificates
+            install: |
+              dnf install -y --nogpgcheck "./$package_basename"
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-dist
+          path: dist
+      - name: Install package
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(dist/${{ matrix.package_glob }})
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "Unable to find package matching pattern" >&2
+            ls dist
+            exit 1
+          fi
+          package="${packages[0]}"
+          cp "$package" .
+          package_basename="$(basename "$package")"
+          ${{ matrix.setup }}
+          ${{ matrix.install }}
+          glyphctl --version

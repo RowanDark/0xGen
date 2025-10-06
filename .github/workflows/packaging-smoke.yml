@@ -11,9 +11,20 @@ on:
 jobs:
   deb:
     runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm-slim
     steps:
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl gnupg jq
+          install -d /etc/apt/keyrings
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" >/etc/apt/sources.list.d/github-cli.list
+          apt-get update
+          apt-get install -y gh
 
       - name: Determine latest release
         id: release
@@ -36,14 +47,20 @@ jobs:
           set -euo pipefail
           asset="glyphctl_${TAG}_linux_amd64.deb"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "$asset"
-          sudo dpkg -i "$asset"
+          apt-get install -y "./$asset"
           glyphctl --version
 
   rpm:
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/rockylinux/rockylinux:9
     steps:
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y jq rpm
+        run: |
+          set -euo pipefail
+          dnf install -y --setopt=install_weak_deps=False 'dnf-command(config-manager)' ca-certificates curl jq tar
+          dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          dnf install -y --setopt=install_weak_deps=False gh
 
       - name: Determine latest release
         id: release
@@ -66,7 +83,7 @@ jobs:
           set -euo pipefail
           asset="glyphctl_${TAG}_linux_amd64.rpm"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "$asset"
-          sudo rpm -i --replacepkgs --nosignature "$asset"
+          dnf install -y --nogpgcheck "./$asset"
           glyphctl --version
 
   scoop:
