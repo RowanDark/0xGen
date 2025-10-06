@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <script>
+    window.__GLYPH_DOC_BASE_URL__ = {{ base_url | tojson }};
+  </script>
+{% endblock %}

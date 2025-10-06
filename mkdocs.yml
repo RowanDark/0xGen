@@ -11,6 +11,8 @@ nav:
   - Plugins:
       - Overview: plugins/index.md
       - Go Safe Starter: plugins/safe-starter-go.md
+      - Marketplace: plugins/catalog.md
+      - Compatibility Matrix: plugins/compatibility-matrix.md
   - CLI:
       - Overview: cli/index.md
       - Configuration: cli/configuration.md
@@ -94,5 +96,9 @@ extra:
     provider: mike
 extra_css:
   - stylesheets/last-updated.css
+  - stylesheets/marketplace.css
 extra_javascript:
   - javascripts/search-fallback.js
+  - javascripts/sidebar-state.js
+  - javascripts/version-dropdown.js
+  - javascripts/plugin-catalog.js

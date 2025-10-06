@@ -1,0 +1,7 @@
+.site/
+playwright-report/
+test-results/
+
+# Playwright metadata
+blob-report/
+tests/__screenshots__/
