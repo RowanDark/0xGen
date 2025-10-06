@@ -154,6 +154,8 @@ def _minify_js(text: str) -> str:
         if in_string:
             result.append(char)
             if char == "\\":
+                if i + 1 < length:
+                    result.append(text[i + 1])
                 i += 2
                 continue
             if char == string_char:
