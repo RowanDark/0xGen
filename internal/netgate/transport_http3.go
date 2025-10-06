@@ -40,7 +40,6 @@ func (lt *layeredTransport) roundTripHTTP3(req *http.Request, addr string, cfg *
 		ctx, cancelFn = lt.gate.withTimeout(ctx)
 		cancel = cancelFn
 	}
-	defer cancel()
 
 	transport := &glyphhttp3.Transport{
 		Config: &quic.Config{TLSConfig: tlsCfg},
@@ -48,6 +47,7 @@ func (lt *layeredTransport) roundTripHTTP3(req *http.Request, addr string, cfg *
 
 	conn, err := transport.Dial(ctx, addr)
 	if err != nil {
+		cancel()
 		closeHTTP3Endpoint(transport.Endpoint)
 		return nil, err
 	}
@@ -70,10 +70,11 @@ func (lt *layeredTransport) roundTripHTTP3(req *http.Request, addr string, cfg *
 	resp, err := conn.RoundTrip(h3Req)
 	if err != nil {
 		_ = closer.Close()
+		cancel()
 		return nil, err
 	}
 	resp.Request = h3Req
-	resp.Body = &http3Body{ReadCloser: resp.Body, closer: closer}
+	resp.Body = &http3Body{ReadCloser: resp.Body, closer: closer, cancel: cancel}
 	return resp, nil
 }
 
@@ -89,11 +90,16 @@ func closeHTTP3Endpoint(ep *quic.Endpoint) error {
 type http3Body struct {
 	io.ReadCloser
 	closer io.Closer
+	cancel context.CancelFunc
 }
 
 func (b *http3Body) Close() error {
 	if b == nil {
 		return nil
+	}
+	if b.cancel != nil {
+		b.cancel()
+		b.cancel = nil
 	}
 	var err error
 	if b.ReadCloser != nil {
