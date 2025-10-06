@@ -1,0 +1,15 @@
+{
+  "default": "v2.0",
+  "versions": [
+    {
+      "id": "v2.0",
+      "name": "v2.0 (Latest)",
+      "url": "./"
+    },
+    {
+      "id": "v1.0",
+      "name": "v1.0",
+      "url": "versions/v1.0/"
+    }
+  ]
+}

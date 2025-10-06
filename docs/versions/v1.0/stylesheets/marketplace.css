@@ -1,0 +1,145 @@
+.plugin-catalog__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  align-items: flex-end;
+}
+
+.plugin-catalog__filter {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 0.35rem;
+}
+
+.plugin-catalog__filter input,
+.plugin-catalog__filter select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.25rem;
+  background-color: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  min-width: 12rem;
+}
+
+.plugin-catalog__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.plugin-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: var(--md-default-bg-color);
+  box-shadow: var(--md-shadow-z1);
+  gap: 0.5rem;
+  min-height: 100%;
+}
+
+.plugin-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.plugin-card__title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.plugin-card__version {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--md-primary-fg-color);
+}
+
+.plugin-card__meta,
+.plugin-card__summary {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.plugin-card__label {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plugin-card__capabilities,
+.plugin-card__categories {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+}
+
+.plugin-card__capabilities li,
+.plugin-card__categories li {
+  background: var(--md-accent-fg-color--transparent);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plugin-card__footer {
+  margin-top: auto;
+}
+
+.plugin-card__link {
+  font-weight: 600;
+}
+
+.plugin-catalog__empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.doc-version-selector {
+  display: flex;
+  flex-direction: column;
+  margin-left: 1rem;
+  gap: 0.2rem;
+}
+
+.doc-version-selector__label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--md-default-fg-color--lighter);
+}
+
+.doc-version-selector__select {
+  min-width: 8rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.25rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+}
+
+@media screen and (max-width: 600px) {
+  .doc-version-selector {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .doc-version-selector__select {
+    width: 100%;
+  }
+}

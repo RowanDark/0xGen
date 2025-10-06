@@ -1,0 +1,112 @@
+[
+  {
+    "id": "cartographer",
+    "name": "Cartographer",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Active crawler that maps application structure and discovers new surfaces for reconnaissance.",
+    "categories": ["crawler", "reconnaissance"],
+    "capabilities": ["CAP_SPIDER", "CAP_EMIT_FINDINGS"],
+    "homepage": "../plugins/cartographer/"
+  },
+  {
+    "id": "cryptographer",
+    "name": "Cryptographer",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Generates signed compliance reports and publishes them to downstream audit systems.",
+    "categories": ["reporting"],
+    "capabilities": ["CAP_REPORT"],
+    "homepage": "../plugins/cryptographer/"
+  },
+  {
+    "id": "excavator",
+    "name": "Excavator",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Passive reconnaissance toolkit that collects open directories and metadata.",
+    "categories": ["crawler", "reconnaissance"],
+    "capabilities": ["CAP_HTTP_PASSIVE", "CAP_SPIDER", "CAP_EMIT_FINDINGS"],
+    "homepage": "../plugins/excavator/"
+  },
+  {
+    "id": "galdr-proxy",
+    "name": "Galdr Proxy",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Bidirectional HTTP/WebSocket proxy that enables authenticated attack surface testing.",
+    "categories": ["exploit", "proxy"],
+    "capabilities": ["CAP_HTTP_ACTIVE", "CAP_HTTP_PASSIVE", "CAP_WS"],
+    "homepage": "../plugins/galdr-proxy/"
+  },
+  {
+    "id": "grapher",
+    "name": "Grapher",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "Go",
+    "summary": "Transforms findings into relationship graphs for link analysis and triage workflows.",
+    "categories": ["analysis", "storage"],
+    "capabilities": ["CAP_STORAGE", "CAP_EMIT_FINDINGS"],
+    "homepage": "../plugins/grapher/"
+  },
+  {
+    "id": "osint-well",
+    "name": "OSINT Well",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Aggregates open-source intelligence feeds and normalises the signals Glyph understands.",
+    "categories": ["reconnaissance", "intelligence"],
+    "capabilities": ["CAP_EMIT_FINDINGS", "CAP_STORAGE"],
+    "homepage": "../plugins/osint-well/"
+  },
+  {
+    "id": "raider",
+    "name": "Raider",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Active attack executor with payload libraries for common Glyph exploitation scenarios.",
+    "categories": ["exploit"],
+    "capabilities": ["CAP_HTTP_ACTIVE", "CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
+    "homepage": "../plugins/raider/"
+  },
+  {
+    "id": "ranker",
+    "name": "Ranker",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Prioritises findings using weighted scoring tuned for Glyph automation pipelines.",
+    "categories": ["analysis", "scoring"],
+    "capabilities": ["CAP_STORAGE", "CAP_EMIT_FINDINGS"],
+    "homepage": "../plugins/ranker/"
+  },
+  {
+    "id": "scribe",
+    "name": "Scribe",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "TypeScript",
+    "summary": "Produces long-form human readable reports consolidating Glyph run history.",
+    "categories": ["reporting"],
+    "capabilities": ["CAP_REPORT"],
+    "homepage": "../plugins/scribe/"
+  },
+  {
+    "id": "seer",
+    "name": "Seer",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "Go",
+    "summary": "Passive reconnaissance agent for running allowlist-enforced detection sweeps.",
+    "categories": ["reconnaissance", "detection"],
+    "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
+    "homepage": "../plugins/seer/"
+  }
+]
