@@ -139,6 +139,9 @@ Highlights include:
 * [Threat model](https://rowandark.github.io/Glyph/security/threat-model/)
 * [Plugin security guide](PLUGIN_GUIDE.md)
 
+Need documentation for a specific release? Use the version selector in the site
+header or jump directly to [archived snapshots](https://rowandark.github.io/Glyph/versions/).
+
 ## Security
 
 Please review our [security policy](SECURITY.md) for instructions on reporting
