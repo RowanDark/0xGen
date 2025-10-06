@@ -1,6 +1,6 @@
 # Glyph
 
-[![Docs](https://img.shields.io/badge/docs-material-blue)](https://rowandark.github.io/Glyph/)
+[![Docs](https://img.shields.io/badge/docs-material-blue)](https://rowandark.github.io/Glyph/) [![Plugin ecosystem](https://img.shields.io/endpoint?url=https://rowandark.github.io/Glyph/api/plugin-stats.json&cacheSeconds=3600)](https://rowandark.github.io/Glyph/plugins/catalog/)
 
 Glyph is an automation toolkit for orchestrating red-team and detection workflows.
 It coordinates plugins such as Galdr (HTTP rewriting proxy), Excavator (Playwright

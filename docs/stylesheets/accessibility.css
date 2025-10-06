@@ -1,0 +1,46 @@
+.skip-to-content {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -120%);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+  background-color: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--md-shadow-z2);
+  transition: transform 150ms ease-in-out;
+  z-index: 100;
+}
+
+.skip-to-content:focus,
+.skip-to-content:focus-visible {
+  transform: translate(-50%, 0);
+}
+
+#glyph-main-content:focus {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--md-accent-fg-color--lighter);
+}
+
+.plugin-card {
+  outline: none;
+}
+
+.plugin-card:focus,
+.plugin-card:focus-visible,
+.plugin-card:focus-within {
+  outline: 3px solid var(--md-accent-fg-color);
+  outline-offset: 4px;
+}
+
+.plugin-card__link:focus,
+.plugin-card__link:focus-visible {
+  outline: 3px solid var(--md-accent-fg-color);
+  outline-offset: 3px;
+}
+
+.plugin-catalog__toolbar label span {
+  font-weight: 600;
+}

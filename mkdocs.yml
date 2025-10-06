@@ -116,6 +116,7 @@ extra:
       link: /Glyph/es/
       lang: es
 extra_css:
+  - stylesheets/accessibility.css
   - stylesheets/last-updated.css
   - stylesheets/marketplace.css
 extra_javascript:

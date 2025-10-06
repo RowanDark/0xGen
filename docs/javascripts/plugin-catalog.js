@@ -2,6 +2,15 @@
   const docsRoot = resolveDocsRoot('plugin-catalog.js');
   let cachedPlugins = null;
 
+  const slugify = (value) =>
+    (value || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 50);
+
   const initialise = () => {
     const container = document.getElementById('plugin-catalog');
     if (!container || container.dataset.catalogInitialised) {
@@ -16,10 +25,16 @@
     }
 
     container.dataset.catalogInitialised = 'true';
+    container.setAttribute('role', 'list');
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-busy', 'true');
 
     const emptyState = document.createElement('p');
     emptyState.className = 'plugin-catalog__empty';
     emptyState.textContent = 'No plugins match the selected filters yet.';
+    emptyState.setAttribute('role', 'status');
+    emptyState.setAttribute('aria-live', 'polite');
+    emptyState.tabIndex = -1;
 
     const dataUrl = new URL('data/plugin-catalog.json', docsRoot);
 
@@ -78,7 +93,10 @@
         const failure = document.createElement('p');
         failure.className = 'plugin-catalog__empty';
         failure.textContent = 'Unable to load the plugin catalogue. Please try reloading the page.';
+        failure.setAttribute('role', 'alert');
+        failure.tabIndex = -1;
         container.appendChild(failure);
+        container.setAttribute('aria-busy', 'false');
       });
   };
 
@@ -137,20 +155,33 @@
   }
 
   function renderCatalog(plugins, container, emptyState) {
+    container.setAttribute('aria-busy', 'true');
     container.innerHTML = '';
     if (!plugins.length) {
       container.appendChild(emptyState);
+      if (typeof emptyState.focus === 'function') {
+        emptyState.focus({ preventScroll: true });
+      }
+      container.setAttribute('aria-busy', 'false');
       return;
     }
 
     plugins.forEach((plugin) => {
       container.appendChild(renderPlugin(plugin));
     });
+    container.setAttribute('aria-busy', 'false');
   }
 
   function renderPlugin(plugin) {
     const card = document.createElement('article');
     card.className = 'plugin-card';
+    card.setAttribute('role', 'listitem');
+    card.tabIndex = 0;
+
+    const cardIdentifier = slugify(plugin.id || plugin.name || 'plugin');
+    if (cardIdentifier) {
+      card.id = `plugin-${cardIdentifier}`;
+    }
 
     const header = document.createElement('header');
     header.className = 'plugin-card__header';
@@ -158,6 +189,9 @@
     const title = document.createElement('h3');
     title.className = 'plugin-card__title';
     title.textContent = plugin.name || plugin.id;
+    const titleId = card.id ? `${card.id}-title` : `plugin-title-${Math.random().toString(36).slice(2)}`;
+    title.id = titleId;
+    card.setAttribute('aria-labelledby', titleId);
 
     const version = document.createElement('span');
     version.className = 'plugin-card__version';
@@ -173,6 +207,9 @@
     const summary = document.createElement('p');
     summary.className = 'plugin-card__summary';
     summary.textContent = plugin.summary || 'No summary provided yet.';
+    const summaryId = card.id ? `${card.id}-summary` : `${titleId}-summary`;
+    summary.id = summaryId;
+    card.setAttribute('aria-describedby', summaryId);
 
     const capabilities = document.createElement('ul');
     capabilities.className = 'plugin-card__capabilities';
@@ -195,7 +232,7 @@
     if (plugin.homepage) {
       const link = document.createElement('a');
       link.className = 'plugin-card__link';
-        const resolved = new URL(plugin.homepage, docsRoot);
+      const resolved = new URL(plugin.homepage, docsRoot);
       link.href = resolved.href;
       link.textContent = 'View documentation';
       footer.appendChild(link);
