@@ -626,10 +626,15 @@ func (c *HTTPClient) executeWithRetry(template *http.Request, attempts int) (*ht
 		if err := c.gate.waitForQuota(req.Context(), req.URL); err != nil {
 			return nil, err
 		}
+		start := time.Now()
 		resp, err := c.client.Do(req)
+		duration := time.Since(start)
 		if err != nil {
+			obsmetrics.ObserveHTTPClientDuration(c.pluginID, c.capability, req.Method, "error", duration)
 			return nil, err
 		}
+		statusLabel := strconv.Itoa(resp.StatusCode)
+		obsmetrics.ObserveHTTPClientDuration(c.pluginID, c.capability, req.Method, statusLabel, duration)
 		if !shouldRetry(resp.StatusCode) || attempt == attempts-1 {
 			return resp, nil
 		}

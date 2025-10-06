@@ -54,17 +54,19 @@ var (
 
 	rpcRequests  = newCounterVec("glyph_rpc_requests_total", "Total number of RPC requests handled by Glyph components.", []string{"component", "method"})
 	rpcErrors    = newCounterVec("glyph_rpc_errors_total", "Total number of RPC errors emitted by Glyph components.", []string{"component", "method", "code"})
+	rpcLatency   = newHistogramVec("glyph_rpc_duration_seconds", "Latency of RPC handlers broken down by component and method.", []string{"component", "method", "code"})
 	pluginEvent  = newHistogramVec("glyph_plugin_event_duration_seconds", "Duration Glyph spends processing plugin events.", []string{"plugin", "event"})
 	pluginQueue  = newGaugeVec("glyph_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
 	activePlugs  = newGaugeVec("glyph_active_plugins", "Number of active plugin connections registered with the bus.", nil)
 	httpThrottle = newCounterVec("glyph_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"})
 	httpBackoff  = newCounterVec("glyph_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"})
+	httpLatency  = newHistogramVec("glyph_http_request_duration_seconds", "Latency of outbound HTTP requests executed on behalf of plugins.", []string{"plugin", "capability", "method", "status"})
 
 	totalRequests uint64
 )
 
 func init() {
-	collectors = []collector{rpcRequests, rpcErrors, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff}
+	collectors = []collector{rpcRequests, rpcErrors, rpcLatency, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff, httpLatency}
 }
 
 func newCounterVec(name, help string, labels []string) *counterVec {
@@ -319,6 +321,11 @@ func RecordRPCError(component, method, code string) {
 	rpcErrors.IncWith(component, method, code)
 }
 
+// ObserveRPCLatency records the duration spent serving an RPC method and tags it by status code.
+func ObserveRPCLatency(component, method, code string, dur time.Duration) {
+	rpcLatency.Observe([]string{component, method, code}, dur.Seconds())
+}
+
 // RecordHTTPThrottle increments the counter for HTTP throttle events at the provided scope.
 func RecordHTTPThrottle(scope string) {
 	httpThrottle.IncWith(scope)
@@ -347,6 +354,27 @@ func RemovePlugin(pluginID string) {
 // SetActivePlugins updates the gauge representing the number of active plugin connections.
 func SetActivePlugins(count int) {
 	activePlugs.Set(nil, float64(count))
+}
+
+// ObserveHTTPClientDuration records the latency for an outbound HTTP request executed by the gate.
+func ObserveHTTPClientDuration(pluginID, capability, method, status string, dur time.Duration) {
+	pluginID = strings.TrimSpace(pluginID)
+	if pluginID == "" {
+		pluginID = "unknown"
+	}
+	capability = strings.TrimSpace(capability)
+	if capability == "" {
+		capability = "unspecified"
+	}
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if method == "" {
+		method = "UNKNOWN"
+	}
+	status = strings.TrimSpace(status)
+	if status == "" {
+		status = "unknown"
+	}
+	httpLatency.Observe([]string{pluginID, capability, method, status}, dur.Seconds())
 }
 
 // TotalRequests returns the total number of RPC requests served since process start.
