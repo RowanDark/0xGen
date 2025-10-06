@@ -4,3 +4,4 @@ mkdocs-redirects
 mkdocs-git-revision-date-localized-plugin
 mkdocs-static-i18n
 requests>=2.32
+LinkChecker>=10.3
