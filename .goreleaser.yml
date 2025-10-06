@@ -91,7 +91,19 @@ nfpms:
     bindir: /usr/local/bin
     priority: optional
     section: utils
+    vendor: Glyph Project
+    provides:
+      - glyphctl
+    depends:
+      - ca-certificates
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/glyphctl/LICENSE
+      - src: README.md
+        dst: /usr/share/doc/glyphctl/README.md
     file_name_template: "{{ .PackageName }}_{{ .Tag }}_{{ .Arch }}"
+    scripts:
+      postinstall: packaging/linux/postinstall.sh
 
 dockers:
   - id: glyphctl-image
