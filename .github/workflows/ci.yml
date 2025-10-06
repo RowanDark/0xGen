@@ -152,6 +152,39 @@ jobs:
           load: true
           tags: glyphctl:ci
 
+      - name: Container smoke test
+        run: |
+          set -euo pipefail
+
+          data_volume="$(docker volume create glyph-ci-data)"
+          out_volume="$(docker volume create glyph-ci-out)"
+
+          cleanup() {
+            docker volume rm -f "$data_volume" "$out_volume" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          common_flags=(
+            --rm
+            --read-only
+            --cap-drop=ALL
+            --security-opt no-new-privileges
+            --pids-limit=256
+            --memory=512m
+            --cpus="1.0"
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m
+            --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m
+            --mount "type=volume,src=${data_volume},dst=/home/nonroot/.glyph"
+          )
+
+          docker run "${common_flags[@]}" \
+            --mount "type=volume,src=${out_volume},dst=/out" \
+            glyphctl:ci demo --out /out/demo
+
+          docker run "${common_flags[@]}" \
+            --mount "type=volume,src=${out_volume},dst=/out,ro" \
+            glyphctl:ci findings validate --input /out/demo/findings.jsonl
+
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.22.0
         with:
