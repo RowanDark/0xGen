@@ -91,10 +91,16 @@ func NewServer(authToken string, findingsBus *findings.Bus, opts ...Option) *Ser
 // EventStream is the main bi-directional stream for plugin communication.
 func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	obsmetrics.RecordRPCRequest("plugin_bus", "EventStream")
+	start := time.Now()
+	code := codes.OK.String()
+	defer func() {
+		obsmetrics.ObserveRPCLatency("plugin_bus", "EventStream", code, time.Since(start))
+	}()
 
 	// 1. Authenticate the plugin
 	hello, err := s.authenticate(stream)
 	if err != nil {
+		code = status.Code(err).String()
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventPluginLoad,
 			Decision:  logging.DecisionDeny,
@@ -109,6 +115,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
 	if err != nil {
 		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.PermissionDenied.String())
+		code = codes.PermissionDenied.String()
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
@@ -155,18 +162,29 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	go s.sendEvents(stream, p.eventChan, pluginID)
 
 	// 3. Receive events from the plugin in a loop
-	return s.receiveEvents(stream, p, pluginID)
+	if err := s.receiveEvents(stream, p, pluginID); err != nil {
+		code = status.Code(err).String()
+		return err
+	}
+	return nil
 }
 
 // GrantCapabilities issues a short-lived capability token for a plugin invocation.
 func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapabilityRequest) (*pb.PluginCapabilityGrant, error) {
 	obsmetrics.RecordRPCRequest("plugin_bus", "GrantCapabilities")
+	start := time.Now()
+	code := codes.OK.String()
+	defer func() {
+		obsmetrics.ObserveRPCLatency("plugin_bus", "GrantCapabilities", code, time.Since(start))
+	}()
 	if req == nil {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
+		code = codes.InvalidArgument.String()
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
 	if req.GetAuthToken() != s.authToken {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.PermissionDenied.String())
+		code = codes.PermissionDenied.String()
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
@@ -177,11 +195,13 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 	pluginName := strings.TrimSpace(req.GetPluginName())
 	if pluginName == "" {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
+		code = codes.InvalidArgument.String()
 		return nil, status.Error(codes.InvalidArgument, "plugin_name is required")
 	}
 	token, expires, err := s.caps.Issue(pluginName, req.GetCapabilities())
 	if err != nil {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
+		code = codes.InvalidArgument.String()
 		s.emit(logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
@@ -441,6 +461,12 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 
 	eventType := getEventType(event)
 	obsmetrics.RecordRPCRequest("plugin_bus", "Broadcast")
+	start := time.Now()
+	code := codes.OK.String()
+	defer func() {
+		obsmetrics.ObserveRPCLatency("plugin_bus", "Broadcast", code, time.Since(start))
+	}()
+	var hadChannelError bool
 	s.emit(logging.AuditEvent{
 		EventType: logging.EventRPCCall,
 		Decision:  logging.DecisionInfo,
@@ -465,6 +491,7 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 				obsmetrics.SetPluginQueueLength(id, len(plugin.eventChan))
 			default:
 				obsmetrics.RecordRPCError("plugin_bus", "Broadcast", "channel_full")
+				hadChannelError = true
 				s.emit(logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
 					Decision:  logging.DecisionDeny,
@@ -473,6 +500,9 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 				})
 			}
 		}
+	}
+	if hadChannelError {
+		code = codes.ResourceExhausted.String()
 	}
 }
 
