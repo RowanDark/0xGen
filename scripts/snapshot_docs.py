@@ -168,7 +168,7 @@ def _build_translated_manifest(
         name = entry["name"]
         display_name = f"{name} (Latest)" if identifier == default_id else name
         if identifier == default_id:
-            url = "../"
+            url = "./"
         else:
             url = f"../versions/{identifier}/"
         manifest_entries.append({"id": identifier, "name": display_name, "url": url})
