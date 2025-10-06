@@ -38,6 +38,47 @@ docker run \
   ghcr.io/rowandark/glyphctl:latest --help
 ```
 
+## Usage examples
+
+Use the published image to execute the end-to-end demo entirely inside a
+restricted container. The demo spins up the sample target, performs the crawl,
+and writes the generated findings and HTML report to `/out/demo`:
+
+```bash
+docker run \
+  --rm \
+  --read-only \
+  --cap-drop=ALL \
+  --security-opt no-new-privileges \
+  --pids-limit=256 \
+  --memory=512m \
+  --cpus="1.0" \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
+  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
+  --mount type=volume,source=glyph-output,dst=/out \
+  ghcr.io/rowandark/glyphctl:latest demo --out /out/demo
+```
+
+Validate the generated findings without relaxing the sandbox by mounting the
+output volume read-only:
+
+```bash
+docker run \
+  --rm \
+  --read-only \
+  --cap-drop=ALL \
+  --security-opt no-new-privileges \
+  --pids-limit=256 \
+  --memory=512m \
+  --cpus="1.0" \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
+  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph,ro \
+  --mount type=volume,source=glyph-output,dst=/out,ro \
+  ghcr.io/rowandark/glyphctl:latest findings validate --input /out/demo/findings.jsonl
+```
+
 ## CI usage
 
 For CI jobs, bind the repository into the container and keep the filesystem
@@ -60,6 +101,9 @@ Mount any plugin directories that need to be executed into `/plugins` with a
 read-only bind mount. Plugin execution continues to take place inside the
 sandbox provided by `glyphctl` and does not require elevated container
 privileges.
+
+CI pipelines build the image, execute the demo workflow inside the hardened
+runtime profile, and then scan the resulting container with Trivy and Grype.
 
 ## Vulnerability scanning
 
