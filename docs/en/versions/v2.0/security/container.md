@@ -38,7 +38,7 @@ docker run \
   ghcr.io/rowandark/glyphctl:latest --help
 ```
 
-### CI usage
+## CI usage
 
 For CI jobs, bind the repository into the container and keep the filesystem
 read-only:

@@ -40,6 +40,9 @@ jobs:
       - name: Build documentation
         run: mkdocs build --strict
 
+      - name: Check generated site links
+        run: python docs/scripts/check_links.py site
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:

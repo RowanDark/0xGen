@@ -23,13 +23,13 @@ core versions.
 | Scribe | `0.1.0` | ✅ 1.0.3+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
 | Seer | `0.1.0` | ⚠️ Passive-only mode | ✅ 1.1.0+ | ✅ 2.0.0+ |
 
-### Legend
+## Legend
 
 - ✅ — Fully compatible with the specified Glyph release.
 - ⚠️ — Supported with caveats documented in the plugin README.
 - ❌ — Not compatible with that Glyph release.
 
-### Version constraints
+## Version constraints
 
 - **Glyph v1.0** introduced the initial plugin runtime. Plugins that rely on
   bidirectional communications (like Galdr Proxy and Raider) require the 1.1
