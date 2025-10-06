@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -54,5 +55,42 @@ func TestBuildEnvStripsHostVariables(t *testing.T) {
 	}
 	if !homeSeen {
 		t.Fatal("expected HOME to be present in plugin env")
+	}
+}
+
+func TestBuildEnvUsesSandboxDirectories(t *testing.T) {
+	workDir := t.TempDir()
+	env := buildEnv(workDir, map[string]string{"CUSTOM": "value"})
+
+	envMap := make(map[string]string, len(env))
+	for _, entry := range env {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			t.Fatalf("unexpected environment entry: %q", entry)
+		}
+		envMap[parts[0]] = parts[1]
+	}
+
+	if got := envMap["HOME"]; got != workDir {
+		t.Fatalf("HOME = %q, want sandbox directory %q", got, workDir)
+	}
+	if got := envMap["TMPDIR"]; got != workDir {
+		t.Fatalf("TMPDIR = %q, want sandbox directory %q", got, workDir)
+	}
+	if runtime.GOOS == "windows" {
+		if got := envMap["TEMP"]; got != workDir {
+			t.Fatalf("TEMP = %q, want sandbox directory %q", got, workDir)
+		}
+		if got := envMap["TMP"]; got != workDir {
+			t.Fatalf("TMP = %q, want sandbox directory %q", got, workDir)
+		}
+	}
+	if got := envMap["CUSTOM"]; got != "value" {
+		t.Fatalf("expected custom environment override, got %q", got)
+	}
+	for key := range envMap {
+		if strings.HasPrefix(key, "GLYPH_") {
+			t.Fatalf("unexpected host environment variable leaked: %s", key)
+		}
 	}
 }

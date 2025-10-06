@@ -114,6 +114,34 @@ func TestGateDialBlocksRawNetworkAudited(t *testing.T) {
 	}
 }
 
+func TestGateDialBlocksUnixNetworkAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(dummyDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	if _, err := gate.DialContext(context.Background(), "plugin", capHTTPActive, "unix", "/tmp/socket"); err == nil {
+		t.Fatal("expected unix network to be blocked")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for unix dial")
+	}
+	event := events[len(events)-1]
+	if event.EventType != logging.EventNetworkDenied {
+		t.Fatalf("unexpected event type: %s", event.EventType)
+	}
+	if event.Metadata["network"] != "unix" {
+		t.Fatalf("unexpected network metadata: %v", event.Metadata["network"])
+	}
+	if event.Metadata["address"] != "/tmp/socket" {
+		t.Fatalf("unexpected address metadata: %v", event.Metadata["address"])
+	}
+	if !strings.Contains(event.Reason, "not permitted") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
+	}
+}
+
 func TestGateDialBlocksLoopback(t *testing.T) {
 	gate := New(dummyDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -366,6 +394,40 @@ func TestGateHTTPClientBlocksLoopbackAudited(t *testing.T) {
 	}
 }
 
+func TestGateHTTPClientBlocksIPv6LoopbackAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(httpPipeDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://[::1]/", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected ipv6 loopback request to be denied")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for ipv6 loopback request")
+	}
+	event := events[len(events)-1]
+	if event.EventType != logging.EventNetworkDenied {
+		t.Fatalf("unexpected event type: %s", event.EventType)
+	}
+	if event.Metadata["url"] != "http://[::1]/" {
+		t.Fatalf("unexpected url metadata: %v", event.Metadata["url"])
+	}
+	if !strings.Contains(event.Reason, "loopback") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
+	}
+}
+
 func TestGateHTTPClientBlocksPrivate(t *testing.T) {
 	gate := New(httpPipeDialer{})
 	gate.Register("plugin", []string{capHTTPActive})
@@ -381,6 +443,40 @@ func TestGateHTTPClientBlocksPrivate(t *testing.T) {
 	}
 	if _, err := client.Do(req); err == nil {
 		t.Fatal("expected private range to be denied")
+	}
+}
+
+func TestGateHTTPClientBlocksPrivateAudited(t *testing.T) {
+	audit, buf := newAuditRecorder(t)
+	gate := New(httpPipeDialer{}, WithAuditLogger(audit))
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://10.0.0.5/resource", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected private range to be denied")
+	}
+
+	events := decodeAuditEvents(t, buf)
+	if len(events) == 0 {
+		t.Fatal("expected audit entry for private range request")
+	}
+	event := events[len(events)-1]
+	if event.EventType != logging.EventNetworkDenied {
+		t.Fatalf("unexpected event type: %s", event.EventType)
+	}
+	if event.Metadata["url"] != "http://10.0.0.5/resource" {
+		t.Fatalf("unexpected url metadata: %v", event.Metadata["url"])
+	}
+	if !strings.Contains(event.Reason, "private") {
+		t.Fatalf("unexpected reason: %s", event.Reason)
 	}
 }
 
@@ -479,6 +575,50 @@ func TestGateHTTPClientBlocksDataSchemeAudited(t *testing.T) {
 	}
 	if !strings.Contains(event.Reason, "not permitted") {
 		t.Fatalf("unexpected reason: %s", event.Reason)
+	}
+}
+
+func TestGateHTTPClientRejectsMalformedHeaders(t *testing.T) {
+	gate := New(httpPipeDialer{response: "HTTP/1.1 200 OK\r\nBad-Header\r\n\r\n"})
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/malformed", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if _, err := client.Do(req); err == nil {
+		t.Fatal("expected malformed response headers to produce an error")
+	}
+}
+
+func TestGateHTTPClientHandlesTruncatedChunkedResponse(t *testing.T) {
+	gate := New(httpPipeDialer{response: "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello"})
+	gate.Register("plugin", []string{capHTTPActive})
+
+	client, err := gate.HTTPClient("plugin", capHTTPActive)
+	if err != nil {
+		t.Fatalf("http client: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/chunked", nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		if !strings.Contains(err.Error(), "EOF") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return
+	}
+	defer resp.Body.Close()
+	if _, readErr := io.ReadAll(resp.Body); readErr == nil {
+		t.Fatal("expected truncated chunked response to produce read error")
 	}
 }
 
