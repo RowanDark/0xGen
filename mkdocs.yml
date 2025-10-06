@@ -110,10 +110,10 @@ extra:
     provider: mike
   alternate:
     - name: English
-      link: /
+      link: /Glyph/
       lang: en
     - name: Español
-      link: /es/
+      link: /Glyph/es/
       lang: es
 extra_css:
   - stylesheets/last-updated.css
