@@ -16,6 +16,9 @@ feeds Seer a synthetic response that mirrors the HTML shipped in
 `examples/quickstart/demo-response.html`.
 
 <div id="run-the-pipeline"></div>
+
+The interactive sandbox above replays a full `glyphctl demo` run directly in
+your browser so you can preview the pipeline before installing anything.
 ## Getting started {#getting-started}
 
 ```bash
