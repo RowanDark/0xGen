@@ -7,7 +7,8 @@ description: Discover Glyph plugins, filter by capability, and explore their com
 
 Glyph ships with an extensible plugin runtime and a curated marketplace of
 first-party extensions. Use the catalogue below to browse every maintained
-plugin, inspect its capabilities, and jump straight into the author guides.
+plugin, inspect its capabilities, verify the detached signature, and jump
+straight into the author guides.
 
 <div class="plugin-catalog__toolbar">
   <label class="plugin-catalog__filter">
@@ -38,15 +39,18 @@ plugin, inspect its capabilities, and jump straight into the author guides.
 ## Marketplace metadata feeds
 
 The data that powers the marketplace is stored in
-[`docs/data/plugin-catalog.json`](../data/plugin-catalog.json). The file is
-updated every time a plugin ships or gains a new capability. Repository owners
-can extend the schema with custom fields—new properties automatically appear in
-this table without changes to the JavaScript renderer.
+[`docs/en/data/plugin-catalog.json`](../data/plugin-catalog.json). The file is
+generated from the manifests under `plugins/<id>/manifest.json` by running
+`python scripts/update_plugin_catalog.py`. The command captures the declared
+capabilities, summary, last Git commit date, and the SHA-256 hash of each
+detached signature. Repository owners can extend the schema with custom
+fields—new properties automatically appear in this catalogue without changes to
+the JavaScript renderer.
 
 If you are publishing a third-party plugin, open a pull request that updates the
-catalogue entry with the plugin name, version, author, categories, and
-capability list. The docs build picks up the change and republishes the
-marketplace page without additional configuration.
+manifest and README under `plugins/<id>/`. Re-run the catalogue generator so the
+metadata and per-plugin reference page are refreshed; the docs build picks up
+the change and republishes the marketplace without additional configuration.
 
 ## Discover more
 

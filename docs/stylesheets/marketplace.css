@@ -65,6 +65,32 @@
   font-size: 0.9rem;
 }
 
+.plugin-card__details {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.plugin-card__details dt {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--md-default-fg-color--light);
+}
+
+.plugin-card__details dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.plugin-card__details code {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
 .plugin-card__label {
   margin: 0.5rem 0 0.25rem;
   font-size: 0.85rem;
@@ -98,8 +124,20 @@
   margin-top: auto;
 }
 
+.plugin-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .plugin-card__link {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--md-default-fg-color--lightest);
 }
 
 .plugin-catalog__empty {

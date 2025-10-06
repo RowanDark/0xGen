@@ -5,10 +5,21 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Active crawler that maps application structure and discovers new surfaces for reconnaissance.",
-    "categories": ["crawler", "reconnaissance"],
-    "capabilities": ["CAP_SPIDER", "CAP_EMIT_FINDINGS"],
-    "homepage": "../plugins/cartographer/"
+    "summary": "Cartographer charts application surfaces discovered by crawlers and passive sensors so other plugins can prioritize exploration.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_SPIDER"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "f54b4fe62f3e51008998a1520e6ccc416a82481bfa3a21779178c255f246892d",
+    "links": {
+      "documentation": "../plugins/_catalog/cartographer/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cartographer#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cartographer/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cartographer/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cartographer/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cartographer#getting-started"
+    }
   },
   {
     "id": "cryptographer",
@@ -16,10 +27,40 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Generates signed compliance reports and publishes them to downstream audit systems.",
-    "categories": ["reporting"],
-    "capabilities": ["CAP_REPORT"],
-    "homepage": "../plugins/cryptographer/"
+    "summary": "Cryptographer is a CyberChef-inspired utility surface for quickly transforming payloads and experimenting with encoding operations during investigations.",
+    "capabilities": [
+      "CAP_REPORT"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "01ea86b0677f49572e048da1ce3a0eab4edb85f8b431886d6aef33945119e91e",
+    "links": {
+      "documentation": "../plugins/_catalog/cryptographer/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cryptographer#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cryptographer/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cryptographer/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cryptographer/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/cryptographer#getting-started"
+    }
+  },
+  {
+    "id": "example-hello",
+    "name": "Example Hello",
+    "version": "0.1.0",
+    "author": "Glyph Team",
+    "language": "Go",
+    "summary": "Example Hello is a Glyph plugin.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "779e349dd31e35291496df536b5ae87721cf219fa8cefe74f57f8e891aa81969",
+    "links": {
+      "documentation": "../plugins/_catalog/example-hello/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/example-hello#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/example-hello/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/example-hello/main.go",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/example-hello/main.go.sig"
+    }
   },
   {
     "id": "excavator",
@@ -27,10 +68,22 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Passive reconnaissance toolkit that collects open directories and metadata.",
-    "categories": ["crawler", "reconnaissance"],
-    "capabilities": ["CAP_HTTP_PASSIVE", "CAP_SPIDER", "CAP_EMIT_FINDINGS"],
-    "homepage": "../plugins/excavator/"
+    "summary": "Excavator is the Playwright-powered crawler foundation for Glyph. It provides a reproducible baseline for scripted reconnaissance of target applications.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_HTTP_PASSIVE",
+      "CAP_SPIDER"
+    ],
+    "last_updated": "2025-10-03T12:53:02-04:00",
+    "signature_sha256": "2bc2a623ba05c425735f1fc72530ed2db0f3b16602b57c6d0a0779dbf1555975",
+    "links": {
+      "documentation": "../plugins/_catalog/excavator/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/excavator#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/excavator/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/excavator/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/excavator/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/excavator#getting-started"
+    }
   },
   {
     "id": "galdr-proxy",
@@ -38,10 +91,21 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Bidirectional HTTP/WebSocket proxy that enables authenticated attack surface testing.",
-    "categories": ["exploit", "proxy"],
-    "capabilities": ["CAP_HTTP_ACTIVE", "CAP_HTTP_PASSIVE", "CAP_WS"],
-    "homepage": "../plugins/galdr-proxy/"
+    "summary": "Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.",
+    "capabilities": [
+      "CAP_HTTP_ACTIVE",
+      "CAP_HTTP_PASSIVE",
+      "CAP_WS"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "50a8b2a25abd06346fc849bab40232de2d768cc60d6f9155bb42caf76b1dcb60",
+    "links": {
+      "documentation": "../plugins/_catalog/galdr-proxy/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy/plugin.js.sig"
+    }
   },
   {
     "id": "grapher",
@@ -49,10 +113,20 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "Go",
-    "summary": "Transforms findings into relationship graphs for link analysis and triage workflows.",
-    "categories": ["analysis", "storage"],
-    "capabilities": ["CAP_STORAGE", "CAP_EMIT_FINDINGS"],
-    "homepage": "../plugins/grapher/"
+    "summary": "Grapher performs unauthenticated discovery of API schemas so downstream Glyph workflows can reason about surfaced endpoints without touching production credentials.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_STORAGE"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "ca64abd3b27388206879f4134976387239fd50f4ac6fc3044d812703f8d2af20",
+    "links": {
+      "documentation": "../plugins/_catalog/grapher/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/grapher#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/grapher/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/grapher/main.go",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/grapher/main.go.sig"
+    }
   },
   {
     "id": "osint-well",
@@ -60,10 +134,21 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Aggregates open-source intelligence feeds and normalises the signals Glyph understands.",
-    "categories": ["reconnaissance", "intelligence"],
-    "capabilities": ["CAP_EMIT_FINDINGS", "CAP_STORAGE"],
-    "homepage": "../plugins/osint-well/"
+    "summary": "OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface open-source intelligence such as subdomains and infrastructure relationships. The plugin intentionally defaults to passive reconnaissance so that it can be executed safely in shared or sensitive environments.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_STORAGE"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "e7a804c5ede93f41fd2eb0871ab380f53d3342b0667f6a969c5c6fcb95b2c027",
+    "links": {
+      "documentation": "../plugins/_catalog/osint-well/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/osint-well#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/osint-well/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/osint-well/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/osint-well/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/osint-well#installation"
+    }
   },
   {
     "id": "raider",
@@ -71,10 +156,22 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Active attack executor with payload libraries for common Glyph exploitation scenarios.",
-    "categories": ["exploit"],
-    "capabilities": ["CAP_HTTP_ACTIVE", "CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
-    "homepage": "../plugins/raider/"
+    "summary": "Raider coordinates focused offensive testing campaigns once high-value targets are identified by discovery plugins.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_HTTP_ACTIVE",
+      "CAP_HTTP_PASSIVE"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "ac97711a74c78f33d6dbb08d3a4a7e9f9534671db0be96afa84a4b8e451c69dd",
+    "links": {
+      "documentation": "../plugins/_catalog/raider/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/raider#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/raider/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/raider/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/raider/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/raider#getting-started"
+    }
   },
   {
     "id": "ranker",
@@ -82,10 +179,21 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Prioritises findings using weighted scoring tuned for Glyph automation pipelines.",
-    "categories": ["analysis", "scoring"],
-    "capabilities": ["CAP_STORAGE", "CAP_EMIT_FINDINGS"],
-    "homepage": "../plugins/ranker/"
+    "summary": "Ranker scores assets, findings, and leads so teams focus on the highest-impact work first.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_STORAGE"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "a45acedbd3421c054d07db91f12938ac13f928d47170de6cec88770c5fde13f3",
+    "links": {
+      "documentation": "../plugins/_catalog/ranker/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/ranker#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/ranker/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/ranker/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/ranker/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/ranker#getting-started"
+    }
   },
   {
     "id": "scribe",
@@ -93,10 +201,20 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "TypeScript",
-    "summary": "Produces long-form human readable reports consolidating Glyph run history.",
-    "categories": ["reporting"],
-    "capabilities": ["CAP_REPORT"],
-    "homepage": "../plugins/scribe/"
+    "summary": "Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline.",
+    "capabilities": [
+      "CAP_REPORT"
+    ],
+    "last_updated": "2025-09-30T10:30:42-04:00",
+    "signature_sha256": "61b004d72d616382997a2689a3f85d6a032cb29ffe2e53297440a4ee5bb1c0d0",
+    "links": {
+      "documentation": "../plugins/_catalog/scribe/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/scribe#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/scribe/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/scribe/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/scribe/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/scribe#getting-started"
+    }
   },
   {
     "id": "seer",
@@ -104,9 +222,19 @@
     "version": "0.1.0",
     "author": "Glyph Team",
     "language": "Go",
-    "summary": "Passive reconnaissance agent for running allowlist-enforced detection sweeps.",
-    "categories": ["reconnaissance", "detection"],
-    "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
-    "homepage": "../plugins/seer/"
+    "summary": "Seer inspects passive telemetry to spot anomalies and suspicious behaviors before they escalate into incidents. The v0.3 release focuses on low-noise secret and PII detection tailored for HTTP response bodies.",
+    "capabilities": [
+      "CAP_EMIT_FINDINGS",
+      "CAP_HTTP_PASSIVE"
+    ],
+    "last_updated": "2025-10-03T08:53:18-04:00",
+    "signature_sha256": "46e816b1b0cbd7f804430df0a730f8983004f3136739b6b62818a00b7b7b0fce",
+    "links": {
+      "documentation": "../plugins/_catalog/seer/",
+      "readme": "https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer/main.go",
+      "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer/main.go.sig"
+    }
   }
 ]

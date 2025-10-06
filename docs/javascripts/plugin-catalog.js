@@ -211,6 +211,30 @@
     summary.id = summaryId;
     card.setAttribute('aria-describedby', summaryId);
 
+    const details = document.createElement('dl');
+    details.className = 'plugin-card__details';
+    const addDetail = (label, value, options = {}) => {
+      if (!value) {
+        return;
+      }
+      const term = document.createElement('dt');
+      term.textContent = label;
+      const description = document.createElement('dd');
+      if (options.code) {
+        const code = document.createElement('code');
+        code.textContent = value;
+        description.appendChild(code);
+      } else {
+        description.textContent = value;
+      }
+      details.appendChild(term);
+      details.appendChild(description);
+    };
+
+    addDetail('Version', plugin.version ? `v${plugin.version}` : 'Unversioned');
+    addDetail('Last update', formatDate(plugin.last_updated));
+    addDetail('Signature', plugin.signature_sha256, { code: true });
+
     const capabilities = document.createElement('ul');
     capabilities.className = 'plugin-card__capabilities';
     (plugin.capabilities || []).forEach((cap) => {
@@ -229,18 +253,48 @@
 
     const footer = document.createElement('footer');
     footer.className = 'plugin-card__footer';
-    if (plugin.homepage) {
+    const actions = document.createElement('div');
+    actions.className = 'plugin-card__actions';
+
+    const createAction = (href, label) => {
+      if (!href) {
+        return null;
+      }
       const link = document.createElement('a');
       link.className = 'plugin-card__link';
-      const resolved = new URL(plugin.homepage, docsRoot);
+      const resolved = new URL(href, docsRoot);
       link.href = resolved.href;
-      link.textContent = 'View documentation';
-      footer.appendChild(link);
+      link.textContent = label;
+      return link;
+    };
+
+    const primaryActions = [
+      createAction(plugin.links?.documentation || plugin.homepage, 'View documentation'),
+      createAction(plugin.links?.installation, 'Installation guide'),
+      createAction(plugin.links?.artifact, 'Download artefact'),
+    ].filter(Boolean);
+
+    const secondaryActions = [
+      createAction(plugin.links?.manifest, 'Manifest'),
+      createAction(plugin.links?.signature, 'Detached signature'),
+    ].filter(Boolean);
+
+    [...primaryActions, ...secondaryActions].forEach((link) => {
+      if (link) {
+        actions.appendChild(link);
+      }
+    });
+
+    if (actions.childElementCount) {
+      footer.appendChild(actions);
     }
 
     card.appendChild(header);
     card.appendChild(meta);
     card.appendChild(summary);
+    if (details.childElementCount) {
+      card.appendChild(details);
+    }
     if (capabilities.childElementCount) {
       const capLabel = document.createElement('p');
       capLabel.className = 'plugin-card__label';
@@ -257,5 +311,16 @@
     }
     card.appendChild(footer);
     return card;
+  }
+
+  function formatDate(value) {
+    if (!value) {
+      return null;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   }
 })();
