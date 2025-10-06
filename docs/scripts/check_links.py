@@ -109,7 +109,7 @@ def main() -> None:
                 documents,
                 session,
                 external_cache,
-                check_external=not args.skip_external,
+                check_external_links=not args.skip_external,
             )
             if error:
                 errors.append((document_path, link, error))
@@ -132,7 +132,7 @@ def validate_link(
     session: requests.Session,
     cache: Dict[str, str | None],
     *,
-    check_external: bool,
+    check_external_links: bool,
 ) -> str | None:
     url = link.url
     if not url or url.lower().startswith(("mailto:", "tel:", "javascript:", "data:")):
@@ -140,7 +140,7 @@ def validate_link(
 
     parsed = urlparse(url)
     if parsed.scheme in {"http", "https"} or parsed.netloc:
-        if not check_external:
+        if not check_external_links:
             return None
         return check_external(url, session, cache)
 
