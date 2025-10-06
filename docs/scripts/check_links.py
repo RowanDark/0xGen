@@ -81,6 +81,11 @@ def parse_documents(root: Path) -> Dict[Path, Document]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("site_dir", type=Path, help="Path to the built MkDocs site directory")
+    parser.add_argument(
+        "--skip-external",
+        action="store_true",
+        help="Skip checking HTTP/HTTPS links and only validate internal links",
+    )
     args = parser.parse_args()
 
     site_dir = args.site_dir.resolve()
@@ -97,7 +102,15 @@ def main() -> None:
     for document_path, document in documents.items():
         for link in document.links:
             total_links += 1
-            error = validate_link(document_path, link, site_dir, documents, session, external_cache)
+            error = validate_link(
+                document_path,
+                link,
+                site_dir,
+                documents,
+                session,
+                external_cache,
+                check_external=not args.skip_external,
+            )
             if error:
                 errors.append((document_path, link, error))
 
@@ -118,6 +131,8 @@ def validate_link(
     documents: Dict[Path, Document],
     session: requests.Session,
     cache: Dict[str, str | None],
+    *,
+    check_external: bool,
 ) -> str | None:
     url = link.url
     if not url or url.lower().startswith(("mailto:", "tel:", "javascript:", "data:")):
@@ -125,6 +140,8 @@ def validate_link(
 
     parsed = urlparse(url)
     if parsed.scheme in {"http", "https"} or parsed.netloc:
+        if not check_external:
+            return None
         return check_external(url, session, cache)
 
     if url.startswith("#"):

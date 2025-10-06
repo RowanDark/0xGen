@@ -41,7 +41,24 @@ jobs:
         run: mkdocs build --strict
 
       - name: Check generated site links
-        run: python docs/scripts/check_links.py site
+        run: python docs/scripts/check_links.py --skip-external site
+
+      - name: Run LinkChecker on generated site
+        run: |
+          linkchecker \
+            --check-extern \
+            --no-robots \
+            --timeout=10 \
+            --threads=8 \
+            --user-agent "GlyphDocsLinkChecker/1.0" \
+            --ignore-url "^mailto:" \
+            --ignore-url "^tel:" \
+            --ignore-url "^javascript:" \
+            --ignore-url "^data:" \
+            --ignore-url "^https?://localhost" \
+            --ignore-url "^https?://127\\.0\\.0\\.1" \
+            --verbose \
+            site/index.html
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
