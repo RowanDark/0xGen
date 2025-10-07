@@ -1,6 +1,7 @@
 (function () {
   const docsRoot = resolveDocsRoot('plugin-catalog.js');
   let cachedPlugins = null;
+  let catalogDataUrl = null;
 
   const slugify = (value) =>
     (value || '')
@@ -36,7 +37,8 @@
     emptyState.setAttribute('aria-live', 'polite');
     emptyState.tabIndex = -1;
 
-    const dataUrl = new URL('data/plugin-catalog.json', docsRoot);
+    catalogDataUrl = new URL('data/plugin-catalog.json', docsRoot);
+    const dataUrl = catalogDataUrl;
 
     const loadPlugins = cachedPlugins
       ? Promise.resolve(cachedPlugins)
@@ -262,7 +264,8 @@
       }
       const link = document.createElement('a');
       link.className = 'plugin-card__link';
-      const resolved = new URL(href, docsRoot);
+      const base = catalogDataUrl || docsRoot;
+      const resolved = new URL(href, base);
       link.href = resolved.href;
       link.textContent = label;
       return link;
