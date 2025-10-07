@@ -1,7 +1,10 @@
 (function () {
   const docsRoot = resolveDocsRoot('plugin-catalog.js');
   let cachedPlugins = null;
+  let cachedRegistry = null;
   let catalogDataUrl = null;
+  let cachedGlyphVersions = [];
+  const compatibilityStatuses = ['compatible', 'limited', 'unsupported'];
 
   const slugify = (value) =>
     (value || '')
@@ -21,7 +24,9 @@
     const searchField = document.getElementById('plugin-search');
     const languageFilter = document.getElementById('plugin-language');
     const categoryFilter = document.getElementById('plugin-category');
-    if (!searchField || !languageFilter || !categoryFilter) {
+    const glyphFilter = document.getElementById('plugin-glyph');
+    const statusFilter = document.getElementById('plugin-compatibility-status');
+    if (!searchField || !languageFilter || !categoryFilter || !glyphFilter || !statusFilter) {
       return;
     }
 
@@ -37,28 +42,40 @@
     emptyState.setAttribute('aria-live', 'polite');
     emptyState.tabIndex = -1;
 
-    catalogDataUrl = new URL('data/plugin-catalog.json', docsRoot);
+    catalogDataUrl = new URL('data/plugin-registry.json', docsRoot);
     const dataUrl = catalogDataUrl;
 
-    const loadPlugins = cachedPlugins
-      ? Promise.resolve(cachedPlugins)
+    const loadRegistry = cachedRegistry
+      ? Promise.resolve(cachedRegistry)
       : fetch(dataUrl).then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to load plugin catalogue: ${response.status}`);
           }
           return response.json();
+        })
+        .then((payload) => {
+          if (Array.isArray(payload)) {
+            return { plugins: payload, glyph_versions: [] };
+          }
+          return payload;
         });
 
-    loadPlugins
-      .then((plugins) => {
+    loadRegistry
+      .then((registry) => {
+        cachedRegistry = registry;
+        const plugins = Array.isArray(registry.plugins) ? registry.plugins : [];
+        const glyphVersions = Array.isArray(registry.glyph_versions) ? registry.glyph_versions : [];
         cachedPlugins = plugins;
-        renderFilters(plugins, languageFilter, categoryFilter);
-        renderCatalog(plugins, container, emptyState);
+        cachedGlyphVersions = glyphVersions;
+        renderFilters(plugins, languageFilter, categoryFilter, glyphFilter, statusFilter, glyphVersions);
+        renderCatalog(plugins, container, emptyState, glyphVersions);
 
         const handleFilterChange = () => {
           const query = (searchField.value || '').trim().toLowerCase();
           const language = languageFilter.value;
           const category = categoryFilter.value;
+          const glyphVersion = glyphFilter.value;
+          const status = statusFilter.value;
           const filtered = plugins.filter((plugin) => {
             if (language && plugin.language !== language) {
               return false;
@@ -67,8 +84,42 @@
             if (category && !pluginCategories.includes(category)) {
               return false;
             }
+            if (glyphVersion || status) {
+              const compatibility = plugin.compatibility || {};
+              if (glyphVersion) {
+                const glyphEntry = compatibility[glyphVersion];
+                if (!glyphEntry) {
+                  return false;
+                }
+                if (status && glyphEntry.status !== status) {
+                  return false;
+                }
+              } else if (status) {
+                const matchesStatus = Object.values(compatibility).some(
+                  (entry) => entry && entry.status === status,
+                );
+                if (!matchesStatus) {
+                  return false;
+                }
+              }
+            }
             if (!query) {
               return true;
+            }
+            const compatibilityValues = [];
+            if (plugin.compatibility) {
+              Object.entries(plugin.compatibility).forEach(([version, entry]) => {
+                if (!entry) {
+                  return;
+                }
+                compatibilityValues.push(`glyph v${version}`);
+                if (entry.status) {
+                  compatibilityValues.push(entry.status);
+                }
+                if (entry.notes) {
+                  compatibilityValues.push(entry.notes);
+                }
+              });
             }
             const haystack = [
               plugin.name,
@@ -77,17 +128,21 @@
               plugin.language,
               ...(plugin.capabilities || []),
               ...pluginCategories,
+              ...(glyphVersion ? [glyphVersion] : []),
+              ...compatibilityValues,
             ]
               .join(' ')
               .toLowerCase();
             return haystack.includes(query);
           });
-          renderCatalog(filtered, container, emptyState);
+          renderCatalog(filtered, container, emptyState, glyphVersions);
         };
 
         searchField.addEventListener('input', handleFilterChange);
         languageFilter.addEventListener('change', handleFilterChange);
         categoryFilter.addEventListener('change', handleFilterChange);
+        glyphFilter.addEventListener('change', handleFilterChange);
+        statusFilter.addEventListener('change', handleFilterChange);
       })
       .catch((error) => {
         console.error(error); // eslint-disable-line no-console
@@ -127,7 +182,14 @@
     return new URL('..', scriptUrl);
   }
 
-  function renderFilters(plugins, languageFilter, categoryFilter) {
+  function renderFilters(
+    plugins,
+    languageFilter,
+    categoryFilter,
+    glyphFilter,
+    statusFilter,
+    glyphVersions,
+  ) {
     const languages = new Set();
     const categories = new Set();
     plugins.forEach((plugin) => {
@@ -137,6 +199,7 @@
       (plugin.categories || []).forEach((category) => categories.add(category));
     });
 
+    resetSelectOptions(languageFilter);
     Array.from(languages)
       .sort((a, b) => a.localeCompare(b))
       .forEach((language) => {
@@ -146,6 +209,7 @@
         languageFilter.appendChild(option);
       });
 
+    resetSelectOptions(categoryFilter);
     Array.from(categories)
       .sort((a, b) => a.localeCompare(b))
       .forEach((category) => {
@@ -154,9 +218,63 @@
         option.textContent = category;
         categoryFilter.appendChild(option);
       });
+
+    resetSelectOptions(glyphFilter);
+    glyphVersions
+      .slice()
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .forEach((version) => {
+        const option = document.createElement('option');
+        option.value = version;
+        option.textContent = `Glyph v${version}`;
+        glyphFilter.appendChild(option);
+      });
+
+    resetSelectOptions(statusFilter);
+    compatibilityStatuses.forEach((status) => {
+      const option = document.createElement('option');
+      option.value = status;
+      option.textContent = statusLabel(status);
+      statusFilter.appendChild(option);
+    });
   }
 
-  function renderCatalog(plugins, container, emptyState) {
+  function resetSelectOptions(select) {
+    if (!select) {
+      return;
+    }
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+  }
+
+  function statusLabel(status) {
+    switch (status) {
+      case 'compatible':
+        return 'Compatible';
+      case 'limited':
+        return 'Limited';
+      case 'unsupported':
+        return 'Unsupported';
+      default:
+        return status || '';
+    }
+  }
+
+  function statusIcon(status) {
+    switch (status) {
+      case 'compatible':
+        return '✅';
+      case 'limited':
+        return '⚠️';
+      case 'unsupported':
+        return '❌';
+      default:
+        return '•';
+    }
+  }
+
+  function renderCatalog(plugins, container, emptyState, glyphVersions) {
     container.setAttribute('aria-busy', 'true');
     container.innerHTML = '';
     if (!plugins.length) {
@@ -169,12 +287,12 @@
     }
 
     plugins.forEach((plugin) => {
-      container.appendChild(renderPlugin(plugin));
+      container.appendChild(renderPlugin(plugin, glyphVersions));
     });
     container.setAttribute('aria-busy', 'false');
   }
 
-  function renderPlugin(plugin) {
+  function renderPlugin(plugin, glyphVersions) {
     const card = document.createElement('article');
     card.className = 'plugin-card';
     card.setAttribute('role', 'listitem');
@@ -312,8 +430,67 @@
       card.appendChild(catLabel);
       card.appendChild(categories);
     }
+
+    const compatibility = renderCompatibility(plugin, glyphVersions);
+    if (compatibility) {
+      const compatibilityLabel = document.createElement('p');
+      compatibilityLabel.className = 'plugin-card__label';
+      compatibilityLabel.textContent = 'Compatibility';
+      card.appendChild(compatibilityLabel);
+      card.appendChild(compatibility);
+    }
     card.appendChild(footer);
     return card;
+  }
+
+  function renderCompatibility(plugin, glyphVersions) {
+    const compat = plugin.compatibility || {};
+    const orderedVersions = [];
+    const seen = new Set();
+    glyphVersions.forEach((version) => {
+      if (compat[version]) {
+        orderedVersions.push(version);
+        seen.add(version);
+      }
+    });
+    Object.keys(compat)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .forEach((version) => {
+        if (!seen.has(version)) {
+          orderedVersions.push(version);
+          seen.add(version);
+        }
+      });
+    if (!orderedVersions.length) {
+      return null;
+    }
+    const container = document.createElement('div');
+    container.className = 'plugin-card__compatibility';
+    orderedVersions.forEach((version) => {
+      const entry = compat[version];
+      if (!entry || !entry.status) {
+        return;
+      }
+      const badge = document.createElement('span');
+      badge.className = `plugin-card__compatibility-badge plugin-card__compatibility-badge--${entry.status}`;
+      badge.setAttribute('data-version', version);
+      const icon = document.createElement('span');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = statusIcon(entry.status);
+      const text = document.createElement('span');
+      text.textContent = `Glyph v${version}`;
+      badge.appendChild(icon);
+      badge.appendChild(text);
+      const description = statusLabel(entry.status);
+      const notes = entry.notes ? ` — ${entry.notes}` : '';
+      badge.setAttribute('title', `${description}${notes}`.trim());
+      badge.setAttribute('aria-label', `${description} on Glyph v${version}${entry.notes ? `: ${entry.notes}` : ''}`);
+      container.appendChild(badge);
+    });
+    if (!container.childElementCount) {
+      return null;
+    }
+    return container;
   }
 
   function formatDate(value) {
