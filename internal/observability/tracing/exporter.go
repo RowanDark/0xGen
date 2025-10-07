@@ -156,16 +156,7 @@ type otlpExporter struct {
 
 func newOTLPExporter(endpoint string, headers map[string]string, skipTLS bool, service string) (*otlpExporter, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	if skipTLS {
-		allowInsecure := os.Getenv("ALLOW_INSECURE_TLS")
-		if allowInsecure != "1" && strings.ToLower(allowInsecure) != "true" {
-			return nil, fmt.Errorf("insecure TLS requested but not permitted; set ALLOW_INSECURE_TLS=1 to allow")
-		}
-		if transport.TLSClientConfig == nil {
-			transport.TLSClientConfig = &tls.Config{}
-		}
-		transport.TLSClientConfig.InsecureSkipVerify = true //nolint:gosec // allowed by explicit env override
-	}
+	// Do not disable TLS certificate verification in production code.
 	client := &http.Client{Timeout: 10 * time.Second, Transport: transport}
 	hdrs := make(map[string]string, len(headers))
 	for k, v := range headers {
