@@ -20,6 +20,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/netgate"
 	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
 	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 	"github.com/RowanDark/Glyph/internal/plugins/hotreload"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
@@ -37,6 +38,8 @@ type config struct {
 	fingerprintRotate bool
 	pluginsDir        string
 	http3Mode         string
+	tracing           tracing.Config
+	traceHeaders      string
 }
 
 func main() {
@@ -53,6 +56,12 @@ func main() {
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
 	metricsAddr := flag.String("metrics-addr", ":9090", "address for the Prometheus metrics endpoint (empty to disable)")
 	http3Mode := flag.String("http3", "auto", "HTTP/3 mode: auto, disable, or require")
+	traceEndpoint := flag.String("trace-endpoint", "", "OTLP/HTTP endpoint for exported spans (http(s)://host:port/v1/traces)")
+	traceInsecure := flag.Bool("trace-insecure-skip-verify", false, "disable TLS verification when exporting spans")
+	traceSample := flag.Float64("trace-sample-ratio", 0.25, "probabilistic sampling ratio for root spans (0-1)")
+	traceService := flag.String("trace-service-name", "glyphd", "service.name attribute value for traces")
+	traceFile := flag.String("trace-file", "", "optional path to write spans as JSONL")
+	traceHeaders := flag.String("trace-headers", "", "comma-separated list of additional headers for trace export requests (key=value)")
 	flag.Parse()
 
 	if *token == "" {
@@ -78,6 +87,14 @@ func main() {
 		fingerprintRotate: *fingerprintRotate,
 		pluginsDir:        strings.TrimSpace(*pluginDir),
 		http3Mode:         strings.TrimSpace(*http3Mode),
+		tracing: tracing.Config{
+			Endpoint:      strings.TrimSpace(*traceEndpoint),
+			SkipTLSVerify: *traceInsecure,
+			ServiceName:   strings.TrimSpace(*traceService),
+			SampleRatio:   *traceSample,
+			FilePath:      strings.TrimSpace(*traceFile),
+		},
+		traceHeaders: *traceHeaders,
 	}
 
 	if err := run(ctx, cfg); err != nil {
@@ -100,6 +117,40 @@ func run(ctx context.Context, cfg config) error {
 		return fmt.Errorf("configure audit logger: %w", err)
 	}
 	defer coreLogger.Close()
+
+	traceCfg := cfg.tracing
+	traceCfg.Headers = parseTraceHeaders(cfg.traceHeaders)
+	shutdownTracing, err := tracing.Setup(ctx, traceCfg)
+	if err != nil {
+		return fmt.Errorf("configure tracing: %w", err)
+	}
+	if shutdownTracing != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := shutdownTracing(shutdownCtx); err != nil {
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventRPCCall,
+					Decision:  logging.DecisionInfo,
+					Reason:    err.Error(),
+					Metadata: map[string]any{
+						"phase": "tracing_shutdown",
+					},
+				})
+			}
+		}()
+	}
+	if traceCfg.Endpoint != "" || traceCfg.FilePath != "" {
+		emitAudit(coreLogger, logging.AuditEvent{
+			EventType: logging.EventRPCCall,
+			Decision:  logging.DecisionInfo,
+			Metadata: map[string]any{
+				"phase":    "tracing_ready",
+				"endpoint": traceCfg.Endpoint,
+				"file":     traceCfg.FilePath,
+			},
+		})
+	}
 
 	var (
 		metricsSrv   *http.Server
@@ -332,7 +383,10 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 		}
 	}()
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(tracing.UnaryServerInterceptor()),
+		grpc.ChainStreamInterceptor(tracing.StreamServerInterceptor()),
+	)
 	gateOpts := []netgate.Option{}
 	switch mode := strings.ToLower(strings.TrimSpace(http3Mode)); mode {
 	case "", "auto":
@@ -429,6 +483,32 @@ func newAuditLogger(component string) (*logging.AuditLogger, error) {
 func disableStdout(value string) bool {
 	value = strings.TrimSpace(strings.ToLower(value))
 	return value == "0" || value == "false" || value == "no"
+}
+
+func parseTraceHeaders(raw string) map[string]string {
+	headers := make(map[string]string)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return headers
+	}
+	parts := strings.Split(raw, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		kv := strings.SplitN(part, "=", 2)
+		key := strings.TrimSpace(kv[0])
+		if key == "" {
+			continue
+		}
+		value := ""
+		if len(kv) > 1 {
+			value = strings.TrimSpace(kv[1])
+		}
+		headers[key] = value
+	}
+	return headers
 }
 
 func emitAudit(logger *logging.AuditLogger, event logging.AuditEvent) {

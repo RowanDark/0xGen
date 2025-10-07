@@ -1,0 +1,72 @@
+# Glyph Observability Guide
+
+Glyph exposes metrics, traces, and structured audit logs to help operators understand plugin
+behaviour and diagnose latency in the orchestration pipeline. This guide summarises the
+available telemetry and provides example tooling configurations.
+
+## Tracing
+
+`glyphd` now emits structured spans that describe plugin lifecycle events, RPC handlers, and
+network activity performed on behalf of plugins. Tracing is disabled by default; enable it with
+the new CLI flags:
+
+```bash
+glyphd \
+  --trace-endpoint http://otel-collector:4318/v1/traces \
+  --trace-service-name glyphd-prod \
+  --trace-sample-ratio 0.5 \
+  --trace-file /var/log/glyph/traces.jsonl
+```
+
+* `--trace-endpoint` – optional OTLP/HTTP destination for exported spans.
+* `--trace-insecure-skip-verify` – disable TLS verification (useful for local testing).
+* `--trace-sample-ratio` – probability for sampling new traces (0 disables tracing, 1 samples all).
+* `--trace-file` – optional JSONL archive of every exported span (viewable via Chrome trace viewer).
+* `--trace-headers` – attach additional HTTP headers when posting OTLP payloads.
+
+Audit events automatically include the active `trace_id` so that log entries correlate with spans.
+Outbound HTTP requests executed through the netgate are wrapped in spans that record
+latency, response code, capabilities, and rate-limiter waits. When rate limiting delays a request,
+`netgate.rate_limit_wait` spans show the exact wait duration and scope (global or per-host).
+
+Sample OpenTelemetry Collector configuration: [`otel-collector.yaml`](otel-collector.yaml).
+The collector accepts spans from Glyph over OTLP/HTTP, batches them, and forwards to Tempo.
+
+## Metrics
+
+Glyph continues to expose Prometheus metrics at `/metrics`. Notable series include:
+
+* `glyph_rpc_duration_seconds` – latency of core RPC handlers.
+* `glyph_plugin_queue_length` – outbound queue depth per plugin.
+* `glyph_http_request_duration_seconds` – latency of proxied HTTP requests.
+* `glyph_plugin_event_duration_seconds` – time spent handling plugin-sent events.
+* `glyph_http_throttle_total` – rate-limiter activations.
+
+The Grafana dashboard in [`grafana-dashboard.json`](grafana-dashboard.json) plots queue depth,
+HTTP latency heatmaps, and RPC timings with templated selectors for environment and plugin.
+
+## Alerting
+
+Prometheus-style alerts for anomaly detection are provided in [`alerts.yaml`](alerts.yaml):
+
+* **GlyphPluginLatencyCritical** – fires when plugin event handling exceeds the configured
+  threshold (default 5s) for three consecutive evaluations.
+* **GlyphHTTPFailureRate** – highlights sustained HTTP error rates >20% over five minutes.
+* **GlyphQueueBackpressure** – alerts when a plugin queue remains over 80% full for more than
+  two minutes, signalling downstream congestion.
+
+Tune thresholds to match your workload, then load the ruleset into your Prometheus server.
+
+## Dashboard Quickstart
+
+1. Import the Grafana JSON into your Grafana instance.
+2. Configure the `Glyph` data source to point at your Prometheus server.
+3. Enable tracing via the CLI flags above and point `otel-collector.yaml` at your Tempo/Jaeger.
+4. After traffic flows, the *Plugin Pipeline Latency* panel shows where time is spent:
+   * `plugin_bus.EventStream` spans – plugin handshakes and event loops.
+   * `plugin_bus.dispatch_event` spans – server-to-plugin delivery latency.
+   * `netgate.http_request` spans – outbound HTTP timings with capability metadata.
+   * `netgate.rate_limit_wait` spans – throttle delays with scope and duration.
+
+With metrics, traces, and audit logs sharing the same trace IDs, you can move seamlessly from a
+Grafana panel into a trace view and drill into the corresponding audit entries.

@@ -50,6 +50,7 @@ type AuditEvent struct {
 	Metadata  map[string]any `json:"metadata,omitempty"`
 	Decision  Decision       `json:"decision,omitempty"`
 	Reason    string         `json:"reason,omitempty"`
+	TraceID   string         `json:"trace_id,omitempty"`
 }
 
 type Option func(*config) error

@@ -21,6 +21,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
 	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 )
 
 const (
@@ -354,11 +355,11 @@ func (g *Gate) Unregister(pluginID string) {
 func (g *Gate) DialContext(ctx context.Context, pluginID, capability, network, address string) (net.Conn, error) {
 	metadata := dialMetadata(network, address)
 	if err := g.authorize(pluginID, capability); err != nil {
-		g.auditDenied(pluginID, capability, metadata, err)
+		g.auditDenied(ctx, pluginID, capability, metadata, err)
 		return nil, err
 	}
 	if err := validateDialTarget(network, address); err != nil {
-		g.auditDenied(pluginID, capability, metadata, err)
+		g.auditDenied(ctx, pluginID, capability, metadata, err)
 		return nil, err
 	}
 	ctx, cancel := g.withTimeout(ctx)
@@ -371,12 +372,12 @@ func (g *Gate) DialContext(ctx context.Context, pluginID, capability, network, a
 func (g *Gate) HTTPClient(pluginID, capability string) (*HTTPClient, error) {
 	metadata := map[string]any{"operation": "http_client_init"}
 	if err := g.ensureCapability(pluginID, capability); err != nil {
-		g.auditDenied(pluginID, capability, metadata, err)
+		g.auditDenied(context.Background(), pluginID, capability, metadata, err)
 		return nil, err
 	}
 	transport, err := g.buildTransport()
 	if err != nil {
-		g.auditDenied(pluginID, capability, metadata, err)
+		g.auditDenied(context.Background(), pluginID, capability, metadata, err)
 		return nil, err
 	}
 	client := &http.Client{
@@ -444,15 +445,15 @@ func (g *Gate) withTimeout(ctx context.Context) (context.Context, context.Cancel
 	return newCtx, cancel
 }
 
-func (g *Gate) validateHTTPRequest(pluginID, capability string, req *http.Request) error {
+func (g *Gate) validateHTTPRequest(ctx context.Context, pluginID, capability string, req *http.Request) error {
 	err := validateHTTPRequest(req)
 	if err != nil {
-		g.auditDenied(pluginID, capability, httpMetadata(req), err)
+		g.auditDenied(ctx, pluginID, capability, httpMetadata(req), err)
 	}
 	return err
 }
 
-func (g *Gate) auditDenied(pluginID, capability string, metadata map[string]any, err error) {
+func (g *Gate) auditDenied(ctx context.Context, pluginID, capability string, metadata map[string]any, err error) {
 	if g == nil || g.audit == nil || err == nil {
 		return
 	}
@@ -466,13 +467,17 @@ func (g *Gate) auditDenied(pluginID, capability string, metadata map[string]any,
 	if capName := strings.TrimSpace(capability); capName != "" {
 		md["capability"] = capName
 	}
-	_ = g.audit.Emit(logging.AuditEvent{
+	event := logging.AuditEvent{
 		EventType: logging.EventNetworkDenied,
 		Decision:  logging.DecisionDeny,
 		PluginID:  strings.TrimSpace(pluginID),
 		Reason:    err.Error(),
 		Metadata:  md,
-	})
+	}
+	if traceID := tracing.TraceIDFromContext(ctx); traceID != "" {
+		event.TraceID = traceID
+	}
+	_ = g.audit.Emit(event)
 }
 
 func (g *Gate) decorateRequest(req *http.Request) {
@@ -589,7 +594,7 @@ func (c *HTTPClient) Do(req *http.Request) (*http.Response, error) {
 	}
 	metadata := httpMetadata(req)
 	if err := c.gate.authorize(c.pluginID, c.capability); err != nil {
-		c.gate.auditDenied(c.pluginID, c.capability, metadata, err)
+		c.gate.auditDenied(req.Context(), c.pluginID, c.capability, metadata, err)
 		return nil, err
 	}
 	ctx, cancel := c.gate.withTimeout(req.Context())
@@ -623,7 +628,7 @@ func (c *HTTPClient) executeWithRetry(template *http.Request, attempts int) (*ht
 		if err != nil {
 			return nil, err
 		}
-		if err := c.gate.waitForQuota(req.Context(), req.URL); err != nil {
+		if err := c.gate.waitForQuota(req.Context(), c.pluginID, req.URL); err != nil {
 			return nil, err
 		}
 		start := time.Now()
@@ -738,7 +743,7 @@ func cloneRequestForAttempt(template *http.Request) (*http.Request, error) {
 	return clone, nil
 }
 
-func (g *Gate) waitForQuota(ctx context.Context, u *url.URL) error {
+func (g *Gate) waitForQuota(ctx context.Context, pluginID string, u *url.URL) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -749,13 +754,13 @@ func (g *Gate) waitForQuota(ctx context.Context, u *url.URL) error {
 		host := strings.ToLower(u.Hostname())
 		if host != "" {
 			limiter := g.limiterForHost(host)
-			if err := g.waitOnLimiter(ctx, limiter, "host"); err != nil {
+			if err := g.waitOnLimiter(ctx, pluginID, limiter, "host", host); err != nil {
 				return err
 			}
 		}
 	}
 	if g.globalLimiter != nil {
-		if err := g.waitOnLimiter(ctx, g.globalLimiter, "global"); err != nil {
+		if err := g.waitOnLimiter(ctx, pluginID, g.globalLimiter, "global", ""); err != nil {
 			return err
 		}
 	}
@@ -781,7 +786,7 @@ func (g *Gate) limiterForHost(host string) *rateTracker {
 	return limiter
 }
 
-func (g *Gate) waitOnLimiter(ctx context.Context, limiter *rateTracker, scope string) error {
+func (g *Gate) waitOnLimiter(ctx context.Context, pluginID string, limiter *rateTracker, scope, key string) error {
 	if limiter == nil {
 		return nil
 	}
@@ -790,13 +795,26 @@ func (g *Gate) waitOnLimiter(ctx context.Context, limiter *rateTracker, scope st
 		return nil
 	}
 	obsmetrics.RecordHTTPThrottle(scope)
+	attrs := map[string]any{
+		"glyph.plugin.id":     pluginID,
+		"glyph.rate.scope":    scope,
+		"glyph.rate.delay_ms": delay.Milliseconds(),
+	}
+	if strings.TrimSpace(key) != "" {
+		attrs["glyph.rate.key"] = strings.TrimSpace(key)
+	}
+	spanCtx, span := tracing.StartSpan(ctx, "netgate.rate_limit_wait", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
 	select {
-	case <-ctx.Done():
+	case <-spanCtx.Done():
 		cancel()
-		return ctx.Err()
+		err := spanCtx.Err()
+		span.RecordError(err)
+		span.End()
+		return err
 	case <-timer.C:
+		span.EndWithStatus(tracing.StatusOK, "")
 	}
 	return nil
 }
