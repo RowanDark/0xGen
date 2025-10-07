@@ -59,8 +59,23 @@ type ProofOfConcept struct {
 
 // ExploitGraph captures a deterministic state machine illustrating the exploit path.
 type ExploitGraph struct {
-	DOT     string `json:"dot"`
-	Mermaid string `json:"mermaid"`
+	DOT        string      `json:"dot"`
+	Mermaid    string      `json:"mermaid"`
+	Summary    string      `json:"summary,omitempty"`
+	AttackPath []ChainStep `json:"attack_path,omitempty"`
+}
+
+// ChainStep captures an individual hop within the correlated attack path.
+type ChainStep struct {
+	Stage       int               `json:"stage"`
+	From        string            `json:"from"`
+	To          string            `json:"to"`
+	Description string            `json:"description"`
+	Plugin      string            `json:"plugin"`
+	Type        string            `json:"type"`
+	FindingID   string            `json:"finding_id"`
+	Severity    findings.Severity `json:"severity"`
+	WeakLink    bool              `json:"weak_link,omitempty"`
 }
 
 // Risk captures the severity and supporting rationale for the case.
@@ -101,7 +116,7 @@ func (c Case) Clone() Case {
 			clone.Labels[k] = v
 		}
 	}
-	clone.Graph = c.Graph
+	clone.Graph = c.Graph.Clone()
 	return clone
 }
 
@@ -168,4 +183,14 @@ func (c Case) NormalisedKey() string {
 		b.WriteString(strings.ToLower(v))
 	}
 	return b.String()
+}
+
+// Clone returns a deep copy of the exploit graph to avoid shared slices between cases.
+func (g ExploitGraph) Clone() ExploitGraph {
+	clone := g
+	if len(g.AttackPath) > 0 {
+		clone.AttackPath = make([]ChainStep, len(g.AttackPath))
+		copy(clone.AttackPath, g.AttackPath)
+	}
+	return clone
 }

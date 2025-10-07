@@ -76,7 +76,40 @@
   ],
   "generated_at": "2023-11-15T03:46:40Z",
   "graph": {
-    "dot": "digraph ExploitPath {\n    rankdir=LR;\n    node [shape=box];\n    pre [label=\"Asset: c.internal\\\\nVector: http_proxy\"];\n    act [label=\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\nAsset: c.internal (web)\nAttack vector: http_proxy\nEvidence:\n- Plugin=galdr Severity=MED Message=Open redirect observed\n- Plugin=proxy Severity=HIGH Message=Captured authenticated flow\n- Plugin=seer Severity=CRIT Message=Server-side request forgery\nProvide a concise narrative and highlight overlapping evidence.\"];\n    post [label=\"Impact: CRIT\\\\nHighest severity reported by contributing plugins: CRIT\"];\n    pre -\u003e act -\u003e post;\n}",
-    "mermaid": "graph TD\n    pre[\"Asset: c.internal\\\\nVector: http_proxy\"] --\u003e act[\"Review plugin evidence: You are an AI security analyst. Summarise why the following signals combine into a single case.\u003cbr/\u003eAsset: c.internal (web)\u003cbr/\u003eAttack vector: http_proxy\u003cbr/\u003eEvidence:\u003cbr/\u003e- Plugin=galdr Severity=MED Message=Open redirect observed\u003cbr/\u003e- Plugin=proxy Severity=HIGH Message=Captured authenticated flow\u003cbr/\u003e- Plugin=seer Severity=CRIT Message=Server-side request forgery\u003cbr/\u003eProvide a concise narrative and highlight overlapping evidence.\"] --\u003e post[\"Impact: CRIT\\\\nHighest severity reported by contributing plugins: CRIT\"]\n"
+    "dot": "digraph AttackChain {\n    rankdir=LR;\n    node [shape=box];\n    n0 [label=\"auth.example /login\"];\n    n1 [label=\"app.example /dashboard\"];\n    n2 [label=\"c.internal /metadata\"];\n    n0 -\u003e n1 [label=\"S1: Redirect from auth.example /login to app.example /dashboard (galdr)\"];\n    n1 -\u003e n2 [label=\"S2: Redirect from app.example /dashboard to c.internal /metadata (galdr)\"];\n    n0 -\u003e n2 [label=\"S3: Parameter token reused across hosts (seer)\"];\n}\n",
+    "mermaid": "graph TD\n    auth_example__login[\"auth.example /login\"] --\u003e app_example__dashboard[\"app.example /dashboard\"] |S1: Redirect from auth.example /login to app.example /dashboard (galdr)|\n    app_example__dashboard[\"app.example /dashboard\"] --\u003e c_internal__metadata[\"c.internal /metadata\"] |S2: Redirect from app.example /dashboard to c.internal /metadata (galdr)|\n    auth_example__login[\"auth.example /login\"] --\u003e c_internal__metadata[\"c.internal /metadata\"] |S3: Parameter token reused across hosts (seer)|\n",
+    "summary": "Correlated attack path spans 3 steps across 3 nodes: auth.example /login -\u003e app.example /dashboard -\u003e c.internal /metadata. Contributors: step 1 by galdr (galdr.redirect); step 2 by galdr (galdr.redirect); step 3 by seer (seer.ssrf)",
+    "attack_path": [
+      {
+        "stage": 1,
+        "from": "auth.example /login",
+        "to": "app.example /dashboard",
+        "description": "Redirect from auth.example /login to app.example /dashboard",
+        "plugin": "galdr",
+        "type": "galdr.redirect",
+        "finding_id": "01J123ABCEXAMPLE0000000002",
+        "severity": "med"
+      },
+      {
+        "stage": 2,
+        "from": "app.example /dashboard",
+        "to": "c.internal /metadata",
+        "description": "Redirect from app.example /dashboard to c.internal /metadata",
+        "plugin": "galdr",
+        "type": "galdr.redirect",
+        "finding_id": "01J123ABCEXAMPLE0000000002",
+        "severity": "med"
+      },
+      {
+        "stage": 3,
+        "from": "auth.example /login",
+        "to": "c.internal /metadata",
+        "description": "Parameter token reused across hosts",
+        "plugin": "seer",
+        "type": "seer.ssrf",
+        "finding_id": "01J123ABCEXAMPLE0000000003",
+        "severity": "crit"
+      }
+    ]
   }
 }

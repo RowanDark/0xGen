@@ -156,7 +156,8 @@ func (b *Builder) assembleCase(proto Case, fs []findings.Finding, summary Summar
 	}
 	caseCopy.Confidence = summary.ConfidenceScore
 	caseCopy.ConfidenceLog = summary.ConfidenceLog
-	caseCopy.Graph = buildExploitGraph(caseCopy, summary)
+	chain := buildAttackChain(fs)
+	caseCopy.Graph = buildExploitGraph(caseCopy, summary, chain)
 	caseCopy.Evidence = append(caseCopy.Evidence, buildEvidence(fs)...)
 	caseCopy.Sources = append(caseCopy.Sources, buildSources(fs)...)
 	return sanitizeCase(caseCopy)
@@ -358,6 +359,18 @@ func sanitizeCase(c Case) Case {
 	}
 	c.Graph.DOT = redact.String(c.Graph.DOT)
 	c.Graph.Mermaid = redact.String(c.Graph.Mermaid)
+	c.Graph.Summary = redact.String(c.Graph.Summary)
+	if len(c.Graph.AttackPath) > 0 {
+		for i := range c.Graph.AttackPath {
+			step := &c.Graph.AttackPath[i]
+			step.From = redact.String(step.From)
+			step.To = redact.String(step.To)
+			step.Description = redact.String(step.Description)
+			step.Plugin = redact.String(step.Plugin)
+			step.Type = redact.String(step.Type)
+			step.FindingID = redact.String(step.FindingID)
+		}
+	}
 	return c
 }
 
