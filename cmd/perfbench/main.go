@@ -23,6 +23,8 @@ func main() {
 		threshold     float64
 		iterations    int
 		reportVersion string
+		historyPath   string
+		historyMDPath string
 	)
 
 	flag.StringVar(&baselinePath, "baseline", "", "optional baseline report for regression detection")
@@ -30,6 +32,8 @@ func main() {
 	flag.Float64Var(&threshold, "threshold", 0.10, "maximum allowed regression expressed as a ratio (0.10 = 10%)")
 	flag.IntVar(&iterations, "iterations", 1, "number of times to run each workload and average the results")
 	flag.StringVar(&reportVersion, "report-version", runtime.Version(), "version label embedded in the metrics report")
+	flag.StringVar(&historyPath, "history", "", "optional JSONL file that accumulates metrics over time")
+	flag.StringVar(&historyMDPath, "history-markdown", "", "optional Markdown summary generated from the history data")
 	flag.Parse()
 
 	if threshold <= 0 || threshold >= 1 {
@@ -68,6 +72,24 @@ func main() {
 		fmt.Fprintf(os.Stdout, "Saved metrics report to %s\n", outputPath)
 	}
 
+	if historyMDPath != "" && historyPath == "" {
+		log.Fatalf("--history-markdown requires --history to be set")
+	}
+
+	if historyPath != "" {
+		history, err := perf.UpdateHistory(historyPath, report)
+		if err != nil {
+			log.Fatalf("update history: %v", err)
+		}
+		fmt.Fprintf(os.Stdout, "Appended metrics to history %s\n", historyPath)
+		if historyMDPath != "" {
+			if err := perf.SaveHistoryMarkdown(historyMDPath, history); err != nil {
+				log.Fatalf("write history markdown: %v", err)
+			}
+			fmt.Fprintf(os.Stdout, "Rendered history markdown to %s\n", historyMDPath)
+		}
+	}
+
 	if baselinePath != "" {
 		baseline, err := perf.LoadReport(baselinePath)
 		if err != nil {
@@ -101,6 +123,7 @@ func averageMetrics(samples []perf.BusWorkloadMetrics) perf.BusWorkloadMetrics {
 	baselineG := samples[0].Memory.BaselineGoroutines
 	successes := 0
 	errors := 0
+	var cpuSecondsSum float64
 
 	for _, sample := range samples {
 		durationSum += sample.Duration
@@ -119,6 +142,7 @@ func averageMetrics(samples []perf.BusWorkloadMetrics) perf.BusWorkloadMetrics {
 		}
 		successes += sample.Successes
 		errors += sample.Errors
+		cpuSecondsSum += sample.CPUSeconds
 	}
 
 	count := float64(len(samples))
@@ -139,6 +163,7 @@ func averageMetrics(samples []perf.BusWorkloadMetrics) perf.BusWorkloadMetrics {
 		PeakGoroutines:     peakG,
 		BaselineGoroutines: baselineG,
 	}
+	out.CPUSeconds = cpuSecondsSum / count
 	return out
 }
 
@@ -154,13 +179,14 @@ func gitRef() string {
 func printSummary(report perf.Report) {
 	fmt.Println("Synthetic workload metrics:")
 	writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintf(writer, "Workload\tThroughput (eps)\tP95 Latency (ms)\tBytes/Event\tErrors\n")
+	fmt.Fprintf(writer, "Workload\tThroughput (eps)\tP95 Latency (ms)\tBytes/Event\tCPU (s)\tErrors\n")
 	for _, wl := range report.Workloads {
-		fmt.Fprintf(writer, "%s\t%.0f\t%.2f\t%.0f\t%d\n",
+		fmt.Fprintf(writer, "%s\t%.0f\t%.2f\t%.0f\t%.2f\t%d\n",
 			wl.Name,
 			wl.Throughput,
 			wl.Latency.P95,
 			wl.Memory.BytesPerEvent,
+			wl.CPUSeconds,
 			wl.Errors,
 		)
 	}

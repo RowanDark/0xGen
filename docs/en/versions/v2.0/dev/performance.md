@@ -19,12 +19,22 @@ The command executes the default workloads defined in
 `internal/perf/workloads.go`, prints a human-readable diff, and exits non-zero
 if any metric regresses by more than the configured threshold (10% by default).
 
+The harness records throughput (URLs/events per second), CPU seconds, memory
+per event, and error rate. Dynamic workloads simulate JavaScript-heavy pages by
+increasing the amount of synthetic work performed for each finding; tune the
+`dynamic_work` field in `internal/perf/workloads.go` to model more complex
+applications.
+
 To regenerate metrics without failing the build you can omit the baseline and
 capture a fresh report:
 
 ```bash
-go run ./cmd/perfbench --output perf/results/latest.json
+go run ./cmd/perfbench --output perf/results/latest.json --history perf/results/history.jsonl --history-markdown perf/results/history.md
 ```
+
+The optional `--history` flag accumulates runs into a JSONL file, while
+`--history-markdown` renders a Markdown summary with sparklines so CI logs and
+PRs can visualise trends over time.
 
 ## Updating the baseline
 

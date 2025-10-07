@@ -13,6 +13,7 @@ var DefaultBusWorkloads = []BusWorkloadConfig{
 		PayloadBytes: 256,
 		FailureRate:  0,
 		Seed:         42,
+		DynamicWork:  2,
 	},
 	{
 		Name:         "fanout_deep",
@@ -23,6 +24,7 @@ var DefaultBusWorkloads = []BusWorkloadConfig{
 		PayloadBytes: 384,
 		FailureRate:  0,
 		Seed:         84,
+		DynamicWork:  3,
 	},
 	{
 		Name:         "high_concurrency",
@@ -33,5 +35,17 @@ var DefaultBusWorkloads = []BusWorkloadConfig{
 		PayloadBytes: 192,
 		FailureRate:  0,
 		Seed:         126,
+		DynamicWork:  1,
+	},
+	{
+		Name:         "dynamic_content",
+		FanOut:       10,
+		Depth:        2,
+		Concurrency:  12,
+		Events:       9000,
+		PayloadBytes: 320,
+		FailureRate:  0.02,
+		Seed:         512,
+		DynamicWork:  5,
 	},
 }

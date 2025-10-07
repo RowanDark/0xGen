@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"runtime/metrics"
 	"sort"
 	"strings"
 	"sync"
@@ -29,6 +30,7 @@ type BusWorkloadConfig struct {
 	PayloadBytes int     `json:"payload_bytes"`
 	FailureRate  float64 `json:"failure_rate"`
 	Seed         int64   `json:"seed"`
+	DynamicWork  int     `json:"dynamic_work"`
 }
 
 // Validate ensures the workload configuration is well formed.
@@ -54,6 +56,9 @@ func (cfg BusWorkloadConfig) Validate() error {
 	if cfg.FailureRate < 0 || cfg.FailureRate >= 1 {
 		return fmt.Errorf("failure_rate must be in [0,1) (got %f)", cfg.FailureRate)
 	}
+	if cfg.DynamicWork < 0 {
+		return fmt.Errorf("dynamic_work cannot be negative (got %d)", cfg.DynamicWork)
+	}
 	return nil
 }
 
@@ -69,6 +74,7 @@ type BusWorkloadMetrics struct {
 	ErrorRate  float64           `json:"error_rate"`
 	Latency    LatencyMetrics    `json:"latency"`
 	Memory     MemoryMetrics     `json:"memory"`
+	CPUSeconds float64           `json:"cpu_seconds"`
 }
 
 // LatencyMetrics exposes percentile data in milliseconds.
@@ -147,6 +153,7 @@ func RunBusWorkload(ctx context.Context, cfg BusWorkloadConfig) (BusWorkloadMetr
 	runtime.GC()
 	before := runtime.MemStats{}
 	runtime.ReadMemStats(&before)
+	cpuStart := readCPUSeconds()
 	baselineG := runtime.NumGoroutine()
 
 	emitWG := &sync.WaitGroup{}
@@ -238,6 +245,7 @@ func RunBusWorkload(ctx context.Context, cfg BusWorkloadConfig) (BusWorkloadMetr
 	runtime.GC()
 	after := runtime.MemStats{}
 	runtime.ReadMemStats(&after)
+	cpuEnd := readCPUSeconds()
 
 	metrics.Duration = duration
 	metrics.Successes = success
@@ -257,6 +265,7 @@ func RunBusWorkload(ctx context.Context, cfg BusWorkloadConfig) (BusWorkloadMetr
 		PeakGoroutines:     peakG,
 		BaselineGoroutines: baselineG,
 	}
+	metrics.CPUSeconds = safeDifference(cpuEnd, cpuStart)
 
 	return metrics, nil
 }
@@ -275,7 +284,7 @@ func runIntermediateStage(ctx context.Context, wg *sync.WaitGroup, level int, wo
 			if !ok {
 				return
 			}
-			simulateWork(level, workerID, payload, f.ID)
+			simulateWork(level, workerID, payload, f.ID, cfg.DynamicWork)
 			next.Emit(f)
 		}
 	}
@@ -296,7 +305,7 @@ func runFinalStage(ctx context.Context, wg *sync.WaitGroup, cfg BusWorkloadConfi
 			if !ok {
 				return
 			}
-			simulateWork(cfg.Depth, workerID, payload, f.ID)
+			simulateWork(cfg.Depth, workerID, payload, f.ID, cfg.DynamicWork)
 			startTime, ok := startTimes.LoadAndDelete(f.ID)
 			if !ok {
 				results <- eventResult{err: errors.New("missing start timestamp")}
@@ -312,14 +321,33 @@ func runFinalStage(ctx context.Context, wg *sync.WaitGroup, cfg BusWorkloadConfi
 	}
 }
 
-func simulateWork(level int, workerID int, payload []byte, id string) {
+func simulateWork(level int, workerID int, payload []byte, id string, dynamic int) {
 	hasher := fnv.New64a()
 	_, _ = hasher.Write(payload)
 	_, _ = hasher.Write([]byte(id))
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(level+workerID))
 	_, _ = hasher.Write(buf[:])
-	workAccumulator.Add(hasher.Sum64())
+	sum := hasher.Sum64()
+	workAccumulator.Add(sum)
+	if dynamic > 0 {
+		simulateDynamicWork(dynamic, sum)
+	}
+}
+
+func simulateDynamicWork(dynamic int, seed uint64) {
+	// Busy loop using a simple linear congruential generator to emulate the
+	// CPU burn of dynamic JavaScript execution without relying on sleeps.
+	// The accumulator prevents the compiler from optimising the loop away.
+	iterations := dynamic * 256
+	if iterations <= 0 {
+		return
+	}
+	var acc uint64 = seed | 1
+	for i := 0; i < iterations; i++ {
+		acc = acc*6364136223846793005 + 1442695040888963407
+	}
+	workAccumulator.Add(acc)
 }
 
 func summariseLatencies(latencies []time.Duration, max time.Duration) LatencyMetrics {
@@ -370,4 +398,35 @@ func safeDivideFloat(num, denom float64) float64 {
 		return 0
 	}
 	return num / denom
+}
+
+func safeDifference(end, start float64) float64 {
+	if end <= 0 {
+		return 0
+	}
+	if start <= 0 {
+		return end
+	}
+	if end < start {
+		return 0
+	}
+	return end - start
+}
+
+func readCPUSeconds() float64 {
+	names := []string{"/process/cpu-seconds", "/cpu/classes/total:cpu-seconds"}
+	samples := make([]metrics.Sample, len(names))
+	for i, name := range names {
+		samples[i].Name = name
+	}
+	metrics.Read(samples)
+	for _, sample := range samples {
+		if sample.Value.Kind() != metrics.KindFloat64 {
+			continue
+		}
+		if v := sample.Value.Float64(); v > 0 {
+			return v
+		}
+	}
+	return 0
 }

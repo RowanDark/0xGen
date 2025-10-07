@@ -84,7 +84,7 @@ func CompareReports(baseline, current Report, threshold float64) DiffResult {
 	for _, wl := range baseline.Workloads {
 		baseMap[wl.Name] = wl
 	}
-	deltas := make([]MetricDelta, 0, len(current.Workloads)*4)
+	deltas := make([]MetricDelta, 0, len(current.Workloads)*5)
 	for _, curr := range current.Workloads {
 		base, ok := baseMap[curr.Name]
 		if !ok {
@@ -95,6 +95,7 @@ func CompareReports(baseline, current Report, threshold float64) DiffResult {
 			throughputDelta(curr.Name, base, curr, threshold),
 			latencyDelta(curr.Name, "latency_p95_ms", base.Latency.P95, curr.Latency.P95, threshold),
 			memoryDelta(curr.Name, base.Memory.BytesPerEvent, curr.Memory.BytesPerEvent, threshold),
+			cpuDelta(curr.Name, base.CPUSeconds, curr.CPUSeconds, threshold),
 			errorRateDelta(curr.Name, base.ErrorRate, curr.ErrorRate, threshold),
 		)
 	}
@@ -127,6 +128,10 @@ func latencyDelta(workload, metric string, base, curr float64, threshold float64
 
 func memoryDelta(workload string, base, curr float64, threshold float64) MetricDelta {
 	return makeDelta(workload, "memory_bytes_per_event", "bytes/event", "lower", base, curr, threshold)
+}
+
+func cpuDelta(workload string, base, curr float64, threshold float64) MetricDelta {
+	return makeDelta(workload, "cpu_seconds", "seconds", "lower", base, curr, threshold)
 }
 
 func errorRateDelta(workload string, base, curr float64, threshold float64) MetricDelta {

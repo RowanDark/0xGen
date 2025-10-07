@@ -1,0 +1,4 @@
+{"timestamp":"2025-10-07T12:34:51.796844231Z","git_ref":"c8c1383","workload":"dynamic_content","throughput_eps":131560.0284769781,"cpu_seconds":0.20316603299999997,"error_rate":0.021777777777777778,"memory_bytes_per_event":585.808}
+{"timestamp":"2025-10-07T12:34:51.796844231Z","git_ref":"c8c1383","workload":"fanout_deep","throughput_eps":184500.57274743426,"cpu_seconds":0.137277096,"error_rate":0,"memory_bytes_per_event":587.484}
+{"timestamp":"2025-10-07T12:34:51.796844231Z","git_ref":"c8c1383","workload":"fanout_wide","throughput_eps":254595.36140829933,"cpu_seconds":0.083584242,"error_rate":0,"memory_bytes_per_event":588.08}
+{"timestamp":"2025-10-07T12:34:51.796844231Z","git_ref":"c8c1383","workload":"high_concurrency","throughput_eps":374759.5542699804,"cpu_seconds":0.083280093,"error_rate":0,"memory_bytes_per_event":589.5472}
