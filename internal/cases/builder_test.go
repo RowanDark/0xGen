@@ -190,6 +190,80 @@ func TestBuilderCorrelatesAcrossAssets(t *testing.T) {
 	if c.Graph.DOT == "" || c.Graph.Mermaid == "" {
 		t.Fatalf("expected graph representations to be populated")
 	}
+	if c.Graph.Summary == "" {
+		t.Fatalf("expected chain summary to be populated")
+	}
+	if got := len(c.Graph.AttackPath); got != 3 {
+		t.Fatalf("expected 3 attack steps, got %d", got)
+	}
+	if c.Graph.AttackPath[0].Stage != 1 {
+		t.Fatalf("expected first step to start at stage 1, got %d", c.Graph.AttackPath[0].Stage)
+	}
+	hasCritical := false
+	for _, step := range c.Graph.AttackPath {
+		if step.Severity == findings.SeverityCritical {
+			hasCritical = true
+		}
+	}
+	if !hasCritical {
+		t.Fatalf("expected at least one critical step in the chain")
+	}
+}
+
+func TestAttackChainHighlightsWeakLinks(t *testing.T) {
+	builder := NewBuilder(
+		WithDeterministicMode(1234),
+		WithClock(func() time.Time { return time.Unix(1700030000, 0).UTC() }),
+	)
+
+	fs := []findings.Finding{
+		{
+			Version:  findings.SchemaVersion,
+			ID:       "cookie-a",
+			Plugin:   "proxy",
+			Type:     "proxy.cookie",
+			Message:  "Session cookie scoped broadly",
+			Target:   "https://app.example/profile",
+			Severity: findings.SeverityInfo,
+			Metadata: map[string]string{
+				"case_key":      "shared",
+				"cookie_domain": ".example.com",
+				"cookie_path":   "/session",
+			},
+		},
+		{
+			Version:  findings.SchemaVersion,
+			ID:       "cookie-b",
+			Plugin:   "proxy",
+			Type:     "proxy.cookie",
+			Message:  "Session cookie reused",
+			Target:   "https://api.example/data",
+			Severity: findings.SeverityLow,
+			Metadata: map[string]string{
+				"case_key":      "shared",
+				"cookie_domain": "example.com",
+				"cookie_paths":  "/session",
+			},
+		},
+	}
+
+	cases, err := builder.Build(context.Background(), fs)
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("expected single case, got %d", len(cases))
+	}
+	chain := cases[0].Graph.AttackPath
+	if len(chain) != 1 {
+		t.Fatalf("expected single attack step, got %d", len(chain))
+	}
+	if !chain[0].WeakLink {
+		t.Fatalf("expected cookie overlap to be marked as weak link")
+	}
+	if !strings.Contains(strings.ToLower(cases[0].Graph.Summary), "weak link") {
+		t.Fatalf("expected chain summary to mention weak links, got %q", cases[0].Graph.Summary)
+	}
 }
 
 func TestBuilderMasksNeverPersistMetadata(t *testing.T) {
