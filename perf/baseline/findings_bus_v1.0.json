@@ -1,7 +1,7 @@
 {
-  "version": "v1.0.0",
-  "timestamp": "2025-10-05T19:46:06.066188056Z",
-  "git_ref": "7bf9d9f",
+  "version": "v1.1.0",
+  "timestamp": "2025-10-07T12:34:51.796844231Z",
+  "git_ref": "c8c1383",
   "workloads": [
     {
       "name": "fanout_wide",
@@ -13,25 +13,27 @@
         "events": 6000,
         "payload_bytes": 256,
         "failure_rate": 0,
-        "seed": 42
+        "seed": 42,
+        "dynamic_work": 2
       },
-      "duration": 26521322,
+      "duration": 23566808,
       "successes": 6000,
       "errors": 0,
-      "throughput_eps": 226233.06636071912,
+      "throughput_eps": 254595.36140829933,
       "error_rate": 0,
       "latency": {
-        "p50_ms": 0.057784,
-        "p95_ms": 0.528366,
-        "p99_ms": 0.961978,
-        "max_ms": 3.054844
+        "p50_ms": 0.05679,
+        "p95_ms": 0.463751,
+        "p99_ms": 0.970254,
+        "max_ms": 3.202009
       },
       "memory": {
-        "bytes_total": 3511920,
-        "bytes_per_event": 585.32,
+        "bytes_total": 3528480,
+        "bytes_per_event": 588.08,
         "peak_goroutines": 40,
         "baseline_goroutines": 35
-      }
+      },
+      "cpu_seconds": 0.083584242
     },
     {
       "name": "fanout_deep",
@@ -43,25 +45,27 @@
         "events": 8000,
         "payload_bytes": 384,
         "failure_rate": 0,
-        "seed": 84
+        "seed": 84,
+        "dynamic_work": 3
       },
-      "duration": 35748599,
+      "duration": 43360299,
       "successes": 8000,
       "errors": 0,
-      "throughput_eps": 223784.9936440866,
+      "throughput_eps": 184500.57274743426,
       "error_rate": 0,
       "latency": {
-        "p50_ms": 0.154005,
-        "p95_ms": 0.497054,
-        "p99_ms": 0.943996,
-        "max_ms": 1.570654
+        "p50_ms": 0.190771,
+        "p95_ms": 0.583748,
+        "p99_ms": 0.977714,
+        "max_ms": 4.860315
       },
       "memory": {
-        "bytes_total": 4692488,
-        "bytes_per_event": 586.561,
+        "bytes_total": 4699872,
+        "bytes_per_event": 587.484,
         "peak_goroutines": 38,
         "baseline_goroutines": 29
-      }
+      },
+      "cpu_seconds": 0.137277096
     },
     {
       "name": "high_concurrency",
@@ -73,25 +77,59 @@
         "events": 10000,
         "payload_bytes": 192,
         "failure_rate": 0,
-        "seed": 126
+        "seed": 126,
+        "dynamic_work": 1
       },
-      "duration": 47802959,
+      "duration": 26683776,
       "successes": 10000,
       "errors": 0,
-      "throughput_eps": 209192.07114354573,
+      "throughput_eps": 374759.5542699804,
       "error_rate": 0,
       "latency": {
-        "p50_ms": 0.065912,
-        "p95_ms": 0.309625,
-        "p99_ms": 0.771782,
-        "max_ms": 24.384567
+        "p50_ms": 0.074001,
+        "p95_ms": 0.334285,
+        "p99_ms": 0.660446,
+        "max_ms": 1.457482
       },
       "memory": {
-        "bytes_total": 5872400,
-        "bytes_per_event": 587.24,
+        "bytes_total": 5895472,
+        "bytes_per_event": 589.5472,
         "peak_goroutines": 45,
         "baseline_goroutines": 28
-      }
+      },
+      "cpu_seconds": 0.083280093
+    },
+    {
+      "name": "dynamic_content",
+      "config": {
+        "name": "dynamic_content",
+        "fan_out": 10,
+        "depth": 2,
+        "concurrency": 12,
+        "events": 9000,
+        "payload_bytes": 320,
+        "failure_rate": 0.02,
+        "seed": 512,
+        "dynamic_work": 5
+      },
+      "duration": 66920022,
+      "successes": 8804,
+      "errors": 196,
+      "throughput_eps": 131560.0284769781,
+      "error_rate": 0.021777777777777778,
+      "latency": {
+        "p50_ms": 0.139256,
+        "p95_ms": 0.722605,
+        "p99_ms": 1.62616,
+        "max_ms": 27.566444
+      },
+      "memory": {
+        "bytes_total": 5272272,
+        "bytes_per_event": 585.808,
+        "peak_goroutines": 47,
+        "baseline_goroutines": 34
+      },
+      "cpu_seconds": 0.20316603299999997
     }
   ]
 }

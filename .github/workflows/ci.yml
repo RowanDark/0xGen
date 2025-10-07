@@ -123,13 +123,18 @@ jobs:
           go-version-file: go.mod
 
       - name: Run synthetic workloads
-        run: go run ./cmd/perfbench --baseline perf/baseline/findings_bus_v1.0.json --output perf/results/latest.json --threshold 0.10
+        run: >-
+          go run ./cmd/perfbench --baseline perf/baseline/findings_bus_v1.0.json --output perf/results/latest.json --threshold 0.10
+          --history perf/results/history.jsonl --history-markdown perf/results/history.md
 
       - name: Upload metrics report
         uses: actions/upload-artifact@v4
         with:
           name: perf-metrics
-          path: perf/results/latest.json
+          path: |
+            perf/results/latest.json
+            perf/results/history.jsonl
+            perf/results/history.md
           if-no-files-found: error
 
   container-scan:
