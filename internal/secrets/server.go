@@ -87,6 +87,7 @@ func (s *Server) handleResolveError(plugin, name string, err error) error {
 	switch {
 	case errors.Is(err, ErrTokenNotRecognised),
 		errors.Is(err, ErrTokenExpired),
+		errors.Is(err, ErrTokenRevoked),
 		errors.Is(err, ErrTokenPluginMismatch),
 		errors.Is(err, ErrTokenScopeMismatch),
 		errors.Is(err, ErrSecretNotGranted),

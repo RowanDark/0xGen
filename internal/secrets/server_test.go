@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/RowanDark/Glyph/internal/logging"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
@@ -21,7 +22,7 @@ func TestServerGetSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
 	}
-	logger, buf := newAuditLogger(t)
+	logger, buf := newTestAuditLogger(t)
 	srv := NewServer(mgr, WithServerAuditLogger(logger))
 
 	resp, err := srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
@@ -56,7 +57,7 @@ func TestServerDeniesUnrequestedSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
 	}
-	logger, buf := newAuditLogger(t)
+	logger, buf := newTestAuditLogger(t)
 	srv := NewServer(mgr, WithServerAuditLogger(logger))
 
 	_, err = srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
@@ -89,7 +90,7 @@ func TestServerDeniesMismatchedScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
 	}
-	logger, buf := newAuditLogger(t)
+	logger, buf := newTestAuditLogger(t)
 	srv := NewServer(mgr, WithServerAuditLogger(logger))
 
 	_, err = srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
@@ -106,14 +107,78 @@ func TestServerDeniesMismatchedScope(t *testing.T) {
 	}
 }
 
-func newAuditLogger(t *testing.T) (*logging.AuditLogger, *bytes.Buffer) {
-	t.Helper()
-	buf := &bytes.Buffer{}
-	logger, err := logging.NewAuditLogger("test", logging.WithoutStdout(), logging.WithWriter(buf))
+func TestServerDeniesExpiredToken(t *testing.T) {
+	current := time.Unix(0, 0).UTC()
+	clock := func() time.Time { return current }
+	managerLogger, managerBuf := newTestAuditLogger(t)
+	mgr := NewManager(map[string]map[string]string{
+		"seer": {"api_token": "top-secret"},
+	}, WithClock(clock), WithTTL(time.Minute), WithAuditLogger(managerLogger))
+	token, _, err := mgr.Issue("seer", "scope-1", []string{"API_TOKEN"})
 	if err != nil {
-		t.Fatalf("create audit logger: %v", err)
+		t.Fatalf("issue token: %v", err)
 	}
-	return logger, buf
+	serverLogger, serverBuf := newTestAuditLogger(t)
+	srv := NewServer(mgr, WithServerAuditLogger(serverLogger))
+
+	// Initial access succeeds to ensure baseline behaviour.
+	if _, err := srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
+		PluginName: "seer",
+		Token:      token,
+		ScopeId:    "scope-1",
+		SecretName: "API_TOKEN",
+	}); err != nil {
+		t.Fatalf("GetSecret before expiry returned error: %v", err)
+	}
+
+	current = current.Add(2 * time.Minute)
+	_, err = srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
+		PluginName: "seer",
+		Token:      token,
+		ScopeId:    "scope-1",
+		SecretName: "API_TOKEN",
+	})
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("expected permission denied for expired token, got %v", err)
+	}
+	if !bytes.Contains(serverBuf.Bytes(), []byte("secrets_denied")) {
+		t.Fatalf("expected denial to be audited")
+	}
+	if !bytes.Contains(managerBuf.Bytes(), []byte(string(logging.EventSecretsTokenExpiry))) {
+		t.Fatalf("expected expiry to be logged in manager audit log")
+	}
+}
+
+func TestServerDeniesRevokedToken(t *testing.T) {
+	managerLogger, managerBuf := newTestAuditLogger(t)
+	mgr := NewManager(map[string]map[string]string{
+		"seer": {"api_token": "top-secret"},
+	}, WithAuditLogger(managerLogger))
+	token, _, err := mgr.Issue("seer", "scope-1", []string{"API_TOKEN"})
+	if err != nil {
+		t.Fatalf("issue token: %v", err)
+	}
+	if err := mgr.Revoke(token); err != nil {
+		t.Fatalf("revoke token: %v", err)
+	}
+	serverLogger, serverBuf := newTestAuditLogger(t)
+	srv := NewServer(mgr, WithServerAuditLogger(serverLogger))
+
+	_, err = srv.GetSecret(context.Background(), &pb.SecretAccessRequest{
+		PluginName: "seer",
+		Token:      token,
+		ScopeId:    "scope-1",
+		SecretName: "API_TOKEN",
+	})
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("expected permission denied for revoked token, got %v", err)
+	}
+	if !bytes.Contains(serverBuf.Bytes(), []byte("secrets_denied")) {
+		t.Fatalf("expected denial to be audited")
+	}
+	if !bytes.Contains(managerBuf.Bytes(), []byte(string(logging.EventSecretsTokenRev))) {
+		t.Fatalf("expected revocation to be logged in manager audit log")
+	}
 }
 
 func decodeAuditEvent(t *testing.T, data []byte) logging.AuditEvent {

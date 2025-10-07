@@ -15,21 +15,23 @@ import (
 type EventType string
 
 const (
-	EventPluginLoad       EventType = "plugin_load"
-	EventPluginDisconnect EventType = "plugin_disconnect"
-	EventCapabilityGrant  EventType = "capability_grant"
-	EventCapabilityDenied EventType = "capability_denied"
-	EventRPCCall          EventType = "rpc_call"
-	EventRPCDenied        EventType = "rpc_denied"
-	EventScopeViolation   EventType = "scope_violation"
-	EventFindingReceived  EventType = "finding_received"
-	EventFindingRejected  EventType = "finding_rejected"
-	EventProxyLifecycle   EventType = "proxy_lifecycle"
-	EventReporter         EventType = "reporter_event"
-	EventSecretsToken     EventType = "secrets_token_issue"
-	EventSecretsAccess    EventType = "secrets_access"
-	EventSecretsDenied    EventType = "secrets_denied"
-	EventNetworkDenied    EventType = "network_denied"
+	EventPluginLoad         EventType = "plugin_load"
+	EventPluginDisconnect   EventType = "plugin_disconnect"
+	EventCapabilityGrant    EventType = "capability_grant"
+	EventCapabilityDenied   EventType = "capability_denied"
+	EventRPCCall            EventType = "rpc_call"
+	EventRPCDenied          EventType = "rpc_denied"
+	EventScopeViolation     EventType = "scope_violation"
+	EventFindingReceived    EventType = "finding_received"
+	EventFindingRejected    EventType = "finding_rejected"
+	EventProxyLifecycle     EventType = "proxy_lifecycle"
+	EventReporter           EventType = "reporter_event"
+	EventSecretsToken       EventType = "secrets_token_issue"
+	EventSecretsAccess      EventType = "secrets_access"
+	EventSecretsDenied      EventType = "secrets_denied"
+	EventSecretsTokenRev    EventType = "secrets_token_revoked"
+	EventSecretsTokenExpiry EventType = "secrets_token_expired"
+	EventNetworkDenied      EventType = "network_denied"
 )
 
 type Decision string
