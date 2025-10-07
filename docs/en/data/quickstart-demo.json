@@ -11,21 +11,21 @@
     {
       "title": "Crawl the page with Excavator",
       "lines": [
-        "excavator ▸ Discovered 4 internal links and 0 external links",
+        "excavator ▸ Discovered 4 internal links and 2 external links",
         "excavator ▸ Wrote crawl transcript to out/demo/excavator.json"
       ]
     },
     {
       "title": "Scan rendered markup with Seer",
       "lines": [
-        "seer ▸ Evaluated 12 audit checks in 1.4s",
+        "seer ▸ Evaluated detectors in 45ms (produced 7 findings)",
         "seer ▸ Persisted findings to out/demo/findings.jsonl"
       ]
     },
     {
       "title": "Rank and triage findings",
       "lines": [
-        "ranker ▸ Loaded 6 findings and produced deterministic scores",
+        "ranker ▸ Loaded 7 findings and produced deterministic scores",
         "ranker ▸ Saved ranked output to out/demo/ranked.jsonl"
       ]
     },
@@ -38,7 +38,8 @@
     }
   ],
   "summary": [
-    "✔ Demo complete! Sample artifacts stored under out/demo/"
+    "✔ Demo complete! Sample artifacts stored under out/demo/",
+    "⭐ Case preview highlights the login thumbnail and copy-ready POC"
   ],
   "artifacts": [
     {

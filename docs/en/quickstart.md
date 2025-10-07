@@ -43,6 +43,10 @@ snippets. The JSONL artifacts under `out/demo/` and the reference copies in
 [`examples/quickstart/`]({{ config.repo_url }}/tree/main/examples/quickstart)
 are handy when writing tests or inspecting the data Seer emits.
 
+The CLI output also surfaces a Case preview so you can immediately inspect the
+top ranked finding, including its assigned owner, triage note, and copy-ready
+proof-of-concept command without leaving the terminal.
+
 ## Inspecting the run {#inspecting-the-run}
 
 Useful files after the demo completes:
