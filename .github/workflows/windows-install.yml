@@ -33,6 +33,41 @@ jobs:
           Copy-Item LICENSE (Join-Path $portable 'LICENSE.txt')
           Compress-Archive -Path "$portable\*" -DestinationPath dist/glyphctl_ci_windows_portable.zip -Force
 
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: choco install wixtoolset --no-progress --yes
+
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          $script = (Resolve-Path 'scripts/build_windows_installer.ps1').Path
+          $payload = (Resolve-Path 'dist').Path
+          & $script -Tag 'v0.0.0-ci' -Arch 'amd64' -PayloadDir $payload -OutputDir $payload
+
+      - name: Smoke test MSI install
+        shell: pwsh
+        run: |
+          $msi = (Resolve-Path 'dist/glyphctl_v0.0.0-ci_windows_amd64.msi').Path
+          Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
+          $glyph = Join-Path $env:ProgramFiles 'Glyph\glyphctl.exe'
+          if (-not (Test-Path $glyph -PathType Leaf)) {
+            throw "glyphctl.exe was not installed"
+          }
+          & $glyph --version
+          $artifact = (Resolve-Path 'plugins/samples/passive-header-scan/main.go').Path
+          $hash = (Get-FileHash $artifact -Algorithm SHA256).Hash
+          & $glyph plugin verify $artifact --hash $hash
+
+      - name: Uninstall MSI
+        shell: pwsh
+        run: |
+          $msi = (Resolve-Path 'dist/glyphctl_v0.0.0-ci_windows_amd64.msi').Path
+          Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /norestart" -Wait
+          $glyphDir = Join-Path $env:ProgramFiles 'Glyph'
+          if (Test-Path $glyphDir) {
+            throw "Install directory still present after uninstall"
+          }
+
       - name: Smoke test portable build
         shell: pwsh
         run: |

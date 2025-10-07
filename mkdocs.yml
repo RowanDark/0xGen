@@ -16,6 +16,7 @@ nav:
   - CLI:
       - Overview: cli/index.md
       - Configuration: cli/configuration.md
+      - Windows installation: cli/windows.md
   - Developer Guide: dev-guide/index.md
   - Security:
       - Overview: security/index.md
