@@ -124,3 +124,36 @@ jobs:
           ${{ matrix.setup }}
           ${{ matrix.install }}
           glyphctl --version
+  update-readme-badge:
+    name: Update README badge
+    runs-on: ubuntu-latest
+    needs:
+      - linux-package-smoke
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Refresh release badge
+        env:
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "Skipping badge update for ref type ${GITHUB_REF_TYPE}"
+            exit 0
+          fi
+
+          python3 scripts/update_version_badge.py "${RELEASE_TAG}"
+
+          if git diff --quiet README.md; then
+            echo "README already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: refresh release badge for ${RELEASE_TAG}"
+          git push origin HEAD:main
