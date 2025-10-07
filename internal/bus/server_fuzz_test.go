@@ -83,7 +83,7 @@ func FuzzPluginRPCFraming(f *testing.F) {
 			eventChan:    make(chan *pb.HostEvent, 1),
 			capabilities: map[string]struct{}{CapEmitFindings: {}},
 		}
-		_ = srv.receiveEvents(recvStream, pluginConn, "fuzz-plugin")
+		_ = srv.receiveEvents(context.Background(), recvStream, pluginConn, "fuzz-plugin")
 	})
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
 	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 	"github.com/RowanDark/Glyph/internal/plugins/capabilities"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
@@ -90,6 +91,7 @@ func NewServer(authToken string, findingsBus *findings.Bus, opts ...Option) *Ser
 
 // EventStream is the main bi-directional stream for plugin communication.
 func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
+	ctx := stream.Context()
 	obsmetrics.RecordRPCRequest("plugin_bus", "EventStream")
 	start := time.Now()
 	code := codes.OK.String()
@@ -97,11 +99,17 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		obsmetrics.ObserveRPCLatency("plugin_bus", "EventStream", code, time.Since(start))
 	}()
 
-	// 1. Authenticate the plugin
+	rpcSpan := tracing.SpanFromContext(ctx)
+	rpcSpan.SetAttribute("glyph.component", "plugin_bus")
+	rpcSpan.SetAttribute("glyph.rpc.method", "EventStream")
+
+	authCtx, authSpan := tracing.StartSpan(ctx, "plugin_bus.authenticate", tracing.WithSpanKind(tracing.SpanKindInternal))
 	hello, err := s.authenticate(stream)
 	if err != nil {
 		code = status.Code(err).String()
-		s.emit(logging.AuditEvent{
+		authSpan.RecordError(err)
+		authSpan.End()
+		s.emit(authCtx, logging.AuditEvent{
 			EventType: logging.EventPluginLoad,
 			Decision:  logging.DecisionDeny,
 			Reason:    err.Error(),
@@ -111,12 +119,17 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		})
 		return err
 	}
+	authSpan.EndWithStatus(tracing.StatusOK, "")
+
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
+	rpcSpan.SetAttribute("glyph.plugin.name", hello.GetPluginName())
+	rpcSpan.SetAttribute("glyph.plugin.pid", hello.GetPid())
+
 	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
 	if err != nil {
 		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.PermissionDenied.String())
 		code = codes.PermissionDenied.String()
-		s.emit(logging.AuditEvent{
+		s.emit(ctx, logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
 			PluginID:  pluginID,
@@ -126,10 +139,11 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 				"pid":    hello.GetPid(),
 			},
 		})
+		rpcSpan.RecordError(err)
 		return status.Errorf(codes.PermissionDenied, "capability validation failed: %v", err)
 	}
 
-	s.emit(logging.AuditEvent{
+	s.emit(ctx, logging.AuditEvent{
 		EventType: logging.EventPluginLoad,
 		Decision:  logging.DecisionAllow,
 		PluginID:  pluginID,
@@ -139,7 +153,6 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		},
 	})
 
-	// 2. Register the plugin connection
 	subs := make(map[string]struct{})
 	for _, sub := range hello.GetSubscriptions() {
 		subs[sub] = struct{}{}
@@ -156,14 +169,13 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	}
 	s.addConnection(pluginID, p)
 	s.gate.Register(pluginID, validatedCaps)
-	defer s.removeConnection(pluginID)
+	defer s.removeConnection(ctx, pluginID)
 
-	// Goroutine to send events from the bus to the plugin
-	go s.sendEvents(stream, p.eventChan, pluginID)
+	go s.sendEvents(ctx, stream, p.eventChan, pluginID)
 
-	// 3. Receive events from the plugin in a loop
-	if err := s.receiveEvents(stream, p, pluginID); err != nil {
+	if err := s.receiveEvents(ctx, stream, p, pluginID); err != nil {
 		code = status.Code(err).String()
+		rpcSpan.RecordError(err)
 		return err
 	}
 	return nil
@@ -177,15 +189,17 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 	defer func() {
 		obsmetrics.ObserveRPCLatency("plugin_bus", "GrantCapabilities", code, time.Since(start))
 	}()
+	span := tracing.SpanFromContext(ctx)
 	if req == nil {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
 		code = codes.InvalidArgument.String()
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
+	span.SetAttribute("glyph.plugin.name", strings.TrimSpace(req.GetPluginName()))
 	if req.GetAuthToken() != s.authToken {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.PermissionDenied.String())
 		code = codes.PermissionDenied.String()
-		s.emit(logging.AuditEvent{
+		s.emit(ctx, logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
 			Reason:    "invalid auth token",
@@ -202,7 +216,7 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 	if err != nil {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.InvalidArgument.String())
 		code = codes.InvalidArgument.String()
-		s.emit(logging.AuditEvent{
+		s.emit(ctx, logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
 			Decision:  logging.DecisionDeny,
 			PluginID:  pluginName,
@@ -213,7 +227,7 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 		})
 		return nil, status.Errorf(codes.InvalidArgument, "issue token: %v", err)
 	}
-	s.emit(logging.AuditEvent{
+	s.emit(ctx, logging.AuditEvent{
 		EventType: logging.EventCapabilityGrant,
 		Decision:  logging.DecisionAllow,
 		PluginID:  pluginName,
@@ -253,11 +267,14 @@ func (s *Server) authenticate(stream pb.PluginBus_EventStreamServer) (*pb.Plugin
 }
 
 // sendEvents forwards events from the central bus to this specific plugin's stream.
-func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-chan *pb.HostEvent, pluginID string) {
+func (s *Server) sendEvents(ctx context.Context, stream pb.PluginBus_EventStreamServer, eventChan <-chan *pb.HostEvent, pluginID string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	for {
 		select {
-		case <-stream.Context().Done():
-			s.emit(logging.AuditEvent{
+		case <-ctx.Done():
+			s.emit(ctx, logging.AuditEvent{
 				EventType: logging.EventPluginDisconnect,
 				Decision:  logging.DecisionInfo,
 				PluginID:  pluginID,
@@ -266,7 +283,7 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 			return
 		case event, ok := <-eventChan:
 			if !ok {
-				s.emit(logging.AuditEvent{
+				s.emit(ctx, logging.AuditEvent{
 					EventType: logging.EventPluginDisconnect,
 					Decision:  logging.DecisionInfo,
 					PluginID:  pluginID,
@@ -275,9 +292,15 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 				obsmetrics.SetPluginQueueLength(pluginID, 0)
 				return
 			}
+			sendCtx, span := tracing.StartSpan(ctx, "plugin_bus.dispatch_event", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{
+				"glyph.plugin.id":  pluginID,
+				"glyph.event.type": getEventType(event),
+			}))
 			if err := stream.Send(event); err != nil {
+				span.RecordError(err)
+				span.End()
 				obsmetrics.RecordRPCError("plugin_bus", "EventStreamSend", codes.Internal.String())
-				s.emit(logging.AuditEvent{
+				s.emit(sendCtx, logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
 					Decision:  logging.DecisionDeny,
 					PluginID:  pluginID,
@@ -285,17 +308,25 @@ func (s *Server) sendEvents(stream pb.PluginBus_EventStreamServer, eventChan <-c
 				})
 				return
 			}
+			span.EndWithStatus(tracing.StatusOK, "")
 			obsmetrics.SetPluginQueueLength(pluginID, len(eventChan))
 		}
 	}
 }
 
 // receiveEvents handles incoming messages from the plugin.
-func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin, pluginID string) error {
+func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStreamServer, p *plugin, pluginID string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	for {
+		recvCtx, span := tracing.StartSpan(ctx, "plugin_bus.receive_event", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{
+			"glyph.plugin.id": pluginID,
+		}))
 		event, err := stream.Recv()
 		if err == io.EOF {
-			s.emit(logging.AuditEvent{
+			span.EndWithStatus(tracing.StatusOK, "")
+			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventPluginDisconnect,
 				Decision:  logging.DecisionInfo,
 				PluginID:  pluginID,
@@ -304,7 +335,9 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 			return nil
 		}
 		if err != nil {
-			s.emit(logging.AuditEvent{
+			span.RecordError(err)
+			span.End()
+			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventRPCDenied,
 				Decision:  logging.DecisionDeny,
 				PluginID:  pluginID,
@@ -316,10 +349,13 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 
 		switch e := event.Event.(type) {
 		case *pb.PluginEvent_Finding:
+			span.SetAttribute("glyph.event.type", "finding")
 			start := time.Now()
 			if _, ok := p.capabilities[CapEmitFindings]; !ok {
 				obsmetrics.RecordRPCError("plugin_bus", "EventStreamRecv", codes.PermissionDenied.String())
-				s.emit(logging.AuditEvent{
+				span.RecordError(fmt.Errorf("missing capability %s", CapEmitFindings))
+				span.End()
+				s.emit(recvCtx, logging.AuditEvent{
 					EventType: logging.EventScopeViolation,
 					Decision:  logging.DecisionDeny,
 					PluginID:  pluginID,
@@ -328,9 +364,9 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 						"attempted_capability": CapEmitFindings,
 					},
 				})
-				continue // Ignore the finding
+				continue
 			}
-			s.emit(logging.AuditEvent{
+			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventFindingReceived,
 				Decision:  logging.DecisionAllow,
 				PluginID:  pluginID,
@@ -339,10 +375,13 @@ func (s *Server) receiveEvents(stream pb.PluginBus_EventStreamServer, p *plugin,
 					"finding_message": e.Finding.Message,
 				},
 			})
-			s.publishFinding(pluginID, e.Finding)
+			s.publishFinding(recvCtx, pluginID, e.Finding)
 			obsmetrics.ObservePluginEventDuration(pluginID, "finding", time.Since(start))
+			span.EndWithStatus(tracing.StatusOK, "")
 		default:
-			s.emit(logging.AuditEvent{
+			span.SetAttribute("glyph.event.type", "unknown")
+			span.EndWithStatus(tracing.StatusOK, "")
+			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventRPCCall,
 				Decision:  logging.DecisionInfo,
 				PluginID:  pluginID,
@@ -360,10 +399,10 @@ func (s *Server) addConnection(id string, p *plugin) {
 	obsmetrics.SetActivePlugins(len(s.connections))
 }
 
-func (s *Server) removeConnection(id string) {
+func (s *Server) removeConnection(ctx context.Context, id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.disconnectLocked(id, "connection closed")
+	s.disconnectLocked(ctx, id, "connection closed")
 }
 
 // DisconnectPlugin forcibly tears down any active connections for the named plugin.
@@ -383,14 +422,14 @@ func (s *Server) DisconnectPlugin(pluginName, reason string) int {
 			if reason == "" {
 				reason = "plugin disconnected"
 			}
-			s.disconnectLocked(id, reason)
+			s.disconnectLocked(context.Background(), id, reason)
 			count++
 		}
 	}
 	return count
 }
 
-func (s *Server) disconnectLocked(id, reason string) {
+func (s *Server) disconnectLocked(ctx context.Context, id, reason string) {
 	p, ok := s.connections[id]
 	if !ok {
 		s.gate.Unregister(id)
@@ -402,7 +441,7 @@ func (s *Server) disconnectLocked(id, reason string) {
 	s.gate.Unregister(id)
 	obsmetrics.RemovePlugin(id)
 	obsmetrics.SetActivePlugins(len(s.connections))
-	s.emit(logging.AuditEvent{
+	s.emit(ctx, logging.AuditEvent{
 		EventType: logging.EventPluginDisconnect,
 		Decision:  logging.DecisionInfo,
 		PluginID:  id,
@@ -415,7 +454,7 @@ func (s *Server) disconnectLocked(id, reason string) {
 
 // StartEventGenerator starts a ticker to send synthetic events to all connected plugins.
 func (s *Server) StartEventGenerator(ctx context.Context) {
-	s.emit(logging.AuditEvent{
+	s.emit(ctx, logging.AuditEvent{
 		EventType: logging.EventRPCCall,
 		Decision:  logging.DecisionInfo,
 		Metadata: map[string]any{
@@ -439,7 +478,7 @@ func (s *Server) StartEventGenerator(ctx context.Context) {
 					},
 				},
 			}
-			s.broadcast(event)
+			s.broadcast(ctx, event)
 		}
 	}
 }
@@ -452,7 +491,7 @@ func getEventType(event *pb.HostEvent) string {
 	return "UNKNOWN"
 }
 
-func (s *Server) broadcast(event *pb.HostEvent) {
+func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if len(s.connections) == 0 {
@@ -466,8 +505,11 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 	defer func() {
 		obsmetrics.ObserveRPCLatency("plugin_bus", "Broadcast", code, time.Since(start))
 	}()
+	spanCtx, span := tracing.StartSpan(ctx, "plugin_bus.broadcast", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{
+		"glyph.event.type": eventType,
+	}))
 	var hadChannelError bool
-	s.emit(logging.AuditEvent{
+	s.emit(spanCtx, logging.AuditEvent{
 		EventType: logging.EventRPCCall,
 		Decision:  logging.DecisionInfo,
 		Metadata: map[string]any{
@@ -477,7 +519,7 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 
 	for id, plugin := range s.connections {
 		if _, subscribed := plugin.subscriptions[eventType]; subscribed {
-			s.emit(logging.AuditEvent{
+			s.emit(spanCtx, logging.AuditEvent{
 				EventType: logging.EventRPCCall,
 				Decision:  logging.DecisionInfo,
 				PluginID:  id,
@@ -492,7 +534,7 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 			default:
 				obsmetrics.RecordRPCError("plugin_bus", "Broadcast", "channel_full")
 				hadChannelError = true
-				s.emit(logging.AuditEvent{
+				s.emit(spanCtx, logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
 					Decision:  logging.DecisionDeny,
 					PluginID:  id,
@@ -504,16 +546,22 @@ func (s *Server) broadcast(event *pb.HostEvent) {
 	if hadChannelError {
 		code = codes.ResourceExhausted.String()
 	}
+	if hadChannelError {
+		span.RecordError(fmt.Errorf("one or more plugin channels full"))
+		span.End()
+	} else {
+		span.EndWithStatus(tracing.StatusOK, "")
+	}
 }
 
-func (s *Server) publishFinding(pluginID string, incoming *pb.Finding) {
+func (s *Server) publishFinding(ctx context.Context, pluginID string, incoming *pb.Finding) {
 	if s.findings == nil || incoming == nil {
 		return
 	}
 
 	finding, err := findings.FromProto(pluginID, incoming)
 	if err != nil {
-		s.emit(logging.AuditEvent{
+		s.emit(ctx, logging.AuditEvent{
 			EventType: logging.EventFindingRejected,
 			Decision:  logging.DecisionDeny,
 			PluginID:  pluginID,
@@ -525,9 +573,14 @@ func (s *Server) publishFinding(pluginID string, incoming *pb.Finding) {
 	s.findings.Emit(finding)
 }
 
-func (s *Server) emit(event logging.AuditEvent) {
+func (s *Server) emit(ctx context.Context, event logging.AuditEvent) {
 	if s.audit == nil {
 		return
+	}
+	if ctx != nil {
+		if traceID := tracing.TraceIDFromContext(ctx); traceID != "" {
+			event.TraceID = traceID
+		}
 	}
 	if err := s.audit.Emit(event); err != nil {
 		fmt.Fprintf(os.Stderr, "audit log error: %v\n", err)

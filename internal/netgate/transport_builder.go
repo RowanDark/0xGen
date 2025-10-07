@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 	"golang.org/x/net/http2"
 )
 
@@ -141,10 +142,34 @@ type gatedTransport struct {
 }
 
 func (gt *gatedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if err := gt.gate.validateHTTPRequest(gt.pluginID, gt.capability, req); err != nil {
+	if err := gt.gate.validateHTTPRequest(req.Context(), gt.pluginID, gt.capability, req); err != nil {
 		return nil, err
 	}
-	return gt.transport.RoundTrip(req)
+	ctx := req.Context()
+	attrs := map[string]any{
+		"glyph.plugin.id":  gt.pluginID,
+		"glyph.capability": gt.capability,
+	}
+	if req.Method != "" {
+		attrs["http.method"] = req.Method
+	}
+	if req.URL != nil {
+		attrs["http.url"] = req.URL.String()
+	}
+	spanCtx, span := tracing.StartSpan(ctx, "netgate.http_request", tracing.WithSpanKind(tracing.SpanKindClient), tracing.WithAttributes(attrs))
+	cloned := req.Clone(spanCtx)
+	tracing.InjectHTTP(cloned)
+	resp, err := gt.transport.RoundTrip(cloned)
+	if err != nil {
+		span.RecordError(err)
+		span.End()
+		return nil, err
+	}
+	if resp != nil {
+		span.SetAttribute("http.status_code", resp.StatusCode)
+	}
+	span.EndWithStatus(tracing.StatusOK, "")
+	return resp, nil
 }
 
 func (gt *gatedTransport) CloseIdleConnections() {

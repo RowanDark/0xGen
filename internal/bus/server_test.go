@@ -220,7 +220,7 @@ func TestPublishFindingEmitsToBus(t *testing.T) {
 		},
 	}
 
-	server.publishFinding("plugin-1", incoming)
+	server.publishFinding(ctx, "plugin-1", incoming)
 
 	select {
 	case finding := <-ch:
