@@ -69,6 +69,9 @@ func TestDiscoverLinks(t *testing.T) {
                 <a href="https://example.com/login">External Login</a>
                 <a href="http://127.0.0.1:4000/settings">Settings</a>
                 <a href="mailto:alerts@example.com">Email</a>
+                <a href="javascript:alert('xss')">Script</a>
+                <a href="data:text/plain;base64,Zm9v">Data</a>
+                <a href="vbscript:msgbox('hi')">VBScript</a>
                 <a href="/cases">Duplicate</a>
         `
 

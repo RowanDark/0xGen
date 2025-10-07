@@ -354,10 +354,14 @@ func discoverLinks(base string, markup []byte) (internal, external int) {
 				for _, attr := range t.Attr {
 					if strings.EqualFold(attr.Key, "href") {
 						href := strings.TrimSpace(attr.Val)
-						if href == "" || strings.HasPrefix(strings.ToLower(href), "javascript:") {
+						lhref := strings.ToLower(href)
+						if href == "" ||
+							strings.HasPrefix(lhref, "javascript:") ||
+							strings.HasPrefix(lhref, "data:") ||
+							strings.HasPrefix(lhref, "vbscript:") {
 							continue
 						}
-						if strings.HasPrefix(strings.ToLower(href), "mailto:") {
+						if strings.HasPrefix(lhref, "mailto:") {
 							continue
 						}
 						parsed, err := baseURL.Parse(href)
