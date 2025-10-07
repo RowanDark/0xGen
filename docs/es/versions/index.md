@@ -3,6 +3,13 @@
 Glyph publica instantáneas de la documentación para cada versión estable. Así
 puedes seguir una API o CLI concreta aunque aparezcan lanzamientos más nuevos.
 
+## Consulta qué ha cambiado
+
+Visita la [vista de comparación](compare.md) para generar un diff entre dos
+versiones publicadas. El asistente precarga la vista de comparación de GitHub y
+ofrece accesos rápidos a las notas de lanzamiento y al changelog
+correspondientes.
+
 ## Seleccionar una versión
 
 Utiliza el menú **Version** en la cabecera del sitio para cambiar entre la

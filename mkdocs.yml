@@ -24,7 +24,9 @@ nav:
       - Build Provenance: security/provenance.md
       - Supply Chain: security/supply-chain.md
       - Container Hardening: security/container.md
-  - Versions: versions/index.md
+  - Versions:
+      - Overview: versions/index.md
+      - Compare releases: versions/compare.md
 
 theme:
   name: material
@@ -64,6 +66,8 @@ plugins:
           Developer Guide: Guía de desarrollo
           Security: Seguridad
           Versions: Versiones
+          Overview: Descripción general
+          Compare releases: Comparar versiones
   - git-revision-date-localized:
       fallback_to_build_date: true
       type: datetime
@@ -167,6 +171,8 @@ extra_javascript:
   - path: javascripts/sidebar-state.js
     defer: true
   - path: javascripts/version-dropdown.js
+    defer: true
+  - path: javascripts/version-diff.js
     defer: true
   - path: javascripts/plugin-catalog.js
     defer: true
