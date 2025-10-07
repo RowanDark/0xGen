@@ -14,6 +14,9 @@ jobs:
   goreleaser:
     name: GoReleaser
     runs-on: ubuntu-latest
+    env:
+      WINDOWS_CODESIGN_PFX: ${{ secrets.WINDOWS_CODESIGN_PFX }}
+      WINDOWS_CODESIGN_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,8 +51,45 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install msitools
-        run: sudo apt-get update && sudo apt-get install -y msitools
+      - name: Install packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y msitools osslsigncode
+
+      - name: Sign Windows binaries
+        if: env.WINDOWS_CODESIGN_PFX != ''
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cert=$(mktemp)
+          trap 'rm -f "$cert"' EXIT
+          echo "$WINDOWS_CODESIGN_PFX" | base64 -d >"$cert"
+          shopt -s nullglob
+          for archive in dist/glyphctl_${TAG}_windows_*.zip; do
+            workdir=$(mktemp -d)
+            unzip -q "$archive" -d "$workdir"
+            if [[ ! -f "$workdir/glyphctl.exe" ]]; then
+              echo "glyphctl.exe missing from $archive" >&2
+              exit 1
+            fi
+            if [[ -n "${WINDOWS_CODESIGN_PASSWORD:-}" ]]; then
+              pass_args=(-pass "$WINDOWS_CODESIGN_PASSWORD")
+            else
+              pass_args=()
+            fi
+            osslsigncode sign \
+              -pkcs12 "$cert" \
+              "${pass_args[@]}" \
+              -n "Glyph CLI" \
+              -i "https://github.com/RowanDark/Glyph" \
+              -t "http://timestamp.digicert.com" \
+              -in "$workdir/glyphctl.exe" \
+              -out "$workdir/glyphctl-signed.exe"
+            mv "$workdir/glyphctl-signed.exe" "$workdir/glyphctl.exe"
+            rm -f "$archive"
+            (cd "$workdir" && zip -r9 "$OLDPWD/$(basename "$archive")" .)
+            rm -rf "$workdir"
+            echo "Signed $archive"
+          done
 
       - name: Build Windows installers
         env:
