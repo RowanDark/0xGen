@@ -4,6 +4,12 @@ Glyph ships the online documentation with per-release snapshots so you can keep
 working against a stable API or CLI surface even after the latest release
 moves forward.
 
+## See what's changed
+
+Head to the [comparison view](compare.md) to generate a diff between any two
+published versions. The helper preloads GitHub's compare view and surfaces quick
+links to the relevant release notes and changelog entries.
+
 ## Selecting a version
 
 Use the **Version** drop-down in the site header to jump between the currently
