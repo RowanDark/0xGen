@@ -29,6 +29,8 @@ var (
 	ErrTokenPluginMismatch = errors.New("secrets token issued for different plugin")
 	// ErrTokenScopeMismatch indicates the token was issued for a different execution scope.
 	ErrTokenScopeMismatch = errors.New("secrets token issued for different scope")
+	// ErrTokenRevoked indicates the token was explicitly revoked before expiry.
+	ErrTokenRevoked = errors.New("secrets token revoked")
 	// ErrSecretNotGranted signals the requested secret was not included in the grant.
 	ErrSecretNotGranted = errors.New("secret not granted for token")
 )
@@ -36,10 +38,12 @@ var (
 const defaultTokenTTL = time.Minute
 
 type secretGrant struct {
-	plugin  string
-	scope   string
-	secrets map[string]string
-	expires time.Time
+	plugin        string
+	pluginDisplay string
+	scope         string
+	secrets       map[string]string
+	expires       time.Time
+	revokedAt     time.Time
 }
 
 // Manager issues short-lived secrets tokens and resolves secret material when authorised.
@@ -180,7 +184,7 @@ func (m *Manager) Issue(plugin, scope string, requested []string) (string, time.
 	if m.grants == nil {
 		m.grants = make(map[string]secretGrant)
 	}
-	m.grants[token] = secretGrant{plugin: pluginKey, scope: scopeID, secrets: granted, expires: expires}
+	m.grants[token] = secretGrant{plugin: pluginKey, pluginDisplay: pluginName, scope: scopeID, secrets: granted, expires: expires}
 	if m.audit != nil {
 		_ = m.audit.Emit(logging.AuditEvent{
 			EventType: logging.EventSecretsToken,
@@ -230,9 +234,11 @@ func (m *Manager) Resolve(token, plugin, scope, secret string) (string, error) {
 	if grant.scope != scopeID {
 		return "", ErrTokenScopeMismatch
 	}
+	if !grant.revokedAt.IsZero() {
+		return "", ErrTokenRevoked
+	}
 	if now.After(grant.expires) {
-		delete(m.grants, token)
-		m.pruneExpiredLocked(now)
+		m.handleExpiredGrantLocked(token, grant, now)
 		return "", ErrTokenExpired
 	}
 	value, ok := grant.secrets[normalise(secretName)]
@@ -245,10 +251,67 @@ func (m *Manager) Resolve(token, plugin, scope, secret string) (string, error) {
 
 func (m *Manager) pruneExpiredLocked(now time.Time) {
 	for token, grant := range m.grants {
-		if now.After(grant.expires) {
+		if !grant.revokedAt.IsZero() && now.Sub(grant.revokedAt) >= m.ttl {
 			delete(m.grants, token)
+			continue
+		}
+		if now.After(grant.expires) {
+			m.handleExpiredGrantLocked(token, grant, now)
 		}
 	}
+}
+
+// Revoke invalidates the provided token before its scheduled expiry time.
+func (m *Manager) Revoke(token string) error {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ErrTokenNotRecognised
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.clock()
+	grant, ok := m.grants[token]
+	if !ok {
+		m.pruneExpiredLocked(now)
+		return ErrTokenNotRecognised
+	}
+	if grant.revokedAt.IsZero() {
+		grant.revokedAt = now
+		m.grants[token] = grant
+		if m.audit != nil {
+			metadata := map[string]any{
+				"scope_id":     grant.scope,
+				"revoked_at":   now.UTC(),
+				"token_prefix": tokenPrefix(token),
+			}
+			_ = m.audit.Emit(logging.AuditEvent{
+				EventType: logging.EventSecretsTokenRev,
+				Decision:  logging.DecisionInfo,
+				PluginID:  grant.pluginDisplay,
+				Metadata:  metadata,
+			})
+		}
+	}
+	m.pruneExpiredLocked(now)
+	return nil
+}
+
+func (m *Manager) handleExpiredGrantLocked(token string, grant secretGrant, now time.Time) {
+	delete(m.grants, token)
+	if m.audit == nil {
+		return
+	}
+	metadata := map[string]any{
+		"scope_id":     grant.scope,
+		"expired_at":   now.UTC(),
+		"token_prefix": tokenPrefix(token),
+	}
+	_ = m.audit.Emit(logging.AuditEvent{
+		EventType: logging.EventSecretsTokenExpiry,
+		Decision:  logging.DecisionInfo,
+		PluginID:  grant.pluginDisplay,
+		Metadata:  metadata,
+	})
 }
 
 func (m *Manager) setSecretsLocked(plugin string, secrets map[string]string) {
@@ -277,4 +340,11 @@ func (m *Manager) setSecretsLocked(plugin string, secrets map[string]string) {
 
 func normalise(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func tokenPrefix(token string) string {
+	if len(token) <= 8 {
+		return token
+	}
+	return token[:8]
 }
