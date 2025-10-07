@@ -37,6 +37,8 @@ Abre ese archivo en tu navegador para explorar casos plegables, vistas previas e
 fragmentos de prueba de concepto listos para copiar. Los artefactos JSONL en `out/demo/` y las copias de referencia en
 [`examples/quickstart/`]({{ config.repo_url }}/tree/main/examples/quickstart) son útiles al escribir pruebas o inspeccionar los datos que emite Seer.
 
+La salida de la CLI también resalta una vista previa del caso principal para que puedas revisar de inmediato el hallazgo mejor clasificado, con su persona responsable, nota de triage y comando de prueba de concepto listo para copiar sin salir de la terminal.
+
 ## Inspeccionar la ejecución {#inspecting-the-run}
 
 Archivos útiles después de que finaliza la demostración:

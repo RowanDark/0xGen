@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/html"
+
 	"github.com/RowanDark/Glyph/internal/findings"
 	"github.com/RowanDark/Glyph/internal/ranker"
 	"github.com/RowanDark/Glyph/internal/reporter"
@@ -24,11 +27,30 @@ import (
 )
 
 type demoResult struct {
-	TargetURL   string
-	Findings    []findings.Finding
-	FindingsOut string
-	RankedOut   string
-	ReportOut   string
+	TargetURL         string
+	Findings          []findings.Finding
+	FindingsOut       string
+	RankedOut         string
+	ReportOut         string
+	ExcavatorOut      string
+	OutDir            string
+	ScanDuration      time.Duration
+	InternalLinkCount int
+	ExternalLinkCount int
+	Showcase          ranker.ScoredFinding
+	ShowcaseAvailable bool
+}
+
+type demoProgress struct {
+	Writer io.Writer
+}
+
+func (p demoProgress) Step(prefix, format string, args ...any) {
+	if p.Writer == nil {
+		return
+	}
+	message := fmt.Sprintf(format, args...)
+	fmt.Fprintf(p.Writer, "%s ▸ %s\n", prefix, message)
 }
 
 func runDemo(args []string) int {
@@ -49,7 +71,8 @@ func runDemo(args []string) int {
 		return 2
 	}
 
-	result, err := executeDemo(strings.TrimSpace(*outDir), *keep)
+	progress := demoProgress{Writer: os.Stdout}
+	result, err := executeDemo(strings.TrimSpace(*outDir), *keep, progress)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// Context cancellations stem from shutdown signalling; treat as transient failure.
@@ -60,15 +83,26 @@ func runDemo(args []string) int {
 		return 1
 	}
 
+	fmt.Fprintln(os.Stdout)
 	fmt.Fprintln(os.Stdout, "Glyph demo completed successfully!")
 	fmt.Fprintf(os.Stdout, "Target served at %s\n", result.TargetURL)
+	if strings.TrimSpace(result.ExcavatorOut) != "" {
+		fmt.Fprintf(os.Stdout, "Crawl transcript written to %s\n", result.ExcavatorOut)
+	}
 	fmt.Fprintf(os.Stdout, "Findings written to %s\n", result.FindingsOut)
 	fmt.Fprintf(os.Stdout, "Ranked findings written to %s\n", result.RankedOut)
 	fmt.Fprintf(os.Stdout, "Report available at %s\n", fileURLFromPath(result.ReportOut))
+	if strings.TrimSpace(result.OutDir) != "" {
+		fmt.Fprintf(os.Stdout, "Artifacts directory: %s\n", result.OutDir)
+	}
+	if result.ShowcaseAvailable {
+		fmt.Fprintln(os.Stdout)
+		printCasePreview(os.Stdout, result.Showcase)
+	}
 	return 0
 }
 
-func executeDemo(outDir string, keep bool) (demoResult, error) {
+func executeDemo(outDir string, keep bool, progress demoProgress) (demoResult, error) {
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
 		return demoResult{}, fmt.Errorf("resolve output directory: %w", err)
@@ -86,6 +120,8 @@ func executeDemo(outDir string, keep bool) (demoResult, error) {
 	if err != nil {
 		return demoResult{}, err
 	}
+	progress.Step("glyphctl demo", "Launching static target on %s", addr)
+	progress.Step("glyphctl demo", "Using bundled fixtures so the demo works offline")
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = srv.Shutdown(shutdownCtx)
@@ -102,9 +138,19 @@ func executeDemo(outDir string, keep bool) (demoResult, error) {
 	if err != nil {
 		return demoResult{}, fmt.Errorf("read demo response: %w", err)
 	}
+	internalLinks, externalLinks := discoverLinks(addr, body)
 
 	base := time.Now().UTC().Truncate(time.Second)
+	excavatorPath, err := writeExcavatorSummary(absOut, addr, resp.Header, len(body), base, internalLinks, externalLinks)
+	if err != nil {
+		return demoResult{}, err
+	}
+	progress.Step("excavator", "Discovered %d internal links and %d external links", internalLinks, externalLinks)
+	progress.Step("excavator", "Wrote crawl transcript to %s", excavatorPath)
+
+	scanStart := time.Now()
 	findingsList := seer.Scan(addr, string(body), seer.Config{Now: func() time.Time { return base }})
+	scanDuration := time.Since(scanStart)
 
 	findingsList = append(findingsList, demoShowcaseFinding(addr, base))
 	// Ensure deterministic ordering for downstream files by sorting IDs.
@@ -119,26 +165,37 @@ func executeDemo(outDir string, keep bool) (demoResult, error) {
 	if err := writeFindings(findingsPath, findingsList); err != nil {
 		return demoResult{}, err
 	}
+	progress.Step("seer", "Evaluated detectors in %s (produced %d findings)", formatDuration(scanDuration), len(findingsList))
+	progress.Step("seer", "Persisted findings to %s", findingsPath)
 
 	ranked := ranker.Rank(findingsList)
 	if err := ranker.WriteJSONL(rankedPath, ranked); err != nil {
 		return demoResult{}, fmt.Errorf("write ranked findings: %w", err)
 	}
+	progress.Step("ranker", "Loaded %d findings and produced deterministic scores", len(ranked))
+	progress.Step("ranker", "Saved ranked output to %s", rankedPath)
 
 	if err := reporter.RenderReport(findingsPath, reportPath, reporter.FormatHTML, reporter.ReportOptions{Now: base}); err != nil {
 		return demoResult{}, fmt.Errorf("render report: %w", err)
 	}
+	progress.Step("scribe", "Generated HTML report with evidence thumbnails")
+	progress.Step("scribe", "Report available at %s", fileURLFromPath(reportPath))
 
-	if err := writeExcavatorSummary(absOut, addr, resp.Header, len(body), base); err != nil {
-		return demoResult{}, err
-	}
+	showcase, hasShowcase := selectShowcase(ranked)
 
 	return demoResult{
-		TargetURL:   addr,
-		Findings:    findingsList,
-		FindingsOut: findingsPath,
-		RankedOut:   rankedPath,
-		ReportOut:   reportPath,
+		TargetURL:         addr,
+		Findings:          findingsList,
+		FindingsOut:       findingsPath,
+		RankedOut:         rankedPath,
+		ReportOut:         reportPath,
+		ExcavatorOut:      excavatorPath,
+		OutDir:            absOut,
+		ScanDuration:      scanDuration,
+		InternalLinkCount: internalLinks,
+		ExternalLinkCount: externalLinks,
+		Showcase:          showcase,
+		ShowcaseAvailable: hasShowcase,
 	}, nil
 }
 
@@ -201,6 +258,18 @@ func demoShowcaseFinding(target string, now time.Time) findings.Finding {
 	}
 }
 
+func selectShowcase(ranked []ranker.ScoredFinding) (ranker.ScoredFinding, bool) {
+	for idx := range ranked {
+		if ranked[idx].Type == "demo.case.thumbnail" {
+			return ranked[idx], true
+		}
+	}
+	if len(ranked) == 0 {
+		return ranker.ScoredFinding{}, false
+	}
+	return ranked[0], true
+}
+
 func fileURLFromPath(p string) string {
 	if strings.TrimSpace(p) == "" {
 		return ""
@@ -239,7 +308,7 @@ func fileURLFromPath(p string) string {
 	return u.String()
 }
 
-func writeExcavatorSummary(outDir, target string, headers http.Header, bodyBytes int, ts time.Time) error {
+func writeExcavatorSummary(outDir, target string, headers http.Header, bodyBytes int, ts time.Time, internalLinks, externalLinks int) (string, error) {
 	record := map[string]any{
 		"version":     "1",
 		"target":      target,
@@ -250,14 +319,152 @@ func writeExcavatorSummary(outDir, target string, headers http.Header, bodyBytes
 			"content_type": headers.Get("Content-Type"),
 			"bytes":        bodyBytes,
 		}},
+		"links": map[string]int{
+			"internal": internalLinks,
+			"external": externalLinks,
+		},
 	}
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
-		return fmt.Errorf("encode excavator summary: %w", err)
+		return "", fmt.Errorf("encode excavator summary: %w", err)
 	}
 	path := filepath.Join(outDir, "excavator.json")
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("write excavator summary: %w", err)
+		return "", fmt.Errorf("write excavator summary: %w", err)
 	}
-	return nil
+	return path, nil
+}
+
+func discoverLinks(base string, markup []byte) (internal, external int) {
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return 0, 0
+	}
+	tokenizer := html.NewTokenizer(bytes.NewReader(markup))
+	seen := make(map[string]struct{})
+	for {
+		tt := tokenizer.Next()
+		if tt == html.ErrorToken {
+			break
+		}
+		switch tt {
+		case html.StartTagToken, html.SelfClosingTagToken:
+			t := tokenizer.Token()
+			if strings.EqualFold(t.Data, "a") {
+				for _, attr := range t.Attr {
+					if strings.EqualFold(attr.Key, "href") {
+						href := strings.TrimSpace(attr.Val)
+						lhref := strings.ToLower(href)
+						if href == "" ||
+							strings.HasPrefix(lhref, "javascript:") ||
+							strings.HasPrefix(lhref, "data:") ||
+							strings.HasPrefix(lhref, "vbscript:") {
+							continue
+						}
+						if strings.HasPrefix(lhref, "mailto:") {
+							continue
+						}
+						parsed, err := baseURL.Parse(href)
+						if err != nil {
+							continue
+						}
+						normalized := parsed.Scheme + "://" + parsed.Host + parsed.Path
+						if _, ok := seen[normalized]; ok {
+							continue
+						}
+						seen[normalized] = struct{}{}
+						if parsed.Hostname() == baseURL.Hostname() || parsed.Host == "" {
+							internal++
+						} else {
+							external++
+						}
+					}
+				}
+			}
+		}
+	}
+	return internal, external
+}
+
+func formatDuration(d time.Duration) string {
+	if d <= 0 {
+		return "0s"
+	}
+	if d < time.Microsecond {
+		return "<1µs"
+	}
+	if d < time.Millisecond {
+		rounded := d.Round(10 * time.Microsecond)
+		if rounded <= 0 {
+			return "<1ms"
+		}
+		return rounded.String()
+	}
+	if d < time.Second {
+		rounded := d.Round(100 * time.Microsecond)
+		if rounded <= 0 {
+			return "<1ms"
+		}
+		return rounded.String()
+	}
+	rounded := d.Round(10 * time.Millisecond)
+	if rounded <= 0 {
+		return "0s"
+	}
+	return rounded.String()
+}
+
+func printCasePreview(w io.Writer, finding ranker.ScoredFinding) {
+	if w == nil {
+		return
+	}
+	fmt.Fprintln(w, "Case preview")
+	severity := severityLabel(finding.Severity)
+	fmt.Fprintf(w, "  • %s (%s)\n", strings.TrimSpace(finding.Message), severity)
+	fmt.Fprintf(w, "    Target: %s\n", strings.TrimSpace(finding.Target))
+	detected := finding.DetectedAt.Time().Format(time.RFC3339)
+	fmt.Fprintf(w, "    Detected: %s\n", detected)
+	if owner := strings.TrimSpace(finding.Metadata["glyph.case_owner"]); owner != "" {
+		fmt.Fprintf(w, "    Case owner: %s\n", owner)
+	}
+	if note := strings.TrimSpace(finding.Metadata["glyph.case_note"]); note != "" {
+		fmt.Fprintf(w, "    Note: %s\n", note)
+	}
+	if poc := strings.TrimSpace(finding.Metadata["poc"]); poc != "" {
+		fmt.Fprintf(w, "    Proof of concept: %s\n", poc)
+	}
+	if token := strings.TrimSpace(finding.Metadata["session_token"]); token != "" {
+		fmt.Fprintf(w, "    Session token: %s\n", token)
+	}
+	if finding.Score > 0 {
+		primary := "secondary"
+		if finding.Primary {
+			primary = "primary"
+		}
+		exposure := strings.TrimSpace(finding.ExposureHint)
+		if exposure == "" {
+			exposure = "n/a"
+		}
+		fmt.Fprintf(w, "    Score: %.0f (%s, exposure: %s)\n", finding.Score, primary, exposure)
+	}
+	if thumb := strings.TrimSpace(finding.Metadata["thumbnail"]); thumb != "" {
+		fmt.Fprintln(w, "    Thumbnail: embedded data URI ready for copy/paste")
+	}
+}
+
+func severityLabel(sev findings.Severity) string {
+	switch sev {
+	case findings.SeverityCritical:
+		return "Critical"
+	case findings.SeverityHigh:
+		return "High"
+	case findings.SeverityMedium:
+		return "Medium"
+	case findings.SeverityLow:
+		return "Low"
+	case findings.SeverityInfo:
+		return "Informational"
+	default:
+		return strings.TrimSpace(string(sev))
+	}
 }

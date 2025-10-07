@@ -1,13 +1,17 @@
 {
+  "version": "1",
+  "target": "http://127.0.0.1:36165",
   "captured_at": "2025-10-02T00:42:12Z",
+  "links": {
+    "internal": 4,
+    "external": 2
+  },
   "responses": [
     {
-      "bytes": 1815,
-      "content_type": "text/html; charset=utf-8",
+      "url": "http://127.0.0.1:36165",
       "status": 200,
-      "url": "http://127.0.0.1:36165"
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 1815
     }
-  ],
-  "target": "http://127.0.0.1:36165",
-  "version": "1"
+  ]
 }

@@ -128,6 +128,10 @@ the generated findings, and emits an interactive HTML report under `out/demo/`.
 point. See the [Quickstart walkthrough](https://rowandark.github.io/Glyph/quickstart/)
 for a full tour and troubleshooting notes.
 
+As the pipeline completes, the CLI streams status updates for each stage and
+prints a Case preview summarising the top finding, including its proof of
+concept command and embedded thumbnail metadata.
+
 ## Documentation
 
 Browse the full documentation site at [rowandark.github.io/Glyph](https://rowandark.github.io/Glyph/).
