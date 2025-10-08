@@ -18,7 +18,16 @@ func runExport(args []string) int {
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", reporter.DefaultFindingsPath, "path to findings JSONL input")
 	out := fs.String("out", "", "path to write the exported output")
-	formatRaw := fs.String("format", "", "export format (sarif or jsonl)")
+	formats := exporter.Formats()
+	names := make([]string, 0, len(formats))
+	for _, spec := range formats {
+		names = append(names, string(spec.Format))
+	}
+	formatHelp := "export format"
+	if len(names) > 0 {
+		formatHelp = fmt.Sprintf("export format (%s)", strings.Join(names, ", "))
+	}
+	formatRaw := fs.String("format", "", formatHelp)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -52,28 +61,20 @@ func runExport(args []string) int {
 		return 1
 	}
 
+	telemetry := exporter.BuildTelemetry(casesList, len(findingsList))
+	req := exporter.Request{Cases: casesList, Findings: findingsList, Telemetry: telemetry}
+
 	outputPath := strings.TrimSpace(*out)
 	if outputPath == "" {
-		switch format {
-		case exporter.FormatSARIF:
-			outputPath = exporter.DefaultSARIFPath
-		case exporter.FormatJSONL:
-			outputPath = exporter.DefaultJSONLPath
-		default:
-			outputPath = exporter.DefaultJSONLPath
+		if path, err := exporter.DefaultPath(format); err == nil {
+			outputPath = path
+		} else {
+			fmt.Fprintf(os.Stderr, "--out is required for format %s (%v)\n", format, err)
+			return 2
 		}
 	}
 
-	var data []byte
-	switch format {
-	case exporter.FormatSARIF:
-		data, err = exporter.EncodeSARIF(casesList)
-	case exporter.FormatJSONL:
-		telemetry := exporter.BuildTelemetry(casesList, len(findingsList))
-		data, err = exporter.EncodeJSONL(casesList, telemetry)
-	default:
-		err = fmt.Errorf("unsupported format: %s", format)
-	}
+	data, err := exporter.Encode(format, req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "encode export: %v\n", err)
 		return 1

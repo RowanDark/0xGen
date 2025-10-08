@@ -1,7 +1,6 @@
 package exporter
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ const (
 	defaultOutputDir = "/out"
 	sarifFilename    = "cases.sarif"
 	jsonlFilename    = "cases.jsonl"
+	csvFilename      = "cases.csv"
 )
 
 // Format identifies the supported export encodings.
@@ -21,6 +21,8 @@ const (
 	FormatSARIF Format = "sarif"
 	// FormatJSONL renders telemetry and cases as newline-delimited JSON objects.
 	FormatJSONL Format = "jsonl"
+	// FormatCSV renders a tabular summary of cases.
+	FormatCSV Format = "csv"
 )
 
 var (
@@ -28,23 +30,45 @@ var (
 	DefaultSARIFPath = filepath.Join(defaultOutputDir, sarifFilename)
 	// DefaultJSONLPath is where the JSONL export is written when no --out flag is provided.
 	DefaultJSONLPath = filepath.Join(defaultOutputDir, jsonlFilename)
+	// DefaultCSVPath is where the CSV export is written when no --out flag is provided.
+	DefaultCSVPath = filepath.Join(defaultOutputDir, csvFilename)
 )
 
 func init() {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
-		DefaultSARIFPath = filepath.Join(custom, sarifFilename)
-		DefaultJSONLPath = filepath.Join(custom, jsonlFilename)
+	base := strings.TrimSpace(os.Getenv("GLYPH_OUT"))
+	if base == "" {
+		base = defaultOutputDir
 	}
-}
 
-// ParseFormat validates the provided format string.
-func ParseFormat(raw string) (Format, error) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case string(FormatSARIF):
-		return FormatSARIF, nil
-	case string(FormatJSONL):
-		return FormatJSONL, nil
-	default:
-		return "", fmt.Errorf("unsupported format %q (expected sarif or jsonl)", raw)
-	}
+	DefaultSARIFPath = filepath.Join(base, sarifFilename)
+	DefaultJSONLPath = filepath.Join(base, jsonlFilename)
+	DefaultCSVPath = filepath.Join(base, csvFilename)
+	setBaseOutput(base)
+
+	MustRegisterFormat(FormatSpec{
+		Format:          FormatSARIF,
+		DefaultFilename: sarifFilename,
+		Description:     "SARIF 2.1.0 security findings log",
+		Encode: func(req Request) ([]byte, error) {
+			return EncodeSARIF(req.Cases)
+		},
+	})
+
+	MustRegisterFormat(FormatSpec{
+		Format:          FormatJSONL,
+		DefaultFilename: jsonlFilename,
+		Description:     "JSON Lines export containing telemetry and cases",
+		Encode: func(req Request) ([]byte, error) {
+			return EncodeJSONL(req.Cases, req.Telemetry)
+		},
+	})
+
+	MustRegisterFormat(FormatSpec{
+		Format:          FormatCSV,
+		DefaultFilename: csvFilename,
+		Description:     "CSV summary of cases for spreadsheet workflows",
+		Encode: func(req Request) ([]byte, error) {
+			return EncodeCSV(req.Cases)
+		},
+	})
 }

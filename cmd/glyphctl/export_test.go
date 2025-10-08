@@ -67,6 +67,28 @@ func TestRunExportSARIF(t *testing.T) {
 	}
 }
 
+func TestRunExportCSV(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "findings.jsonl")
+	writeFixtureJSONL(t, inputPath)
+	outputPath := filepath.Join(dir, "cases.csv")
+
+	if code := runExport([]string{"--input", inputPath, "--out", outputPath, "--format", "csv"}); code != 0 {
+		t.Fatalf("runExport csv exited with %d", code)
+	}
+
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read csv: %v", err)
+	}
+	if bytes.Count(data, []byte("\n")) < 1 {
+		t.Fatalf("expected csv header and rows")
+	}
+}
+
 func TestRunExportMissingFormat(t *testing.T) {
 	restore := silenceOutput(t)
 	defer restore()
