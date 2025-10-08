@@ -9,8 +9,7 @@ use futures::{
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_json::from_str;
-use serde_json::Value;
+use serde_json::{from_str, json, Value};
 use tauri::{async_runtime, Manager, State, Window};
 use thiserror::Error;
 use url::Url;
@@ -34,6 +33,10 @@ impl StreamController {
     fn stop(self) {
         self.abort.abort();
     }
+}
+
+fn build_stream_key(prefix: &str, id: &str) -> String {
+    format!("{prefix}:{id}")
 }
 
 struct GlyphApi {
@@ -110,6 +113,73 @@ struct DashboardMetrics {
     queue_depth: f64,
     avg_latency_ms: f64,
     cases_found: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct FlowEventPayload {
+    id: String,
+    sequence: u64,
+    #[serde(rename = "type")]
+    kind: String,
+    timestamp: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sanitized: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sanitized_base64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    raw: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    raw_base64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    raw_body_size: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    raw_body_captured: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sanitized_redacted: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plugin_tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FlowPage {
+    items: Vec<FlowEventPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+struct FlowFilters {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    search: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    methods: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    statuses: Vec<i32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    domains: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    scope: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    plugin_tags: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResendFlowResponse {
+    flow_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<Value>,
 }
 
 #[derive(Debug)]
@@ -235,6 +305,13 @@ fn emit_run_event(window: &Window, run_id: &str, event: RunEvent) -> Result<(), 
         .map_err(|_| ApiError::WindowMissing)
 }
 
+fn emit_flow_event(window: &Window, stream_id: &str, event: FlowEventPayload) -> Result<(), ApiError> {
+    let event_name = format!("flows:{}:events", stream_id);
+    window
+        .emit(event_name, Some(event))
+        .map_err(|_| ApiError::WindowMissing)
+}
+
 #[tauri::command]
 async fn fetch_metrics(api: State<'_, GlyphApi>) -> Result<DashboardMetrics, String> {
     let url = api.endpoint("metrics");
@@ -289,6 +366,99 @@ async fn fetch_metrics(api: State<'_, GlyphApi>) -> Result<DashboardMetrics, Str
 }
 
 #[tauri::command]
+async fn list_flows(
+    api: State<'_, GlyphApi>,
+    cursor: Option<String>,
+    limit: Option<u32>,
+    filters: Option<FlowFilters>,
+) -> Result<FlowPage, String> {
+    let mut url = Url::parse(&api.endpoint("flows")).map_err(|err| err.to_string())?;
+    let filters = filters.unwrap_or_default();
+
+    {
+        let mut pairs = url.query_pairs_mut();
+        if let Some(cursor) = cursor {
+            let trimmed = cursor.trim();
+            if !trimmed.is_empty() {
+                pairs.append_pair("cursor", trimmed);
+            }
+        }
+        if let Some(limit) = limit {
+            pairs.append_pair("limit", &limit.to_string());
+        }
+        if let Some(search) = filters
+            .search
+            .as_ref()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("search", search);
+        }
+        for method in filters
+            .methods
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("method", method);
+        }
+        for status in &filters.statuses {
+            pairs.append_pair("status", &status.to_string());
+        }
+        for domain in filters
+            .domains
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("domain", domain);
+        }
+        for scope in filters
+            .scope
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("scope", scope);
+        }
+        for tag in filters
+            .tags
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("tag", tag);
+        }
+        for plugin_tag in filters
+            .plugin_tags
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("pluginTag", plugin_tag);
+        }
+    }
+
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<FlowPage>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 async fn stream_events(
     app: tauri::AppHandle,
     api: State<'_, GlyphApi>,
@@ -302,6 +472,7 @@ async fn stream_events(
     let client = api.client.clone();
     let window_clone = window.clone();
     let run_id_clone = run_id.clone();
+    let stream_key = build_stream_key("run", &run_id);
 
     let (abort_handle, abort_reg) = futures::future::AbortHandle::new_pair();
 
@@ -364,7 +535,7 @@ async fn stream_events(
 
     let mut guard = api.streams.lock().map_err(|err| err.to_string())?;
     if let Some(existing) = guard.insert(
-        run_id,
+        stream_key,
         StreamController {
             abort: abort_handle,
         },
@@ -377,16 +548,205 @@ async fn stream_events(
 
 #[tauri::command]
 async fn stop_stream(api: State<'_, GlyphApi>, run_id: String) -> Result<(), String> {
+    let key = build_stream_key("run", &run_id);
     if let Some(controller) = api
         .streams
         .lock()
         .map_err(|err| err.to_string())?
-        .remove(&run_id)
+        .remove(&key)
     {
         controller.stop();
     }
 
     Ok(())
+}
+
+#[tauri::command]
+async fn stream_flows(
+    app: tauri::AppHandle,
+    api: State<'_, GlyphApi>,
+    stream_id: String,
+    filters: Option<FlowFilters>,
+) -> Result<(), String> {
+    let window = app
+        .get_window("main")
+        .ok_or_else(|| ApiError::WindowMissing.to_string())?;
+
+    let mut url = Url::parse(&api.endpoint("flows/events")).map_err(|err| err.to_string())?;
+    let filters = filters.unwrap_or_default();
+    {
+        let mut pairs = url.query_pairs_mut();
+        if let Some(search) = filters
+            .search
+            .as_ref()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("search", search);
+        }
+        for method in filters
+            .methods
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("method", method);
+        }
+        for status in &filters.statuses {
+            pairs.append_pair("status", &status.to_string());
+        }
+        for domain in filters
+            .domains
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("domain", domain);
+        }
+        for scope in filters
+            .scope
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("scope", scope);
+        }
+        for tag in filters
+            .tags
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("tag", tag);
+        }
+        for plugin_tag in filters
+            .plugin_tags
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            pairs.append_pair("pluginTag", plugin_tag);
+        }
+    }
+
+    let client = api.client.clone();
+    let window_clone = window.clone();
+    let stream_id_clone = stream_id.clone();
+    let stream_key = build_stream_key("flow", &stream_id);
+
+    let (abort_handle, abort_reg) = futures::future::AbortHandle::new_pair();
+
+    let forward = async move {
+        let response = client.get(url).send().await?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(ApiError::UnexpectedResponse { status, body });
+        }
+
+        let mut buffer = String::new();
+        let mut byte_stream = response.bytes_stream();
+
+        while let Some(chunk) = byte_stream.next().await {
+            let chunk = chunk?;
+            buffer.push_str(&String::from_utf8_lossy(&chunk));
+
+            while let Some(index) = buffer.find('\n') {
+                let line = buffer[..index].trim().to_string();
+                buffer = buffer[index + 1..].to_string();
+
+                if line.is_empty() {
+                    continue;
+                }
+
+                let payload = if let Some(data) = line.strip_prefix("data:") {
+                    data.trim().to_string()
+                } else {
+                    line
+                };
+
+                match from_str::<FlowEventPayload>(&payload) {
+                    Ok(event) => {
+                        if let Err(err) =
+                            emit_flow_event(&window_clone, &stream_id_clone, event.clone())
+                        {
+                            eprintln!("Failed to emit flow event: {err}");
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to parse flow event payload: {err}");
+                    }
+                }
+            }
+        }
+
+        Ok::<(), ApiError>(())
+    };
+
+    let abortable = Abortable::new(forward, abort_reg);
+
+    async_runtime::spawn(async move {
+        match abortable.await {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => eprintln!("Stream error: {err}"),
+            Err(_) => {}
+        }
+    });
+
+    let mut guard = api.streams.lock().map_err(|err| err.to_string())?;
+    if let Some(existing) = guard.insert(
+        stream_key,
+        StreamController {
+            abort: abort_handle,
+        },
+    ) {
+        existing.stop();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop_flow_stream(api: State<'_, GlyphApi>, stream_id: String) -> Result<(), String> {
+    let key = build_stream_key("flow", &stream_id);
+    if let Some(controller) = api
+        .streams
+        .lock()
+        .map_err(|err| err.to_string())?
+        .remove(&key)
+    {
+        controller.stop();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn resend_flow(
+    api: State<'_, GlyphApi>,
+    flow_id: String,
+    message: String,
+) -> Result<ResendFlowResponse, String> {
+    let url = api.endpoint(&format!("flows/{}/resend", flow_id));
+    let payload = json!({ "message": message });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<ResendFlowResponse>()
+        .await
+        .map_err(|err| err.to_string())
 }
 
 fn configure_devtools(window: &Window) {
@@ -409,8 +769,12 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             list_runs,
             start_run,
+            list_flows,
             stream_events,
             stop_stream,
+            stream_flows,
+            stop_flow_stream,
+            resend_flow,
             fetch_metrics
         ])
         .run(tauri::generate_context!())

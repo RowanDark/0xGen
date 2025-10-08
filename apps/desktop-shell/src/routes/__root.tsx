@@ -12,6 +12,7 @@ declare const __DEVTOOLS_ENABLED__: boolean;
 
 const navigation = [
   { to: '/', label: 'Dashboard' },
+  { to: '/flows', label: 'Flows' },
   { to: '/runs', label: 'Runs' },
   { to: '/cases', label: 'Cases' }
 ];
