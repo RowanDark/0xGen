@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
-import { startRun } from '../lib/ipc';
+import { startRun, type StartRunPayload } from '../lib/ipc';
 import { useLocalStorage } from '../lib/use-local-storage';
 
 type RunComposerStep = {
@@ -172,6 +172,43 @@ const defaultState: RunComposerState = {
 };
 
 const presetStorageKey = 'glyph.desktop.runComposerPresets';
+
+function buildStartRunPayload(
+  state: RunComposerState,
+  scheduleStartAt?: string
+): StartRunPayload {
+  const trimmedName = state.name.trim();
+  const sanitizedTargets = state.targets.map((target) => target.trim()).filter((target) => target.length > 0);
+
+  return {
+    name: trimmedName.length > 0 ? trimmedName : defaultState.name,
+    template: state.scopePolicy || undefined,
+    targets: sanitizedTargets,
+    targetNotes: state.targetNotes.trim() || undefined,
+    scopePolicy: state.scopePolicy,
+    plugins: [...state.plugins],
+    limits: {
+      concurrency: state.limits.concurrency,
+      maxRps: state.limits.maxRps,
+      maxFindings: state.limits.maxFindings,
+      safeMode: state.limits.safeMode
+    },
+    auth: {
+      strategy: state.auth.strategy,
+      apiKey: state.auth.apiKey.trim() || undefined,
+      username: state.auth.username.trim() || undefined,
+      password: state.auth.password.trim() || undefined,
+      oauthClientId: state.auth.oauthClientId.trim() || undefined,
+      oauthClientSecret: state.auth.oauthClientSecret.trim() || undefined
+    },
+    schedule: {
+      mode: state.schedule.mode,
+      startAt: state.schedule.mode === 'later' ? scheduleStartAt : undefined,
+      timezone:
+        state.schedule.mode === 'later' ? state.schedule.timezone.trim() || undefined : undefined
+    }
+  } satisfies StartRunPayload;
+}
 
 function computeEstimatedImpact(state: RunComposerState) {
   const targetCount = state.targets.filter((value) => value.trim().length > 0).length;
@@ -907,20 +944,37 @@ function RunComposerRoute() {
   }, [currentStep.id, state]);
 
   const handleLaunch = async () => {
+    const scheduleDate =
+      state.schedule.mode === 'later' && state.schedule.startAt
+        ? new Date(state.schedule.startAt)
+        : undefined;
+
     if (state.schedule.mode === 'later') {
-      toast.success(`Run scheduled for ${new Date(state.schedule.startAt).toLocaleString()} (${state.schedule.timezone})`);
-      navigate({ to: '/runs' });
-      return;
+      if (!scheduleDate || Number.isNaN(scheduleDate.getTime())) {
+        toast.error('Please provide a valid start time for scheduled runs.');
+        return;
+      }
     }
+
+    const payload = buildStartRunPayload(state, scheduleDate?.toISOString());
 
     try {
       setIsSubmitting(true);
-      const response = await startRun({ name: state.name, template: state.scopePolicy });
+      const response = await startRun(payload);
+
+      if (payload.schedule.mode === 'later') {
+        toast.success(
+          `Run ${response.id} scheduled for ${scheduleDate!.toLocaleString()} (${payload.schedule.timezone ?? 'UTC'})`
+        );
+        navigate({ to: '/runs' });
+        return;
+      }
+
       toast.success(`Run ${response.id} kicked off`);
       navigate({ to: '/runs/$runId', params: { runId: response.id } });
     } catch (error) {
-      console.error('Failed to start run', error);
-      toast.error('Unable to launch run');
+      console.error('Failed to launch run', error);
+      toast.error('Failed to launch run');
     } finally {
       setIsSubmitting(false);
     }

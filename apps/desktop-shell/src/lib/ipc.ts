@@ -18,6 +18,34 @@ const StartRunResponseSchema = z.object({
   id: z.string()
 });
 
+export type StartRunPayload = {
+  name: string;
+  template?: string;
+  targets: string[];
+  targetNotes?: string;
+  scopePolicy: string;
+  plugins: string[];
+  limits: {
+    concurrency: number;
+    maxRps: number;
+    maxFindings: number;
+    safeMode: boolean;
+  };
+  auth: {
+    strategy: string;
+    apiKey?: string;
+    username?: string;
+    password?: string;
+    oauthClientId?: string;
+    oauthClientSecret?: string;
+  };
+  schedule: {
+    mode: 'now' | 'later';
+    startAt?: string;
+    timezone?: string;
+  };
+};
+
 const DashboardMetricsSchema = z.object({
   failures: z.number(),
   queueDepth: z.number(),
@@ -160,8 +188,8 @@ export async function listRuns(): Promise<Run[]> {
   return z.array(RunSchema).parse(runs);
 }
 
-export async function startRun(payload: { name: string; template?: string }) {
-  const response = await invoke('start_run', payload);
+export async function startRun(payload: StartRunPayload) {
+  const response = await invoke('start_run', { payload });
   return StartRunResponseSchema.parse(response);
 }
 
