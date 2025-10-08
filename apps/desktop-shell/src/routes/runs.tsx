@@ -135,7 +135,7 @@ function RunsRoute() {
               <li key={`${event.type}-${index}`} className="rounded-md border border-border bg-background p-3">
                 <p className="font-medium">{event.type}</p>
                 <p className="text-xs text-muted-foreground">{event.timestamp}</p>
-                {event.payload && (
+                {event.payload === undefined ? null : (
                   <pre className="mt-2 max-h-32 overflow-auto rounded bg-muted p-2 text-xs text-muted-foreground">
                     {JSON.stringify(event.payload, null, 2)}
                   </pre>

@@ -1,4 +1,4 @@
-import { RouterDevtools } from '@tanstack/router-devtools';
+import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 
 declare const __DEVTOOLS_ENABLED__: boolean;
 
@@ -9,5 +9,5 @@ export default function Devtools(_: Props) {
     return null;
   }
 
-  return <RouterDevtools position="bottom-right" />;
+  return <TanStackRouterDevtools position="bottom-right" />;
 }
