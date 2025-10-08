@@ -1,17 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Mutex, time::Duration};
 
 use chrono::{DateTime, Utc};
-use futures::{future::{AbortHandle, Abortable}, StreamExt};
+use futures::{
+    future::{AbortHandle, Abortable},
+    StreamExt,
+};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use serde_json::from_str;
+use serde_json::Value;
 use tauri::{async_runtime, Manager, State, Window};
 use thiserror::Error;
 use url::Url;
@@ -45,8 +44,8 @@ struct GlyphApi {
 
 impl GlyphApi {
     fn new() -> Self {
-        let base_url = std::env::var("GLYPH_API_URL")
-            .unwrap_or_else(|_| "http://127.0.0.1:8713".to_string());
+        let base_url =
+            std::env::var("GLYPH_API_URL").unwrap_or_else(|_| "http://127.0.0.1:8713".to_string());
         let parsed = Url::parse(&base_url).expect("invalid GLYPH_API_URL");
         match parsed.host_str() {
             Some("127.0.0.1") | Some("localhost") | Some("::1") => {}
@@ -66,7 +65,11 @@ impl GlyphApi {
     }
 
     fn endpoint(&self, path: &str) -> String {
-        format!("{}/{}", self.base_url.trim_end_matches('/'), path.trim_start_matches('/'))
+        format!(
+            "{}/{}",
+            self.base_url.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        )
     }
 }
 
@@ -100,6 +103,79 @@ struct RunEvent {
     payload: Value,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DashboardMetrics {
+    failures: f64,
+    queue_depth: f64,
+    avg_latency_ms: f64,
+    cases_found: f64,
+}
+
+#[derive(Debug)]
+struct MetricSample {
+    name: String,
+    labels: HashMap<String, String>,
+    value: f64,
+}
+
+fn parse_metric_identifier(identifier: &str) -> Option<(String, HashMap<String, String>)> {
+    if let Some(start) = identifier.find('{') {
+        let end = identifier.rfind('}')?;
+        let name = identifier[..start].to_string();
+        let mut labels = HashMap::new();
+        let inner = &identifier[start + 1..end];
+        for pair in inner.split(',') {
+            let trimmed = pair.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let mut parts = trimmed.splitn(2, '=');
+            let key = parts.next()?.trim();
+            let raw_value = parts.next()?.trim();
+            let value = raw_value
+                .trim_matches('"')
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\");
+            labels.insert(key.to_string(), value);
+        }
+        Some((name, labels))
+    } else {
+        Some((identifier.to_string(), HashMap::new()))
+    }
+}
+
+fn parse_metric_line(line: &str) -> Option<MetricSample> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        return None;
+    }
+
+    let mut parts = trimmed.rsplitn(2, ' ');
+    let value_str = parts.next()?;
+    let metric_part = parts.next()?;
+    let value: f64 = value_str.parse().ok()?;
+    let (name, labels) = parse_metric_identifier(metric_part)?;
+
+    Some(MetricSample {
+        name,
+        labels,
+        value,
+    })
+}
+
+fn parse_metrics(body: &str) -> Vec<MetricSample> {
+    body.lines().filter_map(parse_metric_line).collect()
+}
+
+fn sum_metric(samples: &[MetricSample], name: &str) -> f64 {
+    samples
+        .iter()
+        .filter(|sample| sample.name == name)
+        .map(|sample| sample.value)
+        .sum()
+}
+
 #[tauri::command]
 async fn list_runs(api: State<'_, GlyphApi>) -> Result<Vec<Run>, String> {
     let url = api.endpoint("runs");
@@ -123,7 +199,11 @@ async fn list_runs(api: State<'_, GlyphApi>) -> Result<Vec<Run>, String> {
 }
 
 #[tauri::command]
-async fn start_run(api: State<'_, GlyphApi>, name: String, template: Option<String>) -> Result<StartRunResponse, String> {
+async fn start_run(
+    api: State<'_, GlyphApi>,
+    name: String,
+    template: Option<String>,
+) -> Result<StartRunResponse, String> {
     let url = api.endpoint("runs");
     let payload = StartRunRequest { name, template };
     let response = api
@@ -140,7 +220,10 @@ async fn start_run(api: State<'_, GlyphApi>, name: String, template: Option<Stri
         return Err(ApiError::UnexpectedResponse { status, body }.to_string());
     }
 
-    response.json::<StartRunResponse>().await.map_err(|err| err.to_string())
+    response
+        .json::<StartRunResponse>()
+        .await
+        .map_err(|err| err.to_string())
 }
 
 fn emit_run_event(window: &Window, run_id: &str, event: RunEvent) -> Result<(), ApiError> {
@@ -151,7 +234,64 @@ fn emit_run_event(window: &Window, run_id: &str, event: RunEvent) -> Result<(), 
 }
 
 #[tauri::command]
-async fn stream_events(app: tauri::AppHandle, api: State<'_, GlyphApi>, run_id: String) -> Result<(), String> {
+async fn fetch_metrics(api: State<'_, GlyphApi>) -> Result<DashboardMetrics, String> {
+    let url = api.endpoint("metrics");
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    let body = response.text().await.map_err(|err| err.to_string())?;
+    let samples = parse_metrics(&body);
+
+    let failures = sum_metric(&samples, "glyph_rpc_errors_total");
+    let queue_depth = sum_metric(&samples, "glyph_plugin_queue_length");
+    let latency_sum = sum_metric(&samples, "glyph_plugin_event_duration_seconds_sum");
+    let latency_count = sum_metric(&samples, "glyph_plugin_event_duration_seconds_count");
+    let avg_latency_ms = if latency_count > 0.0 {
+        (latency_sum / latency_count) * 1000.0
+    } else {
+        0.0
+    };
+
+    let mut cases_found = 0.0;
+    for name in [
+        "glyph_cases_total",
+        "glyph_case_reports_total",
+        "glyph_case_count",
+        "glyph_cases_emitted_total",
+        "glyph_case_findings_total",
+    ] {
+        let value = sum_metric(&samples, name);
+        if value > 0.0 {
+            cases_found = value;
+            break;
+        }
+        cases_found = cases_found.max(value);
+    }
+
+    Ok(DashboardMetrics {
+        failures,
+        queue_depth,
+        avg_latency_ms,
+        cases_found,
+    })
+}
+
+#[tauri::command]
+async fn stream_events(
+    app: tauri::AppHandle,
+    api: State<'_, GlyphApi>,
+    run_id: String,
+) -> Result<(), String> {
     let window = app
         .get_window("main")
         .ok_or_else(|| ApiError::WindowMissing.to_string())?;
@@ -194,7 +334,9 @@ async fn stream_events(app: tauri::AppHandle, api: State<'_, GlyphApi>, run_id: 
 
                 match from_str::<RunEvent>(&payload) {
                     Ok(event) => {
-                        if let Err(err) = emit_run_event(&window_clone, &run_id_clone, event.clone()) {
+                        if let Err(err) =
+                            emit_run_event(&window_clone, &run_id_clone, event.clone())
+                        {
                             eprintln!("Failed to emit event: {err}");
                         }
                     }
@@ -219,7 +361,12 @@ async fn stream_events(app: tauri::AppHandle, api: State<'_, GlyphApi>, run_id: 
     });
 
     let mut guard = api.streams.lock().map_err(|err| err.to_string())?;
-    if let Some(existing) = guard.insert(run_id, StreamController { abort: abort_handle }) {
+    if let Some(existing) = guard.insert(
+        run_id,
+        StreamController {
+            abort: abort_handle,
+        },
+    ) {
         existing.stop();
     }
 
@@ -228,7 +375,12 @@ async fn stream_events(app: tauri::AppHandle, api: State<'_, GlyphApi>, run_id: 
 
 #[tauri::command]
 async fn stop_stream(api: State<'_, GlyphApi>, run_id: String) -> Result<(), String> {
-    if let Some(controller) = api.streams.lock().map_err(|err| err.to_string())?.remove(&run_id) {
+    if let Some(controller) = api
+        .streams
+        .lock()
+        .map_err(|err| err.to_string())?
+        .remove(&run_id)
+    {
         controller.stop();
     }
 
@@ -236,7 +388,8 @@ async fn stop_stream(api: State<'_, GlyphApi>, run_id: String) -> Result<(), Str
 }
 
 fn configure_devtools(window: &Window) {
-    let allow_devtools = std::env::var("GLYPH_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+    let allow_devtools =
+        std::env::var("GLYPH_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
     if let Ok(true) = allow_devtools {
         let _ = window.open_devtools();
     }
@@ -251,7 +404,13 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_runs, start_run, stream_events, stop_stream])
+        .invoke_handler(tauri::generate_handler![
+            list_runs,
+            start_run,
+            stream_events,
+            stop_stream,
+            fetch_metrics
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
