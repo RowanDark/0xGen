@@ -42,6 +42,12 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 - Provide documentation for manual setup when automation is unavailable.
 - Include Selenium/WebDriver snippets for automated testing using the proxy.
 
+### Flow sanitisation & plugin delivery
+- The proxy emits a sanitized flow stream by default, redacting sensitive headers (cookies, auth tokens, API keys) and replacing bodies with `[REDACTED body length=n]`. Plugins subscribe via `FLOW_REQUEST` / `FLOW_RESPONSE` and must declare `CAP_FLOW_INSPECT`.
+- Plugins with `CAP_FLOW_INSPECT_RAW` may opt into raw events using `FLOW_REQUEST_RAW` / `FLOW_RESPONSE_RAW`. The host enforces capability checks at handshake and records drops when plugin queues back up.
+- Sanitized and raw deliveries are counted via `glyph_flow_events_total` and `glyph_flow_events_dropped_total` metrics, allowing operators to monitor throughput and backpressure.
+- Scope policies parsed from YAML (see `--scope-policy`) suppress out-of-scope flows before they reach plugins, ensuring redaction rules align with bounty constraints.
+
 ### Logging & Audit
 - Persist intercepted flows (requests/responses, edits, approvals) in a new `intercepts.db` SQLite database.
 - Record timestamps, user identifiers, and plugin execution outcomes.

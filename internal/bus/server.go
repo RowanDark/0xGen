@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/flows"
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
 	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
@@ -21,8 +22,17 @@ import (
 )
 
 const (
-	coreVersion     = "v0.1.0"
-	CapEmitFindings = "CAP_EMIT_FINDINGS"
+	coreVersion       = "v0.1.0"
+	CapEmitFindings   = "CAP_EMIT_FINDINGS"
+	CapFlowInspect    = "CAP_FLOW_INSPECT"
+	CapFlowInspectRaw = "CAP_FLOW_INSPECT_RAW"
+)
+
+const (
+	subscriptionFlowRequest     = "FLOW_REQUEST"
+	subscriptionFlowResponse    = "FLOW_RESPONSE"
+	subscriptionFlowRequestRaw  = "FLOW_REQUEST_RAW"
+	subscriptionFlowResponseRaw = "FLOW_RESPONSE_RAW"
 )
 
 // plugin holds the information about a connected plugin.
@@ -153,13 +163,47 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		},
 	})
 
-	subs := make(map[string]struct{})
-	for _, sub := range hello.GetSubscriptions() {
-		subs[sub] = struct{}{}
-	}
 	caps := make(map[string]struct{})
 	for _, cap := range validatedCaps {
 		caps[cap] = struct{}{}
+	}
+
+	subs := make(map[string]struct{})
+	for _, requested := range hello.GetSubscriptions() {
+		normalised, err := normaliseSubscription(requested)
+		if err != nil {
+			s.emit(ctx, logging.AuditEvent{
+				EventType: logging.EventPluginLoad,
+				Decision:  logging.DecisionDeny,
+				PluginID:  pluginID,
+				Reason:    err.Error(),
+			})
+			return status.Errorf(codes.InvalidArgument, "invalid subscription %q: %v", requested, err)
+		}
+		required := subscriptionRequiresCapability(normalised)
+		if required != "" {
+			if _, ok := caps[required]; !ok {
+				s.emit(ctx, logging.AuditEvent{
+					EventType: logging.EventPluginLoad,
+					Decision:  logging.DecisionDeny,
+					PluginID:  pluginID,
+					Reason:    fmt.Sprintf("subscription %s requires capability %s", normalised, required),
+				})
+				return status.Errorf(codes.PermissionDenied, "subscription %s requires capability %s", normalised, required)
+			}
+			if required == CapFlowInspectRaw {
+				if _, ok := caps[CapFlowInspect]; !ok {
+					s.emit(ctx, logging.AuditEvent{
+						EventType: logging.EventPluginLoad,
+						Decision:  logging.DecisionDeny,
+						PluginID:  pluginID,
+						Reason:    fmt.Sprintf("subscription %s requires capability %s", normalised, CapFlowInspect),
+					})
+					return status.Errorf(codes.PermissionDenied, "subscription %s requires capability %s", normalised, CapFlowInspect)
+				}
+			}
+		}
+		subs[normalised] = struct{}{}
 	}
 
 	p := &plugin{
@@ -478,7 +522,7 @@ func (s *Server) StartEventGenerator(ctx context.Context) {
 					},
 				},
 			}
-			s.broadcast(ctx, event)
+			_, _ = s.broadcast(ctx, event, "", nil)
 		}
 	}
 }
@@ -491,14 +535,16 @@ func getEventType(event *pb.HostEvent) string {
 	return "UNKNOWN"
 }
 
-func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent) {
+func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent, eventType string, shouldDeliver func(string, *plugin) bool) (delivered int, dropped int) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if len(s.connections) == 0 {
-		return
+		return 0, 0
 	}
 
-	eventType := getEventType(event)
+	if strings.TrimSpace(eventType) == "" {
+		eventType = getEventType(event)
+	}
 	obsmetrics.RecordRPCRequest("plugin_bus", "Broadcast")
 	start := time.Now()
 	code := codes.OK.String()
@@ -519,6 +565,9 @@ func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent) {
 
 	for id, plugin := range s.connections {
 		if _, subscribed := plugin.subscriptions[eventType]; subscribed {
+			if shouldDeliver != nil && !shouldDeliver(id, plugin) {
+				continue
+			}
 			s.emit(spanCtx, logging.AuditEvent{
 				EventType: logging.EventRPCCall,
 				Decision:  logging.DecisionInfo,
@@ -529,10 +578,11 @@ func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent) {
 			})
 			select {
 			case plugin.eventChan <- event:
-				// Event sent
+				delivered++
 				obsmetrics.SetPluginQueueLength(id, len(plugin.eventChan))
 			default:
 				obsmetrics.RecordRPCError("plugin_bus", "Broadcast", "channel_full")
+				dropped++
 				hadChannelError = true
 				s.emit(spanCtx, logging.AuditEvent{
 					EventType: logging.EventRPCDenied,
@@ -548,28 +598,119 @@ func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent) {
 		code = codes.ResourceExhausted.String()
 		span.RecordError(fmt.Errorf("one or more plugin channels full"))
 		span.End()
-		return
+		return delivered, dropped
 	}
 
 	span.EndWithStatus(tracing.StatusOK, "")
+	return delivered, dropped
 }
 
-// PublishFlowEvent broadcasts a flow event to all connected plugins.
-func (s *Server) PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) {
+// PublishFlowEvent broadcasts a flow event to all connected plugins, delivering
+// sanitized or raw payloads based on each plugin's declared subscriptions and
+// capabilities.
+func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 	if s == nil {
 		return
 	}
-	data := append([]byte(nil), payload...)
-	event := &pb.HostEvent{
-		CoreVersion: coreVersion,
-		Event: &pb.HostEvent_FlowEvent{
-			FlowEvent: &pb.FlowEvent{
-				Type: flowType,
-				Data: data,
+	if len(event.Sanitized) > 0 {
+		sanitizedPayload := append([]byte(nil), event.Sanitized...)
+		sanitized := &pb.HostEvent{
+			CoreVersion: coreVersion,
+			Event: &pb.HostEvent_FlowEvent{
+				FlowEvent: &pb.FlowEvent{
+					Type: event.Type,
+					Data: sanitizedPayload,
+				},
 			},
-		},
+		}
+		delivered, dropped := s.broadcast(ctx, sanitized, flowSubscriptionName(event.Type, false), func(id string, plugin *plugin) bool {
+			return pluginHasCapability(plugin, CapFlowInspect)
+		})
+		if delivered > 0 {
+			obsmetrics.RecordFlowEvent(flowSubscriptionName(event.Type, false), "sanitized", delivered)
+		}
+		if dropped > 0 {
+			obsmetrics.RecordFlowDrop(flowSubscriptionName(event.Type, false), "channel_full", dropped)
+		}
 	}
-	s.broadcast(ctx, event)
+	if len(event.Raw) > 0 {
+		rawPayload := append([]byte(nil), event.Raw...)
+		raw := &pb.HostEvent{
+			CoreVersion: coreVersion,
+			Event: &pb.HostEvent_FlowEvent{
+				FlowEvent: &pb.FlowEvent{
+					Type: event.Type,
+					Data: rawPayload,
+				},
+			},
+		}
+		delivered, dropped := s.broadcast(ctx, raw, flowSubscriptionName(event.Type, true), func(id string, plugin *plugin) bool {
+			return pluginHasCapability(plugin, CapFlowInspectRaw)
+		})
+		if delivered > 0 {
+			obsmetrics.RecordFlowEvent(flowSubscriptionName(event.Type, true), "raw", delivered)
+		}
+		if dropped > 0 {
+			obsmetrics.RecordFlowDrop(flowSubscriptionName(event.Type, true), "channel_full", dropped)
+		}
+	}
+}
+
+func flowSubscriptionName(flowType pb.FlowEvent_Type, raw bool) string {
+	switch flowType {
+	case pb.FlowEvent_FLOW_REQUEST:
+		if raw {
+			return subscriptionFlowRequestRaw
+		}
+		return subscriptionFlowRequest
+	case pb.FlowEvent_FLOW_RESPONSE:
+		if raw {
+			return subscriptionFlowResponseRaw
+		}
+		return subscriptionFlowResponse
+	default:
+		name := flowType.String()
+		if raw {
+			return name + "_RAW"
+		}
+		return name
+	}
+}
+
+func pluginHasCapability(p *plugin, capability string) bool {
+	if capability == "" {
+		return true
+	}
+	if p == nil || len(p.capabilities) == 0 {
+		return false
+	}
+	_, ok := p.capabilities[capability]
+	return ok
+}
+
+func normaliseSubscription(sub string) (string, error) {
+	trimmed := strings.TrimSpace(sub)
+	if trimmed == "" {
+		return "", fmt.Errorf("subscription name required")
+	}
+	candidate := strings.ReplaceAll(strings.ToUpper(trimmed), ".", "_")
+	switch candidate {
+	case subscriptionFlowRequest, subscriptionFlowResponse, subscriptionFlowRequestRaw, subscriptionFlowResponseRaw:
+		return candidate, nil
+	default:
+		return "", fmt.Errorf("subscription %q not recognised", sub)
+	}
+}
+
+func subscriptionRequiresCapability(sub string) string {
+	switch sub {
+	case subscriptionFlowRequest, subscriptionFlowResponse:
+		return CapFlowInspect
+	case subscriptionFlowRequestRaw, subscriptionFlowResponseRaw:
+		return CapFlowInspectRaw
+	default:
+		return ""
+	}
 }
 
 func (s *Server) publishFinding(ctx context.Context, pluginID string, incoming *pb.Finding) {

@@ -4,6 +4,8 @@ package pluginsdk
 type CapabilitySet struct {
 	EmitFindings   bool
 	HTTPPassive    bool
+	FlowInspect    bool
+	FlowInspectRaw bool
 	WorkspaceRead  bool
 	WorkspaceWrite bool
 	NetOutbound    bool
@@ -18,6 +20,12 @@ func (s CapabilitySet) List() []Capability {
 	}
 	if s.HTTPPassive {
 		caps = append(caps, CapabilityHTTPPassive)
+	}
+	if s.FlowInspect {
+		caps = append(caps, CapabilityFlowInspect)
+	}
+	if s.FlowInspectRaw {
+		caps = append(caps, CapabilityFlowInspectRaw)
 	}
 	if s.WorkspaceRead {
 		caps = append(caps, CapabilityWorkspaceRead)
@@ -41,6 +49,10 @@ func (s CapabilitySet) Enabled(cap Capability) bool {
 		return s.EmitFindings
 	case CapabilityHTTPPassive:
 		return s.HTTPPassive
+	case CapabilityFlowInspect:
+		return s.FlowInspect
+	case CapabilityFlowInspectRaw:
+		return s.FlowInspectRaw
 	case CapabilityWorkspaceRead:
 		return s.WorkspaceRead
 	case CapabilityWorkspaceWrite:

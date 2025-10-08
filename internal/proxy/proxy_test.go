@@ -19,6 +19,8 @@ import (
 
 	"log/slog"
 
+	"github.com/RowanDark/Glyph/internal/flows"
+	"github.com/RowanDark/Glyph/internal/scope"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
 
@@ -28,8 +30,9 @@ type recordedRequest struct {
 }
 
 type recordedFlow struct {
-	Type pb.FlowEvent_Type
-	Data []byte
+	Type      pb.FlowEvent_Type
+	Sanitized []byte
+	Raw       []byte
 }
 
 type recordingPublisher struct {
@@ -37,11 +40,17 @@ type recordingPublisher struct {
 	events []recordedFlow
 }
 
-func (r *recordingPublisher) PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) error {
+func (r *recordingPublisher) PublishFlowEvent(ctx context.Context, event flows.Event) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	data := append([]byte(nil), payload...)
-	r.events = append(r.events, recordedFlow{Type: flowType, Data: data})
+	entry := recordedFlow{Type: event.Type}
+	if len(event.Sanitized) > 0 {
+		entry.Sanitized = append([]byte(nil), event.Sanitized...)
+	}
+	if len(event.Raw) > 0 {
+		entry.Raw = append([]byte(nil), event.Raw...)
+	}
+	r.events = append(r.events, entry)
 	return nil
 }
 
@@ -51,6 +60,17 @@ func (r *recordingPublisher) snapshot() []recordedFlow {
 	out := make([]recordedFlow, len(r.events))
 	copy(out, r.events)
 	return out
+}
+
+type filteringScope struct {
+	block string
+}
+
+func (f filteringScope) Evaluate(candidate string) scope.Decision {
+	if strings.Contains(candidate, f.block) {
+		return scope.Decision{Allowed: false, Reason: scope.DecisionDeniedByRule}
+	}
+	return scope.Decision{Allowed: true, Reason: scope.DecisionAllowed}
 }
 
 func newTestLogger() *slog.Logger {
@@ -283,7 +303,10 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_ = r.Body.Close()
 		w.Header().Set("X-Upstream", "ok")
+		w.Header().Add("Set-Cookie", "session=raw-token; HttpOnly")
 		_, _ = w.Write([]byte("payload"))
 	}))
 	t.Cleanup(upstream.Close)
@@ -323,7 +346,14 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	proxyURL, _ := url.Parse("http://" + proxy.Addr())
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 
-	resp, err := client.Get(upstream.URL + "/flow")
+	req, err := http.NewRequest(http.MethodPost, upstream.URL+"/flow", strings.NewReader("sensitive-body"))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer demo-secret")
+	req.Header.Set("Cookie", "session=abc; theme=dark")
+	req.Header.Set("X-API-KEY", "key-123")
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("http request via proxy: %v", err)
 	}
@@ -341,15 +371,134 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if events[0].Type != pb.FlowEvent_FLOW_REQUEST {
 		t.Fatalf("first event type = %v, want FLOW_REQUEST", events[0].Type)
 	}
-	if !strings.Contains(string(events[0].Data), "GET /flow") {
-		t.Fatalf("request payload missing request line: %q", string(events[0].Data))
+	if len(events[0].Raw) == 0 || len(events[0].Sanitized) == 0 {
+		t.Fatalf("request event missing raw or sanitized payload")
+	}
+	rawReq := string(events[0].Raw)
+	if !strings.Contains(rawReq, "Authorization: Bearer demo-secret") {
+		t.Fatalf("raw request missing authorization header: %q", rawReq)
+	}
+	if !strings.Contains(rawReq, "Cookie: session=abc; theme=dark") {
+		t.Fatalf("raw request missing cookie header: %q", rawReq)
+	}
+	sanitizedReq := string(events[0].Sanitized)
+	if !strings.Contains(sanitizedReq, "Authorization: Bearer [REDACTED]") {
+		t.Fatalf("sanitized request missing authorization redaction: %q", sanitizedReq)
+	}
+	if strings.Contains(sanitizedReq, "demo-secret") {
+		t.Fatalf("sanitized request leaked secret: %q", sanitizedReq)
+	}
+	if !strings.Contains(sanitizedReq, "Cookie: session=<redacted>; theme=<redacted>") {
+		t.Fatalf("sanitized request cookie not redacted: %q", sanitizedReq)
+	}
+	if !strings.Contains(sanitizedReq, "X-Api-Key: [REDACTED]") && !strings.Contains(sanitizedReq, "X-API-KEY: [REDACTED]") {
+		t.Fatalf("sanitized request api key not redacted: %q", sanitizedReq)
+	}
+	if !strings.Contains(sanitizedReq, "X-Glyph-Body-Redacted: 14") {
+		t.Fatalf("sanitized request missing body metadata: %q", sanitizedReq)
+	}
+	if !strings.Contains(sanitizedReq, "[REDACTED body length=14]") {
+		t.Fatalf("sanitized request body placeholder missing: %q", sanitizedReq)
 	}
 
 	if events[1].Type != pb.FlowEvent_FLOW_RESPONSE {
 		t.Fatalf("second event type = %v, want FLOW_RESPONSE", events[1].Type)
 	}
-	if !strings.Contains(string(events[1].Data), "X-Upstream: ok") {
-		t.Fatalf("response payload missing header: %q", string(events[1].Data))
+	if len(events[1].Raw) == 0 || len(events[1].Sanitized) == 0 {
+		t.Fatalf("response event missing raw or sanitized payload")
+	}
+	rawResp := string(events[1].Raw)
+	if !strings.Contains(rawResp, "Set-Cookie: session=raw-token; HttpOnly") {
+		t.Fatalf("raw response missing set-cookie header: %q", rawResp)
+	}
+	sanitizedResp := string(events[1].Sanitized)
+	if strings.Contains(sanitizedResp, "raw-token") {
+		t.Fatalf("sanitized response leaked cookie token: %q", sanitizedResp)
+	}
+	if !strings.Contains(sanitizedResp, "Set-Cookie: session=<redacted>; HttpOnly") {
+		t.Fatalf("sanitized response cookie not redacted: %q", sanitizedResp)
+	}
+	if !strings.Contains(sanitizedResp, "X-Glyph-Body-Redacted: 7") {
+		t.Fatalf("sanitized response missing body metadata: %q", sanitizedResp)
+	}
+	if !strings.Contains(sanitizedResp, "[REDACTED body length=7]") {
+		t.Fatalf("sanitized response body placeholder missing: %q", sanitizedResp)
+	}
+}
+
+func TestProxySuppressesOutOfScopeFlows(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	publisher := &recordingPublisher{}
+
+	cfg := Config{
+		Addr:          "127.0.0.1:0",
+		RulesPath:     filepath.Join(tempDir, "rules.json"),
+		HistoryPath:   filepath.Join(tempDir, "history.jsonl"),
+		CACertPath:    filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:     filepath.Join(tempDir, "ca.key"),
+		Logger:        newTestLogger(),
+		FlowPublisher: publisher,
+		Scope:         filteringScope{block: "/blocked"},
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	resp, err := client.Get(upstream.URL + "/blocked")
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	cancel()
+	waitErr(t, errCh)
+
+	events := publisher.snapshot()
+	if len(events) != 0 {
+		t.Fatalf("expected 0 flow events for out-of-scope request, got %d", len(events))
+	}
+}
+
+func TestBuildRequestEventHandlesEmptyState(t *testing.T) {
+	t.Parallel()
+
+	state := &proxyFlowState{}
+	event := buildRequestEvent(state)
+	if event == nil {
+		t.Fatal("expected event for empty state")
+	}
+	if len(event.Raw) == 0 {
+		t.Fatal("raw payload should not be empty")
+	}
+	if len(event.Sanitized) == 0 {
+		t.Fatal("sanitized payload should not be empty")
 	}
 }
 

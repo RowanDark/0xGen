@@ -85,9 +85,13 @@ missing or the plugin requests undeclared privileges.
 | `CAP_SPIDER` | Permits scheduling crawl jobs through the Glyph spider/queue components. |
 | `CAP_REPORT` | Allows plugins to submit rendered reports that downstream tooling (for example `scribe`) can publish. |
 | `CAP_STORAGE` | Grants access to managed storage buckets for large artefacts or binary blobs. |
+| `CAP_FLOW_INSPECT` | Enables subscriptions to sanitized HTTP flow events (`FLOW_REQUEST`, `FLOW_RESPONSE`). Sensitive headers and bodies are redacted unless explicitly allowed by program scope. |
+| `CAP_FLOW_INSPECT_RAW` | Grants access to raw HTTP flow events (`FLOW_REQUEST_RAW`, `FLOW_RESPONSE_RAW`). Requires `CAP_FLOW_INSPECT` and delivers unredacted payloads for forensic tooling. |
 
 Only request capabilities the plugin actively needs. The manifest validator under
 `hack/validate_manifests.sh` enforces the whitelist above.
+
+Flow subscriptions use uppercase identifiers in the runtime handshake. Sanitized streams are exposed via `FLOW_REQUEST` and `FLOW_RESPONSE`, while raw byte-for-byte payloads are available through `FLOW_REQUEST_RAW` and `FLOW_RESPONSE_RAW`. Plugins requesting either stream without the corresponding capability are rejected during the handshake. Sanitized flows retain metadata but replace secrets with placeholders and include the `X-Glyph-Body-Redacted` header to convey original body length.
 
 ## Emitting findings {#emitting-findings}
 

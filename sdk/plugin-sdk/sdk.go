@@ -31,6 +31,10 @@ const (
 	CapabilityEmitFindings Capability = "CAP_EMIT_FINDINGS"
 	// CapabilityHTTPPassive allows the plugin to receive passive HTTP events.
 	CapabilityHTTPPassive Capability = "CAP_HTTP_PASSIVE"
+	// CapabilityFlowInspect grants access to sanitized HTTP flow events.
+	CapabilityFlowInspect Capability = "CAP_FLOW_INSPECT"
+	// CapabilityFlowInspectRaw grants access to raw HTTP flow events.
+	CapabilityFlowInspectRaw Capability = "CAP_FLOW_INSPECT_RAW"
 	// CapabilityWorkspaceRead allows the plugin to read from its allocated workspace.
 	CapabilityWorkspaceRead Capability = "CAP_WORKSPACE_READ"
 	// CapabilityWorkspaceWrite allows the plugin to write to its allocated workspace.
@@ -47,6 +51,12 @@ type Subscription string
 const (
 	// SubscriptionFlowResponse subscribes to HTTP response flow events from the host.
 	SubscriptionFlowResponse Subscription = "FLOW_RESPONSE"
+	// SubscriptionFlowRequest subscribes to sanitized HTTP request flow events from the host.
+	SubscriptionFlowRequest Subscription = "FLOW_REQUEST"
+	// SubscriptionFlowResponseRaw subscribes to raw HTTP response flow events.
+	SubscriptionFlowResponseRaw Subscription = "FLOW_RESPONSE_RAW"
+	// SubscriptionFlowRequestRaw subscribes to raw HTTP request flow events.
+	SubscriptionFlowRequestRaw Subscription = "FLOW_REQUEST_RAW"
 )
 
 // Severity describes how serious a finding is considered by the plugin.
@@ -282,6 +292,9 @@ func Serve(parent context.Context, cfg Config, hooks Hooks) error {
 	if hooks.OnHTTPPassive != nil {
 		if _, ok := caps[CapabilityHTTPPassive]; !ok {
 			return fmt.Errorf("hook OnHTTPPassive requires capability %s", CapabilityHTTPPassive)
+		}
+		if _, ok := caps[CapabilityFlowInspect]; !ok {
+			caps[CapabilityFlowInspect] = struct{}{}
 		}
 		if _, present := subs[SubscriptionFlowResponse]; !present {
 			subs[SubscriptionFlowResponse] = struct{}{}

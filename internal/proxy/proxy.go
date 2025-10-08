@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/RowanDark/Glyph/internal/flows"
+	"github.com/RowanDark/Glyph/internal/scope"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
 
@@ -39,11 +41,18 @@ type Config struct {
 	ReloadInterval time.Duration
 	Transport      http.RoundTripper
 	FlowPublisher  FlowPublisher
+	Scope          ScopeEvaluator
 }
 
 // FlowPublisher propagates captured flows to downstream consumers.
 type FlowPublisher interface {
-	PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) error
+	PublishFlowEvent(ctx context.Context, event flows.Event) error
+}
+
+// ScopeEvaluator determines whether a captured flow is considered in-scope for
+// publication to plugins. Implementations should be safe for concurrent use.
+type ScopeEvaluator interface {
+	Evaluate(candidate string) scope.Decision
 }
 
 // Proxy intercepts HTTP traffic for inspection and modification.
@@ -61,6 +70,7 @@ type Proxy struct {
 	shutdownMu sync.Mutex
 	closed     bool
 	publisher  FlowPublisher
+	scope      ScopeEvaluator
 }
 
 // New creates a proxy using the provided configuration.
@@ -94,6 +104,7 @@ func New(cfg Config) (*Proxy, error) {
 		rules:     newRuleStore(cfg.RulesPath, cfg.ReloadInterval),
 		ready:     make(chan struct{}),
 		publisher: cfg.FlowPublisher,
+		scope:     cfg.Scope,
 	}
 
 	p.server = &http.Server{
@@ -751,17 +762,24 @@ func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
 	if p.publisher == nil || state == nil {
 		return
 	}
+	if p.scope != nil {
+		decision := p.scope.Evaluate(state.url)
+		if !decision.Allowed {
+			p.logger.Debug("suppressing out-of-scope flow", "url", state.url, "reason", decision.Reason)
+			return
+		}
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	if data := encodeProxyRequest(state); len(data) > 0 {
-		if err := p.publisher.PublishFlowEvent(ctx, pb.FlowEvent_FLOW_REQUEST, data); err != nil {
+	if event := buildRequestEvent(state); event != nil {
+		if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
 			p.logger.Warn("failed to publish request event", "error", err)
 		}
 	}
-	if data := encodeProxyResponse(state); len(data) > 0 {
-		if err := p.publisher.PublishFlowEvent(ctx, pb.FlowEvent_FLOW_RESPONSE, data); err != nil {
+	if event := buildResponseEvent(state); event != nil {
+		if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
 			p.logger.Warn("failed to publish response event", "error", err)
 		}
 	}
@@ -779,25 +797,25 @@ func encodeProxyRequest(state *proxyFlowState) []byte {
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
-	target := state.url
-	if parsed, err := url.Parse(state.url); err == nil {
-		if parsed.Opaque != "" {
-			target = parsed.Opaque
-		} else {
-			target = parsed.RequestURI()
-		}
-	}
+	target := requestTarget(state.url)
+	return encodeHTTPRequest(method, target, proto, state.finalRequestHeaders, state.finalRequestBody)
+}
 
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s %s %s\r\n", method, target, proto)
-	if state.finalRequestHeaders != nil {
-		if err := state.finalRequestHeaders.Write(&buf); err != nil {
-			return nil
-		}
+func encodeSanitizedProxyRequest(state *proxyFlowState) []byte {
+	if state == nil {
+		return nil
 	}
-	buf.WriteString("\r\n")
-	buf.Write(state.finalRequestBody)
-	return buf.Bytes()
+	method := strings.ToUpper(strings.TrimSpace(state.method))
+	if method == "" {
+		method = http.MethodGet
+	}
+	proto := strings.TrimSpace(state.requestProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	headers, body := sanitizeRequest(state)
+	target := requestTarget(state.url)
+	return encodeHTTPRequest(method, target, proto, headers, body)
 }
 
 func encodeProxyResponse(state *proxyFlowState) []byte {
@@ -808,21 +826,272 @@ func encodeProxyResponse(state *proxyFlowState) []byte {
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
-	statusText := http.StatusText(state.statusCode)
-	if statusText == "" {
-		statusText = "Status"
-	}
+	status := sanitizeStatus(state.statusCode)
+	return encodeHTTPResponse(proto, state.statusCode, state.responseHeaders, state.responseBody, status)
+}
 
+func encodeSanitizedProxyResponse(state *proxyFlowState) []byte {
+	if state == nil {
+		return nil
+	}
+	proto := strings.TrimSpace(state.responseProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	headers, body := sanitizeResponse(state)
+	status := sanitizeStatus(state.statusCode)
+	return encodeHTTPResponse(proto, state.statusCode, headers, body, status)
+}
+
+func buildRequestEvent(state *proxyFlowState) *flows.Event {
+	raw := encodeProxyRequest(state)
+	sanitized := encodeSanitizedProxyRequest(state)
+	if len(raw) == 0 && len(sanitized) == 0 {
+		return nil
+	}
+	return &flows.Event{Type: pb.FlowEvent_FLOW_REQUEST, Sanitized: sanitized, Raw: raw}
+}
+
+func buildResponseEvent(state *proxyFlowState) *flows.Event {
+	raw := encodeProxyResponse(state)
+	sanitized := encodeSanitizedProxyResponse(state)
+	if len(raw) == 0 && len(sanitized) == 0 {
+		return nil
+	}
+	return &flows.Event{Type: pb.FlowEvent_FLOW_RESPONSE, Sanitized: sanitized, Raw: raw}
+}
+
+func requestTarget(rawURL string) string {
+	target := strings.TrimSpace(rawURL)
+	if parsed, err := url.Parse(rawURL); err == nil {
+		if parsed.Opaque != "" {
+			target = parsed.Opaque
+		} else {
+			target = parsed.RequestURI()
+		}
+	}
+	if target == "" {
+		return "/"
+	}
+	return target
+}
+
+func encodeHTTPRequest(method, target, proto string, headers http.Header, body []byte) []byte {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s %d %s\r\n", proto, state.statusCode, statusText)
-	if state.responseHeaders != nil {
-		if err := state.responseHeaders.Write(&buf); err != nil {
+	fmt.Fprintf(&buf, "%s %s %s\r\n", method, target, proto)
+	if len(headers) > 0 {
+		if err := headers.Write(&buf); err != nil {
 			return nil
 		}
 	}
 	buf.WriteString("\r\n")
-	buf.Write(state.responseBody)
+	buf.Write(body)
 	return buf.Bytes()
+}
+
+func encodeHTTPResponse(proto string, statusCode int, headers http.Header, body []byte, statusText string) []byte {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s %d %s\r\n", proto, statusCode, statusText)
+	if len(headers) > 0 {
+		if err := headers.Write(&buf); err != nil {
+			return nil
+		}
+	}
+	buf.WriteString("\r\n")
+	buf.Write(body)
+	return buf.Bytes()
+}
+
+func sanitizeStatus(statusCode int) string {
+	statusText := http.StatusText(statusCode)
+	if statusText == "" {
+		statusText = "Status"
+	}
+	return statusText
+}
+
+func sanitizeRequest(state *proxyFlowState) (http.Header, []byte) {
+	headers := sanitizeHeaders(state.finalRequestHeaders, true)
+	body, redacted := sanitizeBody(state.finalRequestBody)
+	headers = ensureHeader(headers)
+	applySanitizedBodyHeaders(headers, body, redacted, len(state.finalRequestBody))
+	return headers, body
+}
+
+func sanitizeResponse(state *proxyFlowState) (http.Header, []byte) {
+	headers := sanitizeHeaders(state.responseHeaders, false)
+	body, redacted := sanitizeBody(state.responseBody)
+	headers = ensureHeader(headers)
+	applySanitizedBodyHeaders(headers, body, redacted, len(state.responseBody))
+	return headers, body
+}
+
+const (
+	redactedValue        = "[REDACTED]"
+	redactedCookieValue  = "<redacted>"
+	redactedBodyTemplate = "[REDACTED body length=%d]"
+)
+
+var (
+	requestSensitiveHeaders = map[string]struct{}{
+		"AUTHORIZATION":       {},
+		"PROXY-AUTHORIZATION": {},
+		"COOKIE":              {},
+		"COOKIE2":             {},
+		"X-CSRF-TOKEN":        {},
+		"X-CSRFTOKEN":         {},
+		"X-API-KEY":           {},
+		"X-APIKEY":            {},
+		"X-GITHUB-TOKEN":      {},
+		"X-GITLAB-TOKEN":      {},
+		"X-GOOG-API-KEY":      {},
+		"X-AUTH-TOKEN":        {},
+		"X-AUTHORIZATION":     {},
+		"SET-COOKIE":          {},
+		"SET-COOKIE2":         {},
+	}
+	responseSensitiveHeaders = map[string]struct{}{
+		"SET-COOKIE":         {},
+		"SET-COOKIE2":        {},
+		"WWW-AUTHENTICATE":   {},
+		"PROXY-AUTHENTICATE": {},
+		"AUTHORIZATION":      {},
+	}
+)
+
+func sanitizeHeaders(headers http.Header, request bool) http.Header {
+	if len(headers) == 0 {
+		return nil
+	}
+	sanitized := make(http.Header, len(headers))
+	sensitive := responseSensitiveHeaders
+	if request {
+		sensitive = requestSensitiveHeaders
+	}
+	for name, values := range headers {
+		upper := strings.ToUpper(name)
+		if _, ok := sensitive[upper]; ok {
+			sanitized[name] = sanitizeSensitiveHeader(upper, values)
+			continue
+		}
+		copied := make([]string, len(values))
+		copy(copied, values)
+		sanitized[name] = copied
+	}
+	return sanitized
+}
+
+func sanitizeSensitiveHeader(upperName string, values []string) []string {
+	switch upperName {
+	case "AUTHORIZATION", "PROXY-AUTHORIZATION", "WWW-AUTHENTICATE", "PROXY-AUTHENTICATE":
+		sanitized := make([]string, len(values))
+		for i, value := range values {
+			trimmed := strings.TrimSpace(value)
+			parts := strings.SplitN(trimmed, " ", 2)
+			if len(parts) == 2 {
+				sanitized[i] = parts[0] + " " + redactedValue
+				continue
+			}
+			if trimmed != "" {
+				sanitized[i] = trimmed + " " + redactedValue
+			} else {
+				sanitized[i] = redactedValue
+			}
+		}
+		return sanitized
+	case "COOKIE", "COOKIE2":
+		return sanitizeCookieValues(values)
+	case "SET-COOKIE", "SET-COOKIE2":
+		return sanitizeSetCookieValues(values)
+	default:
+		sanitized := make([]string, len(values))
+		for i := range values {
+			sanitized[i] = redactedValue
+		}
+		return sanitized
+	}
+}
+
+func sanitizeCookieValues(values []string) []string {
+	sanitized := make([]string, len(values))
+	for i, value := range values {
+		segments := strings.Split(value, ";")
+		for j, segment := range segments {
+			trimmed := strings.TrimSpace(segment)
+			if trimmed == "" {
+				segments[j] = trimmed
+				continue
+			}
+			parts := strings.SplitN(trimmed, "=", 2)
+			if len(parts) == 2 {
+				segments[j] = strings.TrimSpace(parts[0]) + "=" + redactedCookieValue
+			} else {
+				segments[j] = trimmed
+			}
+		}
+		sanitized[i] = strings.Join(segments, "; ")
+	}
+	return sanitized
+}
+
+func sanitizeSetCookieValues(values []string) []string {
+	sanitized := make([]string, len(values))
+	for i, value := range values {
+		segments := strings.Split(value, ";")
+		for j, segment := range segments {
+			trimmed := strings.TrimSpace(segment)
+			if trimmed == "" {
+				segments[j] = trimmed
+				continue
+			}
+			if j == 0 {
+				parts := strings.SplitN(trimmed, "=", 2)
+				if len(parts) == 2 {
+					segments[j] = strings.TrimSpace(parts[0]) + "=" + redactedCookieValue
+				} else {
+					segments[j] = trimmed
+				}
+				continue
+			}
+			segments[j] = trimmed
+		}
+		sanitized[i] = strings.Join(segments, "; ")
+	}
+	return sanitized
+}
+
+func sanitizeBody(body []byte) ([]byte, bool) {
+	if len(body) == 0 {
+		return nil, false
+	}
+	placeholder := fmt.Sprintf(redactedBodyTemplate, len(body))
+	return []byte(placeholder), true
+}
+
+func ensureHeader(h http.Header) http.Header {
+	if h == nil {
+		return http.Header{}
+	}
+	return h
+}
+
+func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, originalLen int) {
+	if headers == nil {
+		return
+	}
+	headers.Del("Transfer-Encoding")
+	headers.Del("Content-Encoding")
+	headers.Del("Content-Length")
+	length := "0"
+	if len(body) > 0 {
+		length = strconv.Itoa(len(body))
+	}
+	headers.Set("Content-Length", length)
+	if redacted {
+		headers.Set("X-Glyph-Body-Redacted", strconv.Itoa(originalLen))
+	} else {
+		headers.Del("X-Glyph-Body-Redacted")
+	}
 }
 
 type singleConnListener struct {

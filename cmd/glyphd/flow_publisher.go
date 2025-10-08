@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/RowanDark/Glyph/internal/bus"
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/Glyph/internal/flows"
 )
 
 type busFlowPublisher struct {
@@ -23,13 +23,13 @@ func (p *busFlowPublisher) SetBus(server *bus.Server) {
 	p.bus = server
 }
 
-func (p *busFlowPublisher) PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) error {
+func (p *busFlowPublisher) PublishFlowEvent(ctx context.Context, event flows.Event) error {
 	p.mu.RLock()
 	server := p.bus
 	p.mu.RUnlock()
 	if server == nil {
 		return nil
 	}
-	server.PublishFlowEvent(ctx, flowType, payload)
+	server.PublishFlowEvent(ctx, event)
 	return nil
 }

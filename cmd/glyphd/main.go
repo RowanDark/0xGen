@@ -24,6 +24,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/plugins/hotreload"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/Glyph/internal/scope"
 	"github.com/RowanDark/Glyph/internal/secrets"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
@@ -40,6 +41,7 @@ type config struct {
 	http3Mode         string
 	tracing           tracing.Config
 	traceHeaders      string
+	scopePolicyPath   string
 }
 
 func main() {
@@ -52,6 +54,7 @@ func main() {
 	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
+	scopePolicy := flag.String("scope-policy", "", "path to YAML scope policy used to suppress out-of-scope flows")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
 	metricsAddr := flag.String("metrics-addr", ":9090", "address for the Prometheus metrics endpoint (empty to disable)")
@@ -97,6 +100,17 @@ func main() {
 		traceHeaders: *traceHeaders,
 	}
 
+	scopePath := strings.TrimSpace(*scopePolicy)
+	if scopePath != "" {
+		enforcer, err := scope.LoadEnforcerFromFile(scopePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "load scope policy: %v\n", err)
+			os.Exit(1)
+		}
+		cfg.proxy.Scope = enforcer
+		cfg.scopePolicyPath = scopePath
+	}
+
 	if err := run(ctx, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -117,6 +131,17 @@ func run(ctx context.Context, cfg config) error {
 		return fmt.Errorf("configure audit logger: %w", err)
 	}
 	defer coreLogger.Close()
+
+	if cfg.proxy.Scope != nil && strings.TrimSpace(cfg.scopePolicyPath) != "" {
+		emitAudit(coreLogger.WithComponent("proxy"), logging.AuditEvent{
+			EventType: logging.EventRPCCall,
+			Decision:  logging.DecisionInfo,
+			Metadata: map[string]any{
+				"phase": "scope_policy_loaded",
+				"path":  cfg.scopePolicyPath,
+			},
+		})
+	}
 
 	traceCfg := cfg.tracing
 	traceCfg.Headers = parseTraceHeaders(cfg.traceHeaders)
