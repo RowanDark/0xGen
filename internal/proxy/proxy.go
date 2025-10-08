@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/tls"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -22,6 +26,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/flows"
+	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
 	"github.com/RowanDark/Glyph/internal/scope"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
@@ -42,6 +47,17 @@ type Config struct {
 	Transport      http.RoundTripper
 	FlowPublisher  FlowPublisher
 	Scope          ScopeEvaluator
+	Flow           FlowCaptureConfig
+}
+
+// FlowCaptureConfig governs how intercepted flows are sampled, truncated, and
+// recorded for replay.
+type FlowCaptureConfig struct {
+	Enabled      bool
+	SampleRate   float64
+	MaxBodyBytes int
+	Seed         int64
+	LogPath      string
 }
 
 // FlowPublisher propagates captured flows to downstream consumers.
@@ -71,6 +87,13 @@ type Proxy struct {
 	closed     bool
 	publisher  FlowPublisher
 	scope      ScopeEvaluator
+	flowCfg    FlowCaptureConfig
+	flowSeed   int64
+	flowIDs    atomic.Uint64
+	flowSeq    atomic.Uint64
+	sampler    *rand.Rand
+	samplerMu  sync.Mutex
+	flowLog    *flowLogWriter
 }
 
 // New creates a proxy using the provided configuration.
@@ -85,6 +108,14 @@ func New(cfg Config) (*Proxy, error) {
 	history, err := newHistoryWriter(cfg.HistoryPath)
 	if err != nil {
 		return nil, fmt.Errorf("initialise history writer: %w", err)
+	}
+
+	var flowLog *flowLogWriter
+	if cfg.Flow.Enabled && strings.TrimSpace(cfg.Flow.LogPath) != "" {
+		flowLog, err = newFlowLogWriter(cfg.Flow.LogPath)
+		if err != nil {
+			return nil, fmt.Errorf("initialise flow log: %w", err)
+		}
 	}
 
 	transport := cfg.Transport
@@ -105,6 +136,10 @@ func New(cfg Config) (*Proxy, error) {
 		ready:     make(chan struct{}),
 		publisher: cfg.FlowPublisher,
 		scope:     cfg.Scope,
+		flowCfg:   cfg.Flow,
+		flowSeed:  cfg.Flow.Seed,
+		sampler:   rand.New(rand.NewSource(cfg.Flow.Seed)),
+		flowLog:   flowLog,
 	}
 
 	p.server = &http.Server{
@@ -131,6 +166,42 @@ func applyDefaults(cfg Config) Config {
 	cfg.Addr = addr
 	cfg.HistoryPath = ensureHistoryPath(cfg.HistoryPath)
 	cfg.RulesPath = ensureRulesPath(cfg.RulesPath)
+	cfg.Flow = applyFlowDefaults(cfg.Flow, cfg.HistoryPath)
+	return cfg
+}
+
+func applyFlowDefaults(cfg FlowCaptureConfig, historyPath string) FlowCaptureConfig {
+	zeroConfig := !cfg.Enabled && cfg.SampleRate == 0 && cfg.MaxBodyBytes == 0 && cfg.Seed == 0 && strings.TrimSpace(cfg.LogPath) == ""
+	if zeroConfig {
+		cfg.Enabled = true
+	}
+	if cfg.SampleRate < 0 {
+		cfg.SampleRate = 0
+	}
+	if cfg.SampleRate > 1 {
+		cfg.SampleRate = 1
+	}
+	if zeroConfig && cfg.SampleRate == 0 {
+		cfg.SampleRate = 1
+	}
+	if cfg.MaxBodyBytes == 0 {
+		if zeroConfig {
+			cfg.MaxBodyBytes = 128 * 1024
+		}
+	}
+	if cfg.MaxBodyBytes < 0 {
+		cfg.MaxBodyBytes = -1
+	}
+	if cfg.Seed == 0 {
+		cfg.Seed = time.Now().UTC().UnixNano()
+	}
+	if strings.TrimSpace(cfg.LogPath) == "" {
+		dir := filepath.Dir(historyPath)
+		if dir == "." || strings.TrimSpace(dir) == "" {
+			dir = filepath.Dir(ensureHistoryPath(historyPath))
+		}
+		cfg.LogPath = filepath.Join(dir, "proxy_flows.jsonl")
+	}
 	return cfg
 }
 
@@ -215,7 +286,15 @@ func (p *Proxy) Shutdown(ctx context.Context) error {
 	if closer, ok := p.transport.(interface{ CloseIdleConnections() }); ok {
 		closer.CloseIdleConnections()
 	}
-	return p.history.Close()
+	if err := p.history.Close(); err != nil {
+		return err
+	}
+	if p.flowLog != nil {
+		if err := p.flowLog.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // WaitUntilReady blocks until the proxy listener is active or the context is cancelled.
@@ -517,6 +596,17 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 		requestProto:   r.Proto,
 	}
 
+	if state.publishFlows {
+		if !p.flowCfg.Enabled || p.publisher == nil {
+			state.publishFlows = false
+		} else if !p.shouldPublishFlow() {
+			state.publishFlows = false
+		} else {
+			state.flowTracked = true
+			state.flowID = p.generateFlowID(p.flowIDs.Add(1))
+		}
+	}
+
 	if len(body) == 0 {
 		r.Body = http.NoBody
 		r.ContentLength = 0
@@ -715,6 +805,50 @@ func (p *Proxy) recordHistory(state *proxyFlowState) {
 	}
 }
 
+func (p *Proxy) shouldPublishFlow() bool {
+	if p == nil {
+		return false
+	}
+	if !p.flowCfg.Enabled {
+		return false
+	}
+	rate := p.flowCfg.SampleRate
+	if rate >= 1 {
+		return true
+	}
+	if rate <= 0 {
+		return false
+	}
+	p.samplerMu.Lock()
+	defer p.samplerMu.Unlock()
+	if p.sampler == nil {
+		p.sampler = rand.New(rand.NewSource(p.flowSeed))
+	}
+	return p.sampler.Float64() < rate
+}
+
+func (p *Proxy) nextEventSequence() uint64 {
+	if p == nil {
+		return 0
+	}
+	return p.flowSeq.Add(1)
+}
+
+func (p *Proxy) generateFlowID(flowNumber uint64) string {
+	var seedBuf, seqBuf [8]byte
+	binary.LittleEndian.PutUint64(seedBuf[:], uint64(p.flowSeed))
+	binary.LittleEndian.PutUint64(seqBuf[:], flowNumber)
+	h := sha1.New()
+	_, _ = h.Write(seedBuf[:])
+	_, _ = h.Write(seqBuf[:])
+	sum := h.Sum(nil)
+	encoded := hex.EncodeToString(sum)
+	if len(encoded) > 16 {
+		encoded = encoded[:16]
+	}
+	return encoded
+}
+
 type connMetadata struct {
 	scheme     string
 	host       string
@@ -756,10 +890,12 @@ type proxyFlowState struct {
 	publishFlows        bool
 	requestProto        string
 	responseProto       string
+	flowTracked         bool
+	flowID              string
 }
 
 func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
-	if p.publisher == nil || state == nil {
+	if (p.publisher == nil && p.flowLog == nil) || state == nil || !state.flowTracked {
 		return
 	}
 	if p.scope != nil {
@@ -773,21 +909,54 @@ func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
 		ctx = context.Background()
 	}
 
-	if event := buildRequestEvent(state); event != nil {
-		if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
-			p.logger.Warn("failed to publish request event", "error", err)
+	if event := buildRequestEvent(state, p.flowCfg); event != nil {
+		event.ID = fmt.Sprintf("%s:request", state.flowID)
+		event.Sequence = p.nextEventSequence()
+		event.Timestamp = state.start.UTC()
+		if event.SanitizedRedacted {
+			obsmetrics.RecordFlowRedaction("body")
+		}
+		if event.RawBodyCaptured >= 0 && event.RawBodyCaptured < event.RawBodySize {
+			obsmetrics.RecordFlowRedaction("raw_truncated")
+		}
+		p.recordFlowEvent(event)
+		if p.publisher != nil {
+			if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
+				p.logger.Warn("failed to publish request event", "error", err)
+			}
 		}
 	}
-	if event := buildResponseEvent(state); event != nil {
-		if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
-			p.logger.Warn("failed to publish response event", "error", err)
+	if event := buildResponseEvent(state, p.flowCfg); event != nil {
+		event.ID = fmt.Sprintf("%s:response", state.flowID)
+		event.Sequence = p.nextEventSequence()
+		event.Timestamp = time.Now().UTC()
+		if event.SanitizedRedacted {
+			obsmetrics.RecordFlowRedaction("body")
+		}
+		if event.RawBodyCaptured >= 0 && event.RawBodyCaptured < event.RawBodySize {
+			obsmetrics.RecordFlowRedaction("raw_truncated")
+		}
+		p.recordFlowEvent(event)
+		if p.publisher != nil {
+			if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
+				p.logger.Warn("failed to publish response event", "error", err)
+			}
 		}
 	}
 }
 
-func encodeProxyRequest(state *proxyFlowState) []byte {
+func (p *Proxy) recordFlowEvent(event *flows.Event) {
+	if p == nil || p.flowLog == nil || event == nil {
+		return
+	}
+	if err := p.flowLog.Record(event.Clone()); err != nil {
+		p.logger.Warn("failed to persist flow log", "error", err, "flow_id", event.ID)
+	}
+}
+
+func encodeProxyRequest(state *proxyFlowState, limit int) ([]byte, int) {
 	if state == nil {
-		return nil
+		return nil, 0
 	}
 	method := strings.ToUpper(strings.TrimSpace(state.method))
 	if method == "" {
@@ -797,13 +966,25 @@ func encodeProxyRequest(state *proxyFlowState) []byte {
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
+	headers := cloneHeader(state.finalRequestHeaders)
+	body := append([]byte(nil), state.finalRequestBody...)
+	captured := len(body)
+	truncated := false
+	if limit >= 0 && len(body) > limit {
+		body = body[:limit]
+		captured = len(body)
+		truncated = true
+	}
+	headers = ensureHeader(headers)
+	applyRawBodyHeaders(headers, body, truncated, len(state.finalRequestBody))
 	target := requestTarget(state.url)
-	return encodeHTTPRequest(method, target, proto, state.finalRequestHeaders, state.finalRequestBody)
+	payload := encodeHTTPRequest(method, target, proto, headers, body)
+	return payload, captured
 }
 
-func encodeSanitizedProxyRequest(state *proxyFlowState) []byte {
+func encodeSanitizedProxyRequest(state *proxyFlowState) ([]byte, bool) {
 	if state == nil {
-		return nil
+		return nil, false
 	}
 	method := strings.ToUpper(strings.TrimSpace(state.method))
 	if method == "" {
@@ -813,52 +994,84 @@ func encodeSanitizedProxyRequest(state *proxyFlowState) []byte {
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
-	headers, body := sanitizeRequest(state)
+	headers, body, redacted := sanitizeRequest(state)
 	target := requestTarget(state.url)
-	return encodeHTTPRequest(method, target, proto, headers, body)
+	return encodeHTTPRequest(method, target, proto, headers, body), redacted
 }
 
-func encodeProxyResponse(state *proxyFlowState) []byte {
+func encodeProxyResponse(state *proxyFlowState, limit int) ([]byte, int) {
 	if state == nil {
-		return nil
+		return nil, 0
 	}
 	proto := strings.TrimSpace(state.responseProto)
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
+	headers := cloneHeader(state.responseHeaders)
+	body := append([]byte(nil), state.responseBody...)
+	captured := len(body)
+	truncated := false
+	if limit >= 0 && len(body) > limit {
+		body = body[:limit]
+		captured = len(body)
+		truncated = true
+	}
+	headers = ensureHeader(headers)
+	applyRawBodyHeaders(headers, body, truncated, len(state.responseBody))
 	status := sanitizeStatus(state.statusCode)
-	return encodeHTTPResponse(proto, state.statusCode, state.responseHeaders, state.responseBody, status)
+	payload := encodeHTTPResponse(proto, state.statusCode, headers, body, status)
+	return payload, captured
 }
 
-func encodeSanitizedProxyResponse(state *proxyFlowState) []byte {
+func encodeSanitizedProxyResponse(state *proxyFlowState) ([]byte, bool) {
 	if state == nil {
-		return nil
+		return nil, false
 	}
 	proto := strings.TrimSpace(state.responseProto)
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
-	headers, body := sanitizeResponse(state)
+	headers, body, redacted := sanitizeResponse(state)
 	status := sanitizeStatus(state.statusCode)
-	return encodeHTTPResponse(proto, state.statusCode, headers, body, status)
+	return encodeHTTPResponse(proto, state.statusCode, headers, body, status), redacted
 }
 
-func buildRequestEvent(state *proxyFlowState) *flows.Event {
-	raw := encodeProxyRequest(state)
-	sanitized := encodeSanitizedProxyRequest(state)
+func buildRequestEvent(state *proxyFlowState, cfg FlowCaptureConfig) *flows.Event {
+	if state == nil {
+		return nil
+	}
+	raw, captured := encodeProxyRequest(state, cfg.MaxBodyBytes)
+	sanitized, redacted := encodeSanitizedProxyRequest(state)
 	if len(raw) == 0 && len(sanitized) == 0 {
 		return nil
 	}
-	return &flows.Event{Type: pb.FlowEvent_FLOW_REQUEST, Sanitized: sanitized, Raw: raw}
+	return &flows.Event{
+		Type:              pb.FlowEvent_FLOW_REQUEST,
+		Sanitized:         sanitized,
+		Raw:               raw,
+		RawBodySize:       len(state.finalRequestBody),
+		RawBodyCaptured:   captured,
+		SanitizedRedacted: redacted,
+	}
 }
 
-func buildResponseEvent(state *proxyFlowState) *flows.Event {
-	raw := encodeProxyResponse(state)
-	sanitized := encodeSanitizedProxyResponse(state)
+func buildResponseEvent(state *proxyFlowState, cfg FlowCaptureConfig) *flows.Event {
+	if state == nil {
+		return nil
+	}
+	raw, captured := encodeProxyResponse(state, cfg.MaxBodyBytes)
+	sanitized, redacted := encodeSanitizedProxyResponse(state)
 	if len(raw) == 0 && len(sanitized) == 0 {
 		return nil
 	}
-	return &flows.Event{Type: pb.FlowEvent_FLOW_RESPONSE, Sanitized: sanitized, Raw: raw}
+	return &flows.Event{
+		Type:              pb.FlowEvent_FLOW_RESPONSE,
+		Sanitized:         sanitized,
+		Raw:               raw,
+		RawBodySize:       len(state.responseBody),
+		RawBodyCaptured:   captured,
+		SanitizedRedacted: redacted,
+	}
 }
 
 func requestTarget(rawURL string) string {
@@ -910,26 +1123,27 @@ func sanitizeStatus(statusCode int) string {
 	return statusText
 }
 
-func sanitizeRequest(state *proxyFlowState) (http.Header, []byte) {
+func sanitizeRequest(state *proxyFlowState) (http.Header, []byte, bool) {
 	headers := sanitizeHeaders(state.finalRequestHeaders, true)
 	body, redacted := sanitizeBody(state.finalRequestBody)
 	headers = ensureHeader(headers)
 	applySanitizedBodyHeaders(headers, body, redacted, len(state.finalRequestBody))
-	return headers, body
+	return headers, body, redacted
 }
 
-func sanitizeResponse(state *proxyFlowState) (http.Header, []byte) {
+func sanitizeResponse(state *proxyFlowState) (http.Header, []byte, bool) {
 	headers := sanitizeHeaders(state.responseHeaders, false)
 	body, redacted := sanitizeBody(state.responseBody)
 	headers = ensureHeader(headers)
 	applySanitizedBodyHeaders(headers, body, redacted, len(state.responseBody))
-	return headers, body
+	return headers, body, redacted
 }
 
 const (
-	redactedValue        = "[REDACTED]"
-	redactedCookieValue  = "<redacted>"
-	redactedBodyTemplate = "[REDACTED body length=%d]"
+	redactedValue          = "[REDACTED]"
+	redactedCookieValue    = "<redacted>"
+	redactedBodyTemplate   = "[REDACTED body length=%d]"
+	rawBodyTruncatedHeader = "X-Glyph-Raw-Body-Truncated"
 )
 
 var (
@@ -1091,6 +1305,25 @@ func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, 
 		headers.Set("X-Glyph-Body-Redacted", strconv.Itoa(originalLen))
 	} else {
 		headers.Del("X-Glyph-Body-Redacted")
+	}
+}
+
+func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, originalLen int) {
+	if headers == nil {
+		return
+	}
+	headers.Del("Transfer-Encoding")
+	headers.Del("Content-Encoding")
+	headers.Del("Content-Length")
+	length := "0"
+	if len(body) > 0 {
+		length = strconv.Itoa(len(body))
+	}
+	headers.Set("Content-Length", length)
+	if truncated && originalLen > len(body) {
+		headers.Set(rawBodyTruncatedHeader, strconv.Itoa(originalLen))
+	} else {
+		headers.Del(rawBodyTruncatedHeader)
 	}
 }
 

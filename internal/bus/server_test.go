@@ -356,6 +356,37 @@ func TestPublishFlowEventBackpressureNonBlocking(t *testing.T) {
 	}
 }
 
+func TestPublishFlowEventRespectsSubscriptionChanges(t *testing.T) {
+	server := NewServer("token", nil)
+	pluginID := "dynamic"
+	p := &plugin{
+		eventChan:     make(chan *pb.HostEvent, 1),
+		subscriptions: map[string]struct{}{subscriptionFlowRequest: {}},
+		capabilities:  map[string]struct{}{CapFlowInspect: {}},
+	}
+	server.mu.Lock()
+	server.connections[pluginID] = p
+	server.mu.Unlock()
+
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_REQUEST, Sanitized: []byte("one")})
+	select {
+	case <-p.eventChan:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected initial event delivery")
+	}
+
+	server.mu.Lock()
+	delete(p.subscriptions, subscriptionFlowRequest)
+	server.mu.Unlock()
+
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_REQUEST, Sanitized: []byte("two")})
+	select {
+	case <-p.eventChan:
+		t.Fatal("event should not be delivered after unsubscribing")
+	default:
+	}
+}
+
 func TestServerDisconnectPlugin(t *testing.T) {
 	server := NewServer("token", findings.NewBus())
 	pluginConn := &plugin{

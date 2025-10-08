@@ -88,6 +88,9 @@ missing or the plugin requests undeclared privileges.
 | `CAP_FLOW_INSPECT` | Enables subscriptions to sanitized HTTP flow events (`FLOW_REQUEST`, `FLOW_RESPONSE`). Sensitive headers and bodies are redacted unless explicitly allowed by program scope. |
 | `CAP_FLOW_INSPECT_RAW` | Grants access to raw HTTP flow events (`FLOW_REQUEST_RAW`, `FLOW_RESPONSE_RAW`). Requires `CAP_FLOW_INSPECT` and delivers unredacted payloads for forensic tooling. |
 
+> **Note**
+> Sanitized events include placeholders and the `X-Glyph-Body-Redacted` header when payloads are removed. Raw events honour `--proxy-flow-max-body`; truncated payloads receive an `X-Glyph-Raw-Body-Truncated` header so plugins can detect partial content.
+
 Only request capabilities the plugin actively needs. The manifest validator under
 `hack/validate_manifests.sh` enforces the whitelist above.
 

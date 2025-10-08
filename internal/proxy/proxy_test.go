@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -30,9 +31,15 @@ type recordedRequest struct {
 }
 
 type recordedFlow struct {
-	Type      pb.FlowEvent_Type
-	Sanitized []byte
-	Raw       []byte
+	ID                string
+	Sequence          uint64
+	Timestamp         time.Time
+	Type              pb.FlowEvent_Type
+	Sanitized         []byte
+	Raw               []byte
+	RawBodySize       int
+	RawBodyCaptured   int
+	SanitizedRedacted bool
 }
 
 type recordingPublisher struct {
@@ -43,7 +50,15 @@ type recordingPublisher struct {
 func (r *recordingPublisher) PublishFlowEvent(ctx context.Context, event flows.Event) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	entry := recordedFlow{Type: event.Type}
+	entry := recordedFlow{
+		ID:                event.ID,
+		Sequence:          event.Sequence,
+		Timestamp:         event.Timestamp,
+		Type:              event.Type,
+		RawBodySize:       event.RawBodySize,
+		RawBodyCaptured:   event.RawBodyCaptured,
+		SanitizedRedacted: event.SanitizedRedacted,
+	}
 	if len(event.Sanitized) > 0 {
 		entry.Sanitized = append([]byte(nil), event.Sanitized...)
 	}
@@ -371,6 +386,24 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if events[0].Type != pb.FlowEvent_FLOW_REQUEST {
 		t.Fatalf("first event type = %v, want FLOW_REQUEST", events[0].Type)
 	}
+	if events[0].ID == "" {
+		t.Fatal("request event missing id")
+	}
+	if events[0].Sequence == 0 {
+		t.Fatal("request event missing sequence")
+	}
+	if events[0].Timestamp.IsZero() {
+		t.Fatal("request event timestamp not set")
+	}
+	if events[0].RawBodySize != len("sensitive-body") {
+		t.Fatalf("request raw size = %d", events[0].RawBodySize)
+	}
+	if events[0].RawBodyCaptured != events[0].RawBodySize {
+		t.Fatalf("request raw captured = %d", events[0].RawBodyCaptured)
+	}
+	if !events[0].SanitizedRedacted {
+		t.Fatal("request event should mark sanitized redaction")
+	}
 	if len(events[0].Raw) == 0 || len(events[0].Sanitized) == 0 {
 		t.Fatalf("request event missing raw or sanitized payload")
 	}
@@ -380,6 +413,9 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	}
 	if !strings.Contains(rawReq, "Cookie: session=abc; theme=dark") {
 		t.Fatalf("raw request missing cookie header: %q", rawReq)
+	}
+	if strings.Contains(rawReq, rawBodyTruncatedHeader) {
+		t.Fatalf("raw request unexpectedly flagged as truncated: %q", rawReq)
 	}
 	sanitizedReq := string(events[0].Sanitized)
 	if !strings.Contains(sanitizedReq, "Authorization: Bearer [REDACTED]") {
@@ -404,6 +440,18 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if events[1].Type != pb.FlowEvent_FLOW_RESPONSE {
 		t.Fatalf("second event type = %v, want FLOW_RESPONSE", events[1].Type)
 	}
+	if events[1].Sequence <= events[0].Sequence {
+		t.Fatalf("response sequence %d should be greater than request %d", events[1].Sequence, events[0].Sequence)
+	}
+	if events[1].RawBodySize != len("payload") {
+		t.Fatalf("response raw size = %d", events[1].RawBodySize)
+	}
+	if events[1].RawBodyCaptured != events[1].RawBodySize {
+		t.Fatalf("response raw captured = %d", events[1].RawBodyCaptured)
+	}
+	if !events[1].SanitizedRedacted {
+		t.Fatal("response event should mark sanitized redaction")
+	}
 	if len(events[1].Raw) == 0 || len(events[1].Sanitized) == 0 {
 		t.Fatalf("response event missing raw or sanitized payload")
 	}
@@ -423,6 +471,155 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	}
 	if !strings.Contains(sanitizedResp, "[REDACTED body length=7]") {
 		t.Fatalf("sanitized response body placeholder missing: %q", sanitizedResp)
+	}
+}
+
+func TestProxyFlowSamplingDisabled(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	publisher := &recordingPublisher{}
+
+	cfg := Config{
+		Addr:          "127.0.0.1:0",
+		RulesPath:     filepath.Join(tempDir, "rules.json"),
+		HistoryPath:   filepath.Join(tempDir, "history.jsonl"),
+		CACertPath:    filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:     filepath.Join(tempDir, "ca.key"),
+		Logger:        newTestLogger(),
+		FlowPublisher: publisher,
+		Flow: FlowCaptureConfig{
+			Enabled:    true,
+			SampleRate: 0,
+		},
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	resp, err := client.Get(upstream.URL)
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	cancel()
+	waitErr(t, errCh)
+
+	if events := publisher.snapshot(); len(events) != 0 {
+		t.Fatalf("expected 0 events when sampling disabled, got %d", len(events))
+	}
+}
+
+func TestProxyRawBodyLimitTruncates(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	publisher := &recordingPublisher{}
+
+	cfg := Config{
+		Addr:          "127.0.0.1:0",
+		RulesPath:     filepath.Join(tempDir, "rules.json"),
+		HistoryPath:   filepath.Join(tempDir, "history.jsonl"),
+		CACertPath:    filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:     filepath.Join(tempDir, "ca.key"),
+		Logger:        newTestLogger(),
+		FlowPublisher: publisher,
+		Flow: FlowCaptureConfig{
+			Enabled:      true,
+			SampleRate:   1,
+			MaxBodyBytes: 5,
+		},
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	req, err := http.NewRequest(http.MethodPost, upstream.URL+"/truncate", strings.NewReader("sensitive-body"))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	cancel()
+	waitErr(t, errCh)
+
+	events := publisher.snapshot()
+	if len(events) == 0 {
+		t.Fatal("expected at least one flow event")
+	}
+	request := events[0]
+	if request.RawBodyCaptured != 5 {
+		t.Fatalf("expected captured raw body 5, got %d", request.RawBodyCaptured)
+	}
+	if request.RawBodySize != len("sensitive-body") {
+		t.Fatalf("raw body size = %d", request.RawBodySize)
+	}
+	raw := string(request.Raw)
+	if !strings.Contains(raw, rawBodyTruncatedHeader+": "+strconv.Itoa(len("sensitive-body"))) {
+		t.Fatalf("expected raw payload to note truncation: %q", raw)
+	}
+	sanitized := string(request.Sanitized)
+	if !strings.Contains(sanitized, "[REDACTED body length=14]") {
+		t.Fatalf("sanitized body placeholder missing from truncated request")
 	}
 }
 
@@ -490,7 +687,8 @@ func TestBuildRequestEventHandlesEmptyState(t *testing.T) {
 	t.Parallel()
 
 	state := &proxyFlowState{}
-	event := buildRequestEvent(state)
+	cfg := FlowCaptureConfig{Enabled: true, SampleRate: 1, MaxBodyBytes: -1}
+	event := buildRequestEvent(state, cfg)
 	if event == nil {
 		t.Fatal("expected event for empty state")
 	}
@@ -499,6 +697,9 @@ func TestBuildRequestEventHandlesEmptyState(t *testing.T) {
 	}
 	if len(event.Sanitized) == 0 {
 		t.Fatal("sanitized payload should not be empty")
+	}
+	if event.RawBodySize != 0 {
+		t.Fatalf("expected raw body size 0, got %d", event.RawBodySize)
 	}
 }
 

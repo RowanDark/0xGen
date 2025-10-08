@@ -48,6 +48,21 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 - Sanitized and raw deliveries are counted via `glyph_flow_events_total` and `glyph_flow_events_dropped_total` metrics, allowing operators to monitor throughput and backpressure.
 - Scope policies parsed from YAML (see `--scope-policy`) suppress out-of-scope flows before they reach plugins, ensuring redaction rules align with bounty constraints.
 
+### Flow sampling, truncation, and replay
+- `glyphd` exposes tuning flags to balance performance and fidelity:
+  - `--proxy-flow-enabled` toggles publishing entirely (defaults to enabled when the bus is available).
+  - `--proxy-flow-sample` accepts a ratio between `0` and `1` for probabilistic sampling. A value of `0` keeps the proxy online while suppressing flow publications.
+  - `--proxy-flow-max-body` limits the number of raw body bytes captured per event. Values above the limit append the `X-Glyph-Raw-Body-Truncated` header so plugins can detect truncation; `0` disables raw body capture entirely.
+  - `--proxy-flow-seed` seeds deterministic flow identifiers, aiding replay comparisons when deterministic output is required.
+  - `--proxy-flow-log` overrides the sanitized flow transcript path. By default, Glyph writes `proxy_flows.jsonl` next to the history log for inclusion in replay artefacts.
+- Sanitized flow transcripts contain base64-encoded HTTP messages plus metadata (`sequence`, `timestamp_unix`, redaction hints). These are packaged inside replay artefacts as `flows.jsonl`, copied to `flows.replay.jsonl` by `glyphctl replay`.
+- Flow ordering remains deterministic via monotonically increasing sequence numbers coupled with the configured seed. The `Seeds` manifest map now includes a `flows` entry when glyphd publishes the seed used during capture.
+
+### Telemetry additions
+- `glyph_flow_dispatch_seconds` tracks broadcast latency for sanitized and raw subscriptions independently, complementing the existing event counters.
+- `glyph_flow_redactions_total` exposes how often the proxy redacts or truncates payloads, split by redaction kind (e.g., `body`, `raw_truncated`).
+- Per-plugin queue depth is still exported via `glyph_plugin_queue_length`, making it easy to spot slow consumers alongside the new flow metrics.
+
 ### Logging & Audit
 - Persist intercepted flows (requests/responses, edits, approvals) in a new `intercepts.db` SQLite database.
 - Record timestamps, user identifiers, and plugin execution outcomes.

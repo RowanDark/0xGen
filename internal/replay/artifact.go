@@ -52,19 +52,25 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 		manifest.Runner = DefaultRunnerInfo()
 	}
 	var err error
-	manifest.FindingsFile, err = normalizeFileRef(manifest.FindingsFile)
-	if err != nil {
-		return err
-	}
-	manifest.CasesFile, err = normalizeFileRef(manifest.CasesFile)
-	if err != nil {
-		return err
-	}
-	for i := range manifest.Responses {
-		if manifest.Responses[i].BodyFile == "" {
-			continue
-		}
-		manifest.Responses[i].BodyFile, err = normalizeFileRef(manifest.Responses[i].BodyFile)
+        manifest.FindingsFile, err = normalizeFileRef(manifest.FindingsFile)
+        if err != nil {
+                return err
+        }
+        manifest.CasesFile, err = normalizeFileRef(manifest.CasesFile)
+        if err != nil {
+                return err
+        }
+        if strings.TrimSpace(manifest.FlowsFile) != "" {
+                manifest.FlowsFile, err = normalizeFileRef(manifest.FlowsFile)
+                if err != nil {
+                        return err
+                }
+        }
+        for i := range manifest.Responses {
+                if manifest.Responses[i].BodyFile == "" {
+                        continue
+                }
+                manifest.Responses[i].BodyFile, err = normalizeFileRef(manifest.Responses[i].BodyFile)
 		if err != nil {
 			return fmt.Errorf("normalise response[%d] body file: %w", i, err)
 		}
@@ -89,14 +95,20 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 		return fmt.Errorf("findings_file %q not provided", findingsKey)
 	}
 	casesKey := strings.TrimPrefix(manifest.CasesFile, filesDir+"/")
-	if _, ok := files[casesKey]; !ok {
-		return fmt.Errorf("cases_file %q not provided", casesKey)
-	}
-	for _, resp := range manifest.Responses {
-		if resp.BodyFile == "" {
-			continue
-		}
-		key := strings.TrimPrefix(resp.BodyFile, filesDir+"/")
+        if _, ok := files[casesKey]; !ok {
+                return fmt.Errorf("cases_file %q not provided", casesKey)
+        }
+        if strings.TrimSpace(manifest.FlowsFile) != "" {
+                key := strings.TrimPrefix(manifest.FlowsFile, filesDir+"/")
+                if _, ok := files[key]; !ok {
+                        return fmt.Errorf("flows file %q not provided", key)
+                }
+        }
+        for _, resp := range manifest.Responses {
+                if resp.BodyFile == "" {
+                        continue
+                }
+                key := strings.TrimPrefix(resp.BodyFile, filesDir+"/")
 		if _, ok := files[key]; !ok {
 			return fmt.Errorf("response body file %q not provided", key)
 		}

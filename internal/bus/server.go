@@ -623,14 +623,17 @@ func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 				},
 			},
 		}
-		delivered, dropped := s.broadcast(ctx, sanitized, flowSubscriptionName(event.Type, false), func(id string, plugin *plugin) bool {
+		start := time.Now()
+		subscription := flowSubscriptionName(event.Type, false)
+		delivered, dropped := s.broadcast(ctx, sanitized, subscription, func(id string, plugin *plugin) bool {
 			return pluginHasCapability(plugin, CapFlowInspect)
 		})
+		obsmetrics.ObserveFlowDispatchLatency(subscription, "sanitized", time.Since(start))
 		if delivered > 0 {
-			obsmetrics.RecordFlowEvent(flowSubscriptionName(event.Type, false), "sanitized", delivered)
+			obsmetrics.RecordFlowEvent(subscription, "sanitized", delivered)
 		}
 		if dropped > 0 {
-			obsmetrics.RecordFlowDrop(flowSubscriptionName(event.Type, false), "channel_full", dropped)
+			obsmetrics.RecordFlowDrop(subscription, "channel_full", dropped)
 		}
 	}
 	if len(event.Raw) > 0 {
@@ -644,14 +647,17 @@ func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 				},
 			},
 		}
-		delivered, dropped := s.broadcast(ctx, raw, flowSubscriptionName(event.Type, true), func(id string, plugin *plugin) bool {
+		start := time.Now()
+		subscription := flowSubscriptionName(event.Type, true)
+		delivered, dropped := s.broadcast(ctx, raw, subscription, func(id string, plugin *plugin) bool {
 			return pluginHasCapability(plugin, CapFlowInspectRaw)
 		})
+		obsmetrics.ObserveFlowDispatchLatency(subscription, "raw", time.Since(start))
 		if delivered > 0 {
-			obsmetrics.RecordFlowEvent(flowSubscriptionName(event.Type, true), "raw", delivered)
+			obsmetrics.RecordFlowEvent(subscription, "raw", delivered)
 		}
 		if dropped > 0 {
-			obsmetrics.RecordFlowDrop(flowSubscriptionName(event.Type, true), "channel_full", dropped)
+			obsmetrics.RecordFlowDrop(subscription, "channel_full", dropped)
 		}
 	}
 }

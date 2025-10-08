@@ -54,6 +54,11 @@ func main() {
 	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
+	proxyFlowEnabled := flag.Bool("proxy-flow-enabled", true, "enable publishing intercepted flows to plugins")
+	proxyFlowSample := flag.Float64("proxy-flow-sample", 1.0, "sampling ratio for intercepted flows (0-1)")
+	proxyFlowMaxBody := flag.Int("proxy-flow-max-body", 131072, "maximum raw body bytes to include in flow events (0 disables raw bodies)")
+	proxyFlowSeed := flag.Int64("proxy-flow-seed", 0, "seed used to deterministically order flow identifiers (default random)")
+	proxyFlowLog := flag.String("proxy-flow-log", "", "path to write sanitized flow transcripts for replay (defaults next to proxy history)")
 	scopePolicy := flag.String("scope-policy", "", "path to YAML scope policy used to suppress out-of-scope flows")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
@@ -85,6 +90,13 @@ func main() {
 			HistoryPath: *proxyHistory,
 			CACertPath:  *proxyCACert,
 			CAKeyPath:   *proxyCAKey,
+			Flow: proxy.FlowCaptureConfig{
+				Enabled:      *proxyFlowEnabled,
+				SampleRate:   *proxyFlowSample,
+				MaxBodyBytes: *proxyFlowMaxBody,
+				Seed:         *proxyFlowSeed,
+				LogPath:      strings.TrimSpace(*proxyFlowLog),
+			},
 		},
 		enableProxy:       *enableProxy,
 		fingerprintRotate: *fingerprintRotate,
