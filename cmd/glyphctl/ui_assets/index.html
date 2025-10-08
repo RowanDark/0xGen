@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Glyph Case Explorer</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="top-bar">
+    <div>
+      <h1>Glyph Case Explorer</h1>
+      <p class="subtitle">Browse correlated findings, review evidence, and download artefacts directly from glyphctl.</p>
+    </div>
+    <nav class="downloads" aria-label="Global downloads">
+      <a class="download-button" href="/download/cases.json">All cases (JSON)</a>
+      <a class="download-button" href="/download/cases.sarif">All cases (SARIF)</a>
+    </nav>
+  </header>
+  <main>
+    <section class="controls" aria-label="Filters">
+      <div class="control-group search-group">
+        <label for="searchInput">Search</label>
+        <input type="search" id="searchInput" placeholder="Search cases, assets, vectors, evidence…" autocomplete="off" />
+      </div>
+      <div class="control-group">
+        <span class="control-label">Severity</span>
+        <div id="severityFilters" class="severity-filter" role="group" aria-label="Filter by risk severity"></div>
+      </div>
+      <div class="control-group compact">
+        <button type="button" id="resetFilters" class="ghost-button">Reset filters</button>
+      </div>
+    </section>
+
+    <section id="errorBanner" class="banner banner-error hidden" role="alert">
+      <h2>Unable to load scan data</h2>
+      <p>Check that the findings file exists and try launching <code>glyphctl serve ui</code> again.</p>
+    </section>
+
+    <section class="stats" id="statsPanel" aria-label="Summary">
+      <article class="stat">
+        <span class="label">Cases</span>
+        <span class="value" id="caseCount">0</span>
+      </article>
+      <article class="stat">
+        <span class="label">Findings</span>
+        <span class="value" id="findingCount">0</span>
+      </article>
+      <article class="stat">
+        <span class="label">Last updated</span>
+        <span class="value" id="updatedAt">–</span>
+      </article>
+      <article class="stat full-width">
+        <span class="label">Severity breakdown</span>
+        <div class="severity-breakdown" id="severityBreakdown" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <section id="caseList" class="case-list" aria-live="polite"></section>
+
+    <section id="emptyState" class="empty-state hidden" aria-live="polite">
+      <h2>No cases match your filters</h2>
+      <p>Adjust the severity filters or search query to see more results.</p>
+    </section>
+  </main>
+  <footer class="footer">
+    <p>Glyph UI preview &mdash; synchronised with glyphctl findings.</p>
+  </footer>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
