@@ -14,7 +14,8 @@ const navigation = [
   { to: '/', label: 'Dashboard' },
   { to: '/flows', label: 'Flows' },
   { to: '/runs', label: 'Runs' },
-  { to: '/cases', label: 'Cases' }
+  { to: '/cases', label: 'Cases' },
+  { to: '/scope', label: 'Scope' }
 ];
 
 function Header() {

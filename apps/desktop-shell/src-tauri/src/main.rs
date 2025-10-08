@@ -182,6 +182,103 @@ struct ResendFlowResponse {
     metadata: Option<Value>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopePolicyDocument {
+    policy: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default, alias = "updated_at")]
+    updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ScopeValidationMessage {
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    column: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopeValidationResult {
+    valid: bool,
+    #[serde(default)]
+    errors: Vec<ScopeValidationMessage>,
+    #[serde(default)]
+    warnings: Vec<ScopeValidationMessage>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopeApplyResponse {
+    policy: String,
+    applied_at: DateTime<Utc>,
+    #[serde(default)]
+    warnings: Vec<ScopeValidationMessage>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ScopeRule {
+    #[serde(rename = "type")]
+    kind: String,
+    value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+struct ScopeRuleSet {
+    #[serde(default)]
+    allow: Vec<ScopeRule>,
+    #[serde(default)]
+    deny: Vec<ScopeRule>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopeParseSuggestion {
+    policy: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rules: Option<ScopeRuleSet>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopeParseResponse {
+    #[serde(default)]
+    suggestions: Vec<ScopeParseSuggestion>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopeDryRunDecision {
+    url: String,
+    allowed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    matched_rule: Option<ScopeRule>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScopeDryRunResponse {
+    #[serde(default)]
+    results: Vec<ScopeDryRunDecision>,
+}
+
 #[derive(Debug)]
 struct MetricSample {
     name: String,
@@ -305,7 +402,11 @@ fn emit_run_event(window: &Window, run_id: &str, event: RunEvent) -> Result<(), 
         .map_err(|_| ApiError::WindowMissing)
 }
 
-fn emit_flow_event(window: &Window, stream_id: &str, event: FlowEventPayload) -> Result<(), ApiError> {
+fn emit_flow_event(
+    window: &Window,
+    stream_id: &str,
+    event: FlowEventPayload,
+) -> Result<(), ApiError> {
     let event_name = format!("flows:{}:events", stream_id);
     window
         .emit(event_name, Some(event))
@@ -749,6 +850,177 @@ async fn resend_flow(
         .map_err(|err| err.to_string())
 }
 
+#[tauri::command]
+async fn fetch_scope_policy(api: State<'_, GlyphApi>) -> Result<ScopePolicyDocument, String> {
+    let url = api.endpoint("scope/policy");
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    let body = response.text().await.map_err(|err| err.to_string())?;
+    let trimmed = body.trim_start();
+    if trimmed.starts_with('{') {
+        serde_json::from_str::<ScopePolicyDocument>(&body)
+            .map_err(|err| err.to_string())
+            .or_else(|_| {
+                Ok(ScopePolicyDocument {
+                    policy: body,
+                    source: None,
+                    updated_at: None,
+                })
+            })
+    } else {
+        Ok(ScopePolicyDocument {
+            policy: body,
+            source: None,
+            updated_at: None,
+        })
+    }
+}
+
+#[tauri::command]
+async fn validate_scope_policy(
+    api: State<'_, GlyphApi>,
+    policy: String,
+) -> Result<ScopeValidationResult, String> {
+    let url = api.endpoint("scope/policy/validate");
+    let payload = json!({ "policy": policy });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<ScopeValidationResult>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn apply_scope_policy(
+    api: State<'_, GlyphApi>,
+    policy: String,
+) -> Result<ScopeApplyResponse, String> {
+    let url = api.endpoint("scope/policy/apply");
+    let payload = json!({ "policy": policy });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<ScopeApplyResponse>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn parse_scope_text(
+    api: State<'_, GlyphApi>,
+    text: String,
+) -> Result<ScopeParseResponse, String> {
+    let url = api.endpoint("scope/policy/parse");
+    let payload = json!({ "text": text });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<ScopeParseResponse>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn dry_run_scope_policy(
+    api: State<'_, GlyphApi>,
+    policy: Option<String>,
+    urls: Vec<String>,
+) -> Result<ScopeDryRunResponse, String> {
+    let cleaned: Vec<String> = urls
+        .into_iter()
+        .map(|url| url.trim().to_string())
+        .filter(|url| !url.is_empty())
+        .collect();
+
+    if cleaned.is_empty() {
+        return Ok(ScopeDryRunResponse {
+            results: Vec::new(),
+        });
+    }
+
+    let mut payload = json!({ "urls": cleaned });
+    if let Some(policy_value) = policy.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    }) {
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("policy".to_string(), json!(policy_value));
+        }
+    }
+
+    let url = api.endpoint("scope/policy/dry-run");
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<ScopeDryRunResponse>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
 fn configure_devtools(window: &Window) {
     let allow_devtools =
         std::env::var("GLYPH_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
@@ -775,7 +1047,12 @@ fn main() {
             stream_flows,
             stop_flow_stream,
             resend_flow,
-            fetch_metrics
+            fetch_metrics,
+            fetch_scope_policy,
+            validate_scope_policy,
+            apply_scope_policy,
+            parse_scope_text,
+            dry_run_scope_policy
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
