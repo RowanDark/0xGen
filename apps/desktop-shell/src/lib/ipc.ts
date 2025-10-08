@@ -60,10 +60,76 @@ const ResendFlowResponseSchema = z.object({
   metadata: z.unknown().optional()
 });
 
+const ScopeRuleSchema = z.object({
+  type: z.string(),
+  value: z.string(),
+  notes: z.string().optional()
+});
+
+const ScopePolicyDocumentSchema = z.object({
+  policy: z.string(),
+  source: z.string().optional(),
+  updatedAt: z.string().optional()
+});
+
+const ScopeValidationMessageSchema = z.object({
+  message: z.string(),
+  line: z.number().int().optional(),
+  column: z.number().int().optional(),
+  path: z.string().optional()
+});
+
+const ScopeValidationResultSchema = z.object({
+  valid: z.boolean(),
+  errors: z.array(ScopeValidationMessageSchema),
+  warnings: z.array(ScopeValidationMessageSchema).optional().default([])
+});
+
+const ScopeApplyResponseSchema = z.object({
+  policy: z.string(),
+  appliedAt: z.string(),
+  warnings: z.array(ScopeValidationMessageSchema).optional().default([])
+});
+
+const ScopeParseSuggestionSchema = z.object({
+  policy: z.string(),
+  summary: z.string().optional(),
+  notes: z.string().optional(),
+  rules: z
+    .object({
+      allow: z.array(ScopeRuleSchema).optional().default([]),
+      deny: z.array(ScopeRuleSchema).optional().default([])
+    })
+    .optional()
+});
+
+const ScopeParseResponseSchema = z.object({
+  suggestions: z.array(ScopeParseSuggestionSchema)
+});
+
+const ScopeDryRunDecisionSchema = z.object({
+  url: z.string(),
+  allowed: z.boolean(),
+  reason: z.string().optional(),
+  matchedRule: ScopeRuleSchema.optional()
+});
+
+const ScopeDryRunResponseSchema = z.object({
+  results: z.array(ScopeDryRunDecisionSchema)
+});
+
 export type Run = z.infer<typeof RunSchema>;
 export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;
 export type FlowEvent = z.infer<typeof FlowEventSchema>;
 export type FlowPage = z.infer<typeof FlowPageSchema>;
+export type ScopePolicyDocument = z.infer<typeof ScopePolicyDocumentSchema>;
+export type ScopeValidationMessage = z.infer<typeof ScopeValidationMessageSchema>;
+export type ScopeValidationResult = z.infer<typeof ScopeValidationResultSchema>;
+export type ScopeApplyResponse = z.infer<typeof ScopeApplyResponseSchema>;
+export type ScopeParseSuggestion = z.infer<typeof ScopeParseSuggestionSchema>;
+export type ScopeParseResponse = z.infer<typeof ScopeParseResponseSchema>;
+export type ScopeDryRunDecision = z.infer<typeof ScopeDryRunDecisionSchema>;
+export type ScopeDryRunResponse = z.infer<typeof ScopeDryRunResponseSchema>;
 
 export type FlowFilters = {
   search?: string;
@@ -162,4 +228,32 @@ export async function streamFlowEvents(
 export async function resendFlow(flowId: string, message: string) {
   const response = await invoke('resend_flow', { flow_id: flowId, message });
   return ResendFlowResponseSchema.parse(response);
+}
+
+export async function fetchScopePolicy(): Promise<ScopePolicyDocument> {
+  const response = await invoke('fetch_scope_policy');
+  return ScopePolicyDocumentSchema.parse(response);
+}
+
+export async function validateScopePolicy(policy: string): Promise<ScopeValidationResult> {
+  const response = await invoke('validate_scope_policy', { policy });
+  return ScopeValidationResultSchema.parse(response);
+}
+
+export async function applyScopePolicy(policy: string): Promise<ScopeApplyResponse> {
+  const response = await invoke('apply_scope_policy', { policy });
+  return ScopeApplyResponseSchema.parse(response);
+}
+
+export async function parseScopeText(text: string): Promise<ScopeParseResponse> {
+  const response = await invoke('parse_scope_text', { text });
+  return ScopeParseResponseSchema.parse(response);
+}
+
+export async function dryRunScopePolicy(payload: {
+  policy?: string;
+  urls: string[];
+}): Promise<ScopeDryRunResponse> {
+  const response = await invoke('dry_run_scope_policy', payload);
+  return ScopeDryRunResponseSchema.parse(response);
 }

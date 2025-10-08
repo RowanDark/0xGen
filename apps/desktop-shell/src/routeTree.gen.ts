@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ScopeRouteImport } from './routes/scope'
 import { Route as RunsRouteImport } from './routes/runs'
 import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as CasesRouteImport } from './routes/cases'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ScopeRoute = ScopeRouteImport.update({
+  id: '/scope',
+  path: '/scope',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RunsRoute = RunsRouteImport.update({
   id: '/runs',
   path: '/runs',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
   '/runs': typeof RunsRoute
+  '/scope': typeof ScopeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
   '/runs': typeof RunsRoute
+  '/scope': typeof ScopeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
   '/runs': typeof RunsRoute
+  '/scope': typeof ScopeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cases' | '/flows' | '/runs'
+  fullPaths: '/' | '/cases' | '/flows' | '/runs' | '/scope'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cases' | '/flows' | '/runs'
-  id: '__root__' | '/' | '/cases' | '/flows' | '/runs'
+  to: '/' | '/cases' | '/flows' | '/runs' | '/scope'
+  id: '__root__' | '/' | '/cases' | '/flows' | '/runs' | '/scope'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +76,18 @@ export interface RootRouteChildren {
   CasesRoute: typeof CasesRoute
   FlowsRoute: typeof FlowsRoute
   RunsRoute: typeof RunsRoute
+  ScopeRoute: typeof ScopeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/scope': {
+      id: '/scope'
+      path: '/scope'
+      fullPath: '/scope'
+      preLoaderRoute: typeof ScopeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/runs': {
       id: '/runs'
       path: '/runs'
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   CasesRoute: CasesRoute,
   FlowsRoute: FlowsRoute,
   RunsRoute: RunsRoute,
+  ScopeRoute: ScopeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
