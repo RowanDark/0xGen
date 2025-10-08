@@ -18,7 +18,15 @@ const StartRunResponseSchema = z.object({
   id: z.string()
 });
 
+const DashboardMetricsSchema = z.object({
+  failures: z.number(),
+  queueDepth: z.number(),
+  avgLatencyMs: z.number(),
+  casesFound: z.number()
+});
+
 export type Run = z.infer<typeof RunSchema>;
+export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;
 
 export async function listRuns(): Promise<Run[]> {
   const runs = await invoke('list_runs');
@@ -28,6 +36,11 @@ export async function listRuns(): Promise<Run[]> {
 export async function startRun(payload: { name: string; template?: string }) {
   const response = await invoke('start_run', payload);
   return StartRunResponseSchema.parse(response);
+}
+
+export async function fetchMetrics(): Promise<DashboardMetrics> {
+  const metrics = await invoke('fetch_metrics');
+  return DashboardMetricsSchema.parse(metrics);
 }
 
 export type RunEvent = {

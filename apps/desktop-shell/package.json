@@ -24,13 +24,15 @@
     "tailwind-merge": "^1.14.0",
     "zod": "^3.22.4",
     "tailwindcss-animate": "^1.0.7",
-    "clsx": "^2.1.0"
+    "clsx": "^2.1.0",
+    "recharts": "^2.10.3"
   },
   "devDependencies": {
     "@tanstack/router-plugin": "^1.20.2",
     "@types/node": "^20.11.19",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
+    "@types/recharts": "^1.8.29",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.31",
