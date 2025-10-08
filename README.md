@@ -128,6 +128,16 @@ the generated findings, and emits an interactive HTML report under `out/demo/`.
 point. See the [Quickstart walkthrough](https://rowandark.github.io/Glyph/quickstart/)
 for a full tour and troubleshooting notes.
 
+To inspect the generated Cases, launch the embedded UI server and open the
+provided address in your browser:
+
+```bash
+glyphctl serve ui --input out/demo/findings.jsonl
+```
+
+The UI lists correlated Cases, risk metadata, and evidence, and offers SARIF and
+JSON exports for downstream tooling.
+
 As the pipeline completes, the CLI streams status updates for each stage and
 prints a Case preview summarising the top finding, including its proof of
 concept command and embedded thumbnail metadata.
