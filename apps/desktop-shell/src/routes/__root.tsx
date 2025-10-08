@@ -4,6 +4,7 @@ import { Menu, Play, RefreshCw } from 'lucide-react';
 
 import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
+import { ThemeSwitcher } from '../components/theme-switcher';
 
 const Devtools = lazy(() => import('../screens/devtools'));
 
@@ -36,10 +37,13 @@ function Header() {
           </Link>
         ))}
       </nav>
-      <Button variant="secondary" size="sm" className="gap-2">
-        <Play className="h-4 w-4" />
-        New run
-      </Button>
+      <div className="flex items-center gap-3">
+        <ThemeSwitcher />
+        <Button variant="secondary" size="sm" className="gap-2">
+          <Play className="h-4 w-4" />
+          New run
+        </Button>
+      </div>
     </header>
   );
 }

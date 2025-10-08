@@ -6,6 +6,9 @@ import './styles.css';
 import { router } from './router';
 import { AppErrorBoundary } from './providers/error-boundary';
 import { Toaster } from './providers/toaster';
+import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
+
+bootstrapTheme();
 
 const rootElement = document.getElementById('root');
 
@@ -15,9 +18,11 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <AppErrorBoundary>
-      <Toaster />
-      <RouterProvider router={router} />
-    </AppErrorBoundary>
+    <ThemeProvider>
+      <AppErrorBoundary>
+        <Toaster />
+        <RouterProvider router={router} />
+      </AppErrorBoundary>
+    </ThemeProvider>
   </React.StrictMode>
 );
