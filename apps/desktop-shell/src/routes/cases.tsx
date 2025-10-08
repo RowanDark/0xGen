@@ -169,6 +169,14 @@ function CaseExplorer() {
 
   const mermaidRef = useMermaid(activeCase?.graph ?? '');
 
+  const escapeHtml = (value: string) =>
+    String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   const handleExport = async (format: 'sarif' | 'jsonl' | 'html') => {
     if (!activeCase) {
       return;
@@ -229,12 +237,12 @@ function CaseExplorer() {
         data = `${JSON.stringify(jsonl)}\n`;
         filename += '.jsonl';
       } else {
-        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8" />\n<title>${activeCase.title}</title></head><body>\n<h1>${
+        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8" />\n<title>${escapeHtml(
           activeCase.title
-        }</h1>\n<p><strong>Severity:</strong> ${severityCopy[activeCase.severity].label}</p>\n<p><strong>Asset:</strong> ${
-          activeCase.asset
-        }</p>\n<p>${activeCase.summary}</p>\n<h2>Deduped findings</h2><ul>${activeCase.dedupedFindings
-          .map((finding) => `<li>${finding}</li>`)
+        )}</title></head><body>\n<h1>${escapeHtml(activeCase.title)}</h1>\n<p><strong>Severity:</strong> ${
+          severityCopy[activeCase.severity].label
+        }</p>\n<p><strong>Asset:</strong> ${escapeHtml(activeCase.asset)}</p>\n<p>${escapeHtml(activeCase.summary)}</p>\n<h2>Deduped findings</h2><ul>${activeCase.dedupedFindings
+          .map((finding) => `<li>${escapeHtml(finding)}</li>`)
           .join('')}</ul>\n</body></html>`;
         data = html;
         mime = 'text/html';
