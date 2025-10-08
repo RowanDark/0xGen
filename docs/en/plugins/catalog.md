@@ -27,6 +27,18 @@ straight into the author guides.
       <option value="">All categories</option>
     </select>
   </label>
+  <label class="plugin-catalog__filter">
+    <span>Glyph version</span>
+    <select id="plugin-glyph">
+      <option value="">All versions</option>
+    </select>
+  </label>
+  <label class="plugin-catalog__filter">
+    <span>Compatibility</span>
+    <select id="plugin-compatibility-status">
+      <option value="">All statuses</option>
+    </select>
+  </label>
 </div>
 
 <div id="plugin-catalog" class="plugin-catalog__grid" data-mdx-component="plugin-catalog"></div>
@@ -38,19 +50,38 @@ straight into the author guides.
 
 ## Marketplace metadata feeds
 
-The data that powers the marketplace is stored in
-[`docs/en/data/plugin-catalog.json`](../data/plugin-catalog.json). The file is
-generated from the manifests under `plugins/<id>/manifest.json` by running
-`python scripts/update_plugin_catalog.py`. The command captures the declared
-capabilities, summary, last Git commit date, and the SHA-256 hash of each
-detached signature. Repository owners can extend the schema with custom
-fields—new properties automatically appear in this catalogue without changes to
-the JavaScript renderer.
+The catalogue consumes the central registry feed stored at
+[`docs/en/data/plugin-registry.json`](../data/plugin-registry.json). The JSON
+payload combines the manifest metadata, SHA-256 signatures, categories, and
+compatibility declarations for every vetted plugin.
 
-If you are publishing a third-party plugin, open a pull request that updates the
-manifest and README under `plugins/<id>/`. Re-run the catalogue generator so the
-metadata and per-plugin reference page are refreshed; the docs build picks up
-the change and republishes the marketplace without additional configuration.
+Registry data is generated from the manifests under `plugins/<id>/manifest.json`
+and the compatibility matrix declared in
+[`plugins/compatibility.json`](../../plugins/compatibility.json). Regenerate the
+feed after editing either source by running the publish workflow:
+
+```bash
+glyphctl plugin registry publish --ref $(git rev-parse HEAD)
+```
+
+The command wraps `python scripts/update_plugin_catalog.py`, rebuilding:
+
+- [`docs/en/data/plugin-catalog.json`](../data/plugin-catalog.json) for the
+  marketplace cards.
+- [`docs/en/data/plugin-registry.json`](../data/plugin-registry.json) consumed by
+  the REST service and documentation UI.
+- Reference documentation under [`docs/en/plugins/_catalog/`](./_catalog/).
+
+Repository owners can extend the registry schema with additional properties—new
+fields automatically appear in this catalogue without changes to the JavaScript
+renderer.
+
+!!! info "Self-hosting the registry API"
+    Launch the lightweight registry server locally with
+    `go run ./cmd/glyph-registry --data docs/en/data/plugin-registry.json`. The
+    service exposes `/registry.json`, `/plugins`, and `/compatibility` endpoints
+    for dashboards or automation workflows that want to consume the curated
+    plugin feed directly.
 
 ## Discover more
 

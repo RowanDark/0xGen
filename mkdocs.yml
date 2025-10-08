@@ -176,6 +176,8 @@ extra_javascript:
     defer: true
   - path: javascripts/plugin-catalog.js
     defer: true
+  - path: javascripts/plugin-compatibility.js
+    defer: true
   - path: javascripts/lazy-media.js
     defer: true
   - path: javascripts/quickstart-demo.js

@@ -30,16 +30,16 @@ Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/galdr-proxy/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js.sig)
 
 
 ### Signature

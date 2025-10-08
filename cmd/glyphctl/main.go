@@ -41,20 +41,22 @@ func main() {
 		os.Exit(runConfig(args[1:]))
 	case "scope":
 		os.Exit(runScope(args[1:]))
-	case "plugin":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "plugin subcommand required")
-			os.Exit(2)
-		}
-		switch args[1] {
-		case "run":
-			os.Exit(runPluginRun(args[2:]))
-		case "verify":
-			os.Exit(runPluginVerify(args[2:]))
-		default:
-			fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
-			os.Exit(2)
-		}
+        case "plugin":
+                if len(args) < 2 {
+                        fmt.Fprintln(os.Stderr, "plugin subcommand required")
+                        os.Exit(2)
+                }
+                switch args[1] {
+                case "run":
+                        os.Exit(runPluginRun(args[2:]))
+                case "verify":
+                        os.Exit(runPluginVerify(args[2:]))
+                case "registry":
+                        os.Exit(runPluginRegistry(args[2:]))
+                default:
+                        fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
+                        os.Exit(2)
+                }
 	case "raider":
 		os.Exit(runRaider(args[1:]))
 	case "history":

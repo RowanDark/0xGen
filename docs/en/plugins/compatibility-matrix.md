@@ -5,29 +5,38 @@ description: Understand which plugin versions work with each Glyph core release.
 
 # Plugin compatibility matrix
 
-The table below maps every supported plugin release to the Glyph core versions it
-supports. Compatibility testing runs as part of the release pipeline—plugins are
-only published after their integration suite has passed against the targeted
-core versions.
+The matrix below reflects every plugin listed in the registry feed. Filter by
+Glyph core version or compatibility status to plan safe upgrades—filters apply
+instantly, and search works across plugin names, authors, and categories.
 
-| Plugin | Latest version | Glyph v1.0 | Glyph v1.1 | Glyph v2.0 |
-| ------ | -------------- | ---------- | ---------- | ---------- |
-| Cartographer | `0.1.0` | ✅ 1.0.0+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| Cryptographer | `0.1.0` | ✅ 1.0.2+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| Excavator | `0.1.0` | ⚠️ Requires passive mode patch | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| Galdr Proxy | `0.1.0` | ❌ | ⚠️ HTTP-only support | ✅ 2.0.0+ |
-| Grapher | `0.1.0` | ✅ 1.0.0+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| OSINT Well | `0.1.0` | ✅ 1.0.0+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| Raider | `0.1.0` | ❌ | ⚠️ Requires v1.1.5 hotfix | ✅ 2.0.0+ |
-| Ranker | `0.1.0` | ✅ 1.0.0+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| Scribe | `0.1.0` | ✅ 1.0.3+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
-| Seer | `0.1.0` | ⚠️ Passive-only mode | ✅ 1.1.0+ | ✅ 2.0.0+ |
+<div class="plugin-compatibility__toolbar">
+  <label class="plugin-compatibility__filter">
+    <span>Search</span>
+    <input type="search" id="compatibility-search" placeholder="Search by plugin or capability" />
+  </label>
+  <label class="plugin-compatibility__filter">
+    <span>Glyph version</span>
+    <select id="compatibility-glyph">
+      <option value="">All versions</option>
+    </select>
+  </label>
+  <label class="plugin-compatibility__filter">
+    <span>Status</span>
+    <select id="compatibility-status">
+      <option value="">All statuses</option>
+      <option value="compatible">Compatible</option>
+      <option value="limited">Limited</option>
+      <option value="unsupported">Unsupported</option>
+    </select>
+  </label>
+</div>
 
-## Legend
+<div id="plugin-compatibility" class="plugin-compatibility__table-wrapper" data-mdx-component="plugin-compatibility"></div>
 
-- ✅ — Fully compatible with the specified Glyph release.
-- ⚠️ — Supported with caveats documented in the plugin README.
-- ❌ — Not compatible with that Glyph release.
+!!! note "Compatibility legend"
+    - ✅ — Fully compatible with the specified Glyph release.
+    - ⚠️ — Supported with caveats documented in the plugin README.
+    - ❌ — Not compatible with that Glyph release.
 
 ## Version constraints
 

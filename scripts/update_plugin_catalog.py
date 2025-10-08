@@ -18,6 +18,7 @@ PLUGINS_DIR = ROOT / "plugins"
 DOCS_DIR = ROOT / "docs"
 DEFAULT_LANGUAGE = "en"
 CATALOG_DATA_PATH = DOCS_DIR / DEFAULT_LANGUAGE / "data" / "plugin-catalog.json"
+REGISTRY_DATA_PATH = DOCS_DIR / DEFAULT_LANGUAGE / "data" / "plugin-registry.json"
 CATALOG_DOCS_DIR = DOCS_DIR / DEFAULT_LANGUAGE / "plugins" / "_catalog"
 
 
@@ -31,6 +32,8 @@ LANGUAGE_MAP = {
     ".py": "Python",
     ".rb": "Ruby",
 }
+
+ALLOWED_COMPATIBILITY_STATUSES = {"compatible", "limited", "unsupported"}
 
 
 def main() -> None:
@@ -51,6 +54,16 @@ def main() -> None:
     owner, repo = _extract_github_repo(repo_url)
     raw_base = f"https://raw.githubusercontent.com/{owner}/{repo}/{args.ref}/"
     tree_base = f"{repo_url}/tree/{args.ref}/"
+
+    compatibility = _load_compatibility()
+    _validate_compatibility(compatibility)
+
+    compat_map = {
+        item.get("id"): item
+        for item in compatibility.get("plugins", [])
+        if item.get("id")
+    }
+    glyph_versions = list(dict.fromkeys(compatibility.get("glyph_versions") or []))
 
     entries: list[dict[str, Any]] = []
     generated_docs: dict[str, Path] = {}
@@ -90,6 +103,8 @@ def main() -> None:
         if install_anchor:
             install_url = f"{tree_base}{plugin_dir.relative_to(ROOT).as_posix()}#" f"{install_anchor}"
 
+        compat_entry = compat_map.get(plugin_slug)
+
         entry = {
             "id": plugin_slug,
             "name": display_name,
@@ -111,6 +126,14 @@ def main() -> None:
         if install_url:
             entry["links"]["installation"] = install_url
 
+        if compat_entry:
+            categories = sorted(set(compat_entry.get("categories") or []))
+            if categories:
+                entry["categories"] = categories
+            compatibility_data = compat_entry.get("compatibility") or {}
+            if compatibility_data:
+                entry["compatibility"] = compatibility_data
+
         entries.append(entry)
 
         generated_docs[plugin_slug] = _write_plugin_doc(
@@ -131,7 +154,51 @@ def main() -> None:
     CATALOG_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     CATALOG_DATA_PATH.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
 
+    registry_payload = {
+        "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "glyph_versions": glyph_versions,
+        "plugins": entries,
+    }
+    REGISTRY_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REGISTRY_DATA_PATH.write_text(json.dumps(registry_payload, indent=2) + "\n", encoding="utf-8")
+
     _prune_stale_docs(CATALOG_DOCS_DIR, set(generated_docs))
+
+
+def _load_compatibility() -> dict[str, Any]:
+    path = PLUGINS_DIR / "compatibility.json"
+    if not path.exists():
+        return {"glyph_versions": [], "plugins": []}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Failed to parse compatibility file {path}: {exc}") from exc
+
+
+def _validate_compatibility(data: dict[str, Any]) -> None:
+    glyph_versions = data.get("glyph_versions")
+    if glyph_versions is not None:
+        if not isinstance(glyph_versions, list) or not all(isinstance(item, str) for item in glyph_versions):
+            raise SystemExit("compatibility glyph_versions must be a list of strings")
+
+    for plugin in data.get("plugins", []):
+        plugin_id = plugin.get("id")
+        if not plugin_id:
+            raise SystemExit("compatibility plugin entries require an id")
+        compat_map = plugin.get("compatibility") or {}
+        if not isinstance(compat_map, dict):
+            raise SystemExit(f"compatibility entry for {plugin_id} must be a mapping")
+        for glyph_version, details in compat_map.items():
+            if not isinstance(details, dict):
+                raise SystemExit(
+                    f"compatibility details for {plugin_id} {glyph_version} must be an object",
+                )
+            status = details.get("status")
+            if status not in ALLOWED_COMPATIBILITY_STATUSES:
+                allowed = ", ".join(sorted(ALLOWED_COMPATIBILITY_STATUSES))
+                raise SystemExit(
+                    f"compatibility status {status!r} for {plugin_id} must be one of: {allowed}",
+                )
 
 
 def _current_git_ref() -> str:

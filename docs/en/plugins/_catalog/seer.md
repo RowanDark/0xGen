@@ -29,16 +29,16 @@ Seer inspects passive telemetry to spot anomalies and suspicious behaviors befor
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/Glyph/tree/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer/main.go)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/main.go)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/Glyph/9245f2b8970021ae16fb399f76228c7c806dfaf8/plugins/seer/main.go.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/main.go.sig)
 
 
 ### Signature
