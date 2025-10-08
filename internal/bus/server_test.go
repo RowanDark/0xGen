@@ -146,6 +146,63 @@ func TestEventStream_InvalidAuth(t *testing.T) {
 	t.Logf("Received expected error: %v", err)
 }
 
+func TestPublishFlowEventBroadcasts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := NewServer("token", nil)
+	stream := newMockStream(ctx)
+
+	go func() {
+		stream.RecvChan <- &pb.PluginEvent{
+			Event: &pb.PluginEvent_Hello{
+				Hello: &pb.PluginHello{
+					AuthToken:     "token",
+					PluginName:    "proxy-listener",
+					Pid:           42,
+					Subscriptions: []string{"FLOW_RESPONSE"},
+				},
+			},
+		}
+	}()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.EventStream(stream)
+	}()
+
+	select {
+	case <-time.After(50 * time.Millisecond):
+	case err := <-errCh:
+		t.Fatalf("event stream terminated early: %v", err)
+	}
+
+	payload := []byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+	server.PublishFlowEvent(context.Background(), pb.FlowEvent_FLOW_RESPONSE, payload)
+
+	select {
+	case event := <-stream.SendChan:
+		flow := event.GetFlowEvent()
+		if flow == nil {
+			t.Fatal("expected flow event")
+		}
+		if flow.GetType() != pb.FlowEvent_FLOW_RESPONSE {
+			t.Fatalf("flow type = %v, want FLOW_RESPONSE", flow.GetType())
+		}
+		if string(flow.GetData()) != string(payload) {
+			t.Fatalf("flow payload mismatch: %q", string(flow.GetData()))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for published event")
+	}
+
+	cancel()
+	close(stream.RecvChan)
+	if err := <-errCh; err != nil && err != io.EOF {
+		t.Fatalf("event stream error: %v", err)
+	}
+}
+
 func TestServerDisconnectPlugin(t *testing.T) {
 	server := NewServer("token", findings.NewBus())
 	pluginConn := &plugin{

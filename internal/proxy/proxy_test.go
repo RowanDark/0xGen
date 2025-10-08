@@ -13,10 +13,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"log/slog"
+
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
 
 type recordedRequest struct {
@@ -24,8 +27,34 @@ type recordedRequest struct {
 	Body   []byte
 }
 
+type recordedFlow struct {
+	Type pb.FlowEvent_Type
+	Data []byte
+}
+
+type recordingPublisher struct {
+	mu     sync.Mutex
+	events []recordedFlow
+}
+
+func (r *recordingPublisher) PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	data := append([]byte(nil), payload...)
+	r.events = append(r.events, recordedFlow{Type: flowType, Data: data})
+	return nil
+}
+
+func (r *recordingPublisher) snapshot() []recordedFlow {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]recordedFlow, len(r.events))
+	copy(out, r.events)
+	return out
+}
+
 func newTestLogger() *slog.Logger {
-        return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 func waitErr(t *testing.T, ch <-chan error) {
@@ -247,6 +276,80 @@ func TestProxyHTTPModificationAndHistory(t *testing.T) {
 	}
 	if headers := entry.ResponseHeaders["X-Galdr-Response"]; len(headers) == 0 || headers[0] != "added" {
 		t.Fatalf("history missing response header")
+	}
+}
+
+func TestProxyPublishesFlowEvents(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Upstream", "ok")
+		_, _ = w.Write([]byte("payload"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	publisher := &recordingPublisher{}
+
+	cfg := Config{
+		Addr:          "127.0.0.1:0",
+		RulesPath:     filepath.Join(tempDir, "rules.json"),
+		HistoryPath:   filepath.Join(tempDir, "history.jsonl"),
+		CACertPath:    filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:     filepath.Join(tempDir, "ca.key"),
+		Logger:        newTestLogger(),
+		FlowPublisher: publisher,
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	resp, err := client.Get(upstream.URL + "/flow")
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	cancel()
+	waitErr(t, errCh)
+
+	events := publisher.snapshot()
+	if len(events) != 2 {
+		t.Fatalf("expected 2 flow events, got %d", len(events))
+	}
+
+	if events[0].Type != pb.FlowEvent_FLOW_REQUEST {
+		t.Fatalf("first event type = %v, want FLOW_REQUEST", events[0].Type)
+	}
+	if !strings.Contains(string(events[0].Data), "GET /flow") {
+		t.Fatalf("request payload missing request line: %q", string(events[0].Data))
+	}
+
+	if events[1].Type != pb.FlowEvent_FLOW_RESPONSE {
+		t.Fatalf("second event type = %v, want FLOW_RESPONSE", events[1].Type)
+	}
+	if !strings.Contains(string(events[1].Data), "X-Upstream: ok") {
+		t.Fatalf("response payload missing header: %q", string(events[1].Data))
 	}
 }
 

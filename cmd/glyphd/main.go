@@ -191,6 +191,8 @@ func run(ctx context.Context, cfg config) error {
 	}
 
 	busLogger := coreLogger.WithComponent("plugin_bus")
+	flowPublisher := newBusFlowPublisher()
+	cfg.proxy.FlowPublisher = flowPublisher
 
 	proxyEnabled := cfg.enableProxy || os.Getenv("GLYPH_ENABLE_PROXY") == "1"
 
@@ -288,7 +290,7 @@ func run(ctx context.Context, cfg config) error {
 
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode, flowPublisher)
 	}()
 
 	select {
@@ -352,7 +354,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string, publisher *busFlowPublisher) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
@@ -403,6 +405,10 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 		gateOpts = append(gateOpts, netgate.WithFingerprintStrategy(strategy))
 	}
 	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger), bus.WithGateOptions(gateOpts...))
+	if publisher != nil {
+		publisher.SetBus(busServer)
+		defer publisher.SetBus(nil)
+	}
 	pb.RegisterPluginBusServer(srv, busServer)
 
 	secretsLogger := coreLogger.WithComponent("secrets_broker")

@@ -543,15 +543,33 @@ func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent) {
 			}
 		}
 	}
+
 	if hadChannelError {
 		code = codes.ResourceExhausted.String()
-	}
-	if hadChannelError {
 		span.RecordError(fmt.Errorf("one or more plugin channels full"))
 		span.End()
-	} else {
-		span.EndWithStatus(tracing.StatusOK, "")
+		return
 	}
+
+	span.EndWithStatus(tracing.StatusOK, "")
+}
+
+// PublishFlowEvent broadcasts a flow event to all connected plugins.
+func (s *Server) PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) {
+	if s == nil {
+		return
+	}
+	data := append([]byte(nil), payload...)
+	event := &pb.HostEvent{
+		CoreVersion: coreVersion,
+		Event: &pb.HostEvent_FlowEvent{
+			FlowEvent: &pb.FlowEvent{
+				Type: flowType,
+				Data: data,
+			},
+		},
+	}
+	s.broadcast(ctx, event)
 }
 
 func (s *Server) publishFinding(ctx context.Context, pluginID string, incoming *pb.Finding) {

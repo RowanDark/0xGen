@@ -1,0 +1,73 @@
+# Proxy Interception Support Design
+
+## Overview
+This document outlines the design for enabling Glyph to operate as an intercepting HTTP(S) proxy, allowing users to capture, inspect, edit, and replay requests and responses while leveraging the existing plugin pipeline.
+
+## Goals
+- Accept inbound HTTP and HTTPS traffic in man-in-the-middle mode.
+- Provide user interfaces for inspecting and modifying requests and responses before forwarding them.
+- Integrate intercepted flows with the plugin execution pipeline.
+- Maintain comprehensive audit logging across sessions.
+- Operate on Windows, macOS, and Linux.
+
+## Non-Goals
+- Building a full certificate authority management UI (initial version will rely on CLI tooling and documentation).
+- Providing browser automation beyond proxy configuration (extensions or devtools remain out of scope).
+
+## Architecture
+
+### Proxy Listener
+- Add a new `cmd/glyph/proxy` entry point that starts an HTTP proxy listener.
+- Use Go's `net/http` with `golang.org/x/net/proxy` utilities to handle CONNECT tunneling for HTTPS.
+- Terminate TLS using a Glyph-managed root certificate issued per installation. Certificates are stored in the Glyph data directory with restricted permissions.
+- Support dynamic certificate generation per host using `crypto/tls` and `crypto/x509`.
+
+### Flow Pipeline Integration
+1. Incoming request hits proxy listener.
+2. Listener normalizes the request into Glyph's internal request model (currently used by plugins).
+3. Emit a "flow captured" event to a new interception queue consumed by the orchestrator.
+4. The orchestrator pauses forwarding until user approval (UI/CLI). When approved, the request is handed to the plugin pipeline as if it originated from a capture file.
+5. Responses returned from upstream are likewise captured, optionally modified, and stored for replay.
+
+### User Interaction
+- Extend the desktop UI with an Interceptor view listing captured flows, similar to popular proxy tools.
+- Provide CLI commands:
+  - `glyph proxy trust` to print or install the root certificate.
+  - `glyph proxy intercept` to start proxy mode with optional upstream proxy configuration.
+  - `glyph proxy approve <flow-id>` and `glyph proxy edit <flow-id>` to manipulate queued requests.
+- Inline editing uses diff-based editing; UI employs a JSON/HTTP message editor with syntax highlighting.
+
+### Browser Integration
+- Add helper scripts to configure system/browser proxy settings on macOS (networksetup), Windows (netsh winhttp + registry), and Linux (gsettings + environment variables).
+- Provide documentation for manual setup when automation is unavailable.
+- Include Selenium/WebDriver snippets for automated testing using the proxy.
+
+### Logging & Audit
+- Persist intercepted flows (requests/responses, edits, approvals) in a new `intercepts.db` SQLite database.
+- Record timestamps, user identifiers, and plugin execution outcomes.
+- Expose export functionality via `glyph proxy export --format json`.
+
+## Security Considerations
+- Root certificate generation uses a strong key (RSA 4096 or ECDSA P-256) with 2-year validity, rotated automatically.
+- Certificate storage respects OS keychain permissions; warn users if the key cannot be protected.
+- Provide clear UI indicators when traffic is being intercepted.
+- Support optional passphrase protection for the root private key.
+- Ensure edited requests are validated before dispatch to prevent malformed payloads from crashing upstream services.
+
+## Testing Strategy
+- Unit tests for certificate management and flow serialization.
+- Integration tests using `httptest` to simulate proxy clients and upstream servers.
+- End-to-end tests with headless Chrome configured to trust Glyph's certificate (using Puppeteer) to validate interception and modification.
+
+## Open Questions
+- How to handle protocols beyond HTTP(S), e.g., WebSockets or gRPC over HTTP/2?
+- Should intercepted flows be versioned for replay/audit histories?
+- What is the best UX for resolving conflicts when multiple users edit the same flow?
+
+## Milestones
+1. Implement proxy listener and certificate management.
+2. Integrate captured flows into plugin pipeline with CLI approval.
+3. Ship UI for editing and approving flows.
+4. Add automated browser integration scripts and documentation.
+5. Harden logging, auditing, and cross-platform support.
+

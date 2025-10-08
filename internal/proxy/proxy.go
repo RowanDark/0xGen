@@ -20,6 +20,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
 
 const (
@@ -36,6 +38,12 @@ type Config struct {
 	Logger         *slog.Logger
 	ReloadInterval time.Duration
 	Transport      http.RoundTripper
+	FlowPublisher  FlowPublisher
+}
+
+// FlowPublisher propagates captured flows to downstream consumers.
+type FlowPublisher interface {
+	PublishFlowEvent(ctx context.Context, flowType pb.FlowEvent_Type, payload []byte) error
 }
 
 // Proxy intercepts HTTP traffic for inspection and modification.
@@ -52,6 +60,7 @@ type Proxy struct {
 	addr       atomic.Value
 	shutdownMu sync.Mutex
 	closed     bool
+	publisher  FlowPublisher
 }
 
 // New creates a proxy using the provided configuration.
@@ -84,6 +93,7 @@ func New(cfg Config) (*Proxy, error) {
 		history:   history,
 		rules:     newRuleStore(cfg.RulesPath, cfg.ReloadInterval),
 		ready:     make(chan struct{}),
+		publisher: cfg.FlowPublisher,
 	}
 
 	p.server = &http.Server{
@@ -257,7 +267,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	p.serveProxyRequest(w, r, scheme, host, clientAddr, true, true)
+	p.serveProxyRequest(w, r, scheme, host, clientAddr, true, true, p.publisher != nil)
 }
 
 func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
@@ -444,7 +454,7 @@ func (w *tlsResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return w.conn, bufio.NewReadWriter(w.reader, w.writer), nil
 }
 
-func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory bool) {
+func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory, publishFlows bool) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "failed to read request body", http.StatusBadRequest)
@@ -492,6 +502,8 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 		start:          time.Now(),
 		applyRules:     applyRules,
 		recordHistory:  recordHistory,
+		publishFlows:   publishFlows,
+		requestProto:   r.Proto,
 	}
 
 	if len(body) == 0 {
@@ -631,6 +643,15 @@ func defaultProxyResponseModifier(p *Proxy, resp *http.Response, state *proxyFlo
 	state.responseHeaders = cloneHeader(headers)
 	state.responseBody = append([]byte(nil), body...)
 	state.statusCode = resp.StatusCode
+	state.responseProto = resp.Proto
+
+	if state.publishFlows {
+		ctx := context.Background()
+		if resp != nil && resp.Request != nil {
+			ctx = resp.Request.Context()
+		}
+		p.publishFlowEvents(ctx, state)
+	}
 
 	if state.recordHistory {
 		p.recordHistory(state)
@@ -721,6 +742,87 @@ type proxyFlowState struct {
 	start               time.Time
 	applyRules          bool
 	recordHistory       bool
+	publishFlows        bool
+	requestProto        string
+	responseProto       string
+}
+
+func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
+	if p.publisher == nil || state == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if data := encodeProxyRequest(state); len(data) > 0 {
+		if err := p.publisher.PublishFlowEvent(ctx, pb.FlowEvent_FLOW_REQUEST, data); err != nil {
+			p.logger.Warn("failed to publish request event", "error", err)
+		}
+	}
+	if data := encodeProxyResponse(state); len(data) > 0 {
+		if err := p.publisher.PublishFlowEvent(ctx, pb.FlowEvent_FLOW_RESPONSE, data); err != nil {
+			p.logger.Warn("failed to publish response event", "error", err)
+		}
+	}
+}
+
+func encodeProxyRequest(state *proxyFlowState) []byte {
+	if state == nil {
+		return nil
+	}
+	method := strings.ToUpper(strings.TrimSpace(state.method))
+	if method == "" {
+		method = http.MethodGet
+	}
+	proto := strings.TrimSpace(state.requestProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	target := state.url
+	if parsed, err := url.Parse(state.url); err == nil {
+		if parsed.Opaque != "" {
+			target = parsed.Opaque
+		} else {
+			target = parsed.RequestURI()
+		}
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s %s %s\r\n", method, target, proto)
+	if state.finalRequestHeaders != nil {
+		if err := state.finalRequestHeaders.Write(&buf); err != nil {
+			return nil
+		}
+	}
+	buf.WriteString("\r\n")
+	buf.Write(state.finalRequestBody)
+	return buf.Bytes()
+}
+
+func encodeProxyResponse(state *proxyFlowState) []byte {
+	if state == nil {
+		return nil
+	}
+	proto := strings.TrimSpace(state.responseProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	statusText := http.StatusText(state.statusCode)
+	if statusText == "" {
+		statusText = "Status"
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s %d %s\r\n", proto, state.statusCode, statusText)
+	if state.responseHeaders != nil {
+		if err := state.responseHeaders.Write(&buf); err != nil {
+			return nil
+		}
+	}
+	buf.WriteString("\r\n")
+	buf.Write(state.responseBody)
+	return buf.Bytes()
 }
 
 type singleConnListener struct {
