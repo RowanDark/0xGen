@@ -1,0 +1,28 @@
+[
+  {
+    "name": "juice-shop",
+    "app": "OWASP Juice Shop",
+    "description": "Simplified response headers captured from the OWASP Juice Shop home page; intentionally omits standard hardening headers for training.",
+    "path": "/",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Server": "nginx",
+      "Set-Cookie": "token=demo; Path=/; HttpOnly"
+    },
+    "body": "<html><head><title>OWASP Juice Shop</title></head><body><h1>Juice Shop</h1></body></html>"
+  },
+  {
+    "name": "bodgeit-store",
+    "app": "The BodgeIt Store",
+    "description": "Representative login page headers from The BodgeIt Store vulnerable training application. Only X-Frame-Options is present to validate false-negative protection.",
+    "path": "/login.jsp",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=UTF-8",
+      "Server": "Apache-Coyote/1.1",
+      "X-Frame-Options": "SAMEORIGIN"
+    },
+    "body": "<html><head><title>The BodgeIt Store</title></head><body><h1>Login</h1></body></html>"
+  }
+]

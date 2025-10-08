@@ -17,7 +17,9 @@ nav:
       - Overview: cli/index.md
       - Configuration: cli/configuration.md
       - Windows installation: cli/windows.md
-  - Developer Guide: dev-guide/index.md
+  - Developer Guide:
+      - Overview: dev-guide/index.md
+      - E2E Scenario Suite: dev/e2e-scenarios.md
   - Security:
       - Overview: security/index.md
       - Threat Model: security/threat-model.md
@@ -64,6 +66,7 @@ plugins:
           Plugins: Complementos
           CLI: CLI
           Developer Guide: Guía de desarrollo
+          E2E Scenario Suite: Escenarios E2E
           Security: Seguridad
           Versions: Versiones
           Overview: Descripción general
