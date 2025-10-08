@@ -74,3 +74,26 @@ glyphctl report \
 The CLI ships both Markdown and HTML renderers; omit `--format` to default to
 Markdown. See [`plugins/scribe`]({{ config.repo_url }}/tree/main/plugins/scribe) for the reference templates and
 sample output.
+
+## Export cases for downstream tools {#export-cases}
+
+Use `glyphctl export` to transform findings into cases and serialise them into
+machine-consumable formats:
+
+```bash
+glyphctl export \
+  --input out/findings.jsonl \
+  --format sarif \
+  --out out/cases.sarif
+```
+
+Available formats include:
+
+* `sarif` – emits a SARIF 2.1.0 log for interoperability with security tooling.
+* `jsonl` – writes telemetry followed by individual case entries as newline
+  delimited JSON.
+* `csv` – generates a spreadsheet-friendly summary of each case and its sources.
+
+Third-party exporters can register additional formats at runtime. When Glyph
+detects custom exporters (for example, from a plugin bundle), `--format` will
+list the extra options automatically.

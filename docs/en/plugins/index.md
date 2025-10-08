@@ -116,6 +116,30 @@ schema described in [`specs/finding.md`]({{ config.repo_url }}/blob/main/specs/f
 `go run ./cmd/glyphctl findings validate --input <path>` to verify JSONL output
 before distribution.
 
+## Extend Glyph exports {#extend-exports}
+
+Export-focused plugins can register new serialisation formats with the
+`internal/exporter` package. Formats are registered during package
+initialisation, making them available to `glyphctl export` and any other
+component that resolves exporters at runtime.
+
+```go
+func init() {
+    exporter.MustRegisterFormat(exporter.FormatSpec{
+        Format:          "xlsx",
+        DefaultFilename: "cases.xlsx",
+        Description:     "Excel workbook with per-case tabs",
+        Encode: func(req exporter.Request) ([]byte, error) {
+            // Build a spreadsheet from req.Cases and req.Telemetry.
+        },
+    })
+}
+```
+
+Registered exporters receive the same case dataset and telemetry metrics as the
+built-in SARIF, JSONL, and CSV emitters. Set `DefaultFilename` so the CLI can
+derive a sensible `--out` path when the flag is omitted.
+
 ## Performance and safety guidelines {#performance-and-safety-guidelines}
 
 - **Respect backpressure**: Hooks run on the gRPC receive loop. Avoid blocking
