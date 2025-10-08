@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScopeRouteImport } from './routes/scope'
 import { Route as RunsRouteImport } from './routes/runs'
+import { Route as RunDetailRouteImport } from './routes/runs.$runId'
+import { Route as RunsComposerRouteImport } from './routes/runs.composer'
 import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as CasesRouteImport } from './routes/cases'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +25,16 @@ const ScopeRoute = ScopeRouteImport.update({
 const RunsRoute = RunsRouteImport.update({
   id: '/runs',
   path: '/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RunDetailRoute = RunDetailRouteImport.update({
+  id: '/runs/$runId',
+  path: '/runs/$runId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RunsComposerRoute = RunsComposerRouteImport.update({
+  id: '/runs/composer',
+  path: '/runs/composer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FlowsRoute = FlowsRouteImport.update({
@@ -46,6 +58,8 @@ export interface FileRoutesByFullPath {
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
   '/runs': typeof RunsRoute
+  '/runs/$runId': typeof RunDetailRoute
+  '/runs/composer': typeof RunsComposerRoute
   '/scope': typeof ScopeRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +67,8 @@ export interface FileRoutesByTo {
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
   '/runs': typeof RunsRoute
+  '/runs/$runId': typeof RunDetailRoute
+  '/runs/composer': typeof RunsComposerRoute
   '/scope': typeof ScopeRoute
 }
 export interface FileRoutesById {
@@ -61,14 +77,16 @@ export interface FileRoutesById {
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
   '/runs': typeof RunsRoute
+  '/runs/$runId': typeof RunDetailRoute
+  '/runs/composer': typeof RunsComposerRoute
   '/scope': typeof ScopeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cases' | '/flows' | '/runs' | '/scope'
+  fullPaths: '/' | '/cases' | '/flows' | '/runs' | '/runs/$runId' | '/runs/composer' | '/scope'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cases' | '/flows' | '/runs' | '/scope'
-  id: '__root__' | '/' | '/cases' | '/flows' | '/runs' | '/scope'
+  to: '/' | '/cases' | '/flows' | '/runs' | '/runs/$runId' | '/runs/composer' | '/scope'
+  id: '__root__' | '/' | '/cases' | '/flows' | '/runs' | '/runs/$runId' | '/runs/composer' | '/scope'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +94,8 @@ export interface RootRouteChildren {
   CasesRoute: typeof CasesRoute
   FlowsRoute: typeof FlowsRoute
   RunsRoute: typeof RunsRoute
+  RunDetailRoute: typeof RunDetailRoute
+  RunsComposerRoute: typeof RunsComposerRoute
   ScopeRoute: typeof ScopeRoute
 }
 
@@ -93,6 +113,20 @@ declare module '@tanstack/react-router' {
       path: '/runs'
       fullPath: '/runs'
       preLoaderRoute: typeof RunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/runs/$runId': {
+      id: '/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof RunDetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/runs/composer': {
+      id: '/runs/composer'
+      path: '/runs/composer'
+      fullPath: '/runs/composer'
+      preLoaderRoute: typeof RunsComposerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/flows': {
@@ -124,6 +158,8 @@ const rootRouteChildren: RootRouteChildren = {
   CasesRoute: CasesRoute,
   FlowsRoute: FlowsRoute,
   RunsRoute: RunsRoute,
+  RunDetailRoute: RunDetailRoute,
+  RunsComposerRoute: RunsComposerRoute,
   ScopeRoute: ScopeRoute,
 }
 export const routeTree = rootRouteImport

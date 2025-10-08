@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { Link, createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { Play } from 'lucide-react';
+import { ArrowUpRight, Play } from 'lucide-react';
 
 import { Button } from '../components/ui/button';
-import { listRuns, startRun, streamEvents, type Run, type RunEvent, type StreamHandle } from '../lib/ipc';
+import { listRuns, streamEvents, type Run, type RunEvent, type StreamHandle } from '../lib/ipc';
 import { toast } from 'sonner';
 
 function RunsRoute() {
@@ -18,8 +18,6 @@ function RunsRoute() {
         toast.error('Unable to fetch runs from the Glyph API');
       });
   }, []);
-
-  const [isLaunching, setIsLaunching] = useState(false);
 
   useEffect(() => {
     if (runs.length === 0) {
@@ -69,26 +67,11 @@ function RunsRoute() {
           <h1 className="text-3xl font-semibold tracking-tight">Runs</h1>
           <p className="text-muted-foreground">Review the status of ongoing investigations.</p>
         </div>
-        <Button
-          className="gap-2"
-          disabled={isLaunching}
-          onClick={async () => {
-            try {
-              setIsLaunching(true);
-              const response = await startRun({ name: 'New Glyph run' });
-              toast.success(`Run ${response.id} started`);
-              const latestRuns = await listRuns();
-              setRuns(latestRuns);
-            } catch (error) {
-              console.error('Failed to start run', error);
-              toast.error('Unable to start run');
-            } finally {
-              setIsLaunching(false);
-            }
-          }}
-        >
-          <Play className="h-4 w-4" />
-          {isLaunching ? 'Starting…' : 'Start run'}
+        <Button asChild className="gap-2">
+          <Link to="/runs/composer">
+            <Play className="h-4 w-4" />
+            New run
+          </Link>
         </Button>
       </div>
       <div className="rounded-lg border border-border bg-card">
@@ -103,7 +86,16 @@ function RunsRoute() {
           <tbody className="divide-y divide-border text-sm">
             {runs.map((run) => (
               <tr key={run.id}>
-                <td className="px-4 py-3 font-medium">{run.name}</td>
+                <td className="px-4 py-3 font-medium">
+                  <Link
+                    to="/runs/$runId"
+                    params={{ runId: run.id }}
+                    className="inline-flex items-center gap-1 text-foreground hover:text-primary"
+                  >
+                    {run.name}
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold uppercase text-secondary-foreground">
                     {run.status}
