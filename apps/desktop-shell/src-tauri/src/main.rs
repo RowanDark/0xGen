@@ -151,9 +151,11 @@ fn parse_metric_line(line: &str) -> Option<MetricSample> {
         return None;
     }
 
-    let mut parts = trimmed.rsplitn(2, ' ');
-    let value_str = parts.next()?;
+    let mut parts = trimmed.split_whitespace();
     let metric_part = parts.next()?;
+    let value_str = parts.next()?;
+    // Ignore optional timestamp token if present.
+    let _timestamp = parts.next();
     let value: f64 = value_str.parse().ok()?;
     let (name, labels) = parse_metric_identifier(metric_part)?;
 
