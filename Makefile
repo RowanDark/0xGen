@@ -160,3 +160,9 @@ e2e: proto
 	@echo "--- Plugin Log (plugin.log) ---"
 	@cat plugin.log
 	@rm -f glyphd glyphd.log plugin.log
+
+# Runs the real-world scenario regression tests.
+.PHONY: e2e-scenarios
+e2e-scenarios:
+	@echo "--- Running E2E scenario suite ---"
+	@go test ./internal/e2e -run TestPassiveHeaderRealWorldScenarios -count=1 -timeout 5m

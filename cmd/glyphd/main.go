@@ -499,7 +499,9 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	// once the gRPC server begins shutting down.
 	generatorCtx, cancelGenerator := context.WithCancel(context.Background())
 	defer cancelGenerator()
-	go busServer.StartEventGenerator(generatorCtx)
+	if os.Getenv("GLYPH_DISABLE_EVENT_GENERATOR") != "1" {
+		go busServer.StartEventGenerator(generatorCtx)
+	}
 
 	// Stop the gRPC server once the provided context is cancelled.
 	go func() {
