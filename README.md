@@ -167,3 +167,7 @@ vulnerabilities, supported versions, and the disclosure timeline. The
 [Glyph threat model](THREAT_MODEL.md) outlines major attack vectors and
 assumptions, while the [plugin security guide](PLUGIN_GUIDE.md) captures safe
 patterns for new integrations.
+
+## Desktop Shell
+
+A cross-platform Tauri shell lives under [`apps/desktop-shell`](apps/desktop-shell). It ships a React + Vite + Tailwind front-end with TanStack Router and a hardened IPC boundary that proxies Glyph API calls.

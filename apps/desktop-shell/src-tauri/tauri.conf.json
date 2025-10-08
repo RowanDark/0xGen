@@ -1,0 +1,60 @@
+{
+  "package": {
+    "productName": "Glyph Desktop",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "all": false
+      },
+      "shell": {
+        "all": false,
+        "open": false
+      },
+      "http": {
+        "all": false,
+        "request": false
+      },
+      "dialog": {
+        "all": false
+      },
+      "window": {
+        "all": false,
+        "close": true,
+        "create": false,
+        "hide": false,
+        "show": true
+      },
+      "event": {
+        "all": false,
+        "emit": true,
+        "listen": true
+      }
+    },
+    "windows": [
+      {
+        "title": "Glyph Desktop",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": true,
+        "decorations": true,
+        "fileDropEnabled": false,
+        "devtools": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; font-src 'self';",
+      "withGlobalTauri": false
+    }
+  },
+  "build": {
+    "beforeBuildCommand": "pnpm install",
+    "beforeDevCommand": "pnpm install && pnpm dev",
+    "devPath": "http://127.0.0.1:5173",
+    "distDir": "../dist"
+  }
+}
