@@ -170,7 +170,11 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
     if (!storage) {
       return;
     }
-    storage.setItem(contrastStorageKey(projectId), highContrast ? '1' : '0');
+    try {
+      storage.setItem(contrastStorageKey(projectId), highContrast ? '1' : '0');
+    } catch (error) {
+      // Swallow persistence errors to avoid crashing the shell when storage is unavailable.
+    }
   }, [highContrast, storage, projectId]);
 
   useEffect(() => {
@@ -178,7 +182,11 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
       return;
     }
     if (userHasLockedTheme) {
-      storage.setItem(themeStorageKey(projectId), theme);
+      try {
+        storage.setItem(themeStorageKey(projectId), theme);
+      } catch (error) {
+        // Swallow persistence errors to avoid crashing the shell when storage is unavailable.
+      }
     }
   }, [theme, storage, projectId, userHasLockedTheme]);
 
