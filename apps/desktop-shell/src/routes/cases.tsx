@@ -239,9 +239,9 @@ function CaseExplorer() {
       } else {
         const html = `<!doctype html><html lang="en"><head><meta charset="utf-8" />\n<title>${escapeHtml(
           activeCase.title
-        )}</title></head><body>\n<h1>${escapeHtml(activeCase.title)}</h1>\n<p><strong>Severity:</strong> ${
+        )}</title></head><body>\n<h1>${escapeHtml(activeCase.title)}</h1>\n<p><strong>Severity:</strong> ${escapeHtml(
           severityCopy[activeCase.severity].label
-        }</p>\n<p><strong>Asset:</strong> ${escapeHtml(activeCase.asset)}</p>\n<p>${escapeHtml(activeCase.summary)}</p>\n<h2>Deduped findings</h2><ul>${activeCase.dedupedFindings
+        )}</p>\n<p><strong>Asset:</strong> ${escapeHtml(activeCase.asset)}</p>\n<p>${escapeHtml(activeCase.summary)}</p>\n<h2>Deduped findings</h2><ul>${activeCase.dedupedFindings
           .map((finding) => `<li>${escapeHtml(finding)}</li>`)
           .join('')}</ul>\n</body></html>`;
         data = html;
