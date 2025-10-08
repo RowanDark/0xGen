@@ -17,5 +17,5 @@ func (p *Proxy) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	p.serveProxyRequest(w, r, scheme, host, clientAddr, false, false)
+	p.serveProxyRequest(w, r, scheme, host, clientAddr, false, false, false)
 }

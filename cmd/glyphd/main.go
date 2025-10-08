@@ -24,6 +24,7 @@ import (
 	"github.com/RowanDark/Glyph/internal/plugins/hotreload"
 	"github.com/RowanDark/Glyph/internal/proxy"
 	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/Glyph/internal/scope"
 	"github.com/RowanDark/Glyph/internal/secrets"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
@@ -40,6 +41,7 @@ type config struct {
 	http3Mode         string
 	tracing           tracing.Config
 	traceHeaders      string
+	scopePolicyPath   string
 }
 
 func main() {
@@ -52,6 +54,14 @@ func main() {
 	proxyCACert := flag.String("proxy-ca-cert", "", "path to proxy CA certificate")
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
+	proxyFlowEnabled := flag.Bool("proxy-flow-enabled", true, "enable publishing intercepted flows to plugins")
+	proxyFlowSample := flag.Float64("proxy-flow-sample", 1.0, "DEPRECATED: use --flow-sample-rate")
+	proxyFlowMaxBody := flag.Int("proxy-flow-max-body", 131072, "DEPRECATED: use --max-body-kb (value in bytes)")
+	flowSampleRate := flag.Float64("flow-sample-rate", 1.0, "sampling ratio for intercepted flows (0-1)")
+	maxBodyKB := flag.Int("max-body-kb", 128, "maximum raw body kilobytes to include in flow events (-1 disables raw bodies)")
+	proxyFlowSeed := flag.Int64("proxy-flow-seed", 0, "seed used to deterministically order flow identifiers (default random)")
+	proxyFlowLog := flag.String("proxy-flow-log", "", "path to write sanitized flow transcripts for replay (defaults next to proxy history)")
+	scopePolicy := flag.String("scope-policy", "", "path to YAML scope policy used to suppress out-of-scope flows")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
 	metricsAddr := flag.String("metrics-addr", ":9090", "address for the Prometheus metrics endpoint (empty to disable)")
@@ -63,6 +73,21 @@ func main() {
 	traceFile := flag.String("trace-file", "", "optional path to write spans as JSONL")
 	traceHeaders := flag.String("trace-headers", "", "comma-separated list of additional headers for trace export requests (key=value)")
 	flag.Parse()
+
+	visited := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		visited[f.Name] = true
+	})
+
+	sampleRate := *flowSampleRate
+	if visited["proxy-flow-sample"] && !visited["flow-sample-rate"] {
+		sampleRate = *proxyFlowSample
+	}
+
+	maxBodyBytes := kilobytesToBytes(*maxBodyKB)
+	if visited["proxy-flow-max-body"] && !visited["max-body-kb"] {
+		maxBodyBytes = *proxyFlowMaxBody
+	}
 
 	if *token == "" {
 		fmt.Fprintln(os.Stderr, "--token must be provided")
@@ -82,6 +107,13 @@ func main() {
 			HistoryPath: *proxyHistory,
 			CACertPath:  *proxyCACert,
 			CAKeyPath:   *proxyCAKey,
+			Flow: proxy.FlowCaptureConfig{
+				Enabled:      *proxyFlowEnabled,
+				SampleRate:   sampleRate,
+				MaxBodyBytes: maxBodyBytes,
+				Seed:         *proxyFlowSeed,
+				LogPath:      strings.TrimSpace(*proxyFlowLog),
+			},
 		},
 		enableProxy:       *enableProxy,
 		fingerprintRotate: *fingerprintRotate,
@@ -95,6 +127,17 @@ func main() {
 			FilePath:      strings.TrimSpace(*traceFile),
 		},
 		traceHeaders: *traceHeaders,
+	}
+
+	scopePath := strings.TrimSpace(*scopePolicy)
+	if scopePath != "" {
+		enforcer, err := scope.LoadEnforcerFromFile(scopePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "load scope policy: %v\n", err)
+			os.Exit(1)
+		}
+		cfg.proxy.Scope = enforcer
+		cfg.scopePolicyPath = scopePath
 	}
 
 	if err := run(ctx, cfg); err != nil {
@@ -111,12 +154,30 @@ func selectProxyAddr(addrFlag, portFlag string) string {
 	return strings.TrimSpace(portFlag)
 }
 
+func kilobytesToBytes(kb int) int {
+	if kb < 0 {
+		return -1
+	}
+	return kb * 1024
+}
+
 func run(ctx context.Context, cfg config) error {
 	coreLogger, err := newAuditLogger("glyphd")
 	if err != nil {
 		return fmt.Errorf("configure audit logger: %w", err)
 	}
 	defer coreLogger.Close()
+
+	if cfg.proxy.Scope != nil && strings.TrimSpace(cfg.scopePolicyPath) != "" {
+		emitAudit(coreLogger.WithComponent("proxy"), logging.AuditEvent{
+			EventType: logging.EventRPCCall,
+			Decision:  logging.DecisionInfo,
+			Metadata: map[string]any{
+				"phase": "scope_policy_loaded",
+				"path":  cfg.scopePolicyPath,
+			},
+		})
+	}
 
 	traceCfg := cfg.tracing
 	traceCfg.Headers = parseTraceHeaders(cfg.traceHeaders)
@@ -191,6 +252,8 @@ func run(ctx context.Context, cfg config) error {
 	}
 
 	busLogger := coreLogger.WithComponent("plugin_bus")
+	flowPublisher := newBusFlowPublisher()
+	cfg.proxy.FlowPublisher = flowPublisher
 
 	proxyEnabled := cfg.enableProxy || os.Getenv("GLYPH_ENABLE_PROXY") == "1"
 
@@ -288,7 +351,7 @@ func run(ctx context.Context, cfg config) error {
 
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode, flowPublisher)
 	}()
 
 	select {
@@ -352,7 +415,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string, publisher *busFlowPublisher) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
@@ -403,6 +466,10 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 		gateOpts = append(gateOpts, netgate.WithFingerprintStrategy(strategy))
 	}
 	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger), bus.WithGateOptions(gateOpts...))
+	if publisher != nil {
+		publisher.SetBus(busServer)
+		defer publisher.SetBus(nil)
+	}
 	pb.RegisterPluginBusServer(srv, busServer)
 
 	secretsLogger := coreLogger.WithComponent("secrets_broker")

@@ -14,20 +14,21 @@ const ManifestVersion = "1.1"
 
 // Manifest describes the metadata captured for a replayable pipeline run.
 type Manifest struct {
-	Version       string            `json:"version"`
-	CreatedAt     time.Time         `json:"created_at"`
-	Seeds         map[string]int64  `json:"seeds,omitempty"`
-	DNS           []DNSRecord       `json:"dns,omitempty"`
-	TLS           []TLSRecord       `json:"tls,omitempty"`
-	Robots        []RobotsRecord    `json:"robots,omitempty"`
-	RateLimits    []RateLimitRecord `json:"rate_limits,omitempty"`
-	Cookies       []CookieRecord    `json:"cookies,omitempty"`
-	Responses     []ResponseRecord  `json:"responses,omitempty"`
-	Runner        RunnerInfo        `json:"runner"`
-	Plugins       []PluginInfo      `json:"plugins"`
-	FindingsFile  string            `json:"findings_file"`
-	CasesFile     string            `json:"cases_file"`
-	CaseTimestamp time.Time         `json:"case_timestamp"`
+        Version       string            `json:"version"`
+        CreatedAt     time.Time         `json:"created_at"`
+        Seeds         map[string]int64  `json:"seeds,omitempty"`
+        DNS           []DNSRecord       `json:"dns,omitempty"`
+        TLS           []TLSRecord       `json:"tls,omitempty"`
+        Robots        []RobotsRecord    `json:"robots,omitempty"`
+        RateLimits    []RateLimitRecord `json:"rate_limits,omitempty"`
+        Cookies       []CookieRecord    `json:"cookies,omitempty"`
+        Responses     []ResponseRecord  `json:"responses,omitempty"`
+        FlowsFile     string            `json:"flows_file,omitempty"`
+        Runner        RunnerInfo        `json:"runner"`
+        Plugins       []PluginInfo      `json:"plugins"`
+        FindingsFile  string            `json:"findings_file"`
+        CasesFile     string            `json:"cases_file"`
+        CaseTimestamp time.Time         `json:"case_timestamp"`
 }
 
 // DNSRecord records resolved addresses for a host.
@@ -104,20 +105,23 @@ func DefaultRunnerInfo() RunnerInfo {
 
 // Validate ensures the manifest is structurally sound before packaging.
 func (m Manifest) Validate() error {
-	if m.Version == "" {
-		return errors.New("manifest version is required")
-	}
-	if m.FindingsFile == "" {
-		return errors.New("findings_file must reference a file within the artefact")
-	}
-	if m.CasesFile == "" {
-		return errors.New("cases_file must reference a file within the artefact")
-	}
-	if m.Runner.GlyphctlVersion == "" && m.Runner.GlyphdVersion == "" {
-		return errors.New("runner info must include at least one version")
-	}
-	if err := validateResponses(m.Responses); err != nil {
-		return err
+        if m.Version == "" {
+                return errors.New("manifest version is required")
+        }
+        if m.FindingsFile == "" {
+                return errors.New("findings_file must reference a file within the artefact")
+        }
+        if m.CasesFile == "" {
+                return errors.New("cases_file must reference a file within the artefact")
+        }
+        if strings.TrimSpace(m.FlowsFile) != "" && !strings.HasPrefix(m.FlowsFile, filesDir+"/") {
+                return errors.New("flows_file must reside under files/")
+        }
+        if m.Runner.GlyphctlVersion == "" && m.Runner.GlyphdVersion == "" {
+                return errors.New("runner info must include at least one version")
+        }
+        if err := validateResponses(m.Responses); err != nil {
+                return err
 	}
 	if err := validateTLSRecords(m.TLS); err != nil {
 		return err

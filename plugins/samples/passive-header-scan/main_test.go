@@ -83,7 +83,7 @@ func TestSampleEmitsFinding(t *testing.T) {
 	grant, err := pb.NewPluginBusClient(conn).GrantCapabilities(grantCtx, &pb.PluginCapabilityRequest{
 		AuthToken:    "test-token",
 		PluginName:   "passive-header-scan",
-		Capabilities: []string{"CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"},
+		Capabilities: []string{"CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS", "CAP_FLOW_INSPECT"},
 	})
 	if err != nil {
 		t.Fatalf("grant capabilities: %v", err)

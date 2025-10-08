@@ -92,6 +92,16 @@ func runReplay(args []string) int {
 		return 1
 	}
 
+	var flowRecords []replay.FlowRecord
+	if strings.TrimSpace(manifest.FlowsFile) != "" {
+		flowsPath := filepath.Join(tmpDir, filepath.FromSlash(manifest.FlowsFile))
+		flowRecords, err = replay.LoadFlows(flowsPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "load flows: %v\n", err)
+			return 1
+		}
+	}
+
 	if *verifyOnly {
 		fmt.Fprintf(os.Stdout, "verified %d cases from %s\n", len(builtCases), artefactPath)
 		return 0
@@ -106,6 +116,14 @@ func runReplay(args []string) int {
 	if err := replay.WriteCases(outputCasesPath, builtCases); err != nil {
 		fmt.Fprintf(os.Stderr, "write replay cases: %v\n", err)
 		return 1
+	}
+
+	if len(flowRecords) > 0 {
+		flowsOutput := filepath.Join(dest, "flows.replay.jsonl")
+		if err := replay.WriteFlows(flowsOutput, flowRecords); err != nil {
+			fmt.Fprintf(os.Stderr, "write flows: %v\n", err)
+			return 1
+		}
 	}
 
 	if err := exportSupplemental(manifest, tmpDir, dest); err != nil {

@@ -4,11 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -20,6 +25,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/flows"
+	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
+	"github.com/RowanDark/Glyph/internal/scope"
+	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
 
 const (
@@ -36,6 +46,30 @@ type Config struct {
 	Logger         *slog.Logger
 	ReloadInterval time.Duration
 	Transport      http.RoundTripper
+	FlowPublisher  FlowPublisher
+	Scope          ScopeEvaluator
+	Flow           FlowCaptureConfig
+}
+
+// FlowCaptureConfig governs how intercepted flows are sampled, truncated, and
+// recorded for replay.
+type FlowCaptureConfig struct {
+	Enabled      bool
+	SampleRate   float64
+	MaxBodyBytes int
+	Seed         int64
+	LogPath      string
+}
+
+// FlowPublisher propagates captured flows to downstream consumers.
+type FlowPublisher interface {
+	PublishFlowEvent(ctx context.Context, event flows.Event) error
+}
+
+// ScopeEvaluator determines whether a captured flow is considered in-scope for
+// publication to plugins. Implementations should be safe for concurrent use.
+type ScopeEvaluator interface {
+	Evaluate(candidate string) scope.Decision
 }
 
 // Proxy intercepts HTTP traffic for inspection and modification.
@@ -52,6 +86,15 @@ type Proxy struct {
 	addr       atomic.Value
 	shutdownMu sync.Mutex
 	closed     bool
+	publisher  FlowPublisher
+	scope      ScopeEvaluator
+	flowCfg    FlowCaptureConfig
+	flowSeed   int64
+	flowIDs    atomic.Uint64
+	flowSeq    atomic.Uint64
+	sampler    *rand.Rand
+	samplerMu  sync.Mutex
+	flowLog    *flowLogWriter
 }
 
 // New creates a proxy using the provided configuration.
@@ -66,6 +109,14 @@ func New(cfg Config) (*Proxy, error) {
 	history, err := newHistoryWriter(cfg.HistoryPath)
 	if err != nil {
 		return nil, fmt.Errorf("initialise history writer: %w", err)
+	}
+
+	var flowLog *flowLogWriter
+	if cfg.Flow.Enabled && strings.TrimSpace(cfg.Flow.LogPath) != "" {
+		flowLog, err = newFlowLogWriter(cfg.Flow.LogPath)
+		if err != nil {
+			return nil, fmt.Errorf("initialise flow log: %w", err)
+		}
 	}
 
 	transport := cfg.Transport
@@ -84,6 +135,12 @@ func New(cfg Config) (*Proxy, error) {
 		history:   history,
 		rules:     newRuleStore(cfg.RulesPath, cfg.ReloadInterval),
 		ready:     make(chan struct{}),
+		publisher: cfg.FlowPublisher,
+		scope:     cfg.Scope,
+		flowCfg:   cfg.Flow,
+		flowSeed:  cfg.Flow.Seed,
+		sampler:   rand.New(rand.NewSource(cfg.Flow.Seed)),
+		flowLog:   flowLog,
 	}
 
 	p.server = &http.Server{
@@ -110,6 +167,42 @@ func applyDefaults(cfg Config) Config {
 	cfg.Addr = addr
 	cfg.HistoryPath = ensureHistoryPath(cfg.HistoryPath)
 	cfg.RulesPath = ensureRulesPath(cfg.RulesPath)
+	cfg.Flow = applyFlowDefaults(cfg.Flow, cfg.HistoryPath)
+	return cfg
+}
+
+func applyFlowDefaults(cfg FlowCaptureConfig, historyPath string) FlowCaptureConfig {
+	zeroConfig := !cfg.Enabled && cfg.SampleRate == 0 && cfg.MaxBodyBytes == 0 && cfg.Seed == 0 && strings.TrimSpace(cfg.LogPath) == ""
+	if zeroConfig {
+		cfg.Enabled = true
+	}
+	if cfg.SampleRate < 0 {
+		cfg.SampleRate = 0
+	}
+	if cfg.SampleRate > 1 {
+		cfg.SampleRate = 1
+	}
+	if zeroConfig && cfg.SampleRate == 0 {
+		cfg.SampleRate = 1
+	}
+	if cfg.MaxBodyBytes == 0 {
+		if zeroConfig {
+			cfg.MaxBodyBytes = 128 * 1024
+		}
+	}
+	if cfg.MaxBodyBytes < 0 {
+		cfg.MaxBodyBytes = -1
+	}
+	if cfg.Seed == 0 {
+		cfg.Seed = time.Now().UTC().UnixNano()
+	}
+	if strings.TrimSpace(cfg.LogPath) == "" {
+		dir := filepath.Dir(historyPath)
+		if dir == "." || strings.TrimSpace(dir) == "" {
+			dir = filepath.Dir(ensureHistoryPath(historyPath))
+		}
+		cfg.LogPath = filepath.Join(dir, "proxy_flows.jsonl")
+	}
 	return cfg
 }
 
@@ -194,7 +287,15 @@ func (p *Proxy) Shutdown(ctx context.Context) error {
 	if closer, ok := p.transport.(interface{ CloseIdleConnections() }); ok {
 		closer.CloseIdleConnections()
 	}
-	return p.history.Close()
+	if err := p.history.Close(); err != nil {
+		return err
+	}
+	if p.flowLog != nil {
+		if err := p.flowLog.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // WaitUntilReady blocks until the proxy listener is active or the context is cancelled.
@@ -257,7 +358,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	p.serveProxyRequest(w, r, scheme, host, clientAddr, true, true)
+	p.serveProxyRequest(w, r, scheme, host, clientAddr, true, true, p.publisher != nil)
 }
 
 func (p *Proxy) handleConnect(w http.ResponseWriter, r *http.Request) {
@@ -444,7 +545,7 @@ func (w *tlsResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return w.conn, bufio.NewReadWriter(w.reader, w.writer), nil
 }
 
-func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory bool) {
+func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory, publishFlows bool) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "failed to read request body", http.StatusBadRequest)
@@ -492,6 +593,19 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 		start:          time.Now(),
 		applyRules:     applyRules,
 		recordHistory:  recordHistory,
+		publishFlows:   publishFlows,
+		requestProto:   r.Proto,
+	}
+
+	if state.publishFlows {
+		if !p.flowCfg.Enabled || p.publisher == nil {
+			state.publishFlows = false
+		} else if !p.shouldPublishFlow() {
+			state.publishFlows = false
+		} else {
+			state.flowTracked = true
+			state.flowID = p.generateFlowID(p.flowIDs.Add(1))
+		}
 	}
 
 	if len(body) == 0 {
@@ -631,6 +745,15 @@ func defaultProxyResponseModifier(p *Proxy, resp *http.Response, state *proxyFlo
 	state.responseHeaders = cloneHeader(headers)
 	state.responseBody = append([]byte(nil), body...)
 	state.statusCode = resp.StatusCode
+	state.responseProto = resp.Proto
+
+	if state.publishFlows {
+		ctx := context.Background()
+		if resp != nil && resp.Request != nil {
+			ctx = resp.Request.Context()
+		}
+		p.publishFlowEvents(ctx, state)
+	}
 
 	if state.recordHistory {
 		p.recordHistory(state)
@@ -683,6 +806,50 @@ func (p *Proxy) recordHistory(state *proxyFlowState) {
 	}
 }
 
+func (p *Proxy) shouldPublishFlow() bool {
+	if p == nil {
+		return false
+	}
+	if !p.flowCfg.Enabled {
+		return false
+	}
+	rate := p.flowCfg.SampleRate
+	if rate >= 1 {
+		return true
+	}
+	if rate <= 0 {
+		return false
+	}
+	p.samplerMu.Lock()
+	defer p.samplerMu.Unlock()
+	if p.sampler == nil {
+		p.sampler = rand.New(rand.NewSource(p.flowSeed))
+	}
+	return p.sampler.Float64() < rate
+}
+
+func (p *Proxy) nextEventSequence() uint64 {
+	if p == nil {
+		return 0
+	}
+	return p.flowSeq.Add(1)
+}
+
+func (p *Proxy) generateFlowID(flowNumber uint64) string {
+	var seedBuf, seqBuf [8]byte
+	binary.LittleEndian.PutUint64(seedBuf[:], uint64(p.flowSeed))
+	binary.LittleEndian.PutUint64(seqBuf[:], flowNumber)
+	h := sha1.New()
+	_, _ = h.Write(seedBuf[:])
+	_, _ = h.Write(seqBuf[:])
+	sum := h.Sum(nil)
+	encoded := hex.EncodeToString(sum)
+	if len(encoded) > 16 {
+		encoded = encoded[:16]
+	}
+	return encoded
+}
+
 type connMetadata struct {
 	scheme     string
 	host       string
@@ -721,6 +888,446 @@ type proxyFlowState struct {
 	start               time.Time
 	applyRules          bool
 	recordHistory       bool
+	publishFlows        bool
+	requestProto        string
+	responseProto       string
+	flowTracked         bool
+	flowID              string
+}
+
+func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
+	if (p.publisher == nil && p.flowLog == nil) || state == nil || !state.flowTracked {
+		return
+	}
+	if p.scope != nil {
+		decision := p.scope.Evaluate(state.url)
+		if !decision.Allowed {
+			p.logger.Debug("suppressing out-of-scope flow", "url", state.url, "reason", decision.Reason)
+			return
+		}
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if event := buildRequestEvent(state, p.flowCfg); event != nil {
+		event.ID = fmt.Sprintf("%s:request", state.flowID)
+		event.Sequence = p.nextEventSequence()
+		event.Timestamp = state.start.UTC()
+		if event.SanitizedRedacted {
+			obsmetrics.RecordFlowRedaction("body")
+		}
+		if event.RawBodyCaptured >= 0 && event.RawBodyCaptured < event.RawBodySize {
+			obsmetrics.RecordFlowRedaction("raw_truncated")
+		}
+		p.recordFlowEvent(event)
+		if p.publisher != nil {
+			if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
+				p.logger.Warn("failed to publish request event", "error", err)
+			}
+		}
+	}
+	if event := buildResponseEvent(state, p.flowCfg); event != nil {
+		event.ID = fmt.Sprintf("%s:response", state.flowID)
+		event.Sequence = p.nextEventSequence()
+		event.Timestamp = time.Now().UTC()
+		if event.SanitizedRedacted {
+			obsmetrics.RecordFlowRedaction("body")
+		}
+		if event.RawBodyCaptured >= 0 && event.RawBodyCaptured < event.RawBodySize {
+			obsmetrics.RecordFlowRedaction("raw_truncated")
+		}
+		p.recordFlowEvent(event)
+		if p.publisher != nil {
+			if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
+				p.logger.Warn("failed to publish response event", "error", err)
+			}
+		}
+	}
+}
+
+func (p *Proxy) recordFlowEvent(event *flows.Event) {
+	if p == nil || p.flowLog == nil || event == nil {
+		return
+	}
+	if err := p.flowLog.Record(event.Clone()); err != nil {
+		p.logger.Warn("failed to persist flow log", "error", err, "flow_id", event.ID)
+	}
+}
+
+func encodeProxyRequest(state *proxyFlowState, limit int) ([]byte, int) {
+	if state == nil {
+		return nil, 0
+	}
+	method := strings.ToUpper(strings.TrimSpace(state.method))
+	if method == "" {
+		method = http.MethodGet
+	}
+	proto := strings.TrimSpace(state.requestProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	headers := cloneHeader(state.finalRequestHeaders)
+	body := append([]byte(nil), state.finalRequestBody...)
+	captured := len(body)
+	truncated := false
+	if limit >= 0 && len(body) > limit {
+		body = body[:limit]
+		captured = len(body)
+		truncated = true
+	}
+	headers = ensureHeader(headers)
+	applyRawBodyHeaders(headers, body, truncated, state.finalRequestBody)
+	target := requestTarget(state.url)
+	payload := encodeHTTPRequest(method, target, proto, headers, body)
+	return payload, captured
+}
+
+func encodeSanitizedProxyRequest(state *proxyFlowState) ([]byte, bool) {
+	if state == nil {
+		return nil, false
+	}
+	method := strings.ToUpper(strings.TrimSpace(state.method))
+	if method == "" {
+		method = http.MethodGet
+	}
+	proto := strings.TrimSpace(state.requestProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	headers, body, redacted := sanitizeRequest(state)
+	target := requestTarget(state.url)
+	return encodeHTTPRequest(method, target, proto, headers, body), redacted
+}
+
+func encodeProxyResponse(state *proxyFlowState, limit int) ([]byte, int) {
+	if state == nil {
+		return nil, 0
+	}
+	proto := strings.TrimSpace(state.responseProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	headers := cloneHeader(state.responseHeaders)
+	body := append([]byte(nil), state.responseBody...)
+	captured := len(body)
+	truncated := false
+	if limit >= 0 && len(body) > limit {
+		body = body[:limit]
+		captured = len(body)
+		truncated = true
+	}
+	headers = ensureHeader(headers)
+	applyRawBodyHeaders(headers, body, truncated, state.responseBody)
+	status := sanitizeStatus(state.statusCode)
+	payload := encodeHTTPResponse(proto, state.statusCode, headers, body, status)
+	return payload, captured
+}
+
+func encodeSanitizedProxyResponse(state *proxyFlowState) ([]byte, bool) {
+	if state == nil {
+		return nil, false
+	}
+	proto := strings.TrimSpace(state.responseProto)
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	headers, body, redacted := sanitizeResponse(state)
+	status := sanitizeStatus(state.statusCode)
+	return encodeHTTPResponse(proto, state.statusCode, headers, body, status), redacted
+}
+
+func buildRequestEvent(state *proxyFlowState, cfg FlowCaptureConfig) *flows.Event {
+	if state == nil {
+		return nil
+	}
+	raw, captured := encodeProxyRequest(state, cfg.MaxBodyBytes)
+	sanitized, redacted := encodeSanitizedProxyRequest(state)
+	if len(raw) == 0 && len(sanitized) == 0 {
+		return nil
+	}
+	return &flows.Event{
+		Type:              pb.FlowEvent_FLOW_REQUEST,
+		Sanitized:         sanitized,
+		Raw:               raw,
+		RawBodySize:       len(state.finalRequestBody),
+		RawBodyCaptured:   captured,
+		SanitizedRedacted: redacted,
+	}
+}
+
+func buildResponseEvent(state *proxyFlowState, cfg FlowCaptureConfig) *flows.Event {
+	if state == nil {
+		return nil
+	}
+	raw, captured := encodeProxyResponse(state, cfg.MaxBodyBytes)
+	sanitized, redacted := encodeSanitizedProxyResponse(state)
+	if len(raw) == 0 && len(sanitized) == 0 {
+		return nil
+	}
+	return &flows.Event{
+		Type:              pb.FlowEvent_FLOW_RESPONSE,
+		Sanitized:         sanitized,
+		Raw:               raw,
+		RawBodySize:       len(state.responseBody),
+		RawBodyCaptured:   captured,
+		SanitizedRedacted: redacted,
+	}
+}
+
+func requestTarget(rawURL string) string {
+	target := strings.TrimSpace(rawURL)
+	if parsed, err := url.Parse(rawURL); err == nil {
+		if parsed.Opaque != "" {
+			target = parsed.Opaque
+		} else {
+			target = parsed.RequestURI()
+		}
+	}
+	if target == "" {
+		return "/"
+	}
+	return target
+}
+
+func encodeHTTPRequest(method, target, proto string, headers http.Header, body []byte) []byte {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s %s %s\r\n", method, target, proto)
+	if len(headers) > 0 {
+		if err := headers.Write(&buf); err != nil {
+			return nil
+		}
+	}
+	buf.WriteString("\r\n")
+	buf.Write(body)
+	return buf.Bytes()
+}
+
+func encodeHTTPResponse(proto string, statusCode int, headers http.Header, body []byte, statusText string) []byte {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s %d %s\r\n", proto, statusCode, statusText)
+	if len(headers) > 0 {
+		if err := headers.Write(&buf); err != nil {
+			return nil
+		}
+	}
+	buf.WriteString("\r\n")
+	buf.Write(body)
+	return buf.Bytes()
+}
+
+func sanitizeStatus(statusCode int) string {
+	statusText := http.StatusText(statusCode)
+	if statusText == "" {
+		statusText = "Status"
+	}
+	return statusText
+}
+
+func sanitizeRequest(state *proxyFlowState) (http.Header, []byte, bool) {
+	headers := sanitizeHeaders(state.finalRequestHeaders, true)
+	body, redacted := sanitizeBody(state.finalRequestBody)
+	headers = ensureHeader(headers)
+	applySanitizedBodyHeaders(headers, body, redacted, len(state.finalRequestBody))
+	return headers, body, redacted
+}
+
+func sanitizeResponse(state *proxyFlowState) (http.Header, []byte, bool) {
+	headers := sanitizeHeaders(state.responseHeaders, false)
+	body, redacted := sanitizeBody(state.responseBody)
+	headers = ensureHeader(headers)
+	applySanitizedBodyHeaders(headers, body, redacted, len(state.responseBody))
+	return headers, body, redacted
+}
+
+const (
+	redactedValue          = "[REDACTED]"
+	redactedCookieValue    = "<redacted>"
+	redactedBodyTemplate   = "[REDACTED body length=%d sha256=%s]"
+	rawBodyTruncatedHeader = "X-Glyph-Raw-Body-Truncated"
+)
+
+var (
+	requestSensitiveHeaders = map[string]struct{}{
+		"AUTHORIZATION":       {},
+		"PROXY-AUTHORIZATION": {},
+		"COOKIE":              {},
+		"COOKIE2":             {},
+		"X-CSRF-TOKEN":        {},
+		"X-CSRFTOKEN":         {},
+		"X-API-KEY":           {},
+		"X-APIKEY":            {},
+		"X-GITHUB-TOKEN":      {},
+		"X-GITLAB-TOKEN":      {},
+		"X-GOOG-API-KEY":      {},
+		"X-AUTH-TOKEN":        {},
+		"X-AUTHORIZATION":     {},
+		"SET-COOKIE":          {},
+		"SET-COOKIE2":         {},
+	}
+	responseSensitiveHeaders = map[string]struct{}{
+		"SET-COOKIE":         {},
+		"SET-COOKIE2":        {},
+		"WWW-AUTHENTICATE":   {},
+		"PROXY-AUTHENTICATE": {},
+		"AUTHORIZATION":      {},
+	}
+)
+
+func sanitizeHeaders(headers http.Header, request bool) http.Header {
+	if len(headers) == 0 {
+		return nil
+	}
+	sanitized := make(http.Header, len(headers))
+	sensitive := responseSensitiveHeaders
+	if request {
+		sensitive = requestSensitiveHeaders
+	}
+	for name, values := range headers {
+		upper := strings.ToUpper(name)
+		if _, ok := sensitive[upper]; ok {
+			sanitized[name] = sanitizeSensitiveHeader(upper, values)
+			continue
+		}
+		copied := make([]string, len(values))
+		copy(copied, values)
+		sanitized[name] = copied
+	}
+	return sanitized
+}
+
+func sanitizeSensitiveHeader(upperName string, values []string) []string {
+	switch upperName {
+	case "AUTHORIZATION", "PROXY-AUTHORIZATION", "WWW-AUTHENTICATE", "PROXY-AUTHENTICATE":
+		sanitized := make([]string, len(values))
+		for i, value := range values {
+			trimmed := strings.TrimSpace(value)
+			parts := strings.SplitN(trimmed, " ", 2)
+			if len(parts) == 2 {
+				sanitized[i] = parts[0] + " " + redactedValue
+				continue
+			}
+			if trimmed != "" {
+				sanitized[i] = trimmed + " " + redactedValue
+			} else {
+				sanitized[i] = redactedValue
+			}
+		}
+		return sanitized
+	case "COOKIE", "COOKIE2":
+		return sanitizeCookieValues(values)
+	case "SET-COOKIE", "SET-COOKIE2":
+		return sanitizeSetCookieValues(values)
+	default:
+		sanitized := make([]string, len(values))
+		for i := range values {
+			sanitized[i] = redactedValue
+		}
+		return sanitized
+	}
+}
+
+func sanitizeCookieValues(values []string) []string {
+	sanitized := make([]string, len(values))
+	for i, value := range values {
+		segments := strings.Split(value, ";")
+		for j, segment := range segments {
+			trimmed := strings.TrimSpace(segment)
+			if trimmed == "" {
+				segments[j] = trimmed
+				continue
+			}
+			parts := strings.SplitN(trimmed, "=", 2)
+			if len(parts) == 2 {
+				segments[j] = strings.TrimSpace(parts[0]) + "=" + redactedCookieValue
+			} else {
+				segments[j] = trimmed
+			}
+		}
+		sanitized[i] = strings.Join(segments, "; ")
+	}
+	return sanitized
+}
+
+func sanitizeSetCookieValues(values []string) []string {
+	sanitized := make([]string, len(values))
+	for i, value := range values {
+		segments := strings.Split(value, ";")
+		for j, segment := range segments {
+			trimmed := strings.TrimSpace(segment)
+			if trimmed == "" {
+				segments[j] = trimmed
+				continue
+			}
+			if j == 0 {
+				parts := strings.SplitN(trimmed, "=", 2)
+				if len(parts) == 2 {
+					segments[j] = strings.TrimSpace(parts[0]) + "=" + redactedCookieValue
+				} else {
+					segments[j] = trimmed
+				}
+				continue
+			}
+			segments[j] = trimmed
+		}
+		sanitized[i] = strings.Join(segments, "; ")
+	}
+	return sanitized
+}
+
+func sanitizeBody(body []byte) ([]byte, bool) {
+	if len(body) == 0 {
+		return nil, false
+	}
+	sum := sha256.Sum256(body)
+	placeholder := fmt.Sprintf(redactedBodyTemplate, len(body), hex.EncodeToString(sum[:]))
+	return []byte(placeholder), true
+}
+
+func ensureHeader(h http.Header) http.Header {
+	if h == nil {
+		return http.Header{}
+	}
+	return h
+}
+
+func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, originalLen int) {
+	if headers == nil {
+		return
+	}
+	headers.Del("Transfer-Encoding")
+	headers.Del("Content-Encoding")
+	headers.Del("Content-Length")
+	length := "0"
+	if len(body) > 0 {
+		length = strconv.Itoa(len(body))
+	}
+	headers.Set("Content-Length", length)
+	if redacted {
+		headers.Set("X-Glyph-Body-Redacted", strconv.Itoa(originalLen))
+	} else {
+		headers.Del("X-Glyph-Body-Redacted")
+	}
+}
+
+func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, original []byte) {
+	if headers == nil {
+		return
+	}
+	headers.Del("Transfer-Encoding")
+	headers.Del("Content-Encoding")
+	headers.Del("Content-Length")
+	length := "0"
+	if len(body) > 0 {
+		length = strconv.Itoa(len(body))
+	}
+	headers.Set("Content-Length", length)
+	if truncated && len(original) > len(body) {
+		sum := sha256.Sum256(original)
+		headers.Set(rawBodyTruncatedHeader, fmt.Sprintf("%d;sha256=%s", len(original), hex.EncodeToString(sum[:])))
+	} else {
+		headers.Del(rawBodyTruncatedHeader)
+	}
 }
 
 type singleConnListener struct {

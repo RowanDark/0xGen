@@ -54,6 +54,7 @@ func TestRunReplay(t *testing.T) {
 		Runner:        replay.DefaultRunnerInfo(),
 		FindingsFile:  "findings.jsonl",
 		CasesFile:     "cases.json",
+		FlowsFile:     "flows.jsonl",
 		CaseTimestamp: time.Unix(1700002000, 0).UTC(),
 		Responses: []replay.ResponseRecord{{
 			RequestURL: "https://example.com",
@@ -66,6 +67,7 @@ func TestRunReplay(t *testing.T) {
 	files := map[string][]byte{
 		"findings.jsonl":         mustReadFile(t, findingsPath),
 		"cases.json":             mustReadFile(t, casesPath),
+		"flows.jsonl":            []byte("{\"id\":\"1\",\"sequence\":1,\"type\":\"FLOW_REQUEST\",\"timestamp_unix\":1700002000,\"sanitized_base64\":\"Zmxvdy0x\"}\n"),
 		"responses/example.json": []byte(`{"status":"ok"}`),
 	}
 
@@ -90,6 +92,9 @@ func TestRunReplay(t *testing.T) {
 	// Verify supplemental data copied.
 	if _, err := os.Stat(filepath.Join(outDir, "responses", "example.json")); err != nil {
 		t.Fatalf("supplemental response not exported: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "flows.replay.jsonl")); err != nil {
+		t.Fatalf("flows output missing: %v", err)
 	}
 }
 

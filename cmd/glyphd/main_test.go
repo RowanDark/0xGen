@@ -32,8 +32,9 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 	}
 
 	errCh := make(chan error, 1)
+	publisher := newBusFlowPublisher()
 	go func() {
-		errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger, false, "", "auto")
+		errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger, false, "", "auto", publisher)
 	}()
 
 	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)

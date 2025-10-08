@@ -52,21 +52,25 @@ type histogramValue struct {
 var (
 	collectors []collector
 
-	rpcRequests  = newCounterVec("glyph_rpc_requests_total", "Total number of RPC requests handled by Glyph components.", []string{"component", "method"})
-	rpcErrors    = newCounterVec("glyph_rpc_errors_total", "Total number of RPC errors emitted by Glyph components.", []string{"component", "method", "code"})
-	rpcLatency   = newHistogramVec("glyph_rpc_duration_seconds", "Latency of RPC handlers broken down by component and method.", []string{"component", "method", "code"})
-	pluginEvent  = newHistogramVec("glyph_plugin_event_duration_seconds", "Duration Glyph spends processing plugin events.", []string{"plugin", "event"})
-	pluginQueue  = newGaugeVec("glyph_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
-	activePlugs  = newGaugeVec("glyph_active_plugins", "Number of active plugin connections registered with the bus.", nil)
-	httpThrottle = newCounterVec("glyph_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"})
-	httpBackoff  = newCounterVec("glyph_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"})
-	httpLatency  = newHistogramVec("glyph_http_request_duration_seconds", "Latency of outbound HTTP requests executed on behalf of plugins.", []string{"plugin", "capability", "method", "status"})
+	rpcRequests         = newCounterVec("glyph_rpc_requests_total", "Total number of RPC requests handled by Glyph components.", []string{"component", "method"})
+	rpcErrors           = newCounterVec("glyph_rpc_errors_total", "Total number of RPC errors emitted by Glyph components.", []string{"component", "method", "code"})
+	rpcLatency          = newHistogramVec("glyph_rpc_duration_seconds", "Latency of RPC handlers broken down by component and method.", []string{"component", "method", "code"})
+	pluginEvent         = newHistogramVec("glyph_plugin_event_duration_seconds", "Duration Glyph spends processing plugin events.", []string{"plugin", "event"})
+	pluginQueue         = newGaugeVec("glyph_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
+	activePlugs         = newGaugeVec("glyph_active_plugins", "Number of active plugin connections registered with the bus.", nil)
+	httpThrottle        = newCounterVec("glyph_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"})
+	httpBackoff         = newCounterVec("glyph_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"})
+	httpLatency         = newHistogramVec("glyph_http_request_duration_seconds", "Latency of outbound HTTP requests executed on behalf of plugins.", []string{"plugin", "capability", "method", "status"})
+	flowEvents          = newCounterVec("glyph_flow_events_total", "Number of flow events dispatched to plugins.", []string{"subscription", "variant"})
+	flowDrops           = newCounterVec("glyph_flow_events_dropped_total", "Number of flow events dropped before reaching plugins.", []string{"subscription", "reason"})
+	flowDispatchLatency = newHistogramVec("glyph_flow_dispatch_seconds", "Latency to broadcast flow events to subscribers.", []string{"subscription", "variant"})
+	flowRedactions      = newCounterVec("glyph_flow_redactions_total", "Number of sanitisation or truncation actions applied to flow payloads.", []string{"kind"})
 
 	totalRequests uint64
 )
 
 func init() {
-	collectors = []collector{rpcRequests, rpcErrors, rpcLatency, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff, httpLatency}
+	collectors = []collector{rpcRequests, rpcErrors, rpcLatency, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff, httpLatency, flowEvents, flowDrops, flowDispatchLatency, flowRedactions}
 }
 
 func newCounterVec(name, help string, labels []string) *counterVec {
@@ -88,14 +92,22 @@ func newHistogramVec(name, help string, labels []string) *histogramVec {
 	}
 }
 
-func (cv *counterVec) IncWith(values ...string) {
+func (cv *counterVec) add(delta float64, values ...string) {
 	if len(values) != len(cv.labels) {
 		panic(fmt.Sprintf("expected %d labels, got %d", len(cv.labels), len(values)))
 	}
 	key := strings.Join(values, ",")
 	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	cv.values[key]++
+	cv.values[key] += delta
+	cv.mu.Unlock()
+}
+
+func (cv *counterVec) IncWith(values ...string) {
+	cv.add(1, values...)
+}
+
+func (cv *counterVec) AddWith(delta float64, values ...string) {
+	cv.add(delta, values...)
 }
 
 func (cv *counterVec) write(sb *strings.Builder) {
@@ -354,6 +366,36 @@ func RemovePlugin(pluginID string) {
 // SetActivePlugins updates the gauge representing the number of active plugin connections.
 func SetActivePlugins(count int) {
 	activePlugs.Set(nil, float64(count))
+}
+
+// RecordFlowEvent increments the counter tracking dispatched flow events by subscription and variant.
+func RecordFlowEvent(subscription, variant string, count int) {
+	if count <= 0 {
+		return
+	}
+	flowEvents.AddWith(float64(count), subscription, variant)
+}
+
+// RecordFlowDrop increments the counter for flow events dropped before delivery.
+func RecordFlowDrop(subscription, reason string, count int) {
+	if count <= 0 {
+		return
+	}
+	flowDrops.AddWith(float64(count), subscription, reason)
+}
+
+// ObserveFlowDispatchLatency records the time spent dispatching a flow event to subscribers.
+func ObserveFlowDispatchLatency(subscription, variant string, dur time.Duration) {
+	flowDispatchLatency.Observe([]string{subscription, variant}, dur.Seconds())
+}
+
+// RecordFlowRedaction counts sanitisation or truncation operations applied to flow payloads.
+func RecordFlowRedaction(kind string) {
+	kind = strings.TrimSpace(strings.ToLower(kind))
+	if kind == "" {
+		kind = "unspecified"
+	}
+	flowRedactions.IncWith(kind)
 }
 
 // ObserveHTTPClientDuration records the latency for an outbound HTTP request executed by the gate.

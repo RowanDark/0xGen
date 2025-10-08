@@ -21,13 +21,15 @@ type Manifest struct {
 }
 
 var allowedCaps = map[string]struct{}{
-	"CAP_EMIT_FINDINGS": {},
-	"CAP_HTTP_ACTIVE":   {},
-	"CAP_HTTP_PASSIVE":  {},
-	"CAP_WS":            {},
-	"CAP_SPIDER":        {},
-	"CAP_REPORT":        {},
-	"CAP_STORAGE":       {},
+	"CAP_EMIT_FINDINGS":    {},
+	"CAP_HTTP_ACTIVE":      {},
+	"CAP_HTTP_PASSIVE":     {},
+	"CAP_FLOW_INSPECT":     {},
+	"CAP_FLOW_INSPECT_RAW": {},
+	"CAP_WS":               {},
+	"CAP_SPIDER":           {},
+	"CAP_REPORT":           {},
+	"CAP_STORAGE":          {},
 }
 
 func (m *Manifest) Validate() error {

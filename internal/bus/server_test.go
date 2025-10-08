@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/flows"
 	"github.com/RowanDark/Glyph/internal/logging"
 	"github.com/RowanDark/Glyph/internal/netgate"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
@@ -70,7 +71,7 @@ func TestEventStream_ValidAuth(t *testing.T) {
 	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
 		AuthToken:    "test-token",
 		PluginName:   "test-plugin",
-		Capabilities: []string{"CAP_EMIT_FINDINGS"},
+		Capabilities: []string{CapEmitFindings, CapFlowInspect},
 	})
 	if err != nil {
 		t.Fatalf("grant capabilities: %v", err)
@@ -85,7 +86,7 @@ func TestEventStream_ValidAuth(t *testing.T) {
 					PluginName:      "test-plugin",
 					Pid:             123,
 					Subscriptions:   []string{"FLOW_RESPONSE"},
-					Capabilities:    []string{"CAP_EMIT_FINDINGS"},
+					Capabilities:    []string{CapEmitFindings, CapFlowInspect},
 					CapabilityToken: grant.GetCapabilityToken(),
 				},
 			},
@@ -144,6 +145,246 @@ func TestEventStream_InvalidAuth(t *testing.T) {
 		t.Errorf("Expected status code %v, but got %v", codes.Unauthenticated, st.Code())
 	}
 	t.Logf("Received expected error: %v", err)
+}
+
+func TestEventStreamRejectsFlowSubscriptionWithoutCapability(t *testing.T) {
+	server := NewServer("token", nil)
+	mockStream := newMockStream(context.Background())
+
+	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
+		AuthToken:    "token",
+		PluginName:   "no-inspect",
+		Capabilities: []string{CapEmitFindings},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+
+	go func() {
+		mockStream.RecvChan <- &pb.PluginEvent{
+			Event: &pb.PluginEvent_Hello{
+				Hello: &pb.PluginHello{
+					AuthToken:       "token",
+					PluginName:      "no-inspect",
+					Pid:             7,
+					Subscriptions:   []string{"FLOW_REQUEST"},
+					Capabilities:    []string{CapEmitFindings},
+					CapabilityToken: grant.GetCapabilityToken(),
+				},
+			},
+		}
+	}()
+
+	err = server.EventStream(mockStream)
+	if err == nil {
+		t.Fatal("expected permission denied for missing flow capability")
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected grpc status error, got %v", err)
+	}
+	if st.Code() != codes.PermissionDenied {
+		t.Fatalf("expected permission denied, got %v", st.Code())
+	}
+}
+
+func TestPublishFlowEventBroadcasts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := NewServer("token", nil)
+	stream := newMockStream(ctx)
+
+	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
+		AuthToken:    "token",
+		PluginName:   "proxy-listener",
+		Capabilities: []string{CapFlowInspect},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+
+	go func() {
+		stream.RecvChan <- &pb.PluginEvent{
+			Event: &pb.PluginEvent_Hello{
+				Hello: &pb.PluginHello{
+					AuthToken:       "token",
+					PluginName:      "proxy-listener",
+					Pid:             42,
+					Subscriptions:   []string{"FLOW_RESPONSE"},
+					Capabilities:    []string{CapFlowInspect},
+					CapabilityToken: grant.GetCapabilityToken(),
+				},
+			},
+		}
+	}()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.EventStream(stream)
+	}()
+
+	select {
+	case <-time.After(50 * time.Millisecond):
+	case err := <-errCh:
+		t.Fatalf("event stream terminated early: %v", err)
+	}
+
+	payload := []byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_RESPONSE, Sanitized: payload})
+
+	select {
+	case event := <-stream.SendChan:
+		flow := event.GetFlowEvent()
+		if flow == nil {
+			t.Fatal("expected flow event")
+		}
+		if flow.GetType() != pb.FlowEvent_FLOW_RESPONSE {
+			t.Fatalf("flow type = %v, want FLOW_RESPONSE", flow.GetType())
+		}
+		if string(flow.GetData()) != string(payload) {
+			t.Fatalf("flow payload mismatch: %q", string(flow.GetData()))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for published event")
+	}
+
+	cancel()
+	close(stream.RecvChan)
+	if err := <-errCh; err != nil && err != io.EOF {
+		t.Fatalf("event stream error: %v", err)
+	}
+}
+
+func TestPublishFlowEventDeliversRawPayload(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	server := NewServer("token", nil)
+	stream := newMockStream(ctx)
+
+	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
+		AuthToken:    "token",
+		PluginName:   "raw-listener",
+		Capabilities: []string{CapFlowInspect, CapFlowInspectRaw},
+	})
+	if err != nil {
+		t.Fatalf("grant capabilities: %v", err)
+	}
+
+	go func() {
+		stream.RecvChan <- &pb.PluginEvent{
+			Event: &pb.PluginEvent_Hello{
+				Hello: &pb.PluginHello{
+					AuthToken:       "token",
+					PluginName:      "raw-listener",
+					Pid:             99,
+					Subscriptions:   []string{"FLOW_RESPONSE_RAW"},
+					Capabilities:    []string{CapFlowInspect, CapFlowInspectRaw},
+					CapabilityToken: grant.GetCapabilityToken(),
+				},
+			},
+		}
+	}()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.EventStream(stream)
+	}()
+
+	select {
+	case <-time.After(50 * time.Millisecond):
+	case err := <-errCh:
+		t.Fatalf("event stream terminated early: %v", err)
+	}
+
+	sanitized := []byte("HTTP/1.1 200 OK\r\n\r\n")
+	raw := []byte("HTTP/1.1 200 OK\r\nSecret: token\r\n\r\n")
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_RESPONSE, Sanitized: sanitized, Raw: raw})
+
+	select {
+	case event := <-stream.SendChan:
+		flow := event.GetFlowEvent()
+		if flow == nil {
+			t.Fatal("expected flow event")
+		}
+		if string(flow.GetData()) != string(raw) {
+			t.Fatalf("expected raw payload, got %q", string(flow.GetData()))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for raw flow event")
+	}
+
+	cancel()
+	close(stream.RecvChan)
+	if err := <-errCh; err != nil && err != io.EOF {
+		t.Fatalf("event stream error: %v", err)
+	}
+}
+
+func TestPublishFlowEventBackpressureNonBlocking(t *testing.T) {
+	server := NewServer("token", nil)
+	pluginID := "slow-plugin"
+	p := &plugin{
+		eventChan:     make(chan *pb.HostEvent, 1),
+		subscriptions: map[string]struct{}{subscriptionFlowResponse: {}},
+		capabilities:  map[string]struct{}{CapFlowInspect: {}},
+	}
+	server.mu.Lock()
+	server.connections[pluginID] = p
+	server.mu.Unlock()
+
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_RESPONSE, Sanitized: []byte("one")})
+	if len(p.eventChan) != 1 {
+		t.Fatalf("expected channel to contain 1 event, got %d", len(p.eventChan))
+	}
+
+	done := make(chan struct{})
+	go func() {
+		server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_RESPONSE, Sanitized: []byte("two")})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("PublishFlowEvent blocked with full channel")
+	}
+
+	if len(p.eventChan) != 1 {
+		t.Fatalf("expected channel length to remain 1, got %d", len(p.eventChan))
+	}
+}
+
+func TestPublishFlowEventRespectsSubscriptionChanges(t *testing.T) {
+	server := NewServer("token", nil)
+	pluginID := "dynamic"
+	p := &plugin{
+		eventChan:     make(chan *pb.HostEvent, 1),
+		subscriptions: map[string]struct{}{subscriptionFlowRequest: {}},
+		capabilities:  map[string]struct{}{CapFlowInspect: {}},
+	}
+	server.mu.Lock()
+	server.connections[pluginID] = p
+	server.mu.Unlock()
+
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_REQUEST, Sanitized: []byte("one")})
+	select {
+	case <-p.eventChan:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected initial event delivery")
+	}
+
+	server.mu.Lock()
+	delete(p.subscriptions, subscriptionFlowRequest)
+	server.mu.Unlock()
+
+	server.PublishFlowEvent(context.Background(), flows.Event{Type: pb.FlowEvent_FLOW_REQUEST, Sanitized: []byte("two")})
+	select {
+	case <-p.eventChan:
+		t.Fatal("event should not be delivered after unsubscribing")
+	default:
+	}
 }
 
 func TestServerDisconnectPlugin(t *testing.T) {
@@ -347,7 +588,7 @@ func TestEventStreamRejectsMalformedFinding(t *testing.T) {
 	grant, err := server.GrantCapabilities(context.Background(), &pb.PluginCapabilityRequest{
 		AuthToken:    "secure-token",
 		PluginName:   "malformed",
-		Capabilities: []string{"CAP_EMIT_FINDINGS"},
+		Capabilities: []string{CapEmitFindings, CapFlowInspect},
 	})
 	if err != nil {
 		t.Fatalf("grant capabilities: %v", err)
@@ -368,7 +609,7 @@ func TestEventStreamRejectsMalformedFinding(t *testing.T) {
 				PluginName:      "malformed",
 				Pid:             7,
 				Subscriptions:   []string{"FLOW_RESPONSE"},
-				Capabilities:    []string{"CAP_EMIT_FINDINGS"},
+				Capabilities:    []string{CapEmitFindings, CapFlowInspect},
 				CapabilityToken: grant.GetCapabilityToken(),
 			},
 		},
