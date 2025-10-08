@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
@@ -976,7 +977,7 @@ func encodeProxyRequest(state *proxyFlowState, limit int) ([]byte, int) {
 		truncated = true
 	}
 	headers = ensureHeader(headers)
-	applyRawBodyHeaders(headers, body, truncated, len(state.finalRequestBody))
+	applyRawBodyHeaders(headers, body, truncated, state.finalRequestBody)
 	target := requestTarget(state.url)
 	payload := encodeHTTPRequest(method, target, proto, headers, body)
 	return payload, captured
@@ -1017,7 +1018,7 @@ func encodeProxyResponse(state *proxyFlowState, limit int) ([]byte, int) {
 		truncated = true
 	}
 	headers = ensureHeader(headers)
-	applyRawBodyHeaders(headers, body, truncated, len(state.responseBody))
+	applyRawBodyHeaders(headers, body, truncated, state.responseBody)
 	status := sanitizeStatus(state.statusCode)
 	payload := encodeHTTPResponse(proto, state.statusCode, headers, body, status)
 	return payload, captured
@@ -1142,7 +1143,7 @@ func sanitizeResponse(state *proxyFlowState) (http.Header, []byte, bool) {
 const (
 	redactedValue          = "[REDACTED]"
 	redactedCookieValue    = "<redacted>"
-	redactedBodyTemplate   = "[REDACTED body length=%d]"
+	redactedBodyTemplate   = "[REDACTED body length=%d sha256=%s]"
 	rawBodyTruncatedHeader = "X-Glyph-Raw-Body-Truncated"
 )
 
@@ -1278,7 +1279,8 @@ func sanitizeBody(body []byte) ([]byte, bool) {
 	if len(body) == 0 {
 		return nil, false
 	}
-	placeholder := fmt.Sprintf(redactedBodyTemplate, len(body))
+	sum := sha256.Sum256(body)
+	placeholder := fmt.Sprintf(redactedBodyTemplate, len(body), hex.EncodeToString(sum[:]))
 	return []byte(placeholder), true
 }
 
@@ -1308,7 +1310,7 @@ func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, 
 	}
 }
 
-func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, originalLen int) {
+func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, original []byte) {
 	if headers == nil {
 		return
 	}
@@ -1320,8 +1322,9 @@ func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, origi
 		length = strconv.Itoa(len(body))
 	}
 	headers.Set("Content-Length", length)
-	if truncated && originalLen > len(body) {
-		headers.Set(rawBodyTruncatedHeader, strconv.Itoa(originalLen))
+	if truncated && len(original) > len(body) {
+		sum := sha256.Sum256(original)
+		headers.Set(rawBodyTruncatedHeader, fmt.Sprintf("%d;sha256=%s", len(original), hex.EncodeToString(sum[:])))
 	} else {
 		headers.Del(rawBodyTruncatedHeader)
 	}

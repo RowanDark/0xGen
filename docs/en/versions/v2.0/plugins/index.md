@@ -85,11 +85,11 @@ missing or the plugin requests undeclared privileges.
 | `CAP_SPIDER` | Permits scheduling crawl jobs through the Glyph spider/queue components. |
 | `CAP_REPORT` | Allows plugins to submit rendered reports that downstream tooling (for example `scribe`) can publish. |
 | `CAP_STORAGE` | Grants access to managed storage buckets for large artefacts or binary blobs. |
-| `CAP_FLOW_INSPECT` | Enables subscriptions to sanitized HTTP flow events (`FLOW_REQUEST`, `FLOW_RESPONSE`). Sensitive headers and bodies are redacted unless explicitly allowed by program scope. |
+| `CAP_FLOW_INSPECT` | Enables subscriptions to sanitized HTTP flow events (`FLOW_REQUEST`, `FLOW_RESPONSE`). Sensitive headers and bodies are redacted unless explicitly allowed by program scope, with redacted bodies replaced by `[REDACTED body length=n sha256=digest]`. |
 | `CAP_FLOW_INSPECT_RAW` | Grants access to raw HTTP flow events (`FLOW_REQUEST_RAW`, `FLOW_RESPONSE_RAW`). Requires `CAP_FLOW_INSPECT` and delivers unredacted payloads for forensic tooling. |
 
 > **Note**
-> Sanitized events include placeholders and the `X-Glyph-Body-Redacted` header when payloads are removed. Raw events honour `--proxy-flow-max-body`; truncated payloads receive an `X-Glyph-Raw-Body-Truncated` header so plugins can detect partial content.
+> Sanitized events include placeholders and the `X-Glyph-Body-Redacted` header when payloads are removed. The placeholder embeds a SHA-256 digest so sanitized consumers can correlate flows without seeing secrets. Raw events honour `--max-body-kb`; truncated payloads receive an `X-Glyph-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect partial content and verify integrity.
 
 Only request capabilities the plugin actively needs. The manifest validator under
 `hack/validate_manifests.sh` enforces the whitelist above.

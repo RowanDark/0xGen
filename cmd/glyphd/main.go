@@ -55,8 +55,10 @@ func main() {
 	proxyCAKey := flag.String("proxy-ca-key", "", "path to proxy CA private key")
 	enableProxy := flag.Bool("enable-proxy", false, "start Galdr proxy")
 	proxyFlowEnabled := flag.Bool("proxy-flow-enabled", true, "enable publishing intercepted flows to plugins")
-	proxyFlowSample := flag.Float64("proxy-flow-sample", 1.0, "sampling ratio for intercepted flows (0-1)")
-	proxyFlowMaxBody := flag.Int("proxy-flow-max-body", 131072, "maximum raw body bytes to include in flow events (0 disables raw bodies)")
+	proxyFlowSample := flag.Float64("proxy-flow-sample", 1.0, "DEPRECATED: use --flow-sample-rate")
+	proxyFlowMaxBody := flag.Int("proxy-flow-max-body", 131072, "DEPRECATED: use --max-body-kb (value in bytes)")
+	flowSampleRate := flag.Float64("flow-sample-rate", 1.0, "sampling ratio for intercepted flows (0-1)")
+	maxBodyKB := flag.Int("max-body-kb", 128, "maximum raw body kilobytes to include in flow events (-1 disables raw bodies)")
 	proxyFlowSeed := flag.Int64("proxy-flow-seed", 0, "seed used to deterministically order flow identifiers (default random)")
 	proxyFlowLog := flag.String("proxy-flow-log", "", "path to write sanitized flow transcripts for replay (defaults next to proxy history)")
 	scopePolicy := flag.String("scope-policy", "", "path to YAML scope policy used to suppress out-of-scope flows")
@@ -71,6 +73,21 @@ func main() {
 	traceFile := flag.String("trace-file", "", "optional path to write spans as JSONL")
 	traceHeaders := flag.String("trace-headers", "", "comma-separated list of additional headers for trace export requests (key=value)")
 	flag.Parse()
+
+	visited := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		visited[f.Name] = true
+	})
+
+	sampleRate := *flowSampleRate
+	if visited["proxy-flow-sample"] && !visited["flow-sample-rate"] {
+		sampleRate = *proxyFlowSample
+	}
+
+	maxBodyBytes := kilobytesToBytes(*maxBodyKB)
+	if visited["proxy-flow-max-body"] && !visited["max-body-kb"] {
+		maxBodyBytes = *proxyFlowMaxBody
+	}
 
 	if *token == "" {
 		fmt.Fprintln(os.Stderr, "--token must be provided")
@@ -92,8 +109,8 @@ func main() {
 			CAKeyPath:   *proxyCAKey,
 			Flow: proxy.FlowCaptureConfig{
 				Enabled:      *proxyFlowEnabled,
-				SampleRate:   *proxyFlowSample,
-				MaxBodyBytes: *proxyFlowMaxBody,
+				SampleRate:   sampleRate,
+				MaxBodyBytes: maxBodyBytes,
 				Seed:         *proxyFlowSeed,
 				LogPath:      strings.TrimSpace(*proxyFlowLog),
 			},
@@ -135,6 +152,13 @@ func selectProxyAddr(addrFlag, portFlag string) string {
 		return addr
 	}
 	return strings.TrimSpace(portFlag)
+}
+
+func kilobytesToBytes(kb int) int {
+	if kb < 0 {
+		return -1
+	}
+	return kb * 1024
 }
 
 func run(ctx context.Context, cfg config) error {

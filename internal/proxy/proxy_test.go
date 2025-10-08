@@ -2,17 +2,19 @@ package proxy
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -75,6 +77,16 @@ func (r *recordingPublisher) snapshot() []recordedFlow {
 	out := make([]recordedFlow, len(r.events))
 	copy(out, r.events)
 	return out
+}
+
+func expectedRedactedBody(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return fmt.Sprintf("[REDACTED body length=%d sha256=%s]", len(body), hex.EncodeToString(sum[:]))
+}
+
+func expectedTruncationHeader(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return fmt.Sprintf("%s: %d;sha256=%s", rawBodyTruncatedHeader, len(body), hex.EncodeToString(sum[:]))
 }
 
 type filteringScope struct {
@@ -433,7 +445,7 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if !strings.Contains(sanitizedReq, "X-Glyph-Body-Redacted: 14") {
 		t.Fatalf("sanitized request missing body metadata: %q", sanitizedReq)
 	}
-	if !strings.Contains(sanitizedReq, "[REDACTED body length=14]") {
+	if !strings.Contains(sanitizedReq, expectedRedactedBody("sensitive-body")) {
 		t.Fatalf("sanitized request body placeholder missing: %q", sanitizedReq)
 	}
 
@@ -469,7 +481,7 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if !strings.Contains(sanitizedResp, "X-Glyph-Body-Redacted: 7") {
 		t.Fatalf("sanitized response missing body metadata: %q", sanitizedResp)
 	}
-	if !strings.Contains(sanitizedResp, "[REDACTED body length=7]") {
+	if !strings.Contains(sanitizedResp, expectedRedactedBody("payload")) {
 		t.Fatalf("sanitized response body placeholder missing: %q", sanitizedResp)
 	}
 }
@@ -614,11 +626,11 @@ func TestProxyRawBodyLimitTruncates(t *testing.T) {
 		t.Fatalf("raw body size = %d", request.RawBodySize)
 	}
 	raw := string(request.Raw)
-	if !strings.Contains(raw, rawBodyTruncatedHeader+": "+strconv.Itoa(len("sensitive-body"))) {
+	if !strings.Contains(raw, expectedTruncationHeader("sensitive-body")) {
 		t.Fatalf("expected raw payload to note truncation: %q", raw)
 	}
 	sanitized := string(request.Sanitized)
-	if !strings.Contains(sanitized, "[REDACTED body length=14]") {
+	if !strings.Contains(sanitized, expectedRedactedBody("sensitive-body")) {
 		t.Fatalf("sanitized body placeholder missing from truncated request")
 	}
 }

@@ -43,7 +43,7 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 - Include Selenium/WebDriver snippets for automated testing using the proxy.
 
 ### Flow sanitisation & plugin delivery
-- The proxy emits a sanitized flow stream by default, redacting sensitive headers (cookies, auth tokens, API keys) and replacing bodies with `[REDACTED body length=n]`. Plugins subscribe via `FLOW_REQUEST` / `FLOW_RESPONSE` and must declare `CAP_FLOW_INSPECT`.
+- The proxy emits a sanitized flow stream by default, redacting sensitive headers (cookies, auth tokens, API keys) and replacing bodies with `[REDACTED body length=n sha256=digest]` so plugins can still correlate payloads without access to raw content. Plugins subscribe via `FLOW_REQUEST` / `FLOW_RESPONSE` and must declare `CAP_FLOW_INSPECT`.
 - Plugins with `CAP_FLOW_INSPECT_RAW` may opt into raw events using `FLOW_REQUEST_RAW` / `FLOW_RESPONSE_RAW`. The host enforces capability checks at handshake and records drops when plugin queues back up.
 - Sanitized and raw deliveries are counted via `glyph_flow_events_total` and `glyph_flow_events_dropped_total` metrics, allowing operators to monitor throughput and backpressure.
 - Scope policies parsed from YAML (see `--scope-policy`) suppress out-of-scope flows before they reach plugins, ensuring redaction rules align with bounty constraints.
@@ -51,8 +51,8 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 ### Flow sampling, truncation, and replay
 - `glyphd` exposes tuning flags to balance performance and fidelity:
   - `--proxy-flow-enabled` toggles publishing entirely (defaults to enabled when the bus is available).
-  - `--proxy-flow-sample` accepts a ratio between `0` and `1` for probabilistic sampling. A value of `0` keeps the proxy online while suppressing flow publications.
-  - `--proxy-flow-max-body` limits the number of raw body bytes captured per event. Values above the limit append the `X-Glyph-Raw-Body-Truncated` header so plugins can detect truncation; `0` disables raw body capture entirely.
+  - `--flow-sample-rate` accepts a ratio between `0` and `1` for probabilistic sampling. A value of `0` keeps the proxy online while suppressing flow publications.
+  - `--max-body-kb` limits the number of raw body kilobytes captured per event. Values above the limit append the `X-Glyph-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect truncation while verifying integrity; `-1` disables raw body capture entirely, `0` captures headers only.
   - `--proxy-flow-seed` seeds deterministic flow identifiers, aiding replay comparisons when deterministic output is required.
   - `--proxy-flow-log` overrides the sanitized flow transcript path. By default, Glyph writes `proxy_flows.jsonl` next to the history log for inclusion in replay artefacts.
 - Sanitized flow transcripts contain base64-encoded HTTP messages plus metadata (`sequence`, `timestamp_unix`, redaction hints). These are packaged inside replay artefacts as `flows.jsonl`, copied to `flows.replay.jsonl` by `glyphctl replay`.
