@@ -20,17 +20,16 @@ import {
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 
 import { Button } from '../components/ui/button';
-import { fetchMetrics, listRuns, type DashboardMetrics, type Run } from '../lib/ipc';
+import { listRuns, type Run } from '../lib/ipc';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { useArtifact } from '../providers/artifact-provider';
+import { useMetrics } from '../providers/metrics-provider';
 
 type SparklinePoint = {
   time: number;
   value: number;
 };
-
-type MetricSnapshot = DashboardMetrics & { timestamp: number };
 
 type RunHistoryPoint = {
   timestamp: number;
@@ -123,11 +122,15 @@ function DashboardRoute() {
   const navigate = useNavigate();
   const [runs, setRuns] = useState<Run[]>([]);
   const [runHistory, setRunHistory] = useState<RunHistoryPoint[]>([]);
-  const [metricsHistory, setMetricsHistory] = useState<MetricSnapshot[]>([]);
   const runsErrorShownRef = useRef(false);
   const metricsErrorShownRef = useRef(false);
   const { status } = useArtifact();
   const offlineMode = Boolean(status?.loaded);
+  const {
+    history: metricsHistory,
+    latest: latestMetrics,
+    error: metricsError
+  } = useMetrics();
 
   const integerFormatter = useMemo(() => new Intl.NumberFormat(), []);
   const decimalFormatter = useMemo(() => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }), []);
@@ -179,48 +182,18 @@ function DashboardRoute() {
   }, [offlineMode]);
 
   useEffect(() => {
-    if (offlineMode) {
-      if (status?.metrics) {
-        setMetricsHistory([{ timestamp: Date.now(), ...status.metrics }]);
-      } else {
-        setMetricsHistory([]);
+    if (metricsError) {
+      console.error('Failed to load metrics', metricsError);
+      if (!metricsErrorShownRef.current) {
+        toast.error('Unable to load metrics');
+        metricsErrorShownRef.current = true;
       }
-      return;
+    } else {
+      metricsErrorShownRef.current = false;
     }
-
-    let cancelled = false;
-
-    const loadMetrics = async () => {
-      try {
-        const snapshot = await fetchMetrics();
-        if (cancelled) {
-          return;
-        }
-        setMetricsHistory((previous) => {
-          const next = [...previous, { timestamp: Date.now(), ...snapshot }];
-          return next.slice(-HISTORY_LIMIT);
-        });
-        metricsErrorShownRef.current = false;
-      } catch (error) {
-        console.error('Failed to load metrics', error);
-        if (!metricsErrorShownRef.current) {
-          toast.error('Unable to load metrics');
-          metricsErrorShownRef.current = true;
-        }
-      }
-    };
-
-    void loadMetrics();
-    const interval = window.setInterval(loadMetrics, 15_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [offlineMode, status?.metrics]);
+  }, [metricsError]);
 
   const latestRun = runs[0];
-  const latestMetrics = metricsHistory.length > 0 ? metricsHistory[metricsHistory.length - 1] : undefined;
 
   const runSparkline = runHistory.map((entry) => ({ time: entry.timestamp, value: entry.count }));
   const failuresSparkline = metricsHistory.map((entry) => ({ time: entry.timestamp, value: entry.failures }));
