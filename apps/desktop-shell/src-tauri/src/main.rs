@@ -86,10 +86,54 @@ struct Run {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RunLimits {
+    concurrency: u32,
+    max_rps: u32,
+    max_findings: u32,
+    safe_mode: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RunAuth {
+    strategy: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    api_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    oauth_client_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    oauth_client_secret: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RunSchedule {
+    mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    start_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timezone: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct StartRunRequest {
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     template: Option<String>,
+    targets: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_notes: Option<String>,
+    scope_policy: String,
+    plugins: Vec<String>,
+    limits: RunLimits,
+    auth: RunAuth,
+    schedule: RunSchedule,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -370,11 +414,9 @@ async fn list_runs(api: State<'_, GlyphApi>) -> Result<Vec<Run>, String> {
 #[tauri::command]
 async fn start_run(
     api: State<'_, GlyphApi>,
-    name: String,
-    template: Option<String>,
+    payload: StartRunRequest,
 ) -> Result<StartRunResponse, String> {
     let url = api.endpoint("runs");
-    let payload = StartRunRequest { name, template };
     let response = api
         .client
         .post(url)

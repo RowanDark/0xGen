@@ -20,7 +20,7 @@ import {
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 
 import { Button } from '../components/ui/button';
-import { fetchMetrics, listRuns, startRun, type DashboardMetrics, type Run } from '../lib/ipc';
+import { fetchMetrics, listRuns, type DashboardMetrics, type Run } from '../lib/ipc';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
@@ -123,7 +123,6 @@ function DashboardRoute() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [runHistory, setRunHistory] = useState<RunHistoryPoint[]>([]);
   const [metricsHistory, setMetricsHistory] = useState<MetricSnapshot[]>([]);
-  const [isLaunching, setIsLaunching] = useState(false);
   const runsErrorShownRef = useRef(false);
   const metricsErrorShownRef = useRef(false);
 
@@ -234,24 +233,12 @@ function DashboardRoute() {
         <div className="grid gap-2 sm:grid-cols-3">
           <Button
             className="gap-2"
-            disabled={isLaunching}
-            onClick={async () => {
-              try {
-                setIsLaunching(true);
-                const response = await startRun({ name: 'New Glyph run' });
-                toast.success(`Run ${response.id} started`);
-                const data = await listRuns();
-                applyRuns(data);
-              } catch (error) {
-                console.error('Failed to start run', error);
-                toast.error('Unable to start run');
-              } finally {
-                setIsLaunching(false);
-              }
+            onClick={() => {
+              navigate({ to: '/runs/composer' });
             }}
           >
             <Play className="h-4 w-4" />
-            {isLaunching ? 'Starting…' : 'New run'}
+            New run
           </Button>
           <Button
             variant="outline"
