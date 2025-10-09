@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
+import { RedactionNotice } from '../components/redaction-notice';
 import {
   FlowEvent,
   FlowStreamHandle,
@@ -22,7 +23,7 @@ import {
 } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
 import { useCommandCenter } from '../providers/command-center';
-import { cn } from '../lib/utils';
+import { cn, isRedactedValue } from '../lib/utils';
 
 type HttpHeader = {
   name: string;
@@ -640,9 +641,23 @@ function HttpMessageViewer({ message }: { message?: FlowMessage }) {
     activeMode === 'pretty'
       ? parsed?.prettyBody ?? parsed?.body ?? message.raw
       : parsed?.body ?? message.raw;
+  const headerRedacted = parsed?.headers?.some((header) => isRedactedValue(header.value)) ?? false;
+  const redacted =
+    Boolean(message?.sanitizedRedacted) ||
+    headerRedacted ||
+    isRedactedValue(parsed?.body) ||
+    isRedactedValue(parsed?.prettyBody) ||
+    isRedactedValue(message?.raw);
 
   return (
     <div className="mt-3 space-y-3 rounded-md border border-border bg-card p-4">
+      {redacted && (
+        <RedactionNotice
+          capability="CAP_FLOW_INSPECT_RAW"
+          className="mb-2"
+          message="Payload redacted by policy"
+        />
+      )}
       {parsed ? (
         <div className="space-y-2">
           <div className="font-mono text-sm text-primary">{parsed.startLine}</div>
@@ -1180,6 +1195,10 @@ function FlowsRouteComponent() {
       toast.error('Original request payload unavailable for editing');
       return;
     }
+    if (flow.requestRedacted) {
+      toast.info('Request payload redacted by policy. CAP_FLOW_INSPECT_RAW reveals raw content.');
+      return;
+    }
     setEditingFlow(flow);
     setEditDraft(flow.request.raw);
     setEditConfirmed(false);
@@ -1471,8 +1490,14 @@ function FlowsRouteComponent() {
                       variant="destructive"
                       size="sm"
                       onClick={() => beginEdit(selectedFlow)}
-                      disabled={!selectedFlow.request || !editingEnabled}
-                      title={editingEnabled ? undefined : 'Editing is disabled for replay artifacts'}
+                      disabled={!selectedFlow.request || !editingEnabled || selectedFlow.requestRedacted}
+                      title={
+                        !editingEnabled
+                          ? 'Editing is disabled for replay artifacts'
+                          : selectedFlow.requestRedacted
+                            ? 'Request payload redacted by policy (requires CAP_FLOW_INSPECT_RAW)'
+                            : undefined
+                      }
                     >
                       <Send className="mr-2 h-4 w-4" /> Edit & resend
                     </Button>
