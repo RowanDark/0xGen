@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
-import { Loader2, Radio, RefreshCcw, Timer, Zap } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Loader2, Octagon, Radio, RefreshCcw, Timer, Zap } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
-import { listRuns, streamEvents, type Run, type RunEvent, type StreamHandle } from '../lib/ipc';
+import { listRuns, stopRun, streamEvents, type Run, type RunEvent, type StreamHandle } from '../lib/ipc';
+import { useCommandCenter } from '../providers/command-center';
 
 function useRun(runId: string) {
   const [run, setRun] = useState<Run | undefined>(undefined);
@@ -87,8 +88,41 @@ function RunDetailRoute() {
   const { runId } = useParams({ from: '/runs/$runId' });
   const { run, isLoading } = useRun(runId);
   const events = useRunEvents(runId);
+  const { registerCommand } = useCommandCenter();
 
   const latestStatus = useMemo(() => events.find((event) => event.type === 'status:update')?.payload, [events]);
+  const canStop = useMemo(() => {
+    if (!run) {
+      return false;
+    }
+    const terminalStates = ['completed', 'failed', 'stopped', 'cancelled', 'finished'];
+    return !terminalStates.includes(run.status.toLowerCase());
+  }, [run]);
+
+  const handleStop = useCallback(() => {
+    toast.promise(stopRun(runId), {
+      loading: 'Sending stop request…',
+      success: 'Stop signal sent to run',
+      error: 'Unable to stop run'
+    });
+  }, [runId]);
+
+  useEffect(() => {
+    return registerCommand({
+      id: `run.${runId}.stop`,
+      title: 'Stop current run',
+      description: 'Send a stop signal to the active run',
+      group: 'Runs',
+      shortcut: 'mod+shift+s',
+      run: () => {
+        if (canStop) {
+          handleStop();
+        }
+      },
+      disabled: !canStop,
+      allowInInput: true
+    });
+  }, [registerCommand, runId, canStop, handleStop]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
@@ -106,31 +140,44 @@ function RunDetailRoute() {
             Watch events stream in real time. Refresh metadata or return to history at any time.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            toast.promise(
-              listRuns().then((runs) => {
-                const latest = runs.find((candidate) => candidate.id === runId);
-                if (!latest) {
-                  throw new Error('Run not found');
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              toast.promise(
+                listRuns().then((runs) => {
+                  const latest = runs.find((candidate) => candidate.id === runId);
+                  if (!latest) {
+                    throw new Error('Run not found');
+                  }
+                  return latest;
+                }),
+                {
+                  loading: 'Refreshing run metadata…',
+                  success: (updated) => {
+                    return `Run status: ${updated.status}`;
+                  },
+                  error: 'Unable to refresh run metadata'
                 }
-                return latest;
-              }),
-              {
-                loading: 'Refreshing run metadata…',
-                success: (updated) => {
-                  return `Run status: ${updated.status}`;
-                },
-                error: 'Unable to refresh run metadata'
-              }
-            );
-          }}
-        >
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+              );
+            }}
+          >
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-2"
+            onClick={handleStop}
+            disabled={!canStop}
+            title={!canStop ? 'Run is already complete or unavailable' : undefined}
+          >
+            <Octagon className="h-4 w-4" />
+            Stop run
+          </Button>
+        </div>
       </div>
 
       <section className="rounded-xl border border-border bg-card p-6">

@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, CalendarClock, Check, ChevronLeft, ChevronRight, DownloadCloud, Flame, Plug, ShieldAlert, Zap } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
 import { startRun, type StartRunPayload } from '../lib/ipc';
 import { useLocalStorage } from '../lib/use-local-storage';
+import { useCommandCenter } from '../providers/command-center';
 
 type RunComposerStep = {
   id: 'targets' | 'plugins' | 'limits' | 'auth' | 'review';
@@ -856,6 +857,7 @@ function RunComposerRoute() {
   const [state, setState] = useState<RunComposerState>(defaultState);
   const [presets, setPresets] = useLocalStorage<RunComposerPreset[]>(presetStorageKey, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { registerCommand } = useCommandCenter();
 
   const currentStep = steps[activeIndex];
 
@@ -943,7 +945,7 @@ function RunComposerRoute() {
     return true;
   }, [currentStep.id, state]);
 
-  const handleLaunch = async () => {
+  const handleLaunch = useCallback(async () => {
     const scheduleDate =
       state.schedule.mode === 'later' && state.schedule.startAt
         ? new Date(state.schedule.startAt)
@@ -978,7 +980,24 @@ function RunComposerRoute() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [navigate, state]);
+
+  useEffect(() => {
+    return registerCommand({
+      id: 'runs.launch',
+      title: state.schedule.mode === 'later' ? 'Schedule run' : 'Launch run now',
+      description: 'Start the configured run without leaving the keyboard',
+      group: 'Runs',
+      shortcut: 'mod+enter',
+      run: () => {
+        if (currentStep.id === 'review' && !isSubmitting) {
+          void handleLaunch();
+        }
+      },
+      disabled: currentStep.id !== 'review' || isSubmitting,
+      allowInInput: true
+    });
+  }, [registerCommand, state.schedule.mode, currentStep.id, isSubmitting, handleLaunch]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6">

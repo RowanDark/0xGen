@@ -18,6 +18,11 @@ const StartRunResponseSchema = z.object({
   id: z.string()
 });
 
+const StopRunResponseSchema = z.object({
+  id: z.string().optional(),
+  status: z.string().optional()
+});
+
 export type StartRunPayload = {
   name: string;
   template?: string;
@@ -351,6 +356,18 @@ export async function listRuns(): Promise<Run[]> {
 export async function startRun(payload: StartRunPayload) {
   const response = await invoke('start_run', { payload });
   return StartRunResponseSchema.parse(response);
+}
+
+export async function stopRun(id: string) {
+  const response = await invoke('stop_run', { id });
+  if (!response) {
+    return;
+  }
+  try {
+    StopRunResponseSchema.parse(response);
+  } catch (error) {
+    console.warn('Unexpected stop_run response', error);
+  }
 }
 
 export async function openArtifact(path: string): Promise<OpenArtifactResponse> {

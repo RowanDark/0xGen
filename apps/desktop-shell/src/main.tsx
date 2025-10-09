@@ -8,6 +8,7 @@ import { AppErrorBoundary } from './providers/error-boundary';
 import { Toaster } from './providers/toaster';
 import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
 import { ArtifactProvider } from './providers/artifact-provider';
+import { CommandCenterProvider } from './providers/command-center';
 
 bootstrapTheme();
 
@@ -22,8 +23,10 @@ ReactDOM.createRoot(rootElement).render(
     <ThemeProvider>
       <AppErrorBoundary>
         <ArtifactProvider>
-          <Toaster />
-          <RouterProvider router={router} />
+          <CommandCenterProvider>
+            <Toaster />
+            <RouterProvider router={router} />
+          </CommandCenterProvider>
         </ArtifactProvider>
       </AppErrorBoundary>
     </ThemeProvider>
