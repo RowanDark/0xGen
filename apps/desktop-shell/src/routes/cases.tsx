@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { fetchArtifactCases, type CaseRecord } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
+import { useCommandCenter } from '../providers/command-center';
 
 export type CaseSeverity = 'critical' | 'high' | 'medium' | 'low' | 'informational';
 
@@ -251,6 +252,9 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
   const [noteDraft, setNoteDraft] = useState('');
   const [disposition, setDisposition] = useState<Record<string, 'tp' | 'fp' | undefined>>({});
   const caseListRef = useRef<HTMLDivElement | null>(null);
+  const filterInputRef = useRef<HTMLInputElement | null>(null);
+  const caseDetailRef = useRef<HTMLDivElement | null>(null);
+  const { registerCommand } = useCommandCenter();
 
   useEffect(() => {
     if (cases.length > 0) {
@@ -393,6 +397,63 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
     }
   };
 
+  useEffect(() => {
+    const cleanups = [
+      registerCommand({
+        id: 'cases.focusFilters',
+        title: 'Focus case filters',
+        description: 'Move focus to the case filter search',
+        group: 'Cases',
+        shortcut: 'alt+1',
+        run: () => {
+          if (filterInputRef.current) {
+            filterInputRef.current.focus();
+            filterInputRef.current.select?.();
+          }
+        },
+        allowInInput: true
+      }),
+      registerCommand({
+        id: 'cases.focusList',
+        title: 'Focus case list',
+        description: 'Highlight the currently selected case in the list',
+        group: 'Cases',
+        shortcut: 'alt+2',
+        run: () => {
+          const container = caseListRef.current;
+          if (!container) {
+            return;
+          }
+          const selector = activeCaseId ? `[data-case-id="${activeCaseId}"]` : '[data-case-id]';
+          const target = container.querySelector<HTMLButtonElement>(selector);
+          if (target) {
+            target.focus();
+          } else {
+            container.focus();
+          }
+        },
+        allowInInput: true
+      }),
+      registerCommand({
+        id: 'cases.focusDetails',
+        title: 'Focus case details',
+        description: 'Jump to the active case detail panel',
+        group: 'Cases',
+        shortcut: 'alt+3',
+        run: () => {
+          caseDetailRef.current?.focus();
+        },
+        allowInInput: true
+      })
+    ];
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
+    };
+  }, [registerCommand, activeCaseId]);
+
   if (cases.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-muted-foreground">
@@ -428,6 +489,7 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
                 id="case-search"
                 type="search"
                 placeholder="Filter by tag"
+                ref={filterInputRef}
                 className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 value={tagFilter.join(', ')}
                 onChange={(event) => {
@@ -465,8 +527,14 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
       </aside>
       <section className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1">
-          <div ref={caseListRef} className="w-96 overflow-y-auto border-r border-border">
-            <ul className="relative">
+          <div
+            ref={caseListRef}
+            className="w-96 overflow-y-auto border-r border-border"
+            tabIndex={-1}
+            role="region"
+            aria-label="Case list"
+          >
+            <ul className="relative" role="listbox" aria-label="Cases">
               <li style={{ height: caseVirtualizer.getTotalSize() }} />
               {virtualCaseItems.map((virtualRow) => {
                 const item = filteredCases[virtualRow.index];
@@ -477,38 +545,47 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
                 return (
                   <li
                     key={item.id}
-                    className={cn(
-                      'absolute inset-x-0 cursor-pointer border-b border-border bg-card p-4 transition hover:bg-muted',
-                      isActive && 'border-primary bg-primary/10'
-                    )}
+                    className="absolute inset-x-0"
                     style={{ transform: `translateY(${virtualRow.start}px)` }}
-                    onClick={() => setActiveCaseId(item.id)}
                   >
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
-                      <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-xs font-semibold uppercase',
-                          severityCopy[item.severity].tone
-                        )}
-                      >
-                        {severityCopy[item.severity].label}
-                      </span>
-                    </div>
-                    <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{item.summary}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-                        {item.asset}
-                      </span>
-                      <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
-                        Confidence {formatConfidence(item.confidence)}
-                      </span>
-                      {item.tags.map((tag) => (
-                        <span key={tag} className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
-                          {tag}
+                    <button
+                      type="button"
+                      onClick={() => setActiveCaseId(item.id)}
+                      data-case-id={item.id}
+                      role="option"
+                      aria-selected={isActive}
+                      tabIndex={isActive ? 0 : -1}
+                      className={cn(
+                        'flex w-full flex-col gap-3 border-b border-border bg-card p-4 text-left transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                        isActive && 'border-primary bg-primary/10'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                        <span
+                          className={cn(
+                            'rounded-full border px-2 py-0.5 text-xs font-semibold uppercase',
+                            severityCopy[item.severity].tone
+                          )}
+                        >
+                          {severityCopy[item.severity].label}
                         </span>
-                      ))}
-                    </div>
+                      </div>
+                      <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{item.summary}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded bg-secondary px-2 py-1 text-xs text-secondary-foreground">
+                          {item.asset}
+                        </span>
+                        <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+                          Confidence {formatConfidence(item.confidence)}
+                        </span>
+                        {item.tags.map((tag) => (
+                          <span key={tag} className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
                   </li>
                 );
               })}
@@ -516,7 +593,13 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             {activeCase ? (
-              <article className="flex-1 space-y-6 overflow-y-auto p-6">
+              <article
+                ref={caseDetailRef}
+                className="flex-1 space-y-6 overflow-y-auto p-6"
+                tabIndex={-1}
+                role="region"
+                aria-label="Case details"
+              >
                 <header className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>

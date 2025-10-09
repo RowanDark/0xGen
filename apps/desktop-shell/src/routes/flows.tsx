@@ -21,6 +21,7 @@ import {
   streamFlowEvents
 } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
+import { useCommandCenter } from '../providers/command-center';
 import { cn } from '../lib/utils';
 
 type HttpHeader = {
@@ -551,6 +552,7 @@ function FlowListItem({
     <button
       type="button"
       onClick={onSelect}
+      data-flow-id={flow.id}
       className={cn(
         'flex w-full flex-col justify-between rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         selected
@@ -816,13 +818,73 @@ function FlowsRouteComponent() {
   const [editConfirmed, setEditConfirmed] = useState(false);
   const [showDiff, setShowDiff] = useState(true);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const filterSearchRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const eventQueueRef = useRef<FlowEvent[]>([]);
   const flushTimeoutRef = useRef<number | null>(null);
   const { status } = useArtifact();
+  const { registerCommand } = useCommandCenter();
   const offlineMode = Boolean(status?.loaded);
   const artifactKey = `${status?.manifest?.flowsFile ?? ''}:${status?.flowCount ?? 0}`;
   const editingEnabled = !offlineMode;
+
+  useEffect(() => {
+    const cleanups = [
+      registerCommand({
+        id: 'flows.focusFilters',
+        title: 'Focus flow filters',
+        description: 'Jump to the filter search field',
+        group: 'Flows',
+        shortcut: 'alt+1',
+        run: () => {
+          if (filterSearchRef.current) {
+            filterSearchRef.current.focus();
+            filterSearchRef.current.select?.();
+          }
+        },
+        allowInInput: true
+      }),
+      registerCommand({
+        id: 'flows.focusList',
+        title: 'Focus flow list',
+        description: 'Move focus to the flow timeline',
+        group: 'Flows',
+        shortcut: 'alt+2',
+        run: () => {
+          const container = listRef.current;
+          if (!container) {
+            return;
+          }
+          const selector = selectedFlowId ? `[data-flow-id="${selectedFlowId}"]` : '[data-flow-id]';
+          const target = container.querySelector<HTMLButtonElement>(selector);
+          if (target) {
+            target.focus();
+          } else {
+            container.focus();
+          }
+        },
+        allowInInput: true
+      }),
+      registerCommand({
+        id: 'flows.focusDetails',
+        title: 'Focus flow details',
+        description: 'Jump to the detailed view of the selected flow',
+        group: 'Flows',
+        shortcut: 'alt+3',
+        run: () => {
+          detailPanelRef.current?.focus();
+        },
+        allowInInput: true
+      })
+    ];
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
+    };
+  }, [registerCommand, selectedFlowId]);
 
   useEffect(() => {
     setFlowMap(new Map());
@@ -1169,6 +1231,7 @@ function FlowsRouteComponent() {
               <input
                 id="flow-search"
                 type="search"
+                ref={filterSearchRef}
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Method, URL, body…"
@@ -1247,7 +1310,13 @@ function FlowsRouteComponent() {
               Real-time intercepted requests and responses with live updates.
             </p>
           </div>
-          <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-2">
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-auto px-3 py-2"
+            role="region"
+            aria-label="Flow timeline"
+            tabIndex={-1}
+          >
             {initialLoading && filteredFlows.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading flows…
@@ -1304,7 +1373,13 @@ function FlowsRouteComponent() {
             </div>
           )}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div
+          ref={detailPanelRef}
+          className="flex min-w-0 flex-1 flex-col"
+          tabIndex={-1}
+          role="region"
+          aria-label="Flow details"
+        >
           {selectedFlow ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="border-b border-border px-6 py-4">
