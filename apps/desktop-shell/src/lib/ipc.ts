@@ -240,7 +240,7 @@ export async function streamFlowEvents(
       const url = new URL('/api/flows/stream', base);
       url.searchParams.set('streamId', streamId);
       if (options.filters) {
-        url.searchParams.set('filters', encodeURIComponent(JSON.stringify(options.filters)));
+        url.searchParams.set('filters', JSON.stringify(options.filters));
       }
 
       const eventSource = new EventSource(url.toString(), { withCredentials: true });
