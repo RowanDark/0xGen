@@ -6,7 +6,8 @@ import mermaid from 'mermaid';
 import { z } from 'zod';
 
 import { Button } from '../components/ui/button';
-import { cn } from '../lib/utils';
+import { RedactionNotice } from '../components/redaction-notice';
+import { cn, isRedactedValue } from '../lib/utils';
 import { toast } from 'sonner';
 import { fetchArtifactCases, type CaseRecord } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
@@ -36,6 +37,7 @@ type CaseViewModel = {
   reproSteps: string[];
   poc: string;
   graph: string;
+  hasRedactions: boolean;
   original: CaseRecord;
 };
 
@@ -189,6 +191,7 @@ function buildCaseView(record: CaseRecord): CaseViewModel {
   const confidence = normaliseConfidence(record.confidence);
   const poc = record.proof.summary ?? record.proof.steps?.join('\n') ?? '';
   const graph = record.graph.mermaid || record.graph.dot || '';
+  const hasRedactions = isRedactedValue(record);
 
   return {
     id: record.id,
@@ -204,6 +207,7 @@ function buildCaseView(record: CaseRecord): CaseViewModel {
     reproSteps: record.proof.steps ?? [],
     poc,
     graph,
+    hasRedactions,
     original: record
   };
 }
@@ -311,6 +315,10 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
 
   const handleExport = async (format: 'sarif' | 'jsonl' | 'html') => {
     if (!activeCase) {
+      return;
+    }
+    if (activeCase.hasRedactions) {
+      toast.info('Case content redacted by policy. CAP_SECRETS_READ reveals original data.');
       return;
     }
 
@@ -610,15 +618,48 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
                       <h1 className="mt-2 text-2xl font-semibold text-foreground">{activeCase.title}</h1>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('sarif')}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="gap-2"
+                        onClick={() => handleExport('sarif')}
+                        disabled={activeCase.hasRedactions}
+                        title={
+                          activeCase.hasRedactions
+                            ? 'Case content redacted by policy (requires CAP_SECRETS_READ)'
+                            : undefined
+                        }
+                      >
                         <Download className="h-4 w-4" />
                         Export SARIF
                       </Button>
-                      <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('jsonl')}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="gap-2"
+                        onClick={() => handleExport('jsonl')}
+                        disabled={activeCase.hasRedactions}
+                        title={
+                          activeCase.hasRedactions
+                            ? 'Case content redacted by policy (requires CAP_SECRETS_READ)'
+                            : undefined
+                        }
+                      >
                         <FileCode className="h-4 w-4" />
                         Export JSONL
                       </Button>
-                      <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('html')}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="gap-2"
+                        onClick={() => handleExport('html')}
+                        disabled={activeCase.hasRedactions}
+                        title={
+                          activeCase.hasRedactions
+                            ? 'Case content redacted by policy (requires CAP_SECRETS_READ)'
+                            : undefined
+                        }
+                      >
                         <Download className="h-4 w-4" />
                         Export HTML
                       </Button>
@@ -639,6 +680,14 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
                     </span>
                   </div>
                 </header>
+
+                {activeCase.hasRedactions && (
+                  <RedactionNotice
+                    capability="CAP_SECRETS_READ"
+                    className="mt-4"
+                    message="Case content redacted by policy"
+                  />
+                )}
 
                 <div className="border-b border-border">
                   <nav className="flex gap-4 text-sm font-medium">
