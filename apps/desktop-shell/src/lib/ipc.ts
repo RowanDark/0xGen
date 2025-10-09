@@ -51,11 +51,25 @@ export type StartRunPayload = {
   };
 };
 
+const LatencyBucketSchema = z.object({
+  upperBoundMs: z.number(),
+  count: z.number()
+});
+
+const PluginErrorSchema = z.object({
+  plugin: z.string(),
+  errors: z.number()
+});
+
 const DashboardMetricsSchema = z.object({
   failures: z.number(),
   queueDepth: z.number(),
   avgLatencyMs: z.number(),
-  casesFound: z.number()
+  casesFound: z.number(),
+  eventsTotal: z.number(),
+  queueDrops: z.number(),
+  latencyBuckets: z.array(LatencyBucketSchema).optional().default([]),
+  pluginErrors: z.array(PluginErrorSchema).optional().default([])
 });
 
 const ManifestDnsRecordSchema = z.object({
@@ -308,6 +322,8 @@ const ScopeDryRunResponseSchema = z.object({
 });
 
 export type Run = z.infer<typeof RunSchema>;
+export type LatencyBucket = z.infer<typeof LatencyBucketSchema>;
+export type PluginErrorTotal = z.infer<typeof PluginErrorSchema>;
 export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;
 export type FlowEvent = z.infer<typeof FlowEventSchema>;
 export type FlowPage = z.infer<typeof FlowPageSchema>;

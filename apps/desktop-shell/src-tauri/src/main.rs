@@ -1,7 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{
-    collections::HashMap,
+    cmp::Ordering,
+    collections::{BTreeMap, HashMap},
     fs,
     io::{BufRead, BufReader},
     path::{Component, Path, PathBuf},
@@ -163,11 +164,31 @@ struct RunEvent {
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+struct LatencyBucket {
+    upper_bound_ms: f64,
+    count: f64,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PluginErrorTotal {
+    plugin: String,
+    errors: f64,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct DashboardMetrics {
     failures: f64,
     queue_depth: f64,
     avg_latency_ms: f64,
     cases_found: f64,
+    events_total: f64,
+    queue_drops: f64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    latency_buckets: Vec<LatencyBucket>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    plugin_errors: Vec<PluginErrorTotal>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -678,6 +699,57 @@ fn sum_metric(samples: &[MetricSample], name: &str) -> f64 {
         .sum()
 }
 
+fn sum_metric_by_label(
+    samples: &[MetricSample],
+    name: &str,
+    label: &str,
+) -> HashMap<String, f64> {
+    let mut totals = HashMap::new();
+    for sample in samples.iter().filter(|sample| sample.name == name) {
+        if let Some(value) = sample.labels.get(label) {
+            *totals.entry(value.clone()).or_insert(0.0) += sample.value;
+        }
+    }
+    totals
+}
+
+fn sum_metric_by_label_any(
+    samples: &[MetricSample],
+    names: &[&str],
+    label: &str,
+) -> HashMap<String, f64> {
+    let mut totals = HashMap::new();
+    for name in names {
+        for (key, value) in sum_metric_by_label(samples, name, label) {
+            *totals.entry(key).or_insert(0.0) += value;
+        }
+    }
+    totals
+}
+
+fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyBucket> {
+    let mut buckets: BTreeMap<f64, f64> = BTreeMap::new();
+    for sample in samples.iter().filter(|sample| sample.name == name) {
+        if let Some(bound_str) = sample.labels.get("le") {
+            if bound_str == "+Inf" {
+                continue;
+            }
+            if let Ok(bound) = bound_str.parse::<f64>() {
+                let key = (bound * 1000.0).max(0.0);
+                *buckets.entry(key).or_insert(0.0) += sample.value;
+            }
+        }
+    }
+
+    buckets
+        .into_iter()
+        .map(|(upper_bound_ms, count)| LatencyBucket {
+            upper_bound_ms,
+            count,
+        })
+        .collect()
+}
+
 fn unix_to_datetime(secs: i64) -> DateTime<Utc> {
     DateTime::<Utc>::from_timestamp(secs, 0).unwrap_or_else(|| {
         let fallback = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
@@ -846,6 +918,10 @@ fn build_artifact_metrics(cases: &[CaseRecord]) -> DashboardMetrics {
         queue_depth: 0.0,
         avg_latency_ms: 0.0,
         cases_found: cases.len() as f64,
+        events_total: 0.0,
+        queue_drops: 0.0,
+        latency_buckets: Vec::new(),
+        plugin_errors: Vec::new(),
     }
 }
 
@@ -1023,6 +1099,22 @@ async fn fetch_metrics(
     } else {
         0.0
     };
+    let events_total = latency_count;
+    let queue_drops = sum_metric(&samples, "glyph_plugin_queue_dropped_total");
+    let latency_buckets = collect_latency_buckets(&samples, "glyph_plugin_event_duration_seconds_bucket");
+    let mut plugin_errors: Vec<PluginErrorTotal> = sum_metric_by_label_any(
+        &samples,
+        &["glyph_plugin_errors_total", "glyph_plugin_event_failures_total"],
+        "plugin",
+    )
+    .into_iter()
+    .map(|(plugin, errors)| PluginErrorTotal { plugin, errors })
+    .collect();
+    plugin_errors.sort_by(|a, b| {
+        b.errors
+            .partial_cmp(&a.errors)
+            .unwrap_or(Ordering::Equal)
+    });
 
     let mut cases_found = 0.0;
     for name in [
@@ -1045,6 +1137,10 @@ async fn fetch_metrics(
         queue_depth,
         avg_latency_ms,
         cases_found,
+        events_total,
+        queue_drops,
+        latency_buckets,
+        plugin_errors,
     })
 }
 
