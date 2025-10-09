@@ -1,8 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::HashMap, sync::Mutex, time::Duration};
+use std::{
+    collections::HashMap,
+    fs,
+    io::{BufRead, BufReader},
+    path::{Component, Path, PathBuf},
+    sync::Mutex,
+    time::Duration,
+};
 
-use chrono::{DateTime, Utc};
+use base64::{engine::general_purpose::STANDARD as Base64Engine, Engine as _};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use flate2::read::GzDecoder;
 use futures::{
     future::{AbortHandle, Abortable},
     StreamExt,
@@ -10,7 +19,9 @@ use futures::{
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, json, Value};
+use tar::Archive;
 use tauri::{async_runtime, Manager, State, Window};
+use tempfile::TempDir;
 use thiserror::Error;
 use url::Url;
 
@@ -150,7 +161,7 @@ struct RunEvent {
     payload: Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct DashboardMetrics {
     failures: f64,
@@ -323,6 +334,284 @@ struct ScopeDryRunResponse {
     results: Vec<ScopeDryRunDecision>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct Manifest {
+    version: String,
+    created_at: DateTime<Utc>,
+    #[serde(default)]
+    seeds: HashMap<String, i64>,
+    #[serde(default)]
+    dns: Vec<ManifestDnsRecord>,
+    #[serde(default)]
+    tls: Vec<ManifestTlsRecord>,
+    #[serde(default)]
+    robots: Vec<ManifestRobotsRecord>,
+    #[serde(default)]
+    rate_limits: Vec<ManifestRateLimitRecord>,
+    #[serde(default)]
+    cookies: Vec<ManifestCookieRecord>,
+    #[serde(default)]
+    responses: Vec<ManifestResponseRecord>,
+    #[serde(default)]
+    flows_file: Option<String>,
+    runner: ManifestRunnerInfo,
+    #[serde(default)]
+    plugins: Vec<ManifestPluginInfo>,
+    findings_file: String,
+    cases_file: String,
+    case_timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestDnsRecord {
+    host: String,
+    #[serde(default)]
+    addresses: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestTlsRecord {
+    host: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ja3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ja3_hash: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    negotiated_alpn: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    offered_alpn: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestRobotsRecord {
+    host: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body_file: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestRateLimitRecord {
+    host: String,
+    policy: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestCookieRecord {
+    domain: String,
+    name: String,
+    value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestResponseRecord {
+    request_url: String,
+    method: String,
+    status: i32,
+    #[serde(default)]
+    headers: HashMap<String, Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body_file: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestRunnerInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    glyphctl_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    glyphd_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    go_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    os: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    arch: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ManifestPluginInfo {
+    name: String,
+    version: String,
+    manifest_path: String,
+    signature: String,
+    sha256: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseRecord {
+    version: String,
+    id: String,
+    asset: CaseAsset,
+    vector: CaseAttackVector,
+    summary: String,
+    #[serde(default)]
+    evidence: Vec<CaseEvidenceItem>,
+    proof: CaseProof,
+    risk: CaseRisk,
+    confidence: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    confidence_log: Option<String>,
+    #[serde(default)]
+    sources: Vec<CaseSourceFinding>,
+    generated_at: String,
+    #[serde(default)]
+    labels: HashMap<String, String>,
+    graph: CaseExploitGraph,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseAsset {
+    kind: String,
+    identifier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseAttackVector {
+    kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseEvidenceItem {
+    plugin: String,
+    #[serde(rename = "type")]
+    kind: String,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    evidence: Option<String>,
+    #[serde(default)]
+    metadata: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseProof {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<String>,
+    #[serde(default)]
+    steps: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseRisk {
+    severity: String,
+    score: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rationale: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseSourceFinding {
+    id: String,
+    plugin: String,
+    #[serde(rename = "type")]
+    kind: String,
+    severity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseExploitGraph {
+    dot: String,
+    mermaid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<String>,
+    #[serde(default)]
+    attack_path: Vec<CaseChainStep>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseChainStep {
+    stage: i32,
+    from: String,
+    to: String,
+    description: String,
+    plugin: String,
+    #[serde(rename = "type")]
+    kind: String,
+    finding_id: String,
+    severity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    weak_link: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct ReplayFlowRecord {
+    id: String,
+    sequence: u64,
+    #[serde(rename = "type")]
+    kind: String,
+    timestamp_unix: i64,
+    #[serde(default)]
+    sanitized_base64: Option<String>,
+    #[serde(default)]
+    raw_body_bytes: Option<i64>,
+    #[serde(default)]
+    raw_body_captured: Option<i64>,
+    #[serde(default)]
+    sanitized_redacted: Option<bool>,
+}
+
+struct ReplayDataset {
+    _temp_dir: TempDir,
+    manifest: Manifest,
+    cases: Vec<CaseRecord>,
+    flows: Vec<FlowEventPayload>,
+    metrics: DashboardMetrics,
+}
+
+struct ReplayState {
+    current: Mutex<Option<ReplayDataset>>,
+}
+
+impl ReplayState {
+    fn new() -> Self {
+        Self {
+            current: Mutex::new(None),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct OpenArtifactResponse {
+    manifest: Manifest,
+    metrics: DashboardMetrics,
+    case_count: usize,
+    flow_count: usize,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ArtifactStatus {
+    loaded: bool,
+    manifest: Option<Manifest>,
+    metrics: Option<DashboardMetrics>,
+    case_count: usize,
+    flow_count: usize,
+}
+
 #[derive(Debug)]
 struct MetricSample {
     name: String,
@@ -387,6 +676,230 @@ fn sum_metric(samples: &[MetricSample], name: &str) -> f64 {
         .filter(|sample| sample.name == name)
         .map(|sample| sample.value)
         .sum()
+}
+
+fn unix_to_datetime(secs: i64) -> DateTime<Utc> {
+    DateTime::<Utc>::from_timestamp(secs, 0).unwrap_or_else(|| {
+        let fallback = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
+        DateTime::<Utc>::from_utc(fallback, Utc)
+    })
+}
+
+fn decode_base64_to_string(value: &str) -> Option<String> {
+    Base64Engine
+        .decode(value)
+        .ok()
+        .and_then(|bytes| String::from_utf8(bytes).ok())
+}
+
+fn is_safe_entry_path(path: &Path) -> bool {
+    let mut components = path.components();
+    match components.clone().next() {
+        Some(Component::Prefix(_)) | Some(Component::RootDir) => return false,
+        _ => {}
+    }
+    components.all(|component| !matches!(component, Component::ParentDir))
+}
+
+fn extract_artifact(source: &Path, dest: &Path) -> Result<Manifest, String> {
+    if source.as_os_str().is_empty() {
+        return Err("artifact path is required".to_string());
+    }
+    if dest.as_os_str().is_empty() {
+        return Err("destination path is required".to_string());
+    }
+    fs::create_dir_all(dest).map_err(|err| format!("create destination: {err}"))?;
+
+    let file = fs::File::open(source).map_err(|err| format!("open artifact: {err}"))?;
+    let decoder = GzDecoder::new(file);
+    let mut archive = Archive::new(decoder);
+
+    let entries = archive
+        .entries()
+        .map_err(|err| format!("read artifact entries: {err}"))?;
+
+    for entry in entries {
+        let mut entry = entry.map_err(|err| format!("read tar entry: {err}"))?;
+        let path = entry
+            .path()
+            .map_err(|err| format!("resolve entry path: {err}"))?
+            .to_path_buf();
+        if !is_safe_entry_path(&path) {
+            return Err(format!("entry {:?} has unsafe path", path));
+        }
+        let target = dest.join(&path);
+        if !target.starts_with(dest) {
+            return Err(format!("entry {:?} escapes destination", path));
+        }
+        entry
+            .unpack(&target)
+            .map_err(|err| format!("extract entry {:?}: {err}", path))?;
+    }
+
+    let manifest_path = dest.join("manifest.json");
+    let data = fs::read(&manifest_path).map_err(|err| format!("read manifest: {err}"))?;
+    let manifest: Manifest =
+        serde_json::from_slice(&data).map_err(|err| format!("decode manifest: {err}"))?;
+    Ok(manifest)
+}
+
+fn load_cases(root: &Path, manifest: &Manifest) -> Result<Vec<CaseRecord>, String> {
+    let path = root.join(&manifest.cases_file);
+    let data = fs::read(&path).map_err(|err| format!("read cases: {err}"))?;
+    let mut cases: Vec<CaseRecord> =
+        serde_json::from_slice(&data).map_err(|err| format!("decode cases: {err}"))?;
+    cases.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(cases)
+}
+
+fn load_flows(root: &Path, manifest: &Manifest) -> Result<Vec<FlowEventPayload>, String> {
+    let Some(flow_path) = manifest.flows_file.as_ref().and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    }) else {
+        return Ok(Vec::new());
+    };
+
+    let path = root.join(flow_path);
+    let file = fs::File::open(&path).map_err(|err| format!("open flows: {err}"))?;
+    let reader = BufReader::new(file);
+    let mut records = Vec::new();
+    for line in reader.lines() {
+        let line = line.map_err(|err| format!("read flow record: {err}"))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let record: ReplayFlowRecord =
+            serde_json::from_str(&line).map_err(|err| format!("decode flow record: {err}"))?;
+        records.push(record);
+    }
+
+    records.sort_by(|a, b| {
+        if a.sequence == b.sequence {
+            a.id.cmp(&b.id)
+        } else {
+            a.sequence.cmp(&b.sequence)
+        }
+    });
+
+    let mut events = Vec::with_capacity(records.len());
+    for record in records {
+        let ReplayFlowRecord {
+            id,
+            sequence,
+            kind,
+            timestamp_unix,
+            sanitized_base64,
+            raw_body_bytes,
+            raw_body_captured,
+            sanitized_redacted,
+        } = record;
+        let sanitized_text = sanitized_base64
+            .as_ref()
+            .and_then(|value| decode_base64_to_string(value));
+        events.push(FlowEventPayload {
+            id,
+            sequence,
+            kind,
+            timestamp: unix_to_datetime(timestamp_unix),
+            sanitized: sanitized_text,
+            sanitized_base64,
+            raw: None,
+            raw_base64: None,
+            raw_body_size: raw_body_bytes,
+            raw_body_captured,
+            sanitized_redacted,
+            scope: None,
+            tags: None,
+            plugin_tags: None,
+            metadata: None,
+        });
+    }
+
+    Ok(events)
+}
+
+fn build_artifact_metrics(cases: &[CaseRecord]) -> DashboardMetrics {
+    DashboardMetrics {
+        failures: 0.0,
+        queue_depth: 0.0,
+        avg_latency_ms: 0.0,
+        cases_found: cases.len() as f64,
+    }
+}
+
+#[tauri::command]
+async fn open_artifact(
+    replay: State<'_, ReplayState>,
+    path: String,
+) -> Result<OpenArtifactResponse, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("artifact path is required".to_string());
+    }
+
+    let source = PathBuf::from(trimmed);
+    let temp_dir = TempDir::new().map_err(|err| format!("create temp dir: {err}"))?;
+    let manifest = extract_artifact(&source, temp_dir.path())?;
+    let cases = load_cases(temp_dir.path(), &manifest)?;
+    let flows = load_flows(temp_dir.path(), &manifest)?;
+    let metrics = build_artifact_metrics(&cases);
+
+    let summary = OpenArtifactResponse {
+        manifest: manifest.clone(),
+        metrics: metrics.clone(),
+        case_count: cases.len(),
+        flow_count: flows.len(),
+    };
+
+    let dataset = ReplayDataset {
+        _temp_dir: temp_dir,
+        manifest,
+        cases,
+        flows,
+        metrics,
+    };
+
+    let mut guard = replay.current.lock().map_err(|err| err.to_string())?;
+    *guard = Some(dataset);
+
+    Ok(summary)
+}
+
+#[tauri::command]
+fn artifact_status(replay: State<'_, ReplayState>) -> Result<ArtifactStatus, String> {
+    let guard = replay.current.lock().map_err(|err| err.to_string())?;
+    if let Some(dataset) = guard.as_ref() {
+        Ok(ArtifactStatus {
+            loaded: true,
+            manifest: Some(dataset.manifest.clone()),
+            metrics: Some(dataset.metrics.clone()),
+            case_count: dataset.cases.len(),
+            flow_count: dataset.flows.len(),
+        })
+    } else {
+        Ok(ArtifactStatus {
+            loaded: false,
+            manifest: None,
+            metrics: None,
+            case_count: 0,
+            flow_count: 0,
+        })
+    }
+}
+
+#[tauri::command]
+fn list_cases(replay: State<'_, ReplayState>) -> Result<Vec<CaseRecord>, String> {
+    let guard = replay.current.lock().map_err(|err| err.to_string())?;
+    if let Some(dataset) = guard.as_ref() {
+        Ok(dataset.cases.clone())
+    } else {
+        Err("no artifact loaded".to_string())
+    }
 }
 
 #[tauri::command]
@@ -456,7 +969,17 @@ fn emit_flow_event(
 }
 
 #[tauri::command]
-async fn fetch_metrics(api: State<'_, GlyphApi>) -> Result<DashboardMetrics, String> {
+async fn fetch_metrics(
+    api: State<'_, GlyphApi>,
+    replay: State<'_, ReplayState>,
+) -> Result<DashboardMetrics, String> {
+    if let Some(metrics) = {
+        let guard = replay.current.lock().map_err(|err| err.to_string())?;
+        guard.as_ref().map(|dataset| dataset.metrics.clone())
+    } {
+        return Ok(metrics);
+    }
+
     let url = api.endpoint("metrics");
     let response = api
         .client
@@ -511,10 +1034,34 @@ async fn fetch_metrics(api: State<'_, GlyphApi>) -> Result<DashboardMetrics, Str
 #[tauri::command]
 async fn list_flows(
     api: State<'_, GlyphApi>,
+    replay: State<'_, ReplayState>,
     cursor: Option<String>,
     limit: Option<u32>,
     filters: Option<FlowFilters>,
 ) -> Result<FlowPage, String> {
+    if let Some(page) = {
+        let guard = replay.current.lock().map_err(|err| err.to_string())?;
+        guard.as_ref().map(|dataset| {
+            let total = dataset.flows.len();
+            let start = cursor
+                .as_deref()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0)
+                .min(total);
+            let chunk_size = limit.unwrap_or(200) as usize;
+            let end = (start + chunk_size).min(total);
+            let items = dataset.flows[start..end].to_vec();
+            let next_cursor = if end < total {
+                Some(end.to_string())
+            } else {
+                None
+            };
+            FlowPage { items, next_cursor }
+        })
+    } {
+        return Ok(page);
+    }
+
     let mut url = Url::parse(&api.endpoint("flows")).map_err(|err| err.to_string())?;
     let filters = filters.unwrap_or_default();
 
@@ -708,9 +1255,17 @@ async fn stop_stream(api: State<'_, GlyphApi>, run_id: String) -> Result<(), Str
 async fn stream_flows(
     app: tauri::AppHandle,
     api: State<'_, GlyphApi>,
+    replay: State<'_, ReplayState>,
     stream_id: String,
     filters: Option<FlowFilters>,
 ) -> Result<(), String> {
+    {
+        let guard = replay.current.lock().map_err(|err| err.to_string())?;
+        if guard.as_ref().is_some() {
+            return Ok(());
+        }
+    }
+
     let window = app
         .get_window("main")
         .ok_or_else(|| ApiError::WindowMissing.to_string())?;
@@ -867,9 +1422,17 @@ async fn stop_flow_stream(api: State<'_, GlyphApi>, stream_id: String) -> Result
 #[tauri::command]
 async fn resend_flow(
     api: State<'_, GlyphApi>,
+    replay: State<'_, ReplayState>,
     flow_id: String,
     message: String,
 ) -> Result<ResendFlowResponse, String> {
+    {
+        let guard = replay.current.lock().map_err(|err| err.to_string())?;
+        if guard.as_ref().is_some() {
+            return Err("resending flows is unavailable while viewing an artifact".to_string());
+        }
+    }
+
     let url = api.endpoint(&format!("flows/{}/resend", flow_id));
     let payload = json!({ "message": message });
     let response = api
@@ -1074,6 +1637,7 @@ fn configure_devtools(window: &Window) {
 fn main() {
     tauri::Builder::default()
         .manage(GlyphApi::new())
+        .manage(ReplayState::new())
         .setup(|app| {
             if let Some(window) = app.get_window("main") {
                 configure_devtools(&window);
@@ -1081,6 +1645,9 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            open_artifact,
+            artifact_status,
+            list_cases,
             list_runs,
             start_run,
             list_flows,

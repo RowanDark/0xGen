@@ -23,6 +23,7 @@ import { Button } from '../components/ui/button';
 import { fetchMetrics, listRuns, type DashboardMetrics, type Run } from '../lib/ipc';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { useArtifact } from '../providers/artifact-provider';
 
 type SparklinePoint = {
   time: number;
@@ -125,6 +126,8 @@ function DashboardRoute() {
   const [metricsHistory, setMetricsHistory] = useState<MetricSnapshot[]>([]);
   const runsErrorShownRef = useRef(false);
   const metricsErrorShownRef = useRef(false);
+  const { status } = useArtifact();
+  const offlineMode = Boolean(status?.loaded);
 
   const integerFormatter = useMemo(() => new Intl.NumberFormat(), []);
   const decimalFormatter = useMemo(() => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }), []);
@@ -141,6 +144,12 @@ function DashboardRoute() {
   };
 
   useEffect(() => {
+    if (offlineMode) {
+      setRuns([]);
+      setRunHistory([]);
+      return;
+    }
+
     let cancelled = false;
 
     const loadRuns = async () => {
@@ -167,9 +176,18 @@ function DashboardRoute() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [offlineMode]);
 
   useEffect(() => {
+    if (offlineMode) {
+      if (status?.metrics) {
+        setMetricsHistory([{ timestamp: Date.now(), ...status.metrics }]);
+      } else {
+        setMetricsHistory([]);
+      }
+      return;
+    }
+
     let cancelled = false;
 
     const loadMetrics = async () => {
@@ -199,7 +217,7 @@ function DashboardRoute() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [offlineMode, status?.metrics]);
 
   const latestRun = runs[0];
   const latestMetrics = metricsHistory.length > 0 ? metricsHistory[metricsHistory.length - 1] : undefined;

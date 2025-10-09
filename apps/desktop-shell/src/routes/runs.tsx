@@ -5,21 +5,32 @@ import { ArrowUpRight, Play } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { listRuns, streamEvents, type Run, type RunEvent, type StreamHandle } from '../lib/ipc';
 import { toast } from 'sonner';
+import { useArtifact } from '../providers/artifact-provider';
 
 function RunsRoute() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [events, setEvents] = useState<Record<string, RunEvent[]>>({});
+  const { status } = useArtifact();
+  const offlineMode = Boolean(status?.loaded);
 
   useEffect(() => {
+    if (offlineMode) {
+      setRuns([]);
+      return;
+    }
     listRuns()
       .then(setRuns)
       .catch((error) => {
         console.error('Failed to load runs', error);
         toast.error('Unable to fetch runs from the Glyph API');
       });
-  }, []);
+  }, [offlineMode]);
 
   useEffect(() => {
+    if (offlineMode) {
+      setEvents({});
+      return;
+    }
     if (runs.length === 0) {
       return;
     }
@@ -58,14 +69,18 @@ function RunsRoute() {
         });
       }
     };
-  }, [runs]);
+  }, [runs, offlineMode]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Runs</h1>
-          <p className="text-muted-foreground">Review the status of ongoing investigations.</p>
+          <p className="text-muted-foreground">
+            {offlineMode
+              ? 'Replay artifacts provide historical context; live run controls are disabled.'
+              : 'Review the status of ongoing investigations.'}
+          </p>
         </div>
         <Button asChild className="gap-2">
           <Link to="/runs/composer">
@@ -107,14 +122,14 @@ function RunsRoute() {
             {runs.length === 0 && (
               <tr>
                 <td colSpan={3} className="px-4 py-12 text-center text-muted-foreground">
-                  No runs available.
+                  {offlineMode ? 'Run data is unavailable in offline mode.' : 'No runs available.'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      {runs.length > 0 && (
+      {runs.length > 0 && !offlineMode && (
         <section className="rounded-lg border border-border bg-card">
           <header className="border-b border-border px-4 py-3">
             <h2 className="text-lg font-medium">Live events</h2>

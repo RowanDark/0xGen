@@ -11,11 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScopeRouteImport } from './routes/scope'
 import { Route as RunsRouteImport } from './routes/runs'
-import { Route as RunDetailRouteImport } from './routes/runs.$runId'
-import { Route as RunsComposerRouteImport } from './routes/runs.composer'
 import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as CasesRouteImport } from './routes/cases'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RunsComposerRouteImport } from './routes/runs.composer'
+import { Route as RunsRunIdRouteImport } from './routes/runs.$runId'
 
 const ScopeRoute = ScopeRouteImport.update({
   id: '/scope',
@@ -25,16 +25,6 @@ const ScopeRoute = ScopeRouteImport.update({
 const RunsRoute = RunsRouteImport.update({
   id: '/runs',
   path: '/runs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RunDetailRoute = RunDetailRouteImport.update({
-  id: '/runs/$runId',
-  path: '/runs/$runId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RunsComposerRoute = RunsComposerRouteImport.update({
-  id: '/runs/composer',
-  path: '/runs/composer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FlowsRoute = FlowsRouteImport.update({
@@ -52,50 +42,80 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RunsComposerRoute = RunsComposerRouteImport.update({
+  id: '/composer',
+  path: '/composer',
+  getParentRoute: () => RunsRoute,
+} as any)
+const RunsRunIdRoute = RunsRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => RunsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
-  '/runs': typeof RunsRoute
-  '/runs/$runId': typeof RunDetailRoute
-  '/runs/composer': typeof RunsComposerRoute
+  '/runs': typeof RunsRouteWithChildren
   '/scope': typeof ScopeRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/runs/composer': typeof RunsComposerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
-  '/runs': typeof RunsRoute
-  '/runs/$runId': typeof RunDetailRoute
-  '/runs/composer': typeof RunsComposerRoute
+  '/runs': typeof RunsRouteWithChildren
   '/scope': typeof ScopeRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/runs/composer': typeof RunsComposerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
-  '/runs': typeof RunsRoute
-  '/runs/$runId': typeof RunDetailRoute
-  '/runs/composer': typeof RunsComposerRoute
+  '/runs': typeof RunsRouteWithChildren
   '/scope': typeof ScopeRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/runs/composer': typeof RunsComposerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cases' | '/flows' | '/runs' | '/runs/$runId' | '/runs/composer' | '/scope'
+  fullPaths:
+    | '/'
+    | '/cases'
+    | '/flows'
+    | '/runs'
+    | '/scope'
+    | '/runs/$runId'
+    | '/runs/composer'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cases' | '/flows' | '/runs' | '/runs/$runId' | '/runs/composer' | '/scope'
-  id: '__root__' | '/' | '/cases' | '/flows' | '/runs' | '/runs/$runId' | '/runs/composer' | '/scope'
+  to:
+    | '/'
+    | '/cases'
+    | '/flows'
+    | '/runs'
+    | '/scope'
+    | '/runs/$runId'
+    | '/runs/composer'
+  id:
+    | '__root__'
+    | '/'
+    | '/cases'
+    | '/flows'
+    | '/runs'
+    | '/scope'
+    | '/runs/$runId'
+    | '/runs/composer'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CasesRoute: typeof CasesRoute
   FlowsRoute: typeof FlowsRoute
-  RunsRoute: typeof RunsRoute
-  RunDetailRoute: typeof RunDetailRoute
-  RunsComposerRoute: typeof RunsComposerRoute
+  RunsRoute: typeof RunsRouteWithChildren
   ScopeRoute: typeof ScopeRoute
 }
 
@@ -113,20 +133,6 @@ declare module '@tanstack/react-router' {
       path: '/runs'
       fullPath: '/runs'
       preLoaderRoute: typeof RunsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/runs/$runId': {
-      id: '/runs/$runId'
-      path: '/runs/$runId'
-      fullPath: '/runs/$runId'
-      preLoaderRoute: typeof RunDetailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/runs/composer': {
-      id: '/runs/composer'
-      path: '/runs/composer'
-      fullPath: '/runs/composer'
-      preLoaderRoute: typeof RunsComposerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/flows': {
@@ -150,16 +156,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/runs/composer': {
+      id: '/runs/composer'
+      path: '/composer'
+      fullPath: '/runs/composer'
+      preLoaderRoute: typeof RunsComposerRouteImport
+      parentRoute: typeof RunsRoute
+    }
+    '/runs/$runId': {
+      id: '/runs/$runId'
+      path: '/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof RunsRunIdRouteImport
+      parentRoute: typeof RunsRoute
+    }
   }
 }
+
+interface RunsRouteChildren {
+  RunsRunIdRoute: typeof RunsRunIdRoute
+  RunsComposerRoute: typeof RunsComposerRoute
+}
+
+const RunsRouteChildren: RunsRouteChildren = {
+  RunsRunIdRoute: RunsRunIdRoute,
+  RunsComposerRoute: RunsComposerRoute,
+}
+
+const RunsRouteWithChildren = RunsRoute._addFileChildren(RunsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CasesRoute: CasesRoute,
   FlowsRoute: FlowsRoute,
-  RunsRoute: RunsRoute,
-  RunDetailRoute: RunDetailRoute,
-  RunsComposerRoute: RunsComposerRoute,
+  RunsRoute: RunsRouteWithChildren,
   ScopeRoute: ScopeRoute,
 }
 export const routeTree = rootRouteImport
