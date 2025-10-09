@@ -1,24 +1,42 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ArrowUpRight,
-  CheckCircle2,
-  ClipboardCopy,
-  Download,
-  FileCode,
-  Filter,
-  StickyNote,
-  ThumbsDown,
-  ThumbsUp
-} from 'lucide-react';
+import { CheckCircle2, Download, FileCode, Filter, RefreshCw, StickyNote, ThumbsDown, ThumbsUp } from 'lucide-react';
 import mermaid from 'mermaid';
 import { z } from 'zod';
 
 import { Button } from '../components/ui/button';
-import { CASES, type CaseSeverity } from '../lib/cases';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { fetchArtifactCases, type CaseRecord } from '../lib/ipc';
+import { useArtifact } from '../providers/artifact-provider';
+
+export type CaseSeverity = 'critical' | 'high' | 'medium' | 'low' | 'informational';
+
+type CaseEvidence = {
+  id: string;
+  title: string;
+  description: string;
+  link?: string;
+  type: 'network' | 'log' | 'screenshot' | 'artifact' | 'note';
+};
+
+type CaseViewModel = {
+  id: string;
+  title: string;
+  severity: CaseSeverity;
+  asset: string;
+  tags: string[];
+  confidence: number;
+  summary: string;
+  dedupedFindings: string[];
+  recommendedActions: string[];
+  evidence: CaseEvidence[];
+  reproSteps: string[];
+  poc: string;
+  graph: string;
+  original: CaseRecord;
+};
 
 const severityOrder: Record<CaseSeverity, number> = {
   critical: 0,
@@ -103,6 +121,92 @@ function severityToSarifLevel(severity: CaseSeverity) {
   }
 }
 
+function mapSeverity(value: string | undefined): CaseSeverity {
+  const normalized = value?.trim().toLowerCase();
+  switch (normalized) {
+    case 'crit':
+    case 'critical':
+      return 'critical';
+    case 'high':
+      return 'high';
+    case 'med':
+    case 'medium':
+      return 'medium';
+    case 'low':
+      return 'low';
+    default:
+      return 'informational';
+  }
+}
+
+function normaliseConfidence(value: number | undefined): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0;
+  }
+  if (value <= 1) {
+    return Math.max(0, Math.min(1, value)) * 100;
+  }
+  if (value > 100) {
+    return 100;
+  }
+  return Math.max(0, Math.min(100, value));
+}
+
+function mapEvidence(record: CaseRecord): CaseEvidence[] {
+  return record.evidence?.map((item, index) => {
+    const typeHint = item.type?.toLowerCase() ?? '';
+    let type: CaseEvidence['type'] = 'artifact';
+    if (typeHint.includes('screenshot') || typeHint.includes('image')) {
+      type = 'screenshot';
+    } else if (typeHint.includes('log')) {
+      type = 'log';
+    } else if (typeHint.includes('http') || typeHint.includes('request') || typeHint.includes('response')) {
+      type = 'network';
+    }
+    return {
+      id: `${record.id}-evidence-${index + 1}`,
+      title: `${item.plugin} (${item.type})`,
+      description: item.message,
+      link: undefined,
+      type
+    };
+  }) ?? [];
+}
+
+function buildCaseView(record: CaseRecord): CaseViewModel {
+  const assetParts = [record.asset.kind, record.asset.identifier].filter((part) => part && part.trim());
+  const assetLabel = assetParts.join(': ') || record.asset.details || 'Unknown asset';
+  const labels = Object.entries(record.labels ?? {}).map(([key, value]) =>
+    value ? `${key}:${value}` : key
+  );
+  const tags = Array.from(new Set([...labels, record.vector?.kind ?? ''].filter(Boolean))).sort();
+  const dedupedFindings = (record.sources ?? []).map((source) =>
+    `${source.plugin} ${source.type} (${source.severity})`
+  );
+
+  const recommendedActions: string[] = [];
+  const confidence = normaliseConfidence(record.confidence);
+  const poc = record.proof.summary ?? record.proof.steps?.join('\n') ?? '';
+  const graph = record.graph.mermaid || record.graph.dot || '';
+
+  return {
+    id: record.id,
+    title: record.summary,
+    severity: mapSeverity(record.risk?.severity),
+    asset: assetLabel,
+    tags,
+    confidence,
+    summary: record.summary,
+    dedupedFindings,
+    recommendedActions,
+    evidence: mapEvidence(record),
+    reproSteps: record.proof.steps ?? [],
+    poc,
+    graph,
+    original: record
+  };
+}
+
 function useMermaid(graphDefinition: string) {
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -138,25 +242,39 @@ function useMermaid(graphDefinition: string) {
   return ref;
 }
 
-function CaseExplorer() {
+function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
   const [severityFilter, setSeverityFilter] = useState<CaseSeverity[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
-  const [activeCaseId, setActiveCaseId] = useState(CASES[0]?.id ?? '');
+  const [activeCaseId, setActiveCaseId] = useState(cases[0]?.id ?? '');
   const [activeTab, setActiveTab] = useState<TabKey>('summary');
   const [notes, setNotes] = useState<Record<string, string[]>>({});
   const [noteDraft, setNoteDraft] = useState('');
   const [disposition, setDisposition] = useState<Record<string, 'tp' | 'fp' | undefined>>({});
   const caseListRef = useRef<HTMLDivElement | null>(null);
 
-  const allTags = useMemo(() => Array.from(new Set(CASES.flatMap((item) => item.tags))).sort(), []);
+  useEffect(() => {
+    if (cases.length > 0) {
+      setActiveCaseId((previous) => (cases.some((item) => item.id === previous) ? previous : cases[0].id));
+    } else {
+      setActiveCaseId('');
+    }
+    setNotes({});
+    setDisposition({});
+    setNoteDraft('');
+    setActiveTab('summary');
+  }, [cases]);
+
+  const allTags = useMemo(() => Array.from(new Set(cases.flatMap((item) => item.tags))).sort(), [cases]);
 
   const filteredCases = useMemo(() => {
-    return CASES.filter((item) => {
-      const severityMatch = severityFilter.length === 0 || severityFilter.includes(item.severity);
-      const tagMatch = tagFilter.length === 0 || item.tags.some((tag) => tagFilter.includes(tag));
-      return severityMatch && tagMatch;
-    }).sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-  }, [severityFilter, tagFilter]);
+    return cases
+      .filter((item) => {
+        const severityMatch = severityFilter.length === 0 || severityFilter.includes(item.severity);
+        const tagMatch = tagFilter.length === 0 || item.tags.some((tag) => tagFilter.includes(tag));
+        return severityMatch && tagMatch;
+      })
+      .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  }, [cases, severityFilter, tagFilter]);
 
   useEffect(() => {
     if (!filteredCases.find((item) => item.id === activeCaseId)) {
@@ -261,456 +379,468 @@ function CaseExplorer() {
 
       const blob = new Blob([data], { type: mime });
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       URL.revokeObjectURL(url);
-      toast.success(`Exported ${activeCase.id} as ${format.toUpperCase()}`);
+      toast.success(`Exported case ${activeCase.id} as ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Failed to export case', error);
-      toast.error('Export failed – please try again.');
+      toast.error('Unable to export case');
     }
   };
 
-  const handleCopyPoc = async () => {
-    if (!activeCase) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(activeCase.poc);
-      toast.success('Proof of concept copied to clipboard');
-    } catch (error) {
-      console.error('Clipboard copy failed', error);
-      toast.error('Unable to copy to clipboard');
-    }
-  };
-
-  const handleAddNote = () => {
-    if (!activeCase || noteDraft.trim().length === 0) {
-      return;
-    }
-
-    setNotes((prev) => {
-      const existing = prev[activeCase.id] ?? [];
-      return {
-        ...prev,
-        [activeCase.id]: [...existing, noteDraft.trim()]
-      };
-    });
-    setNoteDraft('');
-    toast.success('Note added to case');
-  };
-
-  if (!activeCase) {
+  if (cases.length === 0) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-muted-foreground">
         <FileCode className="h-10 w-10" />
-        <p>No cases match the current filters.</p>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">No cases available</h2>
+          <p>Open a replay artifact to review recorded investigations.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl gap-6 p-6">
-      <aside className="w-80 shrink-0 space-y-6">
-        <section className="rounded-lg border border-border bg-card p-4">
-          <header className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
-          </header>
-          <div className="space-y-4">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Severity</p>
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(severityCopy) as CaseSeverity[]).map((level) => {
-                  const isSelected = severityFilter.includes(level);
-                  return (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => {
-                        setSeverityFilter((prev) =>
-                          prev.includes(level) ? prev.filter((item) => item !== level) : [...prev, level]
-                        );
-                      }}
-                      className={cn(
-                        'rounded-full border px-3 py-1 text-xs font-medium transition',
-                        severityCopy[level].tone,
-                        isSelected ? 'ring-2 ring-offset-2 ring-offset-background ring-primary' : 'opacity-80 hover:opacity-100'
-                      )}
-                    >
-                      {severityCopy[level].label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Tags</p>
-              <div className="flex flex-wrap gap-2">
-                {allTags.map((tag) => {
-                  const isSelected = tagFilter.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => {
-                        setTagFilter((prev) =>
-                          prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
-                        );
-                      }}
-                      className={cn(
-                        'rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground',
-                        isSelected && 'border-primary/40 text-foreground'
-                      )}
-                    >
-                      #{tag}
-                    </button>
-                  );
-                })}
-              </div>
+    <div className="flex h-full min-h-0">
+      <aside className="w-72 border-r border-border bg-card px-4 py-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Filters</h2>
+          <Button variant="ghost" size="sm" onClick={() => {
+            setSeverityFilter([]);
+            setTagFilter([]);
+          }} className="h-auto px-2 py-1 text-xs">
+            Clear
+          </Button>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="case-search">
+              Search
+            </label>
+            <div className="relative mt-2">
+              <Filter className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                id="case-search"
+                type="search"
+                placeholder="Filter by tag"
+                className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                value={tagFilter.join(', ')}
+                onChange={(event) => {
+                  const values = event.target.value.split(',').map((value) => value.trim()).filter(Boolean);
+                  setTagFilter(values);
+                }}
+              />
             </div>
           </div>
-        </section>
-        <section className="rounded-lg border border-border bg-card">
-          <header className="border-b border-border px-4 py-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Cases ({filteredCases.length})
-          </header>
-          <div ref={caseListRef} className="max-h-[calc(100vh-240px)] overflow-y-auto p-3">
-            {filteredCases.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No cases match the selected filters.
-              </div>
-            ) : (
-              <div
-                style={{ height: `${caseVirtualizer.getTotalSize()}px`, position: 'relative' }}
-              >
-                {virtualCaseItems.map((virtualItem) => {
-                  const item = filteredCases[virtualItem.index];
-                  if (!item) {
-                    return null;
-                  }
-                  const isActive = activeCase?.id === item.id;
-                  return (
-                    <div
-                      key={virtualItem.key}
-                      data-index={virtualItem.index}
-                      ref={caseVirtualizer.measureElement}
-                      className="pb-2"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        transform: `translateY(${virtualItem.start}px)`
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveCaseId(item.id);
-                          setActiveTab('summary');
-                        }}
+          <FilterGroup
+            title="Severity"
+            options={Object.entries(severityCopy).map(([key, value]) => ({
+              value: key as CaseSeverity,
+              label: value.label
+            }))}
+            selected={severityFilter}
+            onToggle={(value) =>
+              setSeverityFilter((prev) =>
+                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+              )
+            }
+          />
+          <FilterGroup
+            title="Tags"
+            options={allTags.map((tag) => ({ value: tag, label: tag }))}
+            selected={tagFilter}
+            onToggle={(value) =>
+              setTagFilter((prev) =>
+                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+              )
+            }
+            emptyLabel="No tags"
+          />
+        </div>
+      </aside>
+      <section className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1">
+          <div ref={caseListRef} className="w-96 overflow-y-auto border-r border-border">
+            <ul className="relative">
+              <li style={{ height: caseVirtualizer.getTotalSize() }} />
+              {virtualCaseItems.map((virtualRow) => {
+                const item = filteredCases[virtualRow.index];
+                if (!item) {
+                  return null;
+                }
+                const isActive = item.id === activeCase?.id;
+                return (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      'absolute inset-x-0 cursor-pointer border-b border-border bg-card p-4 transition hover:bg-muted',
+                      isActive && 'border-primary bg-primary/10'
+                    )}
+                    style={{ transform: `translateY(${virtualRow.start}px)` }}
+                    onClick={() => setActiveCaseId(item.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                      <span
                         className={cn(
-                          'w-full rounded-lg border px-3 py-3 text-left transition',
-                          isActive
-                            ? 'border-primary/40 bg-primary/10 text-foreground'
-                            : 'border-transparent bg-background text-muted-foreground hover:border-border hover:text-foreground'
+                          'rounded-full border px-2 py-0.5 text-xs font-semibold uppercase',
+                          severityCopy[item.severity].tone
                         )}
                       >
-                        <div className="flex items-center justify-between text-xs uppercase">
-                          <span className="font-semibold">{item.id}</span>
-                          <span
-                            className={cn(
-                              'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                              severityCopy[item.severity].tone
-                            )}
-                          >
-                            {severityCopy[item.severity].label}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm font-medium text-foreground">{item.title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{item.asset}</p>
-                        <div className="mt-3 flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Confidence</span>
-                          <span className="font-semibold text-foreground">
-                            {formatConfidence(item.confidence)}
-                          </span>
-                        </div>
-                        <div className="mt-1 h-1.5 rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${Math.min(100, Math.max(0, item.confidence))}%` }}
-                          />
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-1">
-                          {item.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </button>
+                        {severityCopy[item.severity].label}
+                      </span>
                     </div>
-                  );
-                })}
+                    <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{item.summary}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded bg-secondary px-2 py-1 text-xs text-secondary-foreground">
+                        {item.asset}
+                      </span>
+                      <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+                        Confidence {formatConfidence(item.confidence)}
+                      </span>
+                      {item.tags.map((tag) => (
+                        <span key={tag} className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            {activeCase ? (
+              <article className="flex-1 space-y-6 overflow-y-auto p-6">
+                <header className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-semibold uppercase">Case ID</span>
+                        <span>{activeCase.id}</span>
+                      </div>
+                      <h1 className="mt-2 text-2xl font-semibold text-foreground">{activeCase.title}</h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('sarif')}>
+                        <Download className="h-4 w-4" />
+                        Export SARIF
+                      </Button>
+                      <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('jsonl')}>
+                        <FileCode className="h-4 w-4" />
+                        Export JSONL
+                      </Button>
+                      <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('html')}>
+                        <Download className="h-4 w-4" />
+                        Export HTML
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      Confidence {formatConfidence(activeCase.confidence)}
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <StickyNote className="h-4 w-4" />
+                      {activeCase.asset}
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      {severityCopy[activeCase.severity].label}
+                    </span>
+                  </div>
+                </header>
+
+                <div className="border-b border-border">
+                  <nav className="flex gap-4 text-sm font-medium">
+                    {tabOptions.map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setActiveTab(tab)}
+                        className={cn(
+                          'border-b-2 pb-2 transition',
+                          activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+                        )}
+                      >
+                        {tab === 'summary'
+                          ? 'Summary'
+                          : tab === 'evidence'
+                            ? 'Evidence'
+                            : tab === 'repro'
+                              ? 'Reproduction'
+                              : 'Graph'}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                {activeTab === 'summary' && (
+                  <section className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Executive summary</h2>
+                    <p className="text-sm text-muted-foreground">{activeCase.summary}</p>
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase text-muted-foreground">Deduped findings</h3>
+                      <ul className="mt-2 space-y-2">
+                        {activeCase.dedupedFindings.map((finding) => (
+                          <li key={finding} className="rounded border border-border bg-card/50 p-3 text-sm text-muted-foreground">
+                            {finding}
+                          </li>
+                        ))}
+                        {activeCase.dedupedFindings.length === 0 && (
+                          <li className="rounded border border-dashed border-border bg-card/50 p-3 text-sm text-muted-foreground">
+                            No supporting findings recorded.
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </section>
+                )}
+
+                {activeTab === 'evidence' && (
+                  <section className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Supporting evidence</h2>
+                    <ul className="space-y-3">
+                      {activeCase.evidence.map((item) => (
+                        <li key={item.id} className="rounded-md border border-border bg-card p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            </div>
+                            <span className="rounded bg-muted px-2 py-1 text-xs uppercase text-muted-foreground">
+                              {item.type}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                      {activeCase.evidence.length === 0 && (
+                        <li className="rounded border border-dashed border-border bg-card/50 p-4 text-sm text-muted-foreground">
+                          No evidence captured for this case.
+                        </li>
+                      )}
+                    </ul>
+                  </section>
+                )}
+
+                {activeTab === 'repro' && (
+                  <section className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Reproduction steps</h2>
+                    <ol className="list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
+                      {activeCase.reproSteps.map((step, index) => (
+                        <li key={`${activeCase.id}-repro-${index}`}>{step}</li>
+                      ))}
+                      {activeCase.reproSteps.length === 0 && (
+                        <li>No reproduction steps provided.</li>
+                      )}
+                    </ol>
+                    {activeCase.poc && (
+                      <div className="rounded-md bg-muted p-4 text-xs text-muted-foreground">
+                        <pre className="whitespace-pre-wrap break-words">{activeCase.poc}</pre>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {activeTab === 'graph' && (
+                  <section className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Exploit graph</h2>
+                    <div ref={mermaidRef} className="overflow-auto rounded-md border border-border bg-card p-4" />
+                  </section>
+                )}
+
+                <section className="space-y-4">
+                  <header className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-foreground">Analyst notes</h2>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={disposition[activeCase.id] === 'tp' ? 'default' : 'outline'}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() =>
+                          setDisposition((prev) => ({
+                            ...prev,
+                            [activeCase.id]: prev[activeCase.id] === 'tp' ? undefined : 'tp'
+                          }))
+                        }
+                      >
+                        <ThumbsUp className="h-4 w-4" />
+                        True positive
+                      </Button>
+                      <Button
+                        variant={disposition[activeCase.id] === 'fp' ? 'destructive' : 'outline'}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() =>
+                          setDisposition((prev) => ({
+                            ...prev,
+                            [activeCase.id]: prev[activeCase.id] === 'fp' ? undefined : 'fp'
+                          }))
+                        }
+                      >
+                        <ThumbsDown className="h-4 w-4" />
+                        False positive
+                      </Button>
+                    </div>
+                  </header>
+                  <div className="space-y-3">
+                    {(notes[activeCase.id] ?? []).map((note, index) => (
+                      <div key={`${activeCase.id}-note-${index}`} className="rounded-md border border-border bg-card p-3 text-sm">
+                        {note}
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <textarea
+                        className="min-h-[80px] flex-1 rounded-md border border-border bg-background p-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        placeholder="Add a note for other analysts"
+                        value={noteDraft}
+                        onChange={(event) => setNoteDraft(event.target.value)}
+                      />
+                      <Button
+                        size="sm"
+                        className="self-start"
+                        onClick={() => {
+                          const trimmed = noteDraft.trim();
+                          if (!trimmed) {
+                            return;
+                          }
+                          setNotes((prev) => ({
+                            ...prev,
+                            [activeCase.id]: [...(prev[activeCase.id] ?? []), trimmed]
+                          }));
+                          setNoteDraft('');
+                        }}
+                      >
+                        Add note
+                      </Button>
+                    </div>
+                  </div>
+                </section>
+              </article>
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-muted-foreground">
+                Select a case to review details.
               </div>
             )}
           </div>
-        </section>
-      </aside>
-      <section className="flex flex-1 flex-col gap-6">
-        {activeCase ? (
-          <>
-            <header className="rounded-lg border border-border bg-card p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-full border px-3 py-1 text-xs font-semibold uppercase text-muted-foreground">
-                      {severityCopy[activeCase.severity].label}
-                    </span>
-                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold uppercase text-secondary-foreground">
-                      {activeCase.asset}
-                    </span>
-                  </div>
-                  <h1 className="mt-4 text-3xl font-semibold text-foreground">{activeCase.title}</h1>
-                  <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{activeCase.summary}</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    {activeCase.tags.map((tag) => (
-                      <span key={tag} className="rounded-full border border-border px-2 py-1">#{tag}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2 text-sm text-muted-foreground">
-                  <span className="text-xs uppercase">Confidence</span>
-                  <span className="text-2xl font-semibold text-foreground">{formatConfidence(activeCase.confidence)}</span>
-                  <div className="h-2 w-32 rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${Math.min(100, Math.max(0, activeCase.confidence))}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant={disposition[activeCase.id] === 'tp' ? 'default' : 'outline'}
-                      className="gap-2"
-                      onClick={() => {
-                        setDisposition((prev) => ({ ...prev, [activeCase.id]: prev[activeCase.id] === 'tp' ? undefined : 'tp' }));
-                        toast.success('Marked as true positive');
-                      }}
-                    >
-                      <ThumbsUp className="h-4 w-4" />
-                      TP
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={disposition[activeCase.id] === 'fp' ? 'destructive' : 'outline'}
-                      className="gap-2"
-                      onClick={() => {
-                        setDisposition((prev) => ({ ...prev, [activeCase.id]: prev[activeCase.id] === 'fp' ? undefined : 'fp' }));
-                        toast.success('Marked as false positive');
-                      }}
-                    >
-                      <ThumbsDown className="h-4 w-4" />
-                      FP
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('sarif')}>
-                  <Download className="h-4 w-4" />
-                  Export SARIF
-                </Button>
-                <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('jsonl')}>
-                  <Download className="h-4 w-4" />
-                  Export JSONL
-                </Button>
-                <Button size="sm" variant="secondary" className="gap-2" onClick={() => handleExport('html')}>
-                  <Download className="h-4 w-4" />
-                  Export HTML
-                </Button>
-                <Button size="sm" variant="outline" className="gap-2" onClick={handleCopyPoc}>
-                  <ClipboardCopy className="h-4 w-4" />
-                  Copy POC
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => {
-                    const notesForCase = notes[activeCase.id] ?? [];
-                    toast.info(
-                      notesForCase.length > 0
-                        ? `Notes (${notesForCase.length}) already captured.`
-                        : 'No analyst notes yet.'
-                    );
-                  }}
-                >
-                  <StickyNote className="h-4 w-4" />
-                  Notes ({(notes[activeCase.id] ?? []).length})
-                </Button>
-              </div>
-            </header>
-
-            <nav className="flex gap-2">
-              {tabOptions.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    'rounded-md border px-4 py-2 text-sm font-medium capitalize transition',
-                    activeTab === tab
-                      ? 'border-primary/50 bg-primary/10 text-foreground'
-                      : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {tab === 'graph' ? 'Chain Graph' : tab}
-                </button>
-              ))}
-            </nav>
-
-            <article className="flex-1 rounded-lg border border-border bg-card p-6">
-              {activeTab === 'summary' && (
-                <div className="space-y-6">
-                  <section>
-                    <h2 className="text-lg font-semibold">Deduped findings</h2>
-                    <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                      {activeCase.dedupedFindings.map((finding) => (
-                        <li key={finding}>{finding}</li>
-                      ))}
-                    </ul>
-                  </section>
-                  <section>
-                    <h2 className="text-lg font-semibold">Recommended actions</h2>
-                    <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                      {activeCase.recommendedActions.map((action) => (
-                        <li key={action}>{action}</li>
-                      ))}
-                    </ul>
-                  </section>
-                  <section>
-                    <h2 className="text-lg font-semibold">Analyst notes</h2>
-                    <div className="mt-3 space-y-3">
-                      {(notes[activeCase.id] ?? []).length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No notes yet. Capture your investigation decisions below.
-                        </p>
-                      ) : (
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          {(notes[activeCase.id] ?? []).map((note, index) => (
-                            <li
-                              key={`${note}-${index}`}
-                              className="flex items-start gap-2 rounded-md border border-border bg-background p-3"
-                            >
-                              <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-                              <span>{note}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <div className="rounded-md border border-border bg-background p-4">
-                        <label className="block text-xs font-semibold uppercase text-muted-foreground" htmlFor="note">
-                          Add note
-                        </label>
-                        <textarea
-                          id="note"
-                          value={noteDraft}
-                          onChange={(event) => setNoteDraft(event.target.value)}
-                          rows={3}
-                          className="mt-2 w-full rounded-md border border-border bg-card p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Document why this case is important, escalated, or closed."
-                        />
-                        <div className="mt-2 flex justify-end">
-                          <Button size="sm" className="gap-2" onClick={handleAddNote}>
-                            <StickyNote className="h-4 w-4" />
-                            Save note
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-              )}
-
-              {activeTab === 'evidence' && (
-                <div className="space-y-4">
-                  {activeCase.evidence.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-border bg-background p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                          <p className="text-xs uppercase text-muted-foreground">{item.type}</p>
-                        </div>
-                        {item.link && (
-                          <a
-                            href={item.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                          >
-                            View artifact
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'repro' && (
-                <div className="space-y-6">
-                  <section>
-                    <h2 className="text-lg font-semibold">Reproduction steps</h2>
-                    <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-                      {activeCase.reproSteps.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ol>
-                  </section>
-                  <section>
-                    <h2 className="text-lg font-semibold">Proof of concept</h2>
-                    <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-background p-4 text-xs text-muted-foreground">
-                      {activeCase.poc}
-                    </pre>
-                  </section>
-                </div>
-              )}
-
-              {activeTab === 'graph' && (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">Exploit chain</h2>
-                  <div className="rounded-lg border border-border bg-background p-4">
-                    <div ref={mermaidRef} className="mermaid" aria-label="Exploit chain graph" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Diagram rendered with Mermaid describing the attacker flow from entry point to impact.
-                  </p>
-                </div>
-              )}
-            </article>
-          </>
-        ) : (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
-            Adjust the filters to display at least one case for detailed analysis.
-          </div>
-        )}
+        </div>
       </section>
     </div>
   );
 }
 
+type FilterGroupProps<T extends string | number> = {
+  title: string;
+  options: { value: T; label: string }[];
+  selected: T[];
+  onToggle: (value: T) => void;
+  emptyLabel?: string;
+};
+
+function FilterGroup<T extends string | number>({ title, options, selected, onToggle, emptyLabel }: FilterGroupProps<T>) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase text-muted-foreground">{title}</h3>
+      <div className="mt-2 space-y-2">
+        {options.length === 0 && (
+          <p className="text-xs text-muted-foreground">{emptyLabel ?? 'No options available'}</p>
+        )}
+        {options.map((option) => {
+          const isActive = selected.includes(option.value);
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onToggle(option.value)}
+              className={cn(
+                'flex w-full items-center justify-between rounded border px-3 py-2 text-left text-xs transition',
+                isActive ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted'
+              )}
+            >
+              <span>{option.label}</span>
+              {isActive && <CheckCircle2 className="h-4 w-4" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CasesRoute() {
+  const { status } = useArtifact();
+  const [cases, setCases] = useState<CaseViewModel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const artifactKey = `${status?.manifest?.casesFile ?? ''}:${status?.caseCount ?? 0}`;
+  const offlineMode = Boolean(status?.loaded);
+
+  useEffect(() => {
+    if (!offlineMode) {
+      setCases([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    fetchArtifactCases()
+      .then((records) => {
+        if (cancelled) {
+          return;
+        }
+        const mapped = records.map(buildCaseView);
+        setCases(mapped);
+      })
+      .catch((error) => {
+        console.error('Failed to load cases', error);
+        if (!cancelled) {
+          toast.error('Unable to load cases from artifact');
+          setCases([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [artifactKey, offlineMode]);
+
+  if (!offlineMode) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-muted-foreground">
+        <FileCode className="h-10 w-10" />
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Replay artifact required</h2>
+          <p>Open a replay archive to inspect recorded cases without a running daemon.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && cases.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+        <RefreshCw className="h-5 w-5 animate-spin" />
+        Loading cases…
+      </div>
+    );
+  }
+
+  return <CaseExplorer cases={cases} />;
+}
+
 export const Route = createFileRoute('/cases')({
-  component: CaseExplorer
+  component: CasesRoute
 });
 
-export default CaseExplorer;
+export default CasesRoute;

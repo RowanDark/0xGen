@@ -20,6 +20,7 @@ import {
   resendFlow,
   streamFlowEvents
 } from '../lib/ipc';
+import { useArtifact } from '../providers/artifact-provider';
 import { cn } from '../lib/utils';
 
 type HttpHeader = {
@@ -818,6 +819,16 @@ function FlowsRouteComponent() {
   const listRef = useRef<HTMLDivElement | null>(null);
   const eventQueueRef = useRef<FlowEvent[]>([]);
   const flushTimeoutRef = useRef<number | null>(null);
+  const { status } = useArtifact();
+  const offlineMode = Boolean(status?.loaded);
+  const artifactKey = `${status?.manifest?.flowsFile ?? ''}:${status?.flowCount ?? 0}`;
+  const editingEnabled = !offlineMode;
+
+  useEffect(() => {
+    setFlowMap(new Map());
+    setCursor(null);
+    setHasMore(false);
+  }, [artifactKey]);
 
   const applyBatch = useCallback((items: FlowEvent[]) => {
     setFlowMap((previous) => {
@@ -887,9 +898,13 @@ function FlowsRouteComponent() {
     return () => {
       cancelled = true;
     };
-  }, [commitBatch]);
+  }, [commitBatch, artifactKey]);
 
   useEffect(() => {
+    if (offlineMode) {
+      return;
+    }
+
     let cancelled = false;
     let handle: FlowStreamHandle | undefined;
 
@@ -931,7 +946,7 @@ function FlowsRouteComponent() {
       }
       eventQueueRef.current = [];
     };
-  }, [flushPendingEvents, scheduleFlush]);
+  }, [flushPendingEvents, scheduleFlush, offlineMode]);
 
   const methodOptions = useMemo(() => {
     return Array.from(
@@ -1095,6 +1110,10 @@ function FlowsRouteComponent() {
   };
 
   const beginEdit = (flow: FlowEntry) => {
+    if (!editingEnabled) {
+      toast.info('Editing is disabled while viewing replay artifacts');
+      return;
+    }
     if (!flow.request) {
       toast.error('Original request payload unavailable for editing');
       return;
@@ -1106,6 +1125,10 @@ function FlowsRouteComponent() {
   };
 
   const submitEdit = async () => {
+    if (!editingEnabled) {
+      toast.info('Editing is disabled while viewing replay artifacts');
+      return;
+    }
     if (!editingFlow) {
       return;
     }
@@ -1373,7 +1396,8 @@ function FlowsRouteComponent() {
                       variant="destructive"
                       size="sm"
                       onClick={() => beginEdit(selectedFlow)}
-                      disabled={!selectedFlow.request}
+                      disabled={!selectedFlow.request || !editingEnabled}
+                      title={editingEnabled ? undefined : 'Editing is disabled for replay artifacts'}
                     >
                       <Send className="mr-2 h-4 w-4" /> Edit & resend
                     </Button>
@@ -1532,7 +1556,8 @@ function FlowsRouteComponent() {
                     !editConfirmed ||
                     isSubmittingEdit ||
                     !editingFlow.request ||
-                    editDraft.trim().length === 0
+                    editDraft.trim().length === 0 ||
+                    !editingEnabled
                   }
                 >
                   {isSubmittingEdit ? 'Sending…' : 'Resend modified request'}

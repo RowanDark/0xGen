@@ -53,6 +53,162 @@ const DashboardMetricsSchema = z.object({
   casesFound: z.number()
 });
 
+const ManifestDnsRecordSchema = z.object({
+  host: z.string(),
+  addresses: z.array(z.string()).optional().default([])
+});
+
+const ManifestTlsRecordSchema = z.object({
+  host: z.string(),
+  ja3: z.string().optional(),
+  ja3Hash: z.string().optional(),
+  negotiatedAlpn: z.string().optional(),
+  offeredAlpn: z.array(z.string()).optional().default([])
+});
+
+const ManifestRobotsRecordSchema = z.object({
+  host: z.string(),
+  bodyFile: z.string().optional()
+});
+
+const ManifestRateLimitSchema = z.object({
+  host: z.string(),
+  policy: z.string()
+});
+
+const ManifestCookieSchema = z.object({
+  domain: z.string(),
+  name: z.string(),
+  value: z.string()
+});
+
+const ManifestResponseSchema = z.object({
+  requestUrl: z.string(),
+  method: z.string(),
+  status: z.number().int(),
+  headers: z.record(z.array(z.string())).optional().default({}),
+  bodyFile: z.string().optional()
+});
+
+const ManifestRunnerSchema = z.object({
+  glyphctlVersion: z.string().optional(),
+  glyphdVersion: z.string().optional(),
+  goVersion: z.string().optional(),
+  os: z.string().optional(),
+  arch: z.string().optional()
+});
+
+const ManifestPluginSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  manifestPath: z.string(),
+  signature: z.string(),
+  sha256: z.string()
+});
+
+const ManifestSchema = z.object({
+  version: z.string(),
+  createdAt: z.string(),
+  seeds: z.record(z.number()).optional().default({}),
+  dns: z.array(ManifestDnsRecordSchema).optional().default([]),
+  tls: z.array(ManifestTlsRecordSchema).optional().default([]),
+  robots: z.array(ManifestRobotsRecordSchema).optional().default([]),
+  rateLimits: z.array(ManifestRateLimitSchema).optional().default([]),
+  cookies: z.array(ManifestCookieSchema).optional().default([]),
+  responses: z.array(ManifestResponseSchema).optional().default([]),
+  flowsFile: z.string().optional(),
+  runner: ManifestRunnerSchema,
+  plugins: z.array(ManifestPluginSchema).optional().default([]),
+  findingsFile: z.string(),
+  casesFile: z.string(),
+  caseTimestamp: z.string()
+});
+
+const CaseEvidenceSchema = z.object({
+  plugin: z.string(),
+  type: z.string(),
+  message: z.string(),
+  evidence: z.string().optional(),
+  metadata: z.record(z.string()).optional().default({})
+});
+
+const CaseProofSchema = z.object({
+  summary: z.string().optional(),
+  steps: z.array(z.string()).optional().default([])
+});
+
+const CaseRiskSchema = z.object({
+  severity: z.string(),
+  score: z.number(),
+  rationale: z.string().optional()
+});
+
+const CaseSourceSchema = z.object({
+  id: z.string(),
+  plugin: z.string(),
+  type: z.string(),
+  severity: z.string(),
+  target: z.string().optional()
+});
+
+const CaseChainStepSchema = z.object({
+  stage: z.number().int(),
+  from: z.string(),
+  to: z.string(),
+  description: z.string(),
+  plugin: z.string(),
+  type: z.string(),
+  findingId: z.string(),
+  severity: z.string(),
+  weakLink: z.boolean().optional()
+});
+
+const CaseGraphSchema = z.object({
+  dot: z.string(),
+  mermaid: z.string(),
+  summary: z.string().optional(),
+  attackPath: z.array(CaseChainStepSchema).optional().default([])
+});
+
+const CaseSchema = z.object({
+  version: z.string(),
+  id: z.string(),
+  asset: z.object({
+    kind: z.string(),
+    identifier: z.string(),
+    details: z.string().optional()
+  }),
+  vector: z.object({
+    kind: z.string(),
+    value: z.string().optional()
+  }),
+  summary: z.string(),
+  evidence: z.array(CaseEvidenceSchema).optional().default([]),
+  proof: CaseProofSchema,
+  risk: CaseRiskSchema,
+  confidence: z.number(),
+  confidenceLog: z.string().optional(),
+  sources: z.array(CaseSourceSchema).optional().default([]),
+  generatedAt: z.string(),
+  labels: z.record(z.string()).optional().default({}),
+  graph: CaseGraphSchema
+});
+
+const OpenArtifactResponseSchema = z.object({
+  manifest: ManifestSchema,
+  metrics: DashboardMetricsSchema,
+  caseCount: z.number().int().nonnegative(),
+  flowCount: z.number().int().nonnegative()
+});
+
+const ArtifactStatusSchema = z.object({
+  loaded: z.boolean(),
+  manifest: ManifestSchema.optional(),
+  metrics: DashboardMetricsSchema.optional(),
+  caseCount: z.number().int().nonnegative(),
+  flowCount: z.number().int().nonnegative()
+});
+
 const timestampSchema = z.preprocess((value) => {
   if (typeof value === 'number') {
     return new Date(value * 1000).toISOString();
@@ -158,6 +314,10 @@ export type ScopeParseSuggestion = z.infer<typeof ScopeParseSuggestionSchema>;
 export type ScopeParseResponse = z.infer<typeof ScopeParseResponseSchema>;
 export type ScopeDryRunDecision = z.infer<typeof ScopeDryRunDecisionSchema>;
 export type ScopeDryRunResponse = z.infer<typeof ScopeDryRunResponseSchema>;
+export type Manifest = z.infer<typeof ManifestSchema>;
+export type CaseRecord = z.infer<typeof CaseSchema>;
+export type OpenArtifactResponse = z.infer<typeof OpenArtifactResponseSchema>;
+export type ArtifactStatus = z.infer<typeof ArtifactStatusSchema>;
 
 export type FlowFilters = {
   search?: string;
@@ -191,6 +351,21 @@ export async function listRuns(): Promise<Run[]> {
 export async function startRun(payload: StartRunPayload) {
   const response = await invoke('start_run', { payload });
   return StartRunResponseSchema.parse(response);
+}
+
+export async function openArtifact(path: string): Promise<OpenArtifactResponse> {
+  const response = await invoke('open_artifact', { path });
+  return OpenArtifactResponseSchema.parse(response);
+}
+
+export async function getArtifactStatus(): Promise<ArtifactStatus> {
+  const status = await invoke('artifact_status');
+  return ArtifactStatusSchema.parse(status);
+}
+
+export async function fetchArtifactCases(): Promise<CaseRecord[]> {
+  const cases = await invoke('list_cases');
+  return z.array(CaseSchema).parse(cases);
 }
 
 export async function fetchMetrics(): Promise<DashboardMetrics> {

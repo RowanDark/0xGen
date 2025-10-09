@@ -7,6 +7,7 @@ import { router } from './router';
 import { AppErrorBoundary } from './providers/error-boundary';
 import { Toaster } from './providers/toaster';
 import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
+import { ArtifactProvider } from './providers/artifact-provider';
 
 bootstrapTheme();
 
@@ -20,9 +21,11 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ThemeProvider>
       <AppErrorBoundary>
-        <Toaster />
-        <RouterProvider router={router} />
+        <ArtifactProvider>
+          <Toaster />
+          <RouterProvider router={router} />
+        </ArtifactProvider>
       </AppErrorBoundary>
     </ThemeProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

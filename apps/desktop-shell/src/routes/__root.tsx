@@ -1,10 +1,14 @@
 import { Link, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
-import { lazy, Suspense } from 'react';
-import { Menu, Play, RefreshCw } from 'lucide-react';
+import { lazy, Suspense, useMemo } from 'react';
+import { Menu, Play, RefreshCw, Archive } from 'lucide-react';
+import { open } from '@tauri-apps/api/dialog';
+import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
 import { ThemeSwitcher } from '../components/theme-switcher';
+import { openArtifact } from '../lib/ipc';
+import { useArtifact } from '../providers/artifact-provider';
 
 const Devtools = lazy(() => import('../screens/devtools'));
 
@@ -19,7 +23,48 @@ const navigation = [
 ];
 
 function Header() {
+  const { status, setStatusFromOpen } = useArtifact();
   const location = useRouterState({ select: (state) => state.location.pathname });
+  const offlineMode = Boolean(status?.loaded);
+
+  const artifactSummary = useMemo(() => {
+    if (!status?.manifest) {
+      return offlineMode ? 'Replay artifact mounted' : 'Connected to daemon';
+    }
+    const createdAt = status.manifest.createdAt
+      ? new Date(status.manifest.createdAt).toLocaleString()
+      : undefined;
+    const runner = status.manifest.runner?.glyphctlVersion ?? status.manifest.runner?.glyphdVersion;
+    if (createdAt && runner) {
+      return `Captured ${createdAt} • glyph ${runner}`;
+    }
+    if (createdAt) {
+      return `Captured ${createdAt}`;
+    }
+    return 'Replay artifact mounted';
+  }, [offlineMode, status?.manifest]);
+
+  const handleOpenArtifact = async () => {
+    try {
+      const selection = await open({
+        multiple: false,
+        filters: [{ name: 'Glyph replay artifacts', extensions: ['tgz'] }]
+      });
+      const file = Array.isArray(selection) ? selection[0] : selection;
+      if (!file || typeof file !== 'string') {
+        return;
+      }
+      const summary = await openArtifact(file);
+      setStatusFromOpen(summary);
+      toast.success(
+        `Mounted artifact with ${summary.caseCount} ${summary.caseCount === 1 ? 'case' : 'cases'}`
+      );
+    } catch (error) {
+      console.error('Failed to open artifact', error);
+      toast.error('Unable to open artifact');
+    }
+  };
+
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
       <div className="flex items-center gap-2">
@@ -42,7 +87,21 @@ function Header() {
       </nav>
       <div className="flex items-center gap-3">
         <ThemeSwitcher />
-        <Button variant="secondary" size="sm" className="gap-2">
+        <div className="hidden flex-col text-xs text-muted-foreground sm:flex">
+          <span className="font-medium text-foreground">{offlineMode ? 'Offline mode' : 'Live mode'}</span>
+          <span className="truncate">{artifactSummary}</span>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleOpenArtifact}>
+          <Archive className="h-4 w-4" />
+          Open artifact
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="gap-2"
+          disabled={offlineMode}
+          title={offlineMode ? 'Unavailable while browsing a replay artifact' : undefined}
+        >
           <Play className="h-4 w-4" />
           New run
         </Button>
