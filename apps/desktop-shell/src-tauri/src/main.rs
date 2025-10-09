@@ -743,8 +743,27 @@ fn extract_artifact(source: &Path, dest: &Path) -> Result<Manifest, String> {
     Ok(manifest)
 }
 
+fn manifest_child_path(root: &Path, value: &str, field: &str) -> Result<PathBuf, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(format!("{field} path is empty"));
+    }
+
+    let relative = Path::new(trimmed);
+    if !is_safe_entry_path(relative) {
+        return Err(format!("{field} path is invalid"));
+    }
+
+    let path = root.join(relative);
+    if !path.starts_with(root) {
+        return Err(format!("{field} path escapes artifact root"));
+    }
+
+    Ok(path)
+}
+
 fn load_cases(root: &Path, manifest: &Manifest) -> Result<Vec<CaseRecord>, String> {
-    let path = root.join(&manifest.cases_file);
+    let path = manifest_child_path(root, &manifest.cases_file, "cases file")?;
     let data = fs::read(&path).map_err(|err| format!("read cases: {err}"))?;
     let mut cases: Vec<CaseRecord> =
         serde_json::from_slice(&data).map_err(|err| format!("decode cases: {err}"))?;
@@ -753,18 +772,16 @@ fn load_cases(root: &Path, manifest: &Manifest) -> Result<Vec<CaseRecord>, Strin
 }
 
 fn load_flows(root: &Path, manifest: &Manifest) -> Result<Vec<FlowEventPayload>, String> {
-    let Some(flow_path) = manifest.flows_file.as_ref().and_then(|value| {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_string())
-        }
-    }) else {
+    let Some(flow_value) = manifest
+        .flows_file
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+    else {
         return Ok(Vec::new());
     };
 
-    let path = root.join(flow_path);
+    let path = manifest_child_path(root, flow_value, "flows file")?;
     let file = fs::File::open(&path).map_err(|err| format!("open flows: {err}"))?;
     let reader = BufReader::new(file);
     let mut records = Vec::new();
