@@ -13,7 +13,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strictNullChecks": true,
-    "types": ["vite/client"]
+    "types": ["vite/client", "framer-motion"]
   },
   "include": ["src"],
   "references": [{ "path": "tsconfig.node.json" }]

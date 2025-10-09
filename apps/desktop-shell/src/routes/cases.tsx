@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { CheckCircle2, Download, FileCode, Filter, RefreshCw, StickyNote, ThumbsDown, ThumbsUp } from 'lucide-react';
 import mermaid from 'mermaid';
 import { z } from 'zod';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { fetchArtifactCases, type CaseRecord } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
 import { useCommandCenter } from '../providers/command-center';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 
 export type CaseSeverity = 'critical' | 'high' | 'medium' | 'low' | 'informational';
 
@@ -248,8 +249,10 @@ function useMermaid(graphDefinition: string) {
 }
 
 function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
+  const [, startTransition] = useTransition();
   const [severityFilter, setSeverityFilter] = useState<CaseSeverity[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [activeCaseId, setActiveCaseId] = useState(cases[0]?.id ?? '');
   const [activeTab, setActiveTab] = useState<TabKey>('summary');
   const [notes, setNotes] = useState<Record<string, string[]>>({});
@@ -259,6 +262,7 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
   const filterInputRef = useRef<HTMLInputElement | null>(null);
   const caseDetailRef = useRef<HTMLDivElement | null>(null);
   const { registerCommand } = useCommandCenter();
+  const debouncedTagInput = useDebouncedValue(tagInput, 200);
 
   useEffect(() => {
     if (cases.length > 0) {
@@ -274,6 +278,22 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
 
   const allTags = useMemo(() => Array.from(new Set(cases.flatMap((item) => item.tags))).sort(), [cases]);
 
+  useEffect(() => {
+    const values = debouncedTagInput
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    startTransition(() => {
+      setTagFilter((previous) => {
+        if (previous.length === values.length && previous.every((item, index) => item === values[index])) {
+          return previous;
+        }
+        return values;
+      });
+    });
+  }, [debouncedTagInput, startTransition]);
+
   const filteredCases = useMemo(() => {
     return cases
       .filter((item) => {
@@ -283,6 +303,43 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
       })
       .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
   }, [cases, severityFilter, tagFilter]);
+
+  const clearFilters = useCallback(() => {
+    startTransition(() => {
+      setSeverityFilter([]);
+      setTagFilter([]);
+    });
+    setTagInput('');
+  }, [startTransition]);
+
+  const toggleSeverity = useCallback(
+    (value: CaseSeverity) => {
+      startTransition(() => {
+        setSeverityFilter((previous) => {
+          const exists = previous.includes(value);
+          if (exists) {
+            return previous.filter((item) => item !== value);
+          }
+          return [...previous, value];
+        });
+      });
+    },
+    [startTransition]
+  );
+
+  const toggleTag = useCallback(
+    (value: string) => {
+      startTransition(() => {
+        setTagFilter((previous) => {
+          const exists = previous.includes(value);
+          const next = exists ? previous.filter((item) => item !== value) : [...previous, value];
+          setTagInput(next.join(', '));
+          return next;
+        });
+      });
+    },
+    [startTransition]
+  );
 
   useEffect(() => {
     if (!filteredCases.find((item) => item.id === activeCaseId)) {
@@ -479,10 +536,7 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
       <aside className="w-72 border-r border-border bg-card px-4 py-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase text-muted-foreground">Filters</h2>
-          <Button variant="ghost" size="sm" onClick={() => {
-            setSeverityFilter([]);
-            setTagFilter([]);
-          }} className="h-auto px-2 py-1 text-xs">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto px-2 py-1 text-xs">
             Clear
           </Button>
         </div>
@@ -499,11 +553,8 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
                 placeholder="Filter by tag"
                 ref={filterInputRef}
                 className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                value={tagFilter.join(', ')}
-                onChange={(event) => {
-                  const values = event.target.value.split(',').map((value) => value.trim()).filter(Boolean);
-                  setTagFilter(values);
-                }}
+                value={tagInput}
+                onChange={(event) => setTagInput(event.target.value)}
               />
             </div>
           </div>
@@ -514,21 +565,13 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
               label: value.label
             }))}
             selected={severityFilter}
-            onToggle={(value) =>
-              setSeverityFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={toggleSeverity}
           />
           <FilterGroup
             title="Tags"
             options={allTags.map((tag) => ({ value: tag, label: tag }))}
             selected={tagFilter}
-            onToggle={(value) =>
-              setTagFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={toggleTag}
             emptyLabel="No tags"
           />
         </div>
@@ -554,6 +597,7 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
                   <li
                     key={item.id}
                     className="absolute inset-x-0"
+                    ref={caseVirtualizer.measureElement}
                     style={{ transform: `translateY(${virtualRow.start}px)` }}
                   >
                     <button
