@@ -26,6 +26,7 @@
   --theme-success: 142.1 76.2% 36.3%;
   --theme-warning: 32.1 94.6% 43.7%;
   --theme-error: 0 72.2% 50.6%;
+  --font-scale: 1;
 }
 
 :root {
@@ -52,6 +53,7 @@
   --warning: var(--theme-warning);
   --error: var(--theme-error);
   --radius: 0.5rem;
+  font-size: calc(100% * var(--font-scale));
 }
 
 :root[data-theme='light'] {
@@ -129,32 +131,32 @@
   --theme-error: 349.2 100% 65.1%;
 }
 
-:root[data-theme='red-team'] {
+:root[data-theme='red'] {
   --theme-background: 240 8.3% 4.7%;
   --theme-foreground: 240 4% 95.1%;
   --theme-card: 270 16.7% 9.4%;
   --theme-card-foreground: 240 4% 95.1%;
   --theme-popover: 270 16.7% 9.4%;
   --theme-popover-foreground: 240 4% 95.1%;
-  --theme-primary: 346.8 77.2% 49.8%;
+  --theme-primary: 346.8 77.2% 48%;
   --theme-primary-foreground: 0 0% 98%;
   --theme-secondary: 325.3 29.2% 12.7%;
   --theme-secondary-foreground: 240 4% 95.1%;
   --theme-muted: 333.5 43.4% 19.4%;
   --theme-muted-foreground: 352.6 95.7% 81.8%;
-  --theme-accent: 346.8 77.2% 49.8%;
+  --theme-accent: 346.8 77.2% 48%;
   --theme-accent-foreground: 0 0% 98%;
   --theme-destructive: 348.4 100% 54.5%;
   --theme-destructive-foreground: 240 8.3% 4.7%;
   --theme-border: 333.8 38.1% 16.5%;
   --theme-input: 333.8 38.1% 16.5%;
-  --theme-ring: 346.8 77.2% 49.8%;
+  --theme-ring: 346.8 77.2% 48%;
   --theme-success: 158.1 64.4% 51.6%;
   --theme-warning: 27 96% 61%;
   --theme-error: 348.4 100% 54.5%;
 }
 
-:root[data-theme='blue-team'] {
+:root[data-theme='blue'] {
   --theme-background: 225 54.5% 8.6%;
   --theme-foreground: 216 100% 95.1%;
   --theme-card: 225.4 54.7% 14.7%;
@@ -179,7 +181,7 @@
   --theme-error: 349.7 89.2% 60.2%;
 }
 
-:root[data-theme='purple-team'] {
+:root[data-theme='purple'] {
   --theme-background: 256.7 50% 7.1%;
   --theme-foreground: 251.4 91.3% 95.5%;
   --theme-card: 254.5 47.8% 13.5%;
