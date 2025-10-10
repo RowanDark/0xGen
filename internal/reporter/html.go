@@ -1,194 +1,269 @@
 package reporter
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"html"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
 )
 
-var severityClass = map[findings.Severity]string{
-	findings.SeverityCritical: "severity-critical",
-	findings.SeverityHigh:     "severity-high",
-	findings.SeverityMedium:   "severity-medium",
-	findings.SeverityLow:      "severity-low",
-	findings.SeverityInfo:     "severity-info",
-}
-
-var severityPriority = map[findings.Severity]int{
-	findings.SeverityCritical: 0,
-	findings.SeverityHigh:     1,
-	findings.SeverityMedium:   2,
-	findings.SeverityLow:      3,
-	findings.SeverityInfo:     4,
-}
-
 const htmlStyles = `:root {
  color-scheme: light dark;
- --bg-color: #f8fafc;
- --surface-color: #ffffff;
- --surface-muted: #f1f5f9;
- --border-color: #d8dee9;
- --text-color: #0f172a;
- --muted-color: #64748b;
- --accent-color: #2563eb;
- --accent-contrast: #ffffff;
- --severity-critical-bg: #b91c1c;
- --severity-critical-text: #ffffff;
- --severity-high-bg: #c2410c;
- --severity-high-text: #ffffff;
- --severity-medium-bg: #ca8a04;
- --severity-medium-text: #1f2937;
- --severity-low-bg: #1d4ed8;
- --severity-low-text: #ffffff;
- --severity-info-bg: #475569;
- --severity-info-text: #ffffff;
- --scope-in-bg: #0f766e;
- --scope-in-text: #ecfdf5;
- --scope-out-bg: #b91c1c;
- --scope-out-text: #fef2f2;
- --scope-neutral-bg: #475569;
- --scope-neutral-text: #f8fafc;
+ --bg: #0f172a;
+ --surface: #111c34;
+ --surface-muted: #1d2a44;
+ --border: #1e293b;
+ --text: #f8fafc;
+ --muted: #94a3b8;
+ --accent: #38bdf8;
+ --accent-contrast: #0f172a;
+ --chip-bg: rgba(148, 163, 184, 0.16);
+ --chip-border: rgba(148, 163, 184, 0.35);
+ --warn-bg: #b91c1c;
+ --warn-text: #fff7ed;
+ --crit-bg: #f87171;
+ --crit-text: #450a0a;
+ --high-bg: #fb923c;
+ --high-text: #431407;
+ --med-bg: #facc15;
+ --med-text: #422006;
+ --low-bg: #38bdf8;
+ --low-text: #082f49;
+ --info-bg: #cbd5f5;
+ --info-text: #1f2937;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
  :root {
-  --bg-color: #0f172a;
-  --surface-color: #111827;
-  --surface-muted: #1e293b;
-  --border-color: #1f2937;
-  --text-color: #e2e8f0;
-  --muted-color: #94a3b8;
-  --accent-color: #38bdf8;
-  --accent-contrast: #0f172a;
-  --severity-critical-bg: #f87171;
-  --severity-critical-text: #0f172a;
-  --severity-high-bg: #fb923c;
-  --severity-high-text: #0f172a;
-  --severity-medium-bg: #facc15;
-  --severity-medium-text: #0f172a;
-  --severity-low-bg: #38bdf8;
-  --severity-low-text: #0f172a;
-  --severity-info-bg: #64748b;
-  --severity-info-text: #0f172a;
-  --scope-in-bg: #14b8a6;
-  --scope-in-text: #022c22;
-  --scope-out-bg: #ef4444;
-  --scope-out-text: #450a0a;
-  --scope-neutral-bg: #94a3b8;
-  --scope-neutral-text: #0f172a;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #dbe4f3;
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #2563eb;
+  --accent-contrast: #ffffff;
+  --chip-bg: rgba(148, 163, 184, 0.18);
+  --chip-border: rgba(148, 163, 184, 0.45);
+  --warn-bg: #fee2e2;
+  --warn-text: #7f1d1d;
+  --crit-bg: #b91c1c;
+  --crit-text: #fef2f2;
+  --high-bg: #c2410c;
+  --high-text: #fef3c7;
+  --med-bg: #eab308;
+  --med-text: #422006;
+  --low-bg: #2563eb;
+  --low-text: #ffffff;
+  --info-bg: #e2e8f0;
+  --info-text: #0f172a;
  }
 }
 
-* { box-sizing: border-box; }
+* {
+ box-sizing: border-box;
+}
+
 body {
  margin: 0;
- padding: 32px;
  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
- background-color: var(--bg-color);
- color: var(--text-color);
- line-height: 1.6;
+ background: var(--bg);
+ color: var(--text);
+ min-height: 100vh;
 }
 
-h1, h2, h3 { color: var(--text-color); margin-top: 0; }
-p { margin: 0; }
-a { color: inherit; }
+a {
+ color: inherit;
+}
 
 .header {
+ padding: 32px clamp(24px, 6vw, 72px) 16px;
  display: flex;
- justify-content: space-between;
- align-items: flex-start;
- gap: 24px;
- flex-wrap: wrap;
- margin-bottom: 32px;
+ flex-direction: column;
+ gap: 12px;
+ border-bottom: 1px solid var(--border);
+ background: radial-gradient(120% 120% at 0% 0%, rgba(56, 189, 248, 0.25), transparent 65%), var(--surface);
 }
 
-.meta { color: var(--muted-color); margin-top: 4px; }
+.header h1 {
+ margin: 0;
+ font-size: clamp(2rem, 3vw, 2.8rem);
+ letter-spacing: -0.015em;
+}
 
-.header-actions { display: flex; gap: 12px; align-items: center; }
-.docs-link {
+.header .meta {
+ color: var(--muted);
+ font-size: 0.95rem;
+}
+
+main {
+ padding: 24px clamp(24px, 6vw, 72px) 80px;
+ display: flex;
+ flex-direction: column;
+ gap: 32px;
+}
+
+.banner {
+ background: var(--warn-bg);
+ color: var(--warn-text);
+ padding: 16px 24px;
+ border-radius: 16px;
+ font-weight: 600;
+ display: flex;
+ gap: 8px;
+ align-items: center;
+}
+
+.controls {
+ display: flex;
+ flex-wrap: wrap;
+ gap: 16px;
+ align-items: center;
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 20px;
+ padding: 18px 24px;
+ box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+.controls .search {
+ flex: 1;
+ min-width: 240px;
+ display: flex;
+ align-items: center;
+ gap: 12px;
+ background: var(--surface-muted);
+ border-radius: 999px;
+ padding: 10px 16px;
+ border: 1px solid transparent;
+}
+
+.controls .search input {
+ flex: 1;
+ font-size: 1rem;
+ border: none;
+ background: transparent;
+ color: var(--text);
+}
+
+.controls .search input:focus {
+ outline: none;
+}
+
+.controls button {
+ border: none;
+ border-radius: 999px;
+ background: var(--accent);
+ color: var(--accent-contrast);
+ font-weight: 600;
+ padding: 10px 18px;
+ cursor: pointer;
+ transition: transform 0.2s ease;
+}
+
+.controls button:hover {
+ transform: translateY(-1px);
+}
+
+.severity-chips {
+ display: flex;
+ gap: 8px;
+ flex-wrap: wrap;
+ align-items: center;
+}
+
+.severity-chip {
  display: inline-flex;
  align-items: center;
  gap: 8px;
- background: var(--accent-color);
- color: var(--accent-contrast);
- padding: 10px 16px;
- border-radius: 9999px;
- text-decoration: none;
- font-weight: 600;
- box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
- transition: transform 0.2s ease, box-shadow 0.2s ease;
+ border-radius: 999px;
+ padding: 6px 14px;
+ font-size: 0.9rem;
+ background: var(--chip-bg);
+ border: 1px solid var(--chip-border);
+ color: var(--muted);
+ cursor: pointer;
+ transition: opacity 0.2s ease;
 }
-.docs-link:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
 
-.section { margin-bottom: 40px; }
+.severity-chip input {
+ display: none;
+}
 
-.stat-grid {
+.severity-chip.crit { background: var(--crit-bg); color: var(--crit-text); }
+.severity-chip.high { background: var(--high-bg); color: var(--high-text); }
+.severity-chip.med { background: var(--med-bg); color: var(--med-text); }
+.severity-chip.low { background: var(--low-bg); color: var(--low-text); }
+.severity-chip.info { background: var(--info-bg); color: var(--info-text); }
+
+.severity-chip.inactive {
+ opacity: 0.35;
+}
+
+.stats-grid {
  display: grid;
- grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
- gap: 16px;
- margin-bottom: 24px;
+ gap: 20px;
+ grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .stat-card {
- background: var(--surface-color);
- border: 1px solid var(--border-color);
- border-radius: 16px;
- padding: 20px;
- box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 20px;
+ padding: 20px 24px;
+ box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+ display: flex;
+ flex-direction: column;
+ gap: 6px;
 }
 
-.stat-card .label { display: block; color: var(--muted-color); font-size: 0.9rem; margin-bottom: 8px; }
-.stat-card .value { font-size: 1.8rem; font-weight: 700; }
+.stat-card .label {
+ text-transform: uppercase;
+ letter-spacing: 0.08em;
+ font-size: 0.75rem;
+ color: var(--muted);
+}
 
-.panel-grid {
- display: grid;
- grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
- gap: 20px;
+.stat-card .value {
+ font-size: 2rem;
+ font-weight: 700;
+}
+
+.stat-card .hint {
+ color: var(--muted);
+ font-size: 0.85rem;
 }
 
 .panel {
- background: var(--surface-color);
- border: 1px solid var(--border-color);
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 22px;
+ padding: 22px 26px;
+ box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+}
+
+.panel h2 {
+ margin: 0 0 12px 0;
+ font-size: 1.4rem;
+}
+
+.case-list {
+ display: flex;
+ flex-direction: column;
+ gap: 18px;
+}
+
+.case-card {
+ border: 1px solid var(--border);
  border-radius: 18px;
- padding: 20px;
- box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-}
-
-.panel table { width: 100%; border-collapse: collapse; }
-.panel th, .panel td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); text-align: left; }
-.panel th.numeric, .panel td.numeric { text-align: right; }
-.panel tbody tr:last-child td { border-bottom: none; }
-
-.recent-table {
- width: 100%;
- border-collapse: collapse;
- margin-top: 16px;
- background: var(--surface-color);
- border: 1px solid var(--border-color);
- border-radius: 16px;
  overflow: hidden;
- box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+ background: linear-gradient(145deg, rgba(56, 189, 248, 0.18), transparent 60%), var(--surface);
 }
 
-.recent-table th, .recent-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; }
-.recent-table tr:last-child td { border-bottom: none; }
-.recent-table tbody tr:nth-child(even) { background: var(--surface-muted); }
-
-.case-list { display: flex; flex-direction: column; gap: 16px; }
-
-.case {
- background: var(--surface-color);
- border: 1px solid var(--border-color);
- border-radius: 18px;
- box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
- overflow: hidden;
-}
-
-.case summary {
+.case-card summary {
  list-style: none;
  padding: 18px 22px;
  display: grid;
@@ -198,544 +273,669 @@ a { color: inherit; }
  cursor: pointer;
 }
 
-.case summary::-webkit-details-marker { display: none; }
-
-.case summary .case-title { font-weight: 600; font-size: 1.05rem; }
-.case summary .case-target { color: var(--muted-color); font-size: 0.9rem; }
-.case summary .case-meta { text-align: right; font-size: 0.85rem; color: var(--muted-color); }
-
-.case[open] summary { background: var(--surface-muted); border-bottom: 1px solid var(--border-color); }
-
-.case-body { padding: 22px; display: grid; gap: 20px; }
-
-.case-meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-.case-meta-grid span { display: block; font-size: 0.85rem; color: var(--muted-color); }
-.case-meta-grid strong { display: block; font-size: 0.95rem; color: var(--text-color); }
-
-.case-evidence, .case-poc, .case-meta { background: var(--surface-muted); border-radius: 12px; padding: 16px; }
-
-.case-evidence-header, .case-poc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-
-.copy-button {
- border: none;
- background: var(--accent-color);
- color: var(--accent-contrast);
- padding: 6px 12px;
- border-radius: 8px;
- cursor: pointer;
- font-size: 0.85rem;
- font-weight: 600;
- transition: opacity 0.2s ease;
-}
-.copy-button:hover { opacity: 0.85; }
-
-pre {
- background: transparent;
- margin: 0;
- padding: 0;
- font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
- font-size: 0.85rem;
- overflow-x: auto;
- white-space: pre-wrap;
- word-break: break-word;
+.case-card summary::-webkit-details-marker {
+ display: none;
 }
 
-.thumbnail-grid {
- display: grid;
- grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
- gap: 12px;
+.case-card summary:hover {
+ background: rgba(148, 163, 184, 0.12);
 }
 
-.thumbnail-grid img {
- width: 100%;
- border-radius: 12px;
- border: 1px solid var(--border-color);
- box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
-}
-
-.scope-badge {
- display: inline-flex;
- align-items: center;
- padding: 4px 10px;
- border-radius: 9999px;
- font-size: 0.75rem;
- font-weight: 600;
- letter-spacing: 0.02em;
+.case-chip {
+ font-weight: 700;
  text-transform: uppercase;
+ font-size: 0.75rem;
+ letter-spacing: 0.08em;
+ padding: 6px 12px;
+ border-radius: 999px;
 }
 
-.scope-in { background: var(--scope-in-bg); color: var(--scope-in-text); }
-.scope-out { background: var(--scope-out-bg); color: var(--scope-out-text); }
-.scope-neutral { background: var(--scope-neutral-bg); color: var(--scope-neutral-text); }
+.case-card .asset {
+ color: var(--muted);
+ font-size: 0.9rem;
+}
 
-.severity-pill {
+.case-card .body {
+ padding: 0 22px 18px 22px;
+ display: grid;
+ gap: 16px;
+}
+
+.case-card dl {
+ margin: 0;
+ display: grid;
+ gap: 4px;
+ grid-template-columns: 140px 1fr;
+ font-size: 0.95rem;
+}
+
+.case-card dl dt {
+ color: var(--muted);
+}
+
+.case-card dl dd {
+ margin: 0;
+}
+
+.case-card ul {
+ margin: 0;
+ padding-left: 18px;
+ display: grid;
+ gap: 8px;
+}
+
+.case-card li {
+ line-height: 1.5;
+}
+
+.findings-table {
+ width: 100%;
+ border-collapse: collapse;
+ margin-top: 12px;
+}
+
+.findings-table th,
+.findings-table td {
+ text-align: left;
+ padding: 10px 14px;
+ border-bottom: 1px solid var(--border);
+}
+
+.findings-table tbody tr:nth-child(even) {
+ background: var(--surface-muted);
+}
+
+.badge {
  display: inline-flex;
  align-items: center;
- justify-content: center;
- padding: 6px 12px;
- border-radius: 9999px;
- font-weight: 600;
+ gap: 6px;
+ border-radius: 999px;
+ padding: 4px 10px;
  font-size: 0.85rem;
+ font-weight: 600;
 }
 
-.severity-critical { background: var(--severity-critical-bg); color: var(--severity-critical-text); }
-.severity-high { background: var(--severity-high-bg); color: var(--severity-high-text); }
-.severity-medium { background: var(--severity-medium-bg); color: var(--severity-medium-text); }
-.severity-low { background: var(--severity-low-bg); color: var(--severity-low-text); }
-.severity-info { background: var(--severity-info-bg); color: var(--severity-info-text); }
-
-.metadata-list { display: grid; gap: 12px; }
-.metadata-entry { display: flex; flex-direction: column; gap: 4px; }
-.metadata-entry span { color: var(--muted-color); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.metadata-entry strong { font-size: 0.95rem; word-break: break-word; }
+.badge.crit { background: var(--crit-bg); color: var(--crit-text); }
+.badge.high { background: var(--high-bg); color: var(--high-text); }
+.badge.med { background: var(--med-bg); color: var(--med-text); }
+.badge.low { background: var(--low-bg); color: var(--low-text); }
+.badge.info { background: var(--info-bg); color: var(--info-text); }
 
 .empty-state {
- padding: 24px;
- background: var(--surface-muted);
- border-radius: 16px;
- color: var(--muted-color);
  text-align: center;
+ padding: 40px 0;
+ color: var(--muted);
 }
 
 @media (max-width: 720px) {
- body { padding: 20px; }
- .case summary { grid-template-columns: 1fr; text-align: left; }
- .case summary .case-meta { text-align: left; }
- .header { flex-direction: column; }
+ .case-card summary {
+  grid-template-columns: 1fr;
+ }
+ .case-card dl {
+  grid-template-columns: 1fr;
+ }
+ .case-card dl dt {
+  font-weight: 600;
+ }
 }
 `
 
-const htmlScript = `(function(){
-  function resetLabel(button, original){
-    setTimeout(function(){ button.textContent = original; }, 1800);
-  }
-  document.addEventListener('click', function(evt){
-    var button = evt.target.closest('[data-copy-target]');
-    if (!button) { return; }
-    var target = document.querySelector(button.getAttribute('data-copy-target'));
-    if (!target) { return; }
-    var text = target.textContent || '';
-    var original = button.textContent;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function(){
-        button.textContent = 'Copied!';
-        resetLabel(button, original);
-      }).catch(function(){
-        button.textContent = 'Copy failed';
-        resetLabel(button, original);
-      });
-    } else {
-      var textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        button.textContent = 'Copied!';
-      } catch (err) {
-        button.textContent = 'Copy failed';
-      }
-      document.body.removeChild(textarea);
-      resetLabel(button, original);
-    }
-  });
-})();`
+const htmlAppScript = `(function () {
+  const severityOrder = [
+    { id: "crit", label: "Critical" },
+    { id: "high", label: "High" },
+    { id: "med", label: "Medium" },
+    { id: "low", label: "Low" },
+    { id: "info", label: "Informational" },
+  ];
 
-// RenderHTML converts a slice of findings into an HTML report.
-func RenderHTML(list []findings.Finding, opts ReportOptions) string {
-	summary := buildSummary(list, opts)
-	filteredList, _, _ := filterFindings(list, opts)
-	cases := buildCases(filteredList)
+  const state = {
+    dataset: null,
+    searchQuery: "",
+    severities: new Set(severityOrder.map((item) => item.id)),
+    filteredCases: [],
+  };
+
+  document.addEventListener("DOMContentLoaded", init);
+
+  async function init() {
+    await verifyIntegrity();
+    const dataElement = document.getElementById("glyph-data");
+    if (!dataElement) {
+      console.error("dataset element missing");
+      return;
+    }
+    try {
+      state.dataset = JSON.parse(dataElement.textContent || "{}");
+    } catch (error) {
+      console.error("failed to parse dataset", error);
+      showIntegrityWarning("dataset parse error");
+      return;
+    }
+
+    buildSeverityFilters();
+    bindControls();
+    renderOverview();
+    renderFindings();
+    applyFilters();
+  }
+
+  async function verifyIntegrity() {
+    if (!window.crypto || !window.crypto.subtle) {
+      return;
+    }
+    const elements = ["glyph-style", "glyph-data", "glyph-app"];
+    for (const id of elements) {
+      const el = document.getElementById(id);
+      if (!el) {
+        continue;
+      }
+      const expected = el.getAttribute("data-integrity");
+      if (!expected) {
+        continue;
+      }
+      const encoder = new TextEncoder();
+      const digest = await window.crypto.subtle.digest(
+        "SHA-256",
+        encoder.encode(el.textContent || "")
+      );
+      const actual = "sha256-" + bufferToBase64(digest);
+      if (actual !== expected) {
+        console.error(
+          "integrity mismatch for " +
+            id +
+            ": expected " +
+            expected +
+            ", got " +
+            actual,
+        );
+        showIntegrityWarning(id);
+        break;
+      }
+    }
+  }
+
+  function showIntegrityWarning(source) {
+    const banner = document.getElementById("integrityWarning");
+    if (!banner) {
+      return;
+    }
+    banner.hidden = false;
+    const code = banner.querySelector("code");
+    if (code) {
+      code.textContent = source || "unknown";
+    }
+  }
+
+  function bufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return btoa(binary);
+  }
+
+  function bindControls() {
+    const search = document.getElementById("searchInput");
+    if (search) {
+      search.addEventListener("input", (event) => {
+        state.searchQuery = (event.target.value || "").toLowerCase();
+        applyFilters();
+      });
+    }
+
+    const reset = document.getElementById("resetFilters");
+    if (reset) {
+      reset.addEventListener("click", () => {
+        state.searchQuery = "";
+        state.severities = new Set(severityOrder.map((item) => item.id));
+        if (search) {
+          search.value = "";
+        }
+        updateSeverityChipState();
+        applyFilters();
+      });
+    }
+  }
+
+  function buildSeverityFilters() {
+    const container = document.getElementById("severityFilters");
+    if (!container) {
+      return;
+    }
+    container.innerHTML = "";
+    severityOrder.forEach((item) => {
+      const label = document.createElement("label");
+      label.className = "severity-chip " + item.id;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.value = item.id;
+      checkbox.addEventListener("change", (event) => {
+        if (event.target.checked) {
+          state.severities.add(item.id);
+        } else {
+          state.severities.delete(item.id);
+        }
+        label.classList.toggle("inactive", !event.target.checked);
+        applyFilters();
+      });
+
+      const text = document.createElement("span");
+      text.textContent = item.label;
+
+      label.append(checkbox, text);
+      container.appendChild(label);
+    });
+  }
+
+  function updateSeverityChipState() {
+    const container = document.getElementById("severityFilters");
+    if (!container) {
+      return;
+    }
+    const chips = Array.from(container.querySelectorAll("label"));
+    chips.forEach((chip) => {
+      const checkbox = chip.querySelector("input");
+      if (!checkbox) {
+        return;
+      }
+      const value = checkbox.value;
+      const checked = state.severities.has(value);
+      checkbox.checked = checked;
+      chip.classList.toggle("inactive", !checked);
+    });
+  }
+
+  function applyFilters() {
+    const cases = Array.isArray(state.dataset?.cases) ? state.dataset.cases : [];
+    const query = state.searchQuery;
+    const severities = state.severities;
+
+    const filtered = cases.filter((item) => {
+      const severity = normaliseSeverity(item?.risk?.severity);
+      if (!severities.has(severity)) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return buildSearchText(item).includes(query);
+    });
+
+    filtered.sort(compareCases);
+    state.filteredCases = filtered;
+
+    renderStats();
+    renderCases();
+  }
+
+  function compareCases(a, b) {
+    const rank = (severity) => {
+      const index = severityOrder.findIndex((entry) => entry.id === severity);
+      return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+    };
+    const severityDiff = rank(normaliseSeverity(a?.risk?.severity)) - rank(normaliseSeverity(b?.risk?.severity));
+    if (severityDiff !== 0) {
+      return severityDiff;
+    }
+    const timeA = parseTimestamp(b?.generated_at) - parseTimestamp(a?.generated_at);
+    if (timeA !== 0) {
+      return timeA;
+    }
+    return (a?.id || "").localeCompare(b?.id || "");
+  }
+
+  function buildSearchText(item) {
+    const fields = [];
+    fields.push(item?.summary || "");
+    fields.push(item?.asset?.identifier || "");
+    fields.push(item?.asset?.details || "");
+    fields.push(item?.vector?.kind || "");
+    fields.push(item?.vector?.value || "");
+    if (Array.isArray(item?.evidence)) {
+      item.evidence.forEach((evidence) => {
+        fields.push(evidence?.message || "");
+        fields.push(evidence?.evidence || "");
+      });
+    }
+    if (Array.isArray(item?.sources)) {
+      item.sources.forEach((src) => {
+        fields.push(src?.id || "");
+        fields.push(src?.plugin || "");
+        fields.push(src?.target || "");
+      });
+    }
+    return fields.join(" ").toLowerCase();
+  }
+
+  function renderOverview() {
+    const summary = state.dataset?.summary || {};
+    setText("generatedAt", formatTimestamp(summary.generated_at || state.dataset?.generated_at));
+    if (summary.window_start) {
+      setText("windowStart", formatTimestamp(summary.window_start));
+    } else {
+      setText("windowStart", "All findings");
+    }
+    setText("windowEnd", formatTimestamp(summary.window_end || summary.generated_at));
+
+    const severityCounts = summary.severity_breakdown || {};
+    severityOrder.forEach((entry) => {
+      setText("count-" + entry.id, severityCounts[entry.id] ?? 0);
+    });
+
+    setText("totalFindings", summary.total ?? state.dataset?.findings_count ?? 0);
+    setText("totalCases", Array.isArray(state.dataset?.cases) ? state.dataset.cases.length : 0);
+
+    const sbom = state.dataset?.sbom;
+    const sbomSection = document.getElementById("sbomInfo");
+    if (sbom && sbomSection) {
+      const digest = sbom?.digest?.value
+        ? sbom.digest.algorithm + ":" + sbom.digest.value
+        : "";
+      const pathLabel =
+        "<strong>SBOM</strong>: <code>" +
+        escapeHTML(sbom.path || "(not provided)") +
+        "</code>";
+      const digestLabel = digest
+        ? " • <code>" + escapeHTML(digest) + "</code>"
+        : "";
+      sbomSection.innerHTML = pathLabel + digestLabel;
+      sbomSection.hidden = false;
+    }
+  }
+
+  function renderStats() {
+    setText("filteredCases", state.filteredCases.length);
+    const severityCounts = { crit: 0, high: 0, med: 0, low: 0, info: 0 };
+    state.filteredCases.forEach((item) => {
+      const severity = normaliseSeverity(item?.risk?.severity);
+      if (severityCounts.hasOwnProperty(severity)) {
+        severityCounts[severity] += 1;
+      }
+    });
+    Object.entries(severityCounts).forEach(([key, value]) => {
+      setText("filtered-" + key, value);
+    });
+  }
+
+  function renderCases() {
+    const container = document.getElementById("caseList");
+    if (!container) {
+      return;
+    }
+    container.innerHTML = "";
+    if (state.filteredCases.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "No cases match the active filters.";
+      container.appendChild(empty);
+      return;
+    }
+
+    state.filteredCases.forEach((item) => {
+      const details = document.createElement("details");
+      details.className = "case-card";
+      details.open = state.filteredCases.length <= 3;
+
+      const summary = document.createElement("summary");
+      const severity = normaliseSeverity(item?.risk?.severity);
+      const chip = document.createElement("span");
+      chip.className = "case-chip badge " + severity;
+      chip.textContent = severityLabel(severity);
+
+      const title = document.createElement("div");
+      title.textContent = item?.summary || "Untitled case";
+
+      const asset = document.createElement("div");
+      asset.className = "asset";
+      asset.textContent = formatAsset(item?.asset);
+
+      summary.append(chip, title, asset);
+      details.appendChild(summary);
+
+      const body = document.createElement("div");
+      body.className = "body";
+
+      body.appendChild(buildDefinition("Confidence", formatConfidence(item?.confidence)));
+      body.appendChild(buildDefinition("Attack vector", formatVector(item?.vector)));
+      body.appendChild(buildDefinition("Risk rationale", item?.risk?.rationale || "(not provided)"));
+
+      const evidenceSection = document.createElement("div");
+      evidenceSection.innerHTML = "<strong>Evidence</strong>";
+      const evidenceList = document.createElement("ul");
+      if (Array.isArray(item?.evidence) && item.evidence.length > 0) {
+        item.evidence.forEach((evidence) => {
+          const li = document.createElement("li");
+          const pluginLabel =
+            "<strong>" + escapeHTML(evidence?.plugin || "") + "</strong>: ";
+          li.innerHTML =
+            pluginLabel + escapeHTML(evidence?.message || "(not provided)");
+          if (evidence?.evidence) {
+            const pre = document.createElement("pre");
+            pre.textContent = evidence.evidence;
+            pre.style.margin = "6px 0 0 0";
+            pre.style.whiteSpace = "pre-wrap";
+            li.appendChild(pre);
+          }
+          evidenceList.appendChild(li);
+        });
+      } else {
+        const li = document.createElement("li");
+        li.textContent = "No supporting evidence provided.";
+        evidenceList.appendChild(li);
+      }
+      evidenceSection.appendChild(evidenceList);
+      body.appendChild(evidenceSection);
+
+      const sources = Array.isArray(item?.sources) ? item.sources : [];
+      if (sources.length > 0) {
+        const sourceSection = document.createElement("div");
+        sourceSection.innerHTML = "<strong>Source findings</strong>";
+        const list = document.createElement("ul");
+        sources.forEach((source) => {
+          const li = document.createElement("li");
+          const anchor = document.createElement("a");
+          anchor.href = "#finding-" + (source?.id || "");
+          anchor.textContent = source?.id || "unknown";
+          li.appendChild(anchor);
+          const meta = document.createElement("span");
+          meta.textContent =
+            " • " +
+            (source?.plugin || "") +
+            " (" +
+            severityLabel(normaliseSeverity(source?.severity)) +
+            ")";
+          li.appendChild(meta);
+          list.appendChild(li);
+        });
+        sourceSection.appendChild(list);
+        body.appendChild(sourceSection);
+      }
+
+      details.appendChild(body);
+      container.appendChild(details);
+    });
+  }
+
+  function renderFindings() {
+    const table = document.getElementById("findingsTable");
+    if (!table) {
+      return;
+    }
+    const findings = Array.isArray(state.dataset?.findings) ? state.dataset.findings : [];
+    const tbody = table.querySelector("tbody");
+    if (!tbody) {
+      return;
+    }
+    tbody.innerHTML = "";
+    findings
+      .slice()
+      .sort((a, b) => parseTimestamp(b?.ts) - parseTimestamp(a?.ts))
+      .forEach((finding) => {
+        const row = document.createElement("tr");
+        row.id = "finding-" + (finding?.id || "");
+
+        const severityCell = document.createElement("td");
+        const badge = document.createElement("span");
+        const severity = normaliseSeverity(finding?.severity);
+        badge.className = "badge " + severity;
+        badge.textContent = severityLabel(severity);
+        severityCell.appendChild(badge);
+
+        const pluginCell = document.createElement("td");
+        pluginCell.textContent = finding?.plugin || "";
+
+        const targetCell = document.createElement("td");
+        targetCell.textContent = finding?.target || "(not specified)";
+
+        const messageCell = document.createElement("td");
+        messageCell.textContent = finding?.message || "(not provided)";
+
+        const timeCell = document.createElement("td");
+        timeCell.textContent = formatTimestamp(finding?.ts);
+
+        row.append(severityCell, pluginCell, targetCell, messageCell, timeCell);
+        tbody.appendChild(row);
+      });
+  }
+
+  function buildDefinition(label, value) {
+    const wrapper = document.createElement("dl");
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    dd.textContent = value;
+    wrapper.append(dt, dd);
+    return wrapper;
+  }
+
+  function formatConfidence(value) {
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      return Math.round(value * 100) + "%";
+    }
+    return "(not scored)";
+  }
+
+  function formatAsset(asset) {
+    if (!asset) {
+      return "Unknown asset";
+    }
+    const kind = asset?.kind || "asset";
+    const identifier = asset?.identifier || "(not specified)";
+    return kind.toUpperCase() + " • " + identifier;
+  }
+
+  function formatVector(vector) {
+    if (!vector) {
+      return "(not provided)";
+    }
+    if (vector?.value) {
+      return (vector.kind || "") + " → " + vector.value;
+    }
+    return vector?.kind || "(not provided)";
+  }
+
+  function parseTimestamp(input) {
+    if (!input) {
+      return 0;
+    }
+    const time = Date.parse(input);
+    return Number.isNaN(time) ? 0 : time;
+  }
+
+  function formatTimestamp(input) {
+    if (!input) {
+      return "(unknown)";
+    }
+    const time = new Date(input);
+    if (Number.isNaN(time.getTime())) {
+      return input;
+    }
+    return time.toISOString().replace("T", " ").replace("Z", " UTC");
+  }
+
+  function severityLabel(input) {
+    const entry = severityOrder.find((item) => item.id === input);
+    return entry ? entry.label : input;
+  }
+
+  function normaliseSeverity(input) {
+    if (typeof input !== "string") {
+      return "info";
+    }
+    const value = input.toLowerCase().trim();
+    if (["crit", "critical"].includes(value)) return "crit";
+    if (["high"].includes(value)) return "high";
+    if (["med", "medium"].includes(value)) return "med";
+    if (["low"].includes(value)) return "low";
+    return "info";
+  }
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = value == null ? "" : String(value);
+    }
+  }
+
+  function escapeHTML(value) {
+    return (value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+})();
+`
+
+// RenderHTML produces an interactive HTML report backed by the case bundle dataset.
+func RenderHTML(list []findings.Finding, opts ReportOptions) (string, error) {
+	bundle, err := BuildBundle(opts.Context, list, opts)
+	if err != nil {
+		return "", err
+	}
+
+	dataset, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode dataset: %w", err)
+	}
+
+	dataset = append(dataset, '\n')
+	datasetEscaped := escapeScriptContent(string(dataset))
+
+	styleDigest := sha256Base64([]byte(htmlStyles))
+	scriptDigest := sha256Base64([]byte(htmlAppScript))
+	dataDigest := sha256Base64([]byte(datasetEscaped))
 
 	var b strings.Builder
-	b.WriteString("<!DOCTYPE html>\n")
-	b.WriteString("<html lang=\"en\">\n")
-	b.WriteString("<head>\n")
-	b.WriteString("  <meta charset=\"utf-8\">\n")
-	b.WriteString("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
-	b.WriteString("  <title>Glyph Findings Report</title>\n")
-	fmt.Fprintf(&b, "  <style>%s</style>\n", htmlStyles)
-	fmt.Fprintf(&b, "  <script>%s</script>\n", htmlScript)
-	b.WriteString("</head>\n")
-	b.WriteString("<body>\n")
+	b.WriteString("<!doctype html>\n")
+	b.WriteString("<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Glyph Findings Report</title>\n")
+	b.WriteString(fmt.Sprintf("<style id=\"glyph-style\" data-integrity=\"sha256-%s\">\n%s\n</style>\n", styleDigest, htmlStyles))
+	b.WriteString("</head>\n<body>\n")
+	b.WriteString("<header class=\"header\">\n<h1>Glyph Findings Report</h1>\n<p class=\"meta\">Generated at <span id=\"generatedAt\">(pending)</span></p>\n<div class=\"meta\">Window: <span id=\"windowStart\">(pending)</span> → <span id=\"windowEnd\">(pending)</span></div>\n</header>\n")
+	b.WriteString("<main>\n<div id=\"integrityWarning\" class=\"banner\" hidden>Integrity check failed for <code>unknown</code>. Refresh or regenerate this report to continue.</div>\n")
+	b.WriteString("<section class=\"controls\">\n<div class=\"search\"><input id=\"searchInput\" type=\"search\" placeholder=\"Search findings, assets, or evidence\" aria-label=\"Search\"></div>\n<div class=\"severity-chips\" id=\"severityFilters\"></div>\n<button type=\"button\" id=\"resetFilters\">Reset filters</button>\n</section>\n")
+	b.WriteString("<section class=\"stats-grid\">\n<div class=\"stat-card\"><span class=\"label\">Cases in view</span><span class=\"value\" id=\"filteredCases\">0</span><span class=\"hint\">of <span id=\"totalCases\">0</span> total</span></div>\n<div class=\"stat-card\"><span class=\"label\">Findings analysed</span><span class=\"value\" id=\"totalFindings\">0</span><span class=\"hint\" id=\"sbomInfo\" hidden></span></div>\n<div class=\"stat-card\"><span class=\"label\">Critical / High / Medium</span><span class=\"value\"><span id=\"filtered-crit\">0</span> / <span id=\"filtered-high\">0</span> / <span id=\"filtered-med\">0</span></span><span class=\"hint\">Low <span id=\"filtered-low\">0</span> • Informational <span id=\"filtered-info\">0</span></span></div>\n</section>\n")
+	b.WriteString("<section class=\"panel\">\n<h2>Cases</h2>\n<div class=\"case-list\" id=\"caseList\"></div>\n</section>\n")
+	b.WriteString("<section class=\"panel\">\n<h2>Source Findings</h2>\n<table class=\"findings-table\" id=\"findingsTable\"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>\n</section>\n</main>\n")
+	b.WriteString(fmt.Sprintf("<script type=\"application/json\" id=\"glyph-data\" data-integrity=\"sha256-%s\">%s</script>\n", dataDigest, datasetEscaped))
+	b.WriteString(fmt.Sprintf("<script id=\"glyph-app\" data-integrity=\"sha256-%s\">\n%s\n</script>\n", scriptDigest, htmlAppScript))
+	b.WriteString("</body>\n</html>\n")
 
-	b.WriteString("  <header class=\"header\">\n")
-	b.WriteString("    <div>\n")
-	b.WriteString("      <h1>Glyph Findings Report</h1>\n")
-	fmt.Fprintf(&b, "      <p class=\"meta\">Generated at %s (UTC)</p>\n", summary.GeneratedAt.Format(time.RFC3339))
-	if summary.WindowStart != nil {
-		fmt.Fprintf(&b, "      <p class=\"meta\">Reporting window: %s — %s (UTC)</p>\n", summary.WindowStart.Format(time.RFC3339), summary.WindowEnd.Format(time.RFC3339))
-	} else {
-		fmt.Fprintf(&b, "      <p class=\"meta\">Reporting window: All findings through %s (UTC)</p>\n", summary.WindowEnd.Format(time.RFC3339))
-	}
-	fmt.Fprintf(&b, "      <p class=\"meta\">Total findings: %d</p>\n", summary.Total)
-	b.WriteString("    </div>\n")
-	b.WriteString("    <div class=\"header-actions\">\n")
-	b.WriteString("      <a class=\"docs-link\" href=\"https://rowandark.github.io/Glyph/\" target=\"_blank\" rel=\"noreferrer noopener\">\n")
-	b.WriteString("        View Documentation\n")
-	b.WriteString("      </a>\n")
-	b.WriteString("    </div>\n")
-	b.WriteString("  </header>\n")
-
-	renderSummarySection(&b, summary)
-	renderRecentSection(&b, summary)
-	renderCasesSection(&b, cases)
-
-	b.WriteString("</body>\n")
-	b.WriteString("</html>\n")
-	return b.String()
+	return b.String(), nil
 }
 
-func renderSummarySection(b *strings.Builder, summary reportSummary) {
-	b.WriteString("  <section class=\"section\">\n")
-	b.WriteString("    <h2>At a glance</h2>\n")
-	b.WriteString("    <div class=\"stat-grid\">\n")
-	fmt.Fprintf(b, "      <div class=\"stat-card\"><span class=\"label\">Findings</span><span class=\"value\">%d</span></div>\n", summary.Total)
-	fmt.Fprintf(b, "      <div class=\"stat-card\"><span class=\"label\">Critical / High</span><span class=\"value\">%d / %d</span></div>\n", summary.SeverityCount[findings.SeverityCritical], summary.SeverityCount[findings.SeverityHigh])
-	fmt.Fprintf(b, "      <div class=\"stat-card\"><span class=\"label\">Medium</span><span class=\"value\">%d</span></div>\n", summary.SeverityCount[findings.SeverityMedium])
-	fmt.Fprintf(b, "      <div class=\"stat-card\"><span class=\"label\">Low / Informational</span><span class=\"value\">%d / %d</span></div>\n", summary.SeverityCount[findings.SeverityLow], summary.SeverityCount[findings.SeverityInfo])
-	b.WriteString("    </div>\n")
-
-	b.WriteString("    <div class=\"panel-grid\">\n")
-	b.WriteString("      <article class=\"panel\">\n")
-	b.WriteString("        <h3>Totals by Severity</h3>\n")
-	b.WriteString("        <table>\n")
-	b.WriteString("          <thead><tr><th scope=\"col\">Severity</th><th scope=\"col\" class=\"numeric\">Count</th></tr></thead>\n")
-	b.WriteString("          <tbody>\n")
-	for _, entry := range severityOrder {
-		class := severityClass[entry.key]
-		if class == "" {
-			class = severityClass[findings.SeverityInfo]
-		}
-		fmt.Fprintf(b, "            <tr><td><span class=\"severity-pill %s\">%s</span></td><td class=\"numeric\">%d</td></tr>\n", class, entry.label, summary.SeverityCount[entry.key])
-	}
-	b.WriteString("          </tbody>\n")
-	b.WriteString("        </table>\n")
-	b.WriteString("      </article>\n")
-
-	b.WriteString("      <article class=\"panel\">\n")
-	b.WriteString("        <h3>Findings by Plugin</h3>\n")
-	if len(summary.Plugins) == 0 {
-		b.WriteString("        <p class=\"meta\">No plugins reported.</p>\n")
-	} else {
-		b.WriteString("        <table>\n")
-		b.WriteString("          <thead><tr><th scope=\"col\">Plugin</th><th scope=\"col\" class=\"numeric\">Findings</th></tr></thead>\n")
-		b.WriteString("          <tbody>\n")
-		for _, entry := range summary.Plugins {
-			fmt.Fprintf(b, "            <tr><td>%s</td><td class=\"numeric\">%d</td></tr>\n", html.EscapeString(entry.Plugin), entry.Count)
-		}
-		b.WriteString("          </tbody>\n")
-		b.WriteString("        </table>\n")
-	}
-	b.WriteString("      </article>\n")
-
-	b.WriteString("      <article class=\"panel\">\n")
-	b.WriteString("        <h3>Top Targets</h3>\n")
-	if len(summary.Targets) == 0 {
-		b.WriteString("        <p class=\"meta\">No targets reported.</p>\n")
-	} else {
-		b.WriteString("        <table>\n")
-		b.WriteString("          <thead><tr><th scope=\"col\">Target</th><th scope=\"col\" class=\"numeric\">Findings</th></tr></thead>\n")
-		b.WriteString("          <tbody>\n")
-		for _, entry := range summary.Targets {
-			fmt.Fprintf(b, "            <tr><td>%s</td><td class=\"numeric\">%d</td></tr>\n", html.EscapeString(entry.Target), entry.Count)
-		}
-		b.WriteString("          </tbody>\n")
-		b.WriteString("        </table>\n")
-	}
-	b.WriteString("      </article>\n")
-	b.WriteString("    </div>\n")
-	b.WriteString("  </section>\n")
+func sha256Base64(data []byte) string {
+	sum := sha256.Sum256(data)
+	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
-func renderRecentSection(b *strings.Builder, summary reportSummary) {
-	b.WriteString("  <section class=\"section\">\n")
-	fmt.Fprintf(b, "    <h2>Last %d Findings</h2>\n", defaultRecentFindings)
-	if summary.Total == 0 {
-		b.WriteString("    <div class=\"empty-state\">No findings recorded.</div>\n")
-		b.WriteString("  </section>\n")
-		return
-	}
-
-	b.WriteString("    <table class=\"recent-table\">\n")
-	b.WriteString("      <thead><tr><th scope=\"col\">Plugin</th><th scope=\"col\">Target</th><th scope=\"col\">Evidence</th><th scope=\"col\">Detected At</th></tr></thead>\n")
-	b.WriteString("      <tbody>\n")
-	for _, f := range summary.Recent {
-		plugin := strings.TrimSpace(f.Plugin)
-		if plugin == "" {
-			plugin = "(not specified)"
-		}
-		target := strings.TrimSpace(f.Target)
-		if target == "" {
-			target = "(not specified)"
-		}
-		evidence := findingExcerpt(f)
-		ts := f.DetectedAt.Time().UTC().Format(time.RFC3339)
-		fmt.Fprintf(b, "        <tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", html.EscapeString(plugin), html.EscapeString(target), html.EscapeString(evidence), html.EscapeString(ts))
-	}
-	b.WriteString("      </tbody>\n")
-	b.WriteString("    </table>\n")
-	b.WriteString("  </section>\n")
-}
-
-func renderCasesSection(b *strings.Builder, cases []findings.Finding) {
-	b.WriteString("  <section class=\"section\">\n")
-	b.WriteString("    <h2>Cases</h2>\n")
-	if len(cases) == 0 {
-		b.WriteString("    <div class=\"empty-state\">No findings available to review.</div>\n")
-		b.WriteString("  </section>\n")
-		return
-	}
-
-	b.WriteString("    <div class=\"case-list\">\n")
-	for idx, f := range cases {
-		severity := canonicalSeverity(f.Severity)
-		class := severityClass[severity]
-		if class == "" {
-			class = severityClass[findings.SeverityInfo]
-		}
-		label := severityLabel(severity)
-		scopeLabel, scopeClass, hasScope := deriveScopeBadge(f.Metadata)
-		detected := f.DetectedAt.Time().UTC().Format(time.RFC3339)
-		openAttr := ""
-		if idx == 0 {
-			openAttr = " open"
-		}
-
-		fmt.Fprintf(b, "      <details class=\"case\"%s>\n", openAttr)
-		b.WriteString("        <summary>\n")
-		fmt.Fprintf(b, "          <span class=\"severity-pill %s\">%s</span>\n", class, label)
-		fmt.Fprintf(b, "          <span class=\"case-title\">%s</span>\n", html.EscapeString(strings.TrimSpace(f.Message)))
-		fmt.Fprintf(b, "          <span class=\"case-meta\">Detected %s</span>\n", html.EscapeString(detected))
-		if hasScope {
-			fmt.Fprintf(b, "          <span class=\"scope-badge %s\">%s</span>\n", scopeClass, html.EscapeString(scopeLabel))
-		}
-		b.WriteString("        </summary>\n")
-
-		b.WriteString("        <div class=\"case-body\">\n")
-		b.WriteString("          <div class=\"case-meta-grid\">\n")
-		fmt.Fprintf(b, "            <div><span>Plugin</span><strong>%s</strong></div>\n", html.EscapeString(strings.TrimSpace(f.Plugin)))
-		fmt.Fprintf(b, "            <div><span>Type</span><strong>%s</strong></div>\n", html.EscapeString(strings.TrimSpace(f.Type)))
-		fmt.Fprintf(b, "            <div><span>Target</span><strong>%s</strong></div>\n", html.EscapeString(strings.TrimSpace(f.Target)))
-		b.WriteString("          </div>\n")
-
-		evidence := strings.TrimSpace(f.Evidence)
-		if evidence != "" {
-			b.WriteString("          <div class=\"case-evidence\">\n")
-			b.WriteString("            <div class=\"case-evidence-header\">\n")
-			b.WriteString("              <strong>Evidence</strong>\n")
-			blockID := fmt.Sprintf("evidence-%d", idx)
-			fmt.Fprintf(b, "              <button type=\"button\" class=\"copy-button\" data-copy-target=\"#%s\">Copy</button>\n", blockID)
-			b.WriteString("            </div>\n")
-			fmt.Fprintf(b, "            <pre id=\"%s\">%s</pre>\n", blockID, html.EscapeString(evidence))
-			b.WriteString("          </div>\n")
-		}
-
-		thumbnails := extractThumbnails(f.Metadata)
-		if len(thumbnails) > 0 {
-			b.WriteString("          <div class=\"case-evidence\">\n")
-			b.WriteString("            <div class=\"case-evidence-header\">\n")
-			b.WriteString("              <strong>Evidence thumbnails</strong>\n")
-			b.WriteString("            </div>\n")
-			b.WriteString("            <div class=\"thumbnail-grid\">\n")
-			for _, src := range thumbnails {
-				fmt.Fprintf(b, "              <img src=\"%s\" alt=\"Evidence thumbnail\">\n", html.EscapeString(src))
-			}
-			b.WriteString("            </div>\n")
-			b.WriteString("          </div>\n")
-		}
-
-		pocs := extractPOCs(f.Metadata)
-		for pocIdx, entry := range pocs {
-			blockID := fmt.Sprintf("poc-%d-%d", idx, pocIdx)
-			b.WriteString("          <div class=\"case-poc\">\n")
-			b.WriteString("            <div class=\"case-poc-header\">\n")
-			fmt.Fprintf(b, "              <strong>Proof of Concept%s</strong>\n", entry.Label)
-			fmt.Fprintf(b, "              <button type=\"button\" class=\"copy-button\" data-copy-target=\"#%s\">Copy</button>\n", blockID)
-			b.WriteString("            </div>\n")
-			fmt.Fprintf(b, "            <pre id=\"%s\">%s</pre>\n", blockID, html.EscapeString(entry.Value))
-			b.WriteString("          </div>\n")
-		}
-
-		metadataEntries := extractMetadataEntries(f.Metadata)
-		if len(metadataEntries) > 0 {
-			b.WriteString("          <div class=\"case-meta\">\n")
-			b.WriteString("            <div class=\"case-poc-header\"><strong>Metadata</strong></div>\n")
-			b.WriteString("            <div class=\"metadata-list\">\n")
-			for _, entry := range metadataEntries {
-				fmt.Fprintf(b, "              <div class=\"metadata-entry\"><span>%s</span><strong>%s</strong></div>\n", html.EscapeString(entry.Key), html.EscapeString(entry.Value))
-			}
-			b.WriteString("            </div>\n")
-			b.WriteString("          </div>\n")
-		}
-
-		b.WriteString("        </div>\n")
-		b.WriteString("      </details>\n")
-	}
-	b.WriteString("    </div>\n")
-	b.WriteString("  </section>\n")
-}
-
-func buildCases(list []findings.Finding) []findings.Finding {
-	if len(list) == 0 {
-		return nil
-	}
-	cases := make([]findings.Finding, len(list))
-	copy(cases, list)
-	sort.SliceStable(cases, func(i, j int) bool {
-		si := severityPriority[canonicalSeverity(cases[i].Severity)]
-		sj := severityPriority[canonicalSeverity(cases[j].Severity)]
-		if si != sj {
-			return si < sj
-		}
-		ti := cases[i].DetectedAt.Time()
-		tj := cases[j].DetectedAt.Time()
-		if !ti.Equal(tj) {
-			return ti.After(tj)
-		}
-		return cases[i].ID < cases[j].ID
-	})
-	return cases
-}
-
-func severityLabel(sev findings.Severity) string {
-	for _, entry := range severityOrder {
-		if entry.key == sev {
-			return entry.label
-		}
-	}
-	return "Informational"
-}
-
-func deriveScopeBadge(meta map[string]string) (label, class string, ok bool) {
-	if len(meta) == 0 {
-		return "", "", false
-	}
-	for key, value := range meta {
-		trimmedKey := strings.ToLower(strings.TrimSpace(key))
-		trimmedValue := strings.TrimSpace(value)
-		if trimmedValue == "" {
-			continue
-		}
-		if !strings.Contains(trimmedKey, "scope") {
-			continue
-		}
-		lowerValue := strings.ToLower(trimmedValue)
-		switch {
-		case strings.Contains(lowerValue, "out") || strings.Contains(lowerValue, "deny") || strings.Contains(lowerValue, "forbid"):
-			return "Out of Scope", "scope-out", true
-		case strings.Contains(lowerValue, "in") || strings.Contains(lowerValue, "allow") || strings.Contains(lowerValue, "eligible") || strings.Contains(lowerValue, "permit"):
-			return "In Scope", "scope-in", true
-		default:
-			return trimmedValue, "scope-neutral", true
-		}
-	}
-	return "", "", false
-}
-
-type pocEntry struct {
-	Label string
-	Value string
-}
-
-type metadataEntry struct {
-	Key   string
-	Value string
-}
-
-func extractPOCs(meta map[string]string) []pocEntry {
-	if len(meta) == 0 {
-		return nil
-	}
-	var entries []pocEntry
-	for key, value := range meta {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		lowerKey := strings.ToLower(strings.TrimSpace(key))
-		if strings.Contains(lowerKey, "poc") || strings.Contains(lowerKey, "proof") || strings.Contains(lowerKey, "exploit") || strings.Contains(lowerKey, "steps") {
-			label := ""
-			if lowerKey != "poc" {
-				label = fmt.Sprintf(" (%s)", key)
-			}
-			entries = append(entries, pocEntry{Label: label, Value: trimmed})
-		}
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Label < entries[j].Label })
-	return entries
-}
-
-func extractThumbnails(meta map[string]string) []string {
-	if len(meta) == 0 {
-		return nil
-	}
-	hints := []string{"thumbnail", "screenshot", "preview", "image"}
-	seen := make(map[string]struct{})
-	var sources []string
-	for key, value := range meta {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		lowerKey := strings.ToLower(strings.TrimSpace(key))
-		match := false
-		for _, hint := range hints {
-			if strings.Contains(lowerKey, hint) {
-				match = true
-				break
-			}
-		}
-		if !match {
-			lowerVal := strings.ToLower(trimmed)
-			if strings.HasPrefix(lowerVal, "data:image") {
-				match = true
-			}
-		}
-		if !match {
-			continue
-		}
-		if _, ok := seen[trimmed]; ok {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		sources = append(sources, trimmed)
-	}
-	return sources
-}
-
-func extractMetadataEntries(meta map[string]string) []metadataEntry {
-	if len(meta) == 0 {
-		return nil
-	}
-	ignored := func(key string) bool {
-		lowerKey := strings.ToLower(strings.TrimSpace(key))
-		if strings.Contains(lowerKey, "scope") {
-			return true
-		}
-		if strings.Contains(lowerKey, "poc") || strings.Contains(lowerKey, "proof") || strings.Contains(lowerKey, "exploit") || strings.Contains(lowerKey, "steps") {
-			return true
-		}
-		if strings.Contains(lowerKey, "thumbnail") || strings.Contains(lowerKey, "screenshot") || strings.Contains(lowerKey, "preview") || strings.Contains(lowerKey, "image") {
-			return true
-		}
-		return false
-	}
-
-	entries := make([]metadataEntry, 0, len(meta))
-	for key, value := range meta {
-		if ignored(key) {
-			continue
-		}
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		entries = append(entries, metadataEntry{Key: key, Value: trimmed})
-	}
-	sort.Slice(entries, func(i, j int) bool { return strings.ToLower(entries[i].Key) < strings.ToLower(entries[j].Key) })
-	return entries
+func escapeScriptContent(input string) string {
+	// Prevent </script> from terminating the element prematurely.
+	escaped := strings.ReplaceAll(input, "</script", "<\\/script")
+	return escaped
 }

@@ -1,6 +1,7 @@
 package reporter
 
 import (
+	"encoding/json"
 	"sort"
 	"strings"
 	"time"
@@ -16,30 +17,61 @@ const (
 	FormatMarkdown ReportFormat = "md"
 	// FormatHTML renders an HTML report.
 	FormatHTML ReportFormat = "html"
+	// FormatJSON renders a machine-readable bundle.
+	FormatJSON ReportFormat = "json"
 )
 
-type targetCount struct {
+type TargetCount struct {
 	Target string
 	Count  int
 }
 
-type pluginCount struct {
+type PluginCount struct {
 	Plugin string
 	Count  int
 }
 
-type reportSummary struct {
+// Summary captures aggregate report statistics for use across renderers.
+type Summary struct {
 	WindowStart   *time.Time
 	WindowEnd     time.Time
 	GeneratedAt   time.Time
 	Total         int
 	SeverityCount map[findings.Severity]int
-	Targets       []targetCount
-	Plugins       []pluginCount
+	Targets       []TargetCount
+	Plugins       []PluginCount
 	Recent        []findings.Finding
 }
 
-func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
+func (s Summary) MarshalJSON() ([]byte, error) {
+	type summaryJSON struct {
+		WindowStart   *string                   `json:"window_start,omitempty"`
+		WindowEnd     string                    `json:"window_end"`
+		GeneratedAt   string                    `json:"generated_at"`
+		Total         int                       `json:"total"`
+		SeverityCount map[findings.Severity]int `json:"severity_breakdown"`
+		Targets       []TargetCount             `json:"top_targets"`
+		Plugins       []PluginCount             `json:"top_plugins"`
+		Recent        []findings.Finding        `json:"recent_findings"`
+	}
+
+	jsonView := summaryJSON{
+		WindowEnd:     s.WindowEnd.UTC().Format(time.RFC3339),
+		GeneratedAt:   s.GeneratedAt.UTC().Format(time.RFC3339),
+		Total:         s.Total,
+		SeverityCount: s.SeverityCount,
+		Targets:       s.Targets,
+		Plugins:       s.Plugins,
+		Recent:        s.Recent,
+	}
+	if s.WindowStart != nil {
+		formatted := s.WindowStart.UTC().Format(time.RFC3339)
+		jsonView.WindowStart = &formatted
+	}
+	return json.Marshal(jsonView)
+}
+
+func buildSummary(list []findings.Finding, opts ReportOptions) (Summary, []findings.Finding, time.Time, *time.Time) {
 	filteredList, now, windowStart := filterFindings(list, opts)
 
 	counts := map[findings.Severity]int{
@@ -69,12 +101,12 @@ func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
 		plugins[plugin]++
 	}
 
-	rankedTargets := make([]targetCount, 0, len(targets))
+	rankedTargets := make([]TargetCount, 0, len(targets))
 	for target, count := range targets {
 		if count == 0 {
 			continue
 		}
-		rankedTargets = append(rankedTargets, targetCount{Target: target, Count: count})
+		rankedTargets = append(rankedTargets, TargetCount{Target: target, Count: count})
 	}
 
 	sort.Slice(rankedTargets, func(i, j int) bool {
@@ -90,12 +122,12 @@ func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
 	}
 	rankedTargets = rankedTargets[:targetLimit]
 
-	rankedPlugins := make([]pluginCount, 0, len(plugins))
+	rankedPlugins := make([]PluginCount, 0, len(plugins))
 	for plugin, count := range plugins {
 		if count == 0 {
 			continue
 		}
-		rankedPlugins = append(rankedPlugins, pluginCount{Plugin: plugin, Count: count})
+		rankedPlugins = append(rankedPlugins, PluginCount{Plugin: plugin, Count: count})
 	}
 
 	sort.Slice(rankedPlugins, func(i, j int) bool {
@@ -125,7 +157,7 @@ func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
 		recent = recent[:defaultRecentFindings]
 	}
 
-	return reportSummary{
+	summary := Summary{
 		WindowStart:   windowStart,
 		WindowEnd:     now,
 		GeneratedAt:   now,
@@ -135,6 +167,7 @@ func buildSummary(list []findings.Finding, opts ReportOptions) reportSummary {
 		Plugins:       rankedPlugins,
 		Recent:        recent,
 	}
+	return summary, filteredList, now, windowStart
 }
 
 func filterFindings(list []findings.Finding, opts ReportOptions) ([]findings.Finding, time.Time, *time.Time) {

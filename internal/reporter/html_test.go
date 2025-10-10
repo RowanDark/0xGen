@@ -21,7 +21,10 @@ func TestRenderHTMLGolden(t *testing.T) {
 		{Version: findings.SchemaVersion, ID: "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C7", Plugin: "gamma", Type: "t", Message: "gamma low", Target: "", Severity: findings.SeverityLow, DetectedAt: findings.NewTimestamp(base.Add(-26 * time.Hour))},
 	}
 
-	got := RenderHTML(sample, ReportOptions{Now: base, Since: &since24h})
+	got, err := RenderHTML(sample, ReportOptions{Now: base, Since: &since24h})
+	if err != nil {
+		t.Fatalf("render html: %v", err)
+	}
 	goldenPath := filepath.Join("testdata", "report_since_24h.html.golden")
 	wantBytes, err := os.ReadFile(goldenPath)
 	if err != nil {

@@ -1,6 +1,7 @@
 package reporter
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,6 +54,10 @@ type ReportOptions struct {
 	Since *time.Time
 	// Now identifies the end of the reporting window. When unset, time.Now() is used.
 	Now time.Time
+	// Context provides cancellation for expensive case aggregation.
+	Context context.Context
+	// SBOMPath links the generated report to the SBOM used for dependency analysis.
+	SBOMPath string
 }
 
 func (o ReportOptions) reportingWindow() (time.Time, time.Time, bool) {
@@ -76,19 +81,30 @@ func RenderReport(inputPath, outputPath string, format ReportFormat, opts Report
 		return err
 	}
 
-	var content string
+	var data []byte
 	switch format {
 	case FormatHTML:
-		content = RenderHTML(findings, opts)
+		content, err := RenderHTML(findings, opts)
+		if err != nil {
+			return err
+		}
+		data = []byte(content)
+	case FormatJSON:
+		content, err := RenderJSON(findings, opts)
+		if err != nil {
+			return err
+		}
+		data = content
 	case FormatMarkdown, "":
-		content = RenderMarkdown(findings, opts)
+		content := RenderMarkdown(findings, opts)
+		data = []byte(content)
 	default:
 		return fmt.Errorf("unsupported report format: %s", format)
 	}
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create report directory: %w", err)
 	}
-	if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
 		return fmt.Errorf("write report: %w", err)
 	}
 	return nil
@@ -96,7 +112,7 @@ func RenderReport(inputPath, outputPath string, format ReportFormat, opts Report
 
 // RenderMarkdown converts a slice of findings into a markdown report.
 func RenderMarkdown(list []findings.Finding, opts ReportOptions) string {
-	summary := buildSummary(list, opts)
+	summary, _, _, _ := buildSummary(list, opts)
 
 	var b strings.Builder
 	b.WriteString("# Findings Report\n\n")
