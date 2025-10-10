@@ -46,6 +46,18 @@ const COLOR_VISION_OPTIONS = [
 
 const BLUE_LIGHT_FILTER = 'sepia(0.28) saturate(0.75) hue-rotate(-20deg) brightness(0.9)';
 
+let activeVisionFilter = '';
+let activeBlueLightFilter = '';
+
+function updateDocumentFilters(root: HTMLElement | null = getDocumentRoot()) {
+  if (!root) {
+    return;
+  }
+
+  const filters = [activeVisionFilter, activeBlueLightFilter].filter(Boolean).join(' ');
+  root.style.setProperty('--document-filter', filters || 'none');
+}
+
 const BLUE_LIGHT_OPTIONS = [
   { value: 'off', label: 'Off' },
   { value: 'on', label: 'On' },
@@ -367,12 +379,14 @@ function applyColorVisionMode(
   root.setAttribute('data-vision-mode', mode);
 
   if (mode === 'normal') {
-    root.style.setProperty('--vision-filter', 'none');
+    activeVisionFilter = '';
+    updateDocumentFilters(root);
     return;
   }
 
   ensureColorVisionFilter(mode, root);
-  root.style.setProperty('--vision-filter', `url(#glyph-vision-${mode})`);
+  activeVisionFilter = `url(#glyph-vision-${mode})`;
+  updateDocumentFilters(root);
 }
 
 function applyBlueLightPreferences(
@@ -386,7 +400,8 @@ function applyBlueLightPreferences(
 
   root.setAttribute('data-blue-light-mode', mode);
   root.setAttribute('data-blue-light', isActive ? 'on' : 'off');
-  root.style.setProperty('--blue-light-filter', isActive ? BLUE_LIGHT_FILTER : 'none');
+  activeBlueLightFilter = isActive ? BLUE_LIGHT_FILTER : '';
+  updateDocumentFilters(root);
 }
 
 function applyDocumentTheme(
