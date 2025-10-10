@@ -258,10 +258,36 @@ const FlowPageSchema = z.object({
   nextCursor: z.string().optional().nullable()
 });
 
+const AuditRecordSchema = z.object({
+  entryId: z.string(),
+  signature: z.string(),
+  recordedAt: z.string().optional(),
+  actor: z.string().optional(),
+  action: z.string().optional(),
+  decision: z.string().optional()
+});
+
+const ResendFlowMetadataSchema = z
+  .object({
+    parentFlowId: z.string().optional(),
+    sourceFlowId: z.string().optional(),
+    originalFlowId: z.string().optional(),
+    childFlowId: z.string().optional(),
+    cloneReason: z.string().optional(),
+    audit: z.union([AuditRecordSchema, z.array(AuditRecordSchema)]).optional(),
+    auditEntry: AuditRecordSchema.optional(),
+    auditTrail: z.array(AuditRecordSchema).optional(),
+    clones: z.array(z.string()).optional()
+  })
+  .passthrough();
+
 const ResendFlowResponseSchema = z.object({
   flowId: z.string(),
-  metadata: z.unknown().optional()
+  metadata: z.union([ResendFlowMetadataSchema, z.null()]).optional()
 });
+
+export type ResendFlowMetadata = z.infer<typeof ResendFlowMetadataSchema> | null | undefined;
+export type ResendFlowResponse = z.infer<typeof ResendFlowResponseSchema>;
 
 const ScopeRuleSchema = z.object({
   type: z.string(),
