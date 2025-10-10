@@ -8,11 +8,11 @@ export default defineConfig(({ mode }) => ({
   server: {
     strictPort: true,
     port: 5173,
-    host: '127.0.0.1'
+    host: '0.0.0.0'
   },
   preview: {
     port: 4173,
-    host: '127.0.0.1'
+    host: '0.0.0.0'
   },
   define: {
     __DEVTOOLS_ENABLED__: mode !== 'production'

@@ -7,6 +7,7 @@ Cross-platform Tauri shell for the Glyph platform. The application is built with
 ```bash
 pnpm install
 pnpm tauri:dev
+pnpm dev
 ```
 
 The shell proxies all renderer requests through the Tauri command layer. The base URL for the local Glyph API can be configured with `GLYPH_API_URL` (defaults to `http://127.0.0.1:8713`). Only loopback origins are accepted.
