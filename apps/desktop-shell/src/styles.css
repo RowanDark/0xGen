@@ -27,6 +27,8 @@
   --theme-warning: 32.1 94.6% 43.7%;
   --theme-error: 0 72.2% 50.6%;
   --font-scale: 1;
+  --vision-filter: none;
+  --blue-light-filter: none;
 }
 
 :root {
@@ -269,6 +271,7 @@
 :root {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  filter: var(--vision-filter) var(--blue-light-filter);
 }
 
 body {

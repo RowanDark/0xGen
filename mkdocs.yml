@@ -20,6 +20,7 @@ nav:
   - Developer Guide:
       - Overview: dev-guide/index.md
       - E2E Scenario Suite: dev/e2e-scenarios.md
+      - Accessibility modes: dev-guide/accessibility-modes.md
   - Security:
       - Overview: security/index.md
       - Threat Model: security/threat-model.md
@@ -67,6 +68,7 @@ plugins:
           CLI: CLI
           Developer Guide: Guía de desarrollo
           E2E Scenario Suite: Escenarios E2E
+          Accessibility modes: Modos de accesibilidad
           Security: Seguridad
           Versions: Versiones
           Overview: Descripción general
