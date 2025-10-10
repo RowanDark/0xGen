@@ -258,14 +258,16 @@ const FlowPageSchema = z.object({
   nextCursor: z.string().optional().nullable()
 });
 
-const AuditRecordSchema = z.object({
-  entryId: z.string(),
-  signature: z.string(),
-  recordedAt: z.string().optional(),
-  actor: z.string().optional(),
-  action: z.string().optional(),
-  decision: z.string().optional()
-});
+const AuditRecordSchema = z
+  .object({
+    entryId: z.string().optional(),
+    signature: z.string().optional(),
+    recordedAt: z.string().optional(),
+    actor: z.string().optional(),
+    action: z.string().optional(),
+    decision: z.string().optional()
+  })
+  .passthrough();
 
 const ResendFlowMetadataSchema = z
   .object({
