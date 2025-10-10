@@ -1,12 +1,17 @@
+import { DiffEditor } from '@monaco-editor/react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   AlertTriangle,
+  FileSignature,
   Filter,
+  GitBranch,
+  Link,
   RefreshCw,
   Search,
   Send,
   Shield,
+  ShieldAlert,
   Timer
 } from 'lucide-react';
 import {
@@ -26,6 +31,7 @@ import { RedactionNotice } from '../components/redaction-notice';
 import {
   FlowEvent,
   FlowStreamHandle,
+  ResendFlowMetadata,
   listFlows,
   resendFlow,
   streamFlowEvents
@@ -61,6 +67,15 @@ type FlowMessage = {
   rawBodyCaptured?: number;
 };
 
+type FlowAuditRecord = {
+  entryId: string;
+  signature: string;
+  recordedAt?: string;
+  actor?: string;
+  action?: string;
+  decision?: string;
+};
+
 type FlowEntry = {
   id: string;
   flowId: string;
@@ -87,11 +102,10 @@ type FlowEntry = {
   responseRedacted?: boolean;
   durationMs?: number;
   searchText: string;
-};
-
-type DiffChunk = {
-  type: 'equal' | 'add' | 'remove';
-  value: string;
+  parentFlowId?: string;
+  childFlowIds: string[];
+  cloneReason?: string;
+  auditTrail: FlowAuditRecord[];
 };
 
 const ITEM_HEIGHT = 136;
@@ -124,6 +138,203 @@ function normaliseScope(raw?: string | null): string {
     return 'out-of-scope';
   }
   return 'in-scope';
+}
+
+type FlowMetadataInfo = {
+  parentFlowId?: string;
+  childFlowIds: string[];
+  cloneReason?: string;
+  auditTrail: FlowAuditRecord[];
+};
+
+function extractString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString();
+  }
+  return undefined;
+}
+
+function toAuditRecord(value: unknown): FlowAuditRecord | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const entryId =
+    extractString(record.entryId) ||
+    extractString(record.id) ||
+    extractString(record.auditId) ||
+    extractString(record.referenceId);
+  const signature =
+    extractString(record.signature) ||
+    extractString(record.signatureHex) ||
+    extractString(record.signatureBase64) ||
+    extractString(record.hash);
+  if (!entryId || !signature) {
+    return null;
+  }
+  const recordedAt =
+    extractString(record.recordedAt) ||
+    extractString(record.timestamp) ||
+    extractString(record.createdAt) ||
+    extractString(record.generatedAt);
+  const actor = extractString(record.actor) || extractString(record.user) || extractString(record.issuedBy);
+  const action =
+    extractString(record.action) || extractString(record.eventType) || extractString(record.operation);
+  const decision = extractString(record.decision) || extractString(record.outcome);
+
+  return {
+    entryId,
+    signature,
+    recordedAt,
+    actor,
+    action,
+    decision
+  } satisfies FlowAuditRecord;
+}
+
+function mergeAuditRecords(base: FlowAuditRecord[], incoming: FlowAuditRecord[]): FlowAuditRecord[] {
+  const map = new Map<string, FlowAuditRecord>();
+
+  for (const item of base) {
+    map.set(item.entryId, item);
+  }
+
+  for (const next of incoming) {
+    const existing = map.get(next.entryId);
+    if (!existing) {
+      map.set(next.entryId, next);
+      continue;
+    }
+    map.set(next.entryId, {
+      entryId: existing.entryId,
+      signature: next.signature || existing.signature,
+      recordedAt: next.recordedAt ?? existing.recordedAt,
+      actor: next.actor ?? existing.actor,
+      action: next.action ?? existing.action,
+      decision: next.decision ?? existing.decision
+    });
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    const aTime = a.recordedAt ? Date.parse(a.recordedAt) : 0;
+    const bTime = b.recordedAt ? Date.parse(b.recordedAt) : 0;
+    return bTime - aTime;
+  });
+}
+
+function parseFlowMetadata(metadata: unknown): FlowMetadataInfo {
+  if (!metadata || typeof metadata !== 'object') {
+    return { childFlowIds: [], auditTrail: [] };
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const parentFlowId =
+    extractString(record.parentFlowId) ||
+    extractString(record.sourceFlowId) ||
+    extractString(record.originalFlowId) ||
+    extractString(record.resendOf) ||
+    extractString(record.cloneOf) ||
+    extractString(record.parentId);
+
+  const childFlowIds: string[] = [];
+  const singleChild =
+    extractString(record.childFlowId) ||
+    extractString(record.cloneFlowId) ||
+    extractString(record.cloneId) ||
+    extractString(record.childId);
+  if (singleChild) {
+    childFlowIds.push(singleChild);
+  }
+
+  const clones = record.clones;
+  if (Array.isArray(clones)) {
+    for (const value of clones) {
+      const id = extractString(value);
+      if (id) {
+        childFlowIds.push(id);
+      }
+    }
+  }
+
+  const cloneReason =
+    extractString(record.cloneReason) || extractString(record.reason) || extractString(record.actionReason);
+
+  const auditTrail: FlowAuditRecord[] = [];
+  const auditSources = [record.audit, record.auditEntry, record.auditTrail, record.auditLog];
+  for (const source of auditSources) {
+    if (!source) {
+      continue;
+    }
+    if (Array.isArray(source)) {
+      for (const item of source) {
+        const parsed = toAuditRecord(item);
+        if (parsed) {
+          auditTrail.push(parsed);
+        }
+      }
+    } else {
+      const parsed = toAuditRecord(source);
+      if (parsed) {
+        auditTrail.push(parsed);
+      }
+    }
+  }
+
+  return {
+    parentFlowId: parentFlowId || undefined,
+    childFlowIds: Array.from(new Set(childFlowIds)),
+    cloneReason: cloneReason || undefined,
+    auditTrail: auditTrail.length > 0 ? mergeAuditRecords([], auditTrail) : []
+  } satisfies FlowMetadataInfo;
+}
+
+function splitRawHttpMessage(raw: string) {
+  const normalised = raw.replace(/\r\n/g, '\n');
+  const separatorIndex = normalised.indexOf('\n\n');
+  if (separatorIndex === -1) {
+    return { headers: normalised, body: '' };
+  }
+  return {
+    headers: normalised.slice(0, separatorIndex),
+    body: normalised.slice(separatorIndex + 2)
+  };
+}
+
+function buildHeaderSource(message: ParsedHttpMessage | null, fallback: string): string {
+  if (message) {
+    const headerLines = message.headers.map((header) => `${header.name}: ${header.value}`);
+    return [message.startLine, ...headerLines].join('\n');
+  }
+  return splitRawHttpMessage(fallback).headers;
+}
+
+type BodySource = {
+  text: string;
+  language: string;
+  isBinary: boolean;
+};
+
+function buildBodySource(message: ParsedHttpMessage | null, fallback: string): BodySource {
+  if (message) {
+    let language = 'plaintext';
+    if (message.format === 'json') {
+      language = 'json';
+    }
+    return {
+      text: message.prettyBody ?? message.body ?? '',
+      language,
+      isBinary: message.isBinary
+    };
+  }
+  const raw = splitRawHttpMessage(fallback).body;
+  return {
+    text: raw,
+    language: 'plaintext',
+    isBinary: /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(raw)
+  };
 }
 
 function parseHttpMessage(raw: string): ParsedHttpMessage | null {
@@ -387,50 +598,6 @@ function getStatusTone(status?: number) {
   return 'bg-muted text-muted-foreground';
 }
 
-function computeDiff(original: string, updated: string): DiffChunk[] {
-  const originalLines = original.split(/\r?\n/);
-  const updatedLines = updated.split(/\r?\n/);
-  const m = originalLines.length;
-  const n = updatedLines.length;
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-
-  for (let i = m - 1; i >= 0; i -= 1) {
-    for (let j = n - 1; j >= 0; j -= 1) {
-      if (originalLines[i] === updatedLines[j]) {
-        dp[i][j] = dp[i + 1][j + 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
-      }
-    }
-  }
-
-  const result: DiffChunk[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < m && j < n) {
-    if (originalLines[i] === updatedLines[j]) {
-      result.push({ type: 'equal', value: originalLines[i] });
-      i += 1;
-      j += 1;
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      result.push({ type: 'remove', value: originalLines[i] });
-      i += 1;
-    } else {
-      result.push({ type: 'add', value: updatedLines[j] });
-      j += 1;
-    }
-  }
-  while (i < m) {
-    result.push({ type: 'remove', value: originalLines[i] });
-    i += 1;
-  }
-  while (j < n) {
-    result.push({ type: 'add', value: updatedLines[j] });
-    j += 1;
-  }
-  return result;
-}
-
 function integrateFlowEvent(existing: FlowEntry | undefined, event: FlowEvent): FlowEntry {
   const baseId = event.id.replace(/:(request|response)$/i, '');
   const normalizedType = event.type.toUpperCase();
@@ -450,6 +617,8 @@ function integrateFlowEvent(existing: FlowEntry | undefined, event: FlowEvent): 
         ...existing,
         tags: [...existing.tags],
         pluginTags: [...existing.pluginTags],
+        childFlowIds: [...existing.childFlowIds],
+        auditTrail: [...existing.auditTrail],
         request: existing.request
           ? { ...existing.request, parsed: existing.request.parsed }
           : undefined,
@@ -464,7 +633,9 @@ function integrateFlowEvent(existing: FlowEntry | undefined, event: FlowEvent): 
         pluginTags: [],
         scope: 'in-scope',
         updatedAt: event.timestamp,
-        searchText: ''
+        searchText: '',
+        childFlowIds: [],
+        auditTrail: []
       };
 
   const normalisedScope = normaliseScope(event.scope);
@@ -540,6 +711,24 @@ function integrateFlowEvent(existing: FlowEntry | undefined, event: FlowEvent): 
     entry.responseBinary = parsed?.isBinary ?? entry.responseBinary;
     entry.responseTruncated = Boolean(parsed?.isTruncated || rawTruncated);
     entry.responseRedacted = event.sanitizedRedacted ?? entry.responseRedacted;
+  }
+
+  const metadataInfo = parseFlowMetadata(event.metadata);
+  if (metadataInfo.parentFlowId) {
+    entry.parentFlowId = metadataInfo.parentFlowId;
+  }
+  if (metadataInfo.cloneReason) {
+    entry.cloneReason = metadataInfo.cloneReason;
+  }
+  if (metadataInfo.childFlowIds.length > 0) {
+    const existingChildren = new Set(entry.childFlowIds);
+    for (const id of metadataInfo.childFlowIds) {
+      existingChildren.add(id);
+    }
+    entry.childFlowIds = Array.from(existingChildren);
+  }
+  if (metadataInfo.auditTrail.length > 0) {
+    entry.auditTrail = mergeAuditRecords(entry.auditTrail, metadataInfo.auditTrail);
   }
 
   entry.durationMs = computeDuration(entry.request?.timestamp, entry.response?.timestamp);
@@ -717,6 +906,91 @@ function HttpMessageViewer({ message }: { message?: FlowMessage }) {
       <pre className="max-h-80 overflow-auto rounded bg-muted px-3 py-2 text-xs font-mono leading-relaxed text-foreground">
         {body || '∅'}
       </pre>
+    </div>
+  );
+}
+
+function HttpDiffViewer({
+  original,
+  updated,
+  originalParsed,
+  updatedParsed
+}: {
+  original: string;
+  updated: string;
+  originalParsed: ParsedHttpMessage | null;
+  updatedParsed: ParsedHttpMessage | null;
+}) {
+  const headerOriginal = useMemo(() => buildHeaderSource(originalParsed, original), [originalParsed, original]);
+  const headerUpdated = useMemo(() => buildHeaderSource(updatedParsed, updated), [updatedParsed, updated]);
+  const originalBody = useMemo(() => buildBodySource(originalParsed, original), [originalParsed, original]);
+  const updatedBody = useMemo(() => buildBodySource(updatedParsed, updated), [updatedParsed, updated]);
+
+  const bodyLanguage = useMemo(() => {
+    if (originalBody.language === updatedBody.language) {
+      return originalBody.language;
+    }
+    if (updatedBody.language !== 'plaintext') {
+      return updatedBody.language;
+    }
+    return originalBody.language;
+  }, [originalBody.language, updatedBody.language]);
+
+  const isBinary = originalBody.isBinary || updatedBody.isBinary;
+
+  const diffOptions = useMemo(
+    () => ({
+      readOnly: true,
+      renderSideBySide: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      renderIndicators: true,
+      glyphMargin: false,
+      automaticLayout: true,
+      enableSplitViewResizing: false
+    }),
+    []
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase text-muted-foreground">
+          <span>Request line &amp; headers</span>
+        </div>
+        <div className="overflow-hidden rounded-md border border-border">
+          <DiffEditor
+            original={headerOriginal}
+            modified={headerUpdated}
+            language="plaintext"
+            options={diffOptions}
+            height="220px"
+          />
+        </div>
+      </div>
+      <div>
+        <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase text-muted-foreground">
+          <span>Body</span>
+          <span className="text-muted-foreground">
+            {bodyLanguage === 'json' ? 'JSON' : 'Text'}
+          </span>
+        </div>
+        {isBinary ? (
+          <div className="rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
+            Binary payload detected. Diff unavailable.
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-md border border-border">
+            <DiffEditor
+              original={originalBody.text}
+              modified={updatedBody.text}
+              language={bodyLanguage || 'plaintext'}
+              options={diffOptions}
+              height="260px"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -973,6 +1247,41 @@ function FlowsRouteComponent() {
           const existing = next.get(flowId);
           const updated = integrateFlowEvent(existing, item);
           next.set(flowId, updated);
+
+          if (updated.parentFlowId) {
+            const parent = next.get(updated.parentFlowId);
+            if (parent) {
+              const cloneSet = new Set(parent.childFlowIds);
+              cloneSet.add(updated.id);
+              const mergedAudit =
+                updated.auditTrail.length > 0
+                  ? mergeAuditRecords(parent.auditTrail, updated.auditTrail)
+                  : parent.auditTrail;
+              next.set(updated.parentFlowId, {
+                ...parent,
+                childFlowIds: Array.from(cloneSet),
+                auditTrail: mergedAudit
+              });
+            }
+          }
+
+          if (updated.childFlowIds.length > 0) {
+            for (const childId of updated.childFlowIds) {
+              const child = next.get(childId);
+              if (!child) {
+                continue;
+              }
+              const mergedAudit =
+                updated.auditTrail.length > 0
+                  ? mergeAuditRecords(child.auditTrail, updated.auditTrail)
+                  : child.auditTrail;
+              next.set(childId, {
+                ...child,
+                parentFlowId: child.parentFlowId ?? updated.id,
+                auditTrail: mergedAudit
+              });
+            }
+          }
         }
 
         if (next.size > MAX_FLOW_ENTRIES) {
@@ -1244,12 +1553,76 @@ function FlowsRouteComponent() {
   });
   const virtualFlows = timelineVirtualizer.getVirtualItems();
 
-  const diffChunks = useMemo(() => {
+  const editAnalysis = useMemo(() => {
     if (!editingFlow) {
-      return [] as DiffChunk[];
+      return {
+        originalParsed: null,
+        updatedParsed: null as ParsedHttpMessage | null,
+        originalSummary: undefined as ReturnType<typeof extractRequestSummary> | undefined,
+        updatedSummary: undefined as ReturnType<typeof extractRequestSummary> | undefined,
+        guardErrors: [] as string[],
+        guardWarnings: [] as string[]
+      };
     }
-    return computeDiff(editingFlow.request?.raw ?? '', editDraft);
-  }, [editingFlow, editDraft]);
+
+    const originalRaw = editingFlow.request?.raw ?? '';
+    const originalParsed = editingFlow.request?.parsed ?? parseHttpMessage(originalRaw);
+    const updatedParsed = parseHttpMessage(editDraft);
+    const originalSummary = originalParsed
+      ? extractRequestSummary(originalParsed.startLine, originalParsed.headers)
+      : undefined;
+    const updatedSummary = updatedParsed
+      ? extractRequestSummary(updatedParsed.startLine, updatedParsed.headers)
+      : undefined;
+
+    const guardErrors: string[] = [];
+    const guardWarnings: string[] = [];
+
+    if (editingFlow.scope === 'out-of-scope') {
+      guardErrors.push('Scope policy denies resending out-of-scope requests.');
+    }
+
+    if (isRedactedValue(editDraft)) {
+      guardErrors.push('Request contains redacted placeholders. Remove or replace them before resending.');
+    }
+
+    const originalMethod = originalSummary?.method;
+    const updatedMethod = updatedSummary?.method;
+
+    if (originalMethod || updatedMethod) {
+      if (!originalMethod && updatedMethod) {
+        guardWarnings.push(`HTTP method added (${updatedMethod}).`);
+      } else if (originalMethod && !updatedMethod) {
+        guardWarnings.push('HTTP method removed from the request line.');
+      } else if (originalMethod && updatedMethod && originalMethod !== updatedMethod) {
+        guardWarnings.push(`HTTP method changed from ${originalMethod} to ${updatedMethod}.`);
+      }
+    }
+
+    const originalHost = originalSummary?.host?.toLowerCase();
+    const updatedHost = updatedSummary?.host?.toLowerCase();
+
+    if (originalHost || updatedHost) {
+      if (!originalHost && updatedHost) {
+        guardWarnings.push(`Host header added (${updatedSummary?.host}).`);
+      } else if (originalHost && !updatedHost) {
+        guardWarnings.push('Host header removed from the request.');
+      } else if (originalHost && updatedHost && originalHost !== updatedHost) {
+        guardWarnings.push(`Host header changed from ${originalSummary?.host} to ${updatedSummary?.host}.`);
+      }
+    }
+
+    return {
+      originalParsed: originalParsed ?? null,
+      updatedParsed,
+      originalSummary,
+      updatedSummary,
+      guardErrors,
+      guardWarnings
+    };
+  }, [editDraft, editingFlow]);
+
+  const hasGuardErrors = editAnalysis.guardErrors.length > 0;
 
   const clearFilters = () => {
     startTransition(() => {
@@ -1326,9 +1699,69 @@ function FlowsRouteComponent() {
     if (!editConfirmed) {
       return;
     }
+    if (hasGuardErrors) {
+      toast.error(editAnalysis.guardErrors[0] ?? 'Request blocked by guardrails');
+      return;
+    }
     try {
       setIsSubmittingEdit(true);
-      await resendFlow(editingFlow.id, editDraft);
+      const response = await resendFlow(editingFlow.id, editDraft);
+      const metadata = parseFlowMetadata(response.metadata as ResendFlowMetadata);
+      const parentId = metadata.parentFlowId ?? editingFlow.id;
+
+      setFlowMap((previous) => {
+        const next = new Map(previous);
+        const parent = next.get(parentId);
+        if (parent) {
+          const cloneSet = new Set(parent.childFlowIds);
+          cloneSet.add(response.flowId);
+          const updatedParent: FlowEntry = {
+            ...parent,
+            childFlowIds: Array.from(cloneSet)
+          };
+          if (metadata.cloneReason) {
+            updatedParent.cloneReason = metadata.cloneReason;
+          }
+          if (metadata.auditTrail.length > 0) {
+            updatedParent.auditTrail = mergeAuditRecords(parent.auditTrail, metadata.auditTrail);
+          }
+          next.set(parentId, updatedParent);
+        }
+
+        const existingChild = next.get(response.flowId);
+        const childEntry: FlowEntry = existingChild
+          ? { ...existingChild }
+          : {
+              id: response.flowId,
+              flowId: response.flowId,
+              tags: [],
+              pluginTags: [],
+              scope: parent?.scope ?? 'in-scope',
+              updatedAt: new Date().toISOString(),
+              searchText: '',
+              childFlowIds: [],
+              auditTrail: []
+            };
+        childEntry.parentFlowId = parentId;
+        if (metadata.cloneReason) {
+          childEntry.cloneReason = metadata.cloneReason;
+        }
+        if (metadata.childFlowIds.length > 0) {
+          const set = new Set(childEntry.childFlowIds);
+          for (const id of metadata.childFlowIds) {
+            set.add(id);
+          }
+          childEntry.childFlowIds = Array.from(set);
+        }
+        if (metadata.auditTrail.length > 0) {
+          childEntry.auditTrail = mergeAuditRecords(childEntry.auditTrail, metadata.auditTrail);
+        }
+        next.set(response.flowId, childEntry);
+
+        return next;
+      });
+
+      setSelectedFlowId(response.flowId);
       toast.success('Modified request dispatched');
       setEditingFlow(null);
       setEditDraft('');
@@ -1600,14 +2033,100 @@ function FlowsRouteComponent() {
                       <Send className="mr-2 h-4 w-4" /> Edit & resend
                     </Button>
                   </div>
-                </div>
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-6">
-                <section>
-                  <header className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold uppercase text-muted-foreground">Request</h3>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              {(selectedFlow.parentFlowId ||
+                selectedFlow.childFlowIds.length > 0 ||
+                selectedFlow.auditTrail.length > 0) && (
+                <div className="mb-6 space-y-4 rounded-md border border-border bg-muted/30 p-4 text-xs">
+                  {selectedFlow.parentFlowId && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Link className="h-4 w-4 text-muted-foreground" />
+                        <span className="truncate">
+                          Resent from{' '}
+                          <button
+                            type="button"
+                            className="font-mono underline-offset-2 hover:underline"
+                            onClick={() => setSelectedFlowId(selectedFlow.parentFlowId!)}
+                          >
+                            {selectedFlow.parentFlowId}
+                          </button>
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedFlowId(selectedFlow.parentFlowId!)}
+                        className="h-7 px-2 text-xs"
+                      >
+                        View parent
+                      </Button>
+                    </div>
+                  )}
+                  {selectedFlow.childFlowIds.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <GitBranch className="h-4 w-4 text-muted-foreground" /> Resent copies
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedFlow.childFlowIds.map((childId) => (
+                          <Button
+                            key={childId}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs font-mono"
+                            onClick={() => setSelectedFlowId(childId)}
+                          >
+                            {childId}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFlow.cloneReason && (
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <Send className="mt-0.5 h-3 w-3" />
+                      <span>{selectedFlow.cloneReason}</span>
+                    </div>
+                  )}
+                  {selectedFlow.auditTrail.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <FileSignature className="h-4 w-4 text-muted-foreground" /> Audit trail
+                      </div>
+                      <ul className="space-y-2">
+                        {selectedFlow.auditTrail.map((audit) => (
+                          <li key={audit.entryId} className="rounded-md bg-background/80 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground">
+                              <span className="font-mono">{audit.entryId}</span>
+                              {audit.recordedAt && (
+                                <span className="text-muted-foreground">
+                                  {new Date(audit.recordedAt).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                              sig {audit.signature}
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                              {audit.actor && <span>Actor: {audit.actor}</span>}
+                              {audit.action && <span>Action: {audit.action}</span>}
+                              {audit.decision && <span>Decision: {audit.decision}</span>}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              <section>
+                <header className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground">Request</h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                         <span>Size {formatBytes(selectedFlow.requestSize)}</span>
                         {selectedFlow.requestSize && selectedFlow.requestSize > LARGE_BODY_THRESHOLD && (
                           <span className="flex items-center gap-1 text-orange-500">
@@ -1720,28 +2239,39 @@ function FlowsRouteComponent() {
                   </Button>
                 </div>
               </div>
-              {showDiff && (
-                <div className="max-h-72 overflow-auto rounded-md border border-border bg-card">
-                  <pre className="whitespace-pre-wrap break-words p-4 text-xs font-mono leading-relaxed">
-                    {diffChunks.length === 0
-                      ? 'No changes detected.'
-                      : diffChunks.map((chunk, index) => {
-                          const prefix = chunk.type === 'add' ? '+' : chunk.type === 'remove' ? '-' : ' ';
-                          return (
-                            <div
-                              key={`${chunk.type}-${index}`}
-                              className={cn(
-                                'whitespace-pre-wrap break-words',
-                                chunk.type === 'add' && 'bg-emerald-500/10 text-emerald-500',
-                                chunk.type === 'remove' && 'bg-destructive/10 text-destructive line-through'
-                              )}
-                            >
-                              {`${prefix} ${chunk.value || ' '}`}
-                            </div>
-                          );
-                        })}
-                  </pre>
+              <div className="rounded-md border border-border bg-muted/30 p-4 text-xs">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <ShieldAlert
+                    className={cn('h-4 w-4', hasGuardErrors ? 'text-destructive' : 'text-emerald-500')}
+                  />
+                  Pre-send guardrails
                 </div>
+                {hasGuardErrors || editAnalysis.guardWarnings.length > 0 ? (
+                  <div className="mt-2 space-y-2">
+                    {editAnalysis.guardErrors.map((message, index) => (
+                      <div key={`guard-error-${index}`} className="flex items-start gap-2 text-destructive">
+                        <ShieldAlert className="mt-0.5 h-3 w-3" />
+                        <span>{message}</span>
+                      </div>
+                    ))}
+                    {editAnalysis.guardWarnings.map((message, index) => (
+                      <div key={`guard-warning-${index}`} className="flex items-start gap-2 text-amber-500">
+                        <AlertTriangle className="mt-0.5 h-3 w-3" />
+                        <span>{message}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-muted-foreground">No policy violations detected.</p>
+                )}
+              </div>
+              {showDiff && (
+                <HttpDiffViewer
+                  original={editingFlow.request?.raw ?? ''}
+                  updated={editDraft}
+                  originalParsed={editAnalysis.originalParsed}
+                  updatedParsed={editAnalysis.updatedParsed}
+                />
               )}
               <div className="flex items-center justify-end gap-3">
                 <Button variant="ghost" onClick={() => setEditingFlow(null)}>
@@ -1755,7 +2285,8 @@ function FlowsRouteComponent() {
                     isSubmittingEdit ||
                     !editingFlow.request ||
                     editDraft.trim().length === 0 ||
-                    !editingEnabled
+                    !editingEnabled ||
+                    hasGuardErrors
                   }
                 >
                   {isSubmittingEdit ? 'Sending…' : 'Resend modified request'}
