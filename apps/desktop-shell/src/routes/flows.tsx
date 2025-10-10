@@ -9,7 +9,16 @@ import {
   Shield,
   Timer
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import {
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition
+} from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
@@ -24,6 +33,7 @@ import {
 import { useArtifact } from '../providers/artifact-provider';
 import { useCommandCenter } from '../providers/command-center';
 import { cn, isRedactedValue } from '../lib/utils';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 
 type HttpHeader = {
   name: string;
@@ -87,6 +97,9 @@ type DiffChunk = {
 const ITEM_HEIGHT = 136;
 const STREAM_ID = 'timeline';
 const LARGE_BODY_THRESHOLD = 64 * 1024;
+const MAX_FLOW_QUEUE = 1000;
+const FLUSH_BATCH_SIZE = 250;
+const MAX_FLOW_ENTRIES = 50000;
 
 function decodeBase64(value: string | undefined | null): string {
   if (!value) {
@@ -816,7 +829,8 @@ function FlowsRouteComponent() {
       return bTime - aTime;
     });
   }, [flowMap]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTerm = useDebouncedValue(searchInput, 200);
   const [methodFilter, setMethodFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<number[]>([]);
   const [domainFilter, setDomainFilter] = useState<string[]>([]);
@@ -838,11 +852,51 @@ function FlowsRouteComponent() {
   const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const eventQueueRef = useRef<FlowEvent[]>([]);
   const flushTimeoutRef = useRef<number | null>(null);
+  const statsAnimationFrameRef = useRef<number | null>(null);
+  const streamStatsRef = useRef({ queued: 0, dropped: 0 });
+  const [streamStats, setStreamStats] = useState(streamStatsRef.current);
   const { status } = useArtifact();
   const { registerCommand } = useCommandCenter();
   const offlineMode = Boolean(status?.loaded);
   const artifactKey = `${status?.manifest?.flowsFile ?? ''}:${status?.flowCount ?? 0}`;
   const editingEnabled = !offlineMode;
+
+  const scheduleStreamStatsUpdate = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (statsAnimationFrameRef.current !== null) {
+      return;
+    }
+    statsAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      statsAnimationFrameRef.current = null;
+      startTransition(() => {
+        setStreamStats({ ...streamStatsRef.current });
+      });
+    });
+  }, [startTransition]);
+
+  const updateQueuedLength = useCallback(
+    (value: number) => {
+      if (streamStatsRef.current.queued === value) {
+        return;
+      }
+      streamStatsRef.current.queued = value;
+      scheduleStreamStatsUpdate();
+    },
+    [scheduleStreamStatsUpdate]
+  );
+
+  const incrementDropped = useCallback(
+    (value: number) => {
+      if (value <= 0) {
+        return;
+      }
+      streamStatsRef.current.dropped += value;
+      scheduleStreamStatsUpdate();
+    },
+    [scheduleStreamStatsUpdate]
+  );
 
   useEffect(() => {
     const cleanups = [
@@ -905,20 +959,41 @@ function FlowsRouteComponent() {
     setFlowMap(new Map());
     setCursor(null);
     setHasMore(false);
+    streamStatsRef.current = { queued: 0, dropped: 0 };
+    setStreamStats(streamStatsRef.current);
+    setSearchInput('');
   }, [artifactKey]);
 
-  const applyBatch = useCallback((items: FlowEvent[]) => {
-    setFlowMap((previous) => {
-      const next = new Map(previous);
-      for (const item of items) {
-        const flowId = item.id.replace(/:(request|response)$/i, '');
-        const existing = next.get(flowId);
-        const updated = integrateFlowEvent(existing, item);
-        next.set(flowId, updated);
-      }
-      return next;
-    });
-  }, []);
+  const applyBatch = useCallback(
+    (items: FlowEvent[]) => {
+      setFlowMap((previous) => {
+        const next = new Map(previous);
+        for (const item of items) {
+          const flowId = item.id.replace(/:(request|response)$/i, '');
+          const existing = next.get(flowId);
+          const updated = integrateFlowEvent(existing, item);
+          next.set(flowId, updated);
+        }
+
+        if (next.size > MAX_FLOW_ENTRIES) {
+          const overflow = next.size - MAX_FLOW_ENTRIES;
+          const entries = Array.from(next.entries()).sort((a, b) => {
+            const aTime = new Date(a[1].updatedAt).getTime();
+            const bTime = new Date(b[1].updatedAt).getTime();
+            return aTime - bTime;
+          });
+          for (let index = 0; index < overflow; index += 1) {
+            const [key] = entries[index];
+            next.delete(key);
+          }
+          incrementDropped(overflow);
+        }
+
+        return next;
+      });
+    },
+    [incrementDropped]
+  );
 
   const commitBatch = useCallback(
     (items: FlowEvent[]) => {
@@ -937,8 +1012,9 @@ function FlowsRouteComponent() {
       return;
     }
     const batch = eventQueueRef.current.splice(0, eventQueueRef.current.length);
+    updateQueuedLength(eventQueueRef.current.length);
     commitBatch(batch);
-  }, [commitBatch]);
+  }, [commitBatch, updateQueuedLength]);
 
   const scheduleFlush = useCallback(() => {
     if (flushTimeoutRef.current !== null) {
@@ -989,8 +1065,14 @@ function FlowsRouteComponent() {
       STREAM_ID,
       (event) => {
         if (!cancelled) {
-          eventQueueRef.current.push(event);
-          if (eventQueueRef.current.length >= 250) {
+          const queue = eventQueueRef.current;
+          if (queue.length >= MAX_FLOW_QUEUE) {
+            queue.shift();
+            incrementDropped(1);
+          }
+          queue.push(event);
+          updateQueuedLength(queue.length);
+          if (queue.length >= FLUSH_BATCH_SIZE) {
             flushPendingEvents();
           } else {
             scheduleFlush();
@@ -1021,9 +1103,20 @@ function FlowsRouteComponent() {
         window.clearTimeout(flushTimeoutRef.current);
         flushTimeoutRef.current = null;
       }
+      if (statsAnimationFrameRef.current !== null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(statsAnimationFrameRef.current);
+        statsAnimationFrameRef.current = null;
+      }
       eventQueueRef.current = [];
+      updateQueuedLength(0);
     };
-  }, [flushPendingEvents, scheduleFlush, offlineMode]);
+  }, [
+    flushPendingEvents,
+    scheduleFlush,
+    offlineMode,
+    incrementDropped,
+    updateQueuedLength
+  ]);
 
   const methodOptions = useMemo(() => {
     return Array.from(
@@ -1159,14 +1252,31 @@ function FlowsRouteComponent() {
   }, [editingFlow, editDraft]);
 
   const clearFilters = () => {
-    setMethodFilter([]);
-    setStatusFilter([]);
-    setDomainFilter([]);
-    setScopeFilter([]);
-    setTagFilter([]);
-    setPluginTagFilter([]);
-    setSearchTerm('');
+    startTransition(() => {
+      setMethodFilter([]);
+      setStatusFilter([]);
+      setDomainFilter([]);
+      setScopeFilter([]);
+      setTagFilter([]);
+      setPluginTagFilter([]);
+    });
+    setSearchInput('');
   };
+
+  const toggleFilter = useCallback(
+    <Value,>(value: Value, setter: Dispatch<SetStateAction<Value[]>>) => {
+      startTransition(() => {
+        setter((previous) => {
+          const exists = previous.includes(value);
+          if (exists) {
+            return previous.filter((item) => item !== value);
+          }
+          return [...previous, value];
+        });
+      });
+    },
+    [startTransition]
+  );
 
   const loadMore = async () => {
     if (!cursor) {
@@ -1251,8 +1361,8 @@ function FlowsRouteComponent() {
                 id="flow-search"
                 type="search"
                 ref={filterSearchRef}
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Method, URL, body…"
                 className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
@@ -1262,62 +1372,38 @@ function FlowsRouteComponent() {
             title="Methods"
             options={methodOptions}
             selected={methodFilter}
-            onToggle={(value) =>
-              setMethodFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={(value) => toggleFilter(value, setMethodFilter)}
           />
           <NumberFilterGroup
             title="Status"
             options={statusOptions}
             selected={statusFilter}
-            onToggle={(value) =>
-              setStatusFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={(value) => toggleFilter(value, setStatusFilter)}
           />
           <FilterGroup
             title="Domains"
             options={domainOptions}
             selected={domainFilter}
-            onToggle={(value) =>
-              setDomainFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={(value) => toggleFilter(value, setDomainFilter)}
             emptyLabel="Unknown domain"
           />
           <FilterGroup
             title="Scope"
             options={scopeOptions}
             selected={scopeFilter}
-            onToggle={(value) =>
-              setScopeFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={(value) => toggleFilter(value, setScopeFilter)}
           />
           <FilterGroup
             title="Tags"
             options={tagOptions}
             selected={tagFilter}
-            onToggle={(value) =>
-              setTagFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={(value) => toggleFilter(value, setTagFilter)}
           />
           <FilterGroup
             title="Plugin tags"
             options={pluginTagOptions}
             selected={pluginTagFilter}
-            onToggle={(value) =>
-              setPluginTagFilter((prev) =>
-                prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-              )
-            }
+            onToggle={(value) => toggleFilter(value, setPluginTagFilter)}
           />
         </div>
       </aside>
@@ -1328,6 +1414,18 @@ function FlowsRouteComponent() {
             <p className="text-sm text-muted-foreground">
               Real-time intercepted requests and responses with live updates.
             </p>
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Queued {streamStats.queued.toLocaleString()}</span>
+              <span
+                className={cn(
+                  'flex items-center gap-1',
+                  streamStats.dropped > 0 ? 'text-amber-600' : undefined
+                )}
+              >
+                {streamStats.dropped > 0 && <AlertTriangle className="h-3 w-3" />}
+                Dropped {streamStats.dropped.toLocaleString()}
+              </span>
+            </div>
           </div>
           <div
             ref={listRef}
