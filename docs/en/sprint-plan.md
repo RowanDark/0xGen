@@ -2,10 +2,10 @@
 search: false
 ---
 
-# Sprint Plan: Galdr, Excavator, Scribe, Seer, and OSINT Well
+# Sprint Plan: Galdr, Excavator, Scribe, Seer, and Case Diffing
 
 ## Overview
-This sprint focuses on hardening the Galdr proxy foundation while delivering first-pass capabilities for crawling, reporting, secrets detection, and passive OSINT enrichment. Workstreams are listed in priority order and should ship iteratively so later tasks can build on earlier outputs.
+This sprint focuses on hardening the Galdr proxy foundation while delivering first-pass capabilities for crawling, reporting, secrets detection, and baseline-aware case comparisons. Workstreams are listed in priority order and should ship iteratively so later tasks can build on earlier outputs.
 
 ---
 
@@ -80,18 +80,17 @@ This sprint focuses on hardening the Galdr proxy foundation while delivering fir
 
 ---
 
-## 5. OSINT Well — Amass Wrapper (Passive Mode First)
-**Goal:** Wrap Amass passive enumeration and normalize results for downstream tooling.
+## 5. Case Diffing & Baseline Comparisons
+**Goal:** Let users compare Run A vs Run B and see new/changed/resolved Cases.
 
 **Scope & Tasks**
-- Execute `amass enum -passive -d <domain>` and capture outputs.
-- Normalize assets into `/out/assets.jsonl`.
-- Provide usage documentation and sample output.
+- Introduce stable Case identifiers and a diff engine that highlights added, removed, and changed entries.
+- Add noise controls such as ignoring parameter-only differences and sliders for delta thresholds.
+- Export comparison results to SARIF/JSONL and link back to supporting evidence.
 
-**Deliverables**
-- Passive Amass integration and JSONL normalizer.
-- Documentation and sample artifacts.
-- Codex-ready issue title: `osint-well: passive amass wrapper + normalizer`.
+**Acceptance Criteria**
+- "Compare to baseline" displays a clear delta view between runs.
+- Exported artifacts validate and open cleanly in external tooling.
 
 ---
 
@@ -110,6 +109,6 @@ This sprint focuses on hardening the Galdr proxy foundation while delivering fir
 2. Excavator crawler foundation & golden tests.
 3. Scribe reporting CLI & golden tests.
 4. Seer passive secrets detection.
-5. OSINT Well passive wrapper & normalization.
+5. Case diffing baseline comparisons engine and exports.
 6. Apply guardrails and CI requirements across workstreams throughout the sprint.
 
