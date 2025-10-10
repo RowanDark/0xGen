@@ -28,6 +28,7 @@ import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { useArtifact } from '../providers/artifact-provider';
 import { useMetrics } from '../providers/metrics-provider';
+import { useTheme } from '../providers/theme-provider';
 import { baseTransition, hoverTransition } from '../lib/motion';
 
 type SparklinePoint = {
@@ -39,6 +40,8 @@ type RunHistoryPoint = {
   timestamp: number;
   count: number;
 };
+
+type DotShape = 'circle' | 'square' | 'diamond';
 
 type StatCardProps = {
   title: string;
@@ -61,9 +64,54 @@ const palette = {
   cases: '#0ea5e9'
 };
 
+type SparklineDotProps = {
+  cx?: number;
+  cy?: number;
+  color: string;
+  shape: DotShape;
+};
+
+function SparklineDot({ cx, cy, color, shape }: SparklineDotProps) {
+  if (typeof cx !== 'number' || typeof cy !== 'number') {
+    return null;
+  }
+
+  const strokeWidth = 1.75;
+
+  switch (shape) {
+    case 'square':
+      return (
+        <rect
+          x={cx - 4}
+          y={cy - 4}
+          width={8}
+          height={8}
+          fill="white"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          rx={1.5}
+        />
+      );
+    case 'diamond':
+      return (
+        <polygon
+          points={`${cx},${cy - 5} ${cx + 5},${cy} ${cx},${cy + 5} ${cx - 5},${cy}`}
+          fill="white"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+        />
+      );
+    default:
+      return <circle cx={cx} cy={cy} r={4} fill="white" stroke={color} strokeWidth={strokeWidth} />;
+  }
+}
+
 function Sparkline({ data, color }: { data: SparklinePoint[]; color: string }) {
   const gradientId = useId();
+  const patternId = useId();
   const points = data.filter((point) => Number.isFinite(point.value));
+  const { isVisionSimulationActive } = useTheme();
 
   if (points.length < 2) {
     return (
@@ -72,6 +120,13 @@ function Sparkline({ data, color }: { data: SparklinePoint[]; color: string }) {
       </div>
     );
   }
+
+  const variants: DotShape[] = ['circle', 'diamond', 'square'];
+  const dashPatterns = ['4 3', '2 2', '6 3'];
+  const hash = Math.abs(Array.from(color).reduce((acc, char) => acc + char.charCodeAt(0), 0));
+  const variantIndex = hash % variants.length;
+  const selectedShape = variants[variantIndex];
+  const strokeDasharray = dashPatterns[variantIndex];
 
   return (
     <div className="h-full w-full overflow-hidden rounded-xl bg-muted/5">
@@ -82,8 +137,58 @@ function Sparkline({ data, color }: { data: SparklinePoint[]; color: string }) {
               <stop offset="5%" stopColor={color} stopOpacity={0.35} />
               <stop offset="95%" stopColor={color} stopOpacity={0} />
             </linearGradient>
+            <pattern id={patternId} width={12} height={12} patternUnits="userSpaceOnUse">
+              <rect width="12" height="12" fill={color} opacity={0.12} />
+              <path d="M0 12 L12 0" stroke={color} strokeWidth={1.25} opacity={0.55} />
+              {variantIndex === 0 && (
+                <path d="M0 0 L12 12" stroke={color} strokeWidth={1.25} opacity={0.35} />
+              )}
+              {variantIndex === 1 && (
+                <g stroke={color} strokeWidth={1.15} opacity={0.45}>
+                  <path d="M-2 0 H14" />
+                  <path d="M-2 0 H14" transform="translate(0 6)" />
+                </g>
+              )}
+              {variantIndex === 2 && (
+                <g fill={color} opacity={0.45}>
+                  <circle cx={3} cy={3} r={1.2} />
+                  <circle cx={9} cy={9} r={1.2} />
+                </g>
+              )}
+            </pattern>
           </defs>
-          <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={isVisionSimulationActive ? 2.5 : 2}
+            strokeDasharray={isVisionSimulationActive ? strokeDasharray : undefined}
+            fill={`url(#${isVisionSimulationActive ? patternId : gradientId})`}
+            fillOpacity={1}
+            dot={
+              isVisionSimulationActive
+                ? (props) => (
+                    <SparklineDot
+                      {...(props as SparklineDotProps)}
+                      color={color}
+                      shape={selectedShape}
+                    />
+                  )
+                : false
+            }
+            activeDot={
+              isVisionSimulationActive
+                ? (props) => (
+                    <SparklineDot
+                      {...(props as SparklineDotProps)}
+                      color={color}
+                      shape={selectedShape}
+                    />
+                  )
+                : undefined
+            }
+            isAnimationActive={!isVisionSimulationActive}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>

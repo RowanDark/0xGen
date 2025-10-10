@@ -1,8 +1,14 @@
 import { useId } from 'react';
-import { Contrast, Palette } from 'lucide-react';
+import { Contrast, Eye, MoonStar, Palette } from 'lucide-react';
 
 import { Button } from './ui/button';
-import { ThemeName, ThemeScope, useTheme } from '../providers/theme-provider';
+import {
+  BlueLightMode,
+  ColorVisionMode,
+  ThemeName,
+  ThemeScope,
+  useTheme
+} from '../providers/theme-provider';
 
 export function ThemeSwitcher() {
   const {
@@ -16,13 +22,31 @@ export function ThemeSwitcher() {
     prefersReducedMotion,
     toggleReducedMotion,
     fontScale,
-    setFontScale
+    setFontScale,
+    colorVisionMode,
+    setColorVisionMode,
+    colorVisionModes,
+    blueLightMode,
+    setBlueLightMode,
+    blueLightModes,
+    isBlueLightActive
   } = useTheme();
   const themeSelectId = useId();
   const scopeSelectId = useId();
   const fontScaleId = useId();
+  const colorVisionSelectId = useId();
+  const blueLightSelectId = useId();
+  const blueLightStatusId = useId();
   const sliderValue = Math.round(fontScale * 100);
   const fontScaleDelta = sliderValue - 100;
+  const blueLightStatusMessage =
+    blueLightMode === 'schedule'
+      ? isBlueLightActive
+        ? 'Blue light reduction is active until morning.'
+        : 'Blue light reduction will activate after dusk.'
+      : blueLightMode === 'on'
+        ? 'Blue light reduction is locked on.'
+        : 'Blue light reduction is off.';
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -47,6 +71,29 @@ export function ThemeSwitcher() {
           ))}
         </select>
       </div>
+      <label htmlFor={colorVisionSelectId} className="sr-only">
+        Color vision simulation
+      </label>
+      <div className="relative">
+        <Eye
+          className={`pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 ${
+            colorVisionMode === 'normal' ? 'text-muted-foreground' : 'text-primary'
+          }`}
+          aria-hidden
+        />
+        <select
+          id={colorVisionSelectId}
+          value={colorVisionMode}
+          onChange={(event) => setColorVisionMode(event.target.value as ColorVisionMode)}
+          className="h-9 appearance-none rounded-md border border-input bg-card pl-8 pr-8 text-sm font-medium text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {colorVisionModes.map((option) => (
+            <option key={option.value} value={option.value} className="bg-popover text-foreground">
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <label htmlFor={scopeSelectId} className="sr-only">
         Theme scope
       </label>
@@ -59,6 +106,34 @@ export function ThemeSwitcher() {
         <option value="project">This project</option>
         <option value="user">All projects</option>
       </select>
+      <label htmlFor={blueLightSelectId} className="sr-only">
+        Blue light mode
+      </label>
+      <div className="relative">
+        <MoonStar
+          className={`pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 ${
+            isBlueLightActive ? 'text-amber-500' : 'text-muted-foreground'
+          }`}
+          aria-hidden
+        />
+        <select
+          id={blueLightSelectId}
+          value={blueLightMode}
+          onChange={(event) => setBlueLightMode(event.target.value as BlueLightMode)}
+          aria-describedby={blueLightStatusId}
+          title={blueLightStatusMessage}
+          className="h-9 appearance-none rounded-md border border-input bg-card pl-8 pr-8 text-sm font-medium text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {blueLightModes.map((option) => (
+            <option key={option.value} value={option.value} className="bg-popover text-foreground">
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span id={blueLightStatusId} className="sr-only">
+          {blueLightStatusMessage}
+        </span>
+      </div>
       <Button
         type="button"
         variant={highContrast ? 'default' : 'outline'}

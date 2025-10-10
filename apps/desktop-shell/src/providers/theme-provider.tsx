@@ -14,6 +14,8 @@ const USER_THEME_STORAGE_KEY = `${THEME_STORAGE_PREFIX}.user`;
 const CONTRAST_STORAGE_PREFIX = 'glyph.high-contrast';
 const MOTION_STORAGE_PREFIX = 'glyph.motion';
 const FONT_SCALE_STORAGE_KEY = 'glyph.font-scale';
+const COLOR_VISION_STORAGE_KEY = 'glyph.vision.mode';
+const BLUE_LIGHT_MODE_STORAGE_KEY = 'glyph.blue-light.mode';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light', tone: 'light' },
@@ -26,9 +28,51 @@ const THEME_OPTIONS = [
   { value: 'cb-safe', label: 'Colorblind safe', tone: 'dark' }
 ] as const;
 
+const COLOR_VISION_FILTERS = {
+  deuteranopia:
+    '0.367322 0.860646 -0.227968 0 0 0.280085 0.672501 0.047413 0 0 -0.011820 0.042940 0.968881 0 0 0 0 0 1 0',
+  protanopia:
+    '0.152286 1.052583 -0.204868 0 0 0.114503 0.786281 0.099216 0 0 -0.003882 -0.048116 1.051998 0 0 0 0 0 1 0',
+  tritanopia:
+    '1.255528 -0.076749 -0.178779 0 0 -0.078411 0.930809 0.147602 0 0 0.004733 -0.048130 1.043397 0 0 0 0 0 1 0'
+} as const;
+
+const COLOR_VISION_OPTIONS = [
+  { value: 'normal', label: 'Standard vision' },
+  { value: 'deuteranopia', label: 'Deuteranopia simulation' },
+  { value: 'protanopia', label: 'Protanopia simulation' },
+  { value: 'tritanopia', label: 'Tritanopia simulation' }
+] as const;
+
+const BLUE_LIGHT_FILTER = 'sepia(0.28) saturate(0.75) hue-rotate(-20deg) brightness(0.9)';
+
+let activeVisionFilter = '';
+let activeBlueLightFilter = '';
+
+function updateDocumentFilters(root: HTMLElement | null = getDocumentRoot()) {
+  if (!root) {
+    return;
+  }
+
+  const filters = [activeVisionFilter, activeBlueLightFilter].filter(Boolean).join(' ');
+  root.style.setProperty('--document-filter', filters || 'none');
+}
+
+const BLUE_LIGHT_OPTIONS = [
+  { value: 'off', label: 'Off' },
+  { value: 'on', label: 'On' },
+  { value: 'schedule', label: 'Auto (evening)' }
+] as const;
+
 type ThemeOption = (typeof THEME_OPTIONS)[number];
 export type ThemeName = ThemeOption['value'];
 export type ThemeScope = 'user' | 'project';
+
+type ColorVisionOption = (typeof COLOR_VISION_OPTIONS)[number];
+export type ColorVisionMode = ColorVisionOption['value'];
+
+type BlueLightOption = (typeof BLUE_LIGHT_OPTIONS)[number];
+export type BlueLightMode = BlueLightOption['value'];
 
 type ThemeContextValue = {
   theme: ThemeName;
@@ -44,6 +88,14 @@ type ThemeContextValue = {
   toggleReducedMotion: () => void;
   fontScale: number;
   setFontScale: (scale: number) => void;
+  colorVisionMode: ColorVisionMode;
+  setColorVisionMode: (mode: ColorVisionMode) => void;
+  colorVisionModes: readonly ColorVisionOption[];
+  isVisionSimulationActive: boolean;
+  blueLightMode: BlueLightMode;
+  setBlueLightMode: (mode: BlueLightMode) => void;
+  blueLightModes: readonly BlueLightOption[];
+  isBlueLightActive: boolean;
   isDark: boolean;
   projectId: string;
 };
@@ -113,6 +165,28 @@ function isThemeScope(value: unknown): value is ThemeScope {
 
 function parseTheme(value: string | null): ThemeName | null {
   return isThemeName(value) ? value : null;
+}
+
+function isColorVisionMode(value: unknown): value is ColorVisionMode {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return COLOR_VISION_OPTIONS.some((option) => option.value === value);
+}
+
+function parseColorVisionMode(value: string | null): ColorVisionMode {
+  return isColorVisionMode(value) ? value : 'normal';
+}
+
+function isBlueLightMode(value: unknown): value is BlueLightMode {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return BLUE_LIGHT_OPTIONS.some((option) => option.value === value);
+}
+
+function parseBlueLightMode(value: string | null): BlueLightMode {
+  return isBlueLightMode(value) ? value : 'off';
 }
 
 type StoredThemePreferences = {
@@ -204,6 +278,20 @@ function readStoredFontScale(storage: Storage | null): number | null {
   return value;
 }
 
+function readStoredColorVisionMode(storage: Storage | null): ColorVisionMode {
+  if (!storage) {
+    return 'normal';
+  }
+  return parseColorVisionMode(storage.getItem(COLOR_VISION_STORAGE_KEY));
+}
+
+function readStoredBlueLightMode(storage: Storage | null): BlueLightMode {
+  if (!storage) {
+    return 'off';
+  }
+  return parseBlueLightMode(storage.getItem(BLUE_LIGHT_MODE_STORAGE_KEY));
+}
+
 function getSystemTheme(): ThemeName {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return DEFAULT_THEME;
@@ -216,6 +304,104 @@ function getSystemReducedMotion(): boolean {
     return false;
   }
   return window.matchMedia(MEDIA_QUERY_REDUCED_MOTION).matches;
+}
+
+function isEvening(date: Date = new Date()): boolean {
+  const hour = date.getHours();
+  return hour >= 19 || hour < 6;
+}
+
+function getDocumentFromRoot(root: HTMLElement | null): Document | null {
+  if (root?.ownerDocument) {
+    return root.ownerDocument;
+  }
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  return document;
+}
+
+function ensureColorVisionFilter(mode: Exclude<ColorVisionMode, 'normal'>, root: HTMLElement | null) {
+  const doc = getDocumentFromRoot(root);
+  if (!doc) {
+    return;
+  }
+
+  const filterId = `glyph-vision-${mode}`;
+  let svg = doc.getElementById('glyph-vision-filter-root') as SVGSVGElement | null;
+
+  if (!svg) {
+    svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('id', 'glyph-vision-filter-root');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.position = 'absolute';
+    svg.style.width = '0';
+    svg.style.height = '0';
+
+    const defs = doc.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    svg.appendChild(defs);
+
+    const mountPoint = doc.body ?? doc.documentElement;
+    mountPoint?.insertBefore(svg, mountPoint.firstChild ?? null);
+  }
+
+  const defs = svg.querySelector('defs');
+  if (!defs) {
+    return;
+  }
+
+  let filter = defs.querySelector(`#${filterId}`) as SVGFilterElement | null;
+  if (!filter) {
+    filter = doc.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', filterId);
+    defs.appendChild(filter);
+  }
+
+  let matrix = filter.querySelector('feColorMatrix');
+  if (!matrix) {
+    matrix = doc.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
+    matrix.setAttribute('type', 'matrix');
+    filter.appendChild(matrix);
+  }
+
+  matrix.setAttribute('values', COLOR_VISION_FILTERS[mode]);
+}
+
+function applyColorVisionMode(
+  mode: ColorVisionMode,
+  root: HTMLElement | null = getDocumentRoot()
+) {
+  if (!root) {
+    return;
+  }
+
+  root.setAttribute('data-vision-mode', mode);
+
+  if (mode === 'normal') {
+    activeVisionFilter = '';
+    updateDocumentFilters(root);
+    return;
+  }
+
+  ensureColorVisionFilter(mode, root);
+  activeVisionFilter = `url(#glyph-vision-${mode})`;
+  updateDocumentFilters(root);
+}
+
+function applyBlueLightPreferences(
+  mode: BlueLightMode,
+  isActive: boolean,
+  root: HTMLElement | null = getDocumentRoot()
+) {
+  if (!root) {
+    return;
+  }
+
+  root.setAttribute('data-blue-light-mode', mode);
+  root.setAttribute('data-blue-light', isActive ? 'on' : 'off');
+  activeBlueLightFilter = isActive ? BLUE_LIGHT_FILTER : '';
+  updateDocumentFilters(root);
 }
 
 function applyDocumentTheme(
@@ -247,8 +433,14 @@ export function bootstrapTheme() {
   const storedReducedMotion = readStoredReducedMotion(storage, projectId);
   const prefersReducedMotion = storedReducedMotion ?? getSystemReducedMotion();
   const fontScale = readStoredFontScale(storage) ?? 1;
+  const colorVisionMode = readStoredColorVisionMode(storage);
+  const blueLightMode = readStoredBlueLightMode(storage);
+  const autoBlueLightActive = blueLightMode === 'schedule' ? isEvening() : false;
+  const isBlueLightActive = blueLightMode === 'on' || autoBlueLightActive;
 
   applyDocumentTheme(initialTheme, highContrast, prefersReducedMotion, fontScale, root);
+  applyColorVisionMode(colorVisionMode, root);
+  applyBlueLightPreferences(blueLightMode, isBlueLightActive, root);
 }
 
 type ThemeProviderProps = {
@@ -273,6 +465,8 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
     [storage, projectId]
   );
   const storedFontScale = useMemo(() => readStoredFontScale(storage), [storage]);
+  const storedColorVisionMode = useMemo(() => readStoredColorVisionMode(storage), [storage]);
+  const storedBlueLightMode = useMemo(() => readStoredBlueLightMode(storage), [storage]);
   const { legacyTheme, projectTheme: storedProjectTheme, userTheme: storedUserTheme } =
     storedPreferences;
 
@@ -291,6 +485,14 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
     () => storedReducedMotion !== null
   );
   const [fontScale, setFontScaleState] = useState<number>(storedFontScale ?? 1);
+  const [colorVisionMode, setColorVisionModeState] = useState<ColorVisionMode>(storedColorVisionMode);
+  const [blueLightMode, setBlueLightModeState] = useState<BlueLightMode>(storedBlueLightMode);
+  const [isBlueLightScheduleActive, setIsBlueLightScheduleActive] = useState<boolean>(() =>
+    storedBlueLightMode === 'schedule' ? isEvening() : false
+  );
+  const isBlueLightActive =
+    blueLightMode === 'on' || (blueLightMode === 'schedule' && isBlueLightScheduleActive);
+  const isVisionSimulationActive = colorVisionMode !== 'normal';
 
   useEffect(() => {
     if (!storage) {
@@ -309,6 +511,14 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
   useEffect(() => {
     applyDocumentTheme(theme, highContrast, prefersReducedMotion, fontScale, root);
   }, [theme, highContrast, prefersReducedMotion, fontScale, root]);
+
+  useEffect(() => {
+    applyColorVisionMode(colorVisionMode, root);
+  }, [colorVisionMode, root]);
+
+  useEffect(() => {
+    applyBlueLightPreferences(blueLightMode, isBlueLightActive, root);
+  }, [blueLightMode, isBlueLightActive, root]);
 
   useEffect(() => {
     if (!storage) {
@@ -379,6 +589,48 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
       // Swallow persistence errors to avoid crashing the shell when storage is unavailable.
     }
   }, [fontScale, storage]);
+
+  useEffect(() => {
+    if (!storage) {
+      return;
+    }
+    try {
+      storage.setItem(COLOR_VISION_STORAGE_KEY, colorVisionMode);
+    } catch (error) {
+      // Swallow persistence errors to avoid crashing the shell when storage is unavailable.
+    }
+  }, [colorVisionMode, storage]);
+
+  useEffect(() => {
+    if (!storage) {
+      return;
+    }
+    try {
+      storage.setItem(BLUE_LIGHT_MODE_STORAGE_KEY, blueLightMode);
+    } catch (error) {
+      // Swallow persistence errors to avoid crashing the shell when storage is unavailable.
+    }
+  }, [blueLightMode, storage]);
+
+  useEffect(() => {
+    if (blueLightMode !== 'schedule') {
+      setIsBlueLightScheduleActive(false);
+      return;
+    }
+
+    const update = () => {
+      setIsBlueLightScheduleActive(isEvening());
+    };
+
+    update();
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const interval = window.setInterval(update, 60_000);
+    return () => window.clearInterval(interval);
+  }, [blueLightMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -477,6 +729,14 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
     setFontScaleState(Math.min(1.3, Math.max(1, scale)));
   }, []);
 
+  const handleSetColorVisionMode = useCallback((mode: ColorVisionMode) => {
+    setColorVisionModeState(mode);
+  }, []);
+
+  const handleSetBlueLightMode = useCallback((mode: BlueLightMode) => {
+    setBlueLightModeState(mode);
+  }, []);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
@@ -492,6 +752,14 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
       toggleReducedMotion,
       fontScale,
       setFontScale: handleSetFontScale,
+      colorVisionMode,
+      setColorVisionMode: handleSetColorVisionMode,
+      colorVisionModes: COLOR_VISION_OPTIONS,
+      isVisionSimulationActive,
+      blueLightMode,
+      setBlueLightMode: handleSetBlueLightMode,
+      blueLightModes: BLUE_LIGHT_OPTIONS,
+      isBlueLightActive,
       isDark: DARK_THEMES.has(theme),
       projectId
     }),
@@ -508,6 +776,12 @@ export function ThemeProvider({ children, projectId: projectIdProp }: ThemeProvi
       toggleReducedMotion,
       fontScale,
       handleSetFontScale,
+      colorVisionMode,
+      handleSetColorVisionMode,
+      isVisionSimulationActive,
+      blueLightMode,
+      handleSetBlueLightMode,
+      isBlueLightActive,
       projectId
     ]
   );
