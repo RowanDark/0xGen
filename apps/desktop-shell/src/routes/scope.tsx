@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCopy,
+  FileText,
+  ListChecks,
   Loader2,
   RefreshCw,
   ShieldAlert,
@@ -31,6 +33,7 @@ import {
   type ScopeValidationMessage,
   type ScopeValidationResult
 } from '../lib/ipc';
+import { scopeBenchmarks } from '../lib/scope-test-bench';
 import { cn } from '../lib/utils';
 
 const scopePolicySchema = {
@@ -82,6 +85,21 @@ const scopePolicySchema = {
   }
 };
 
+const riskyRuleTypes = new Set(['wildcard', 'pattern']);
+
+type BenchmarkOutcome =
+  | {
+      status: 'pass' | 'fail';
+      expected: string;
+      actual: string;
+      summary?: string;
+      rationale?: string[];
+    }
+  | {
+      status: 'error';
+      error: string;
+    };
+
 function describeLocation(message: ScopeValidationMessage) {
   if (message.line == null && message.column == null) {
     return undefined;
@@ -93,6 +111,10 @@ function describeLocation(message: ScopeValidationMessage) {
     return `line ${message.line}`;
   }
   return `column ${message.column}`;
+}
+
+function isRuleRisky(rule: { type: string }) {
+  return riskyRuleTypes.has(rule.type);
 }
 
 function DecisionBadge({ allowed }: { allowed: boolean }) {
@@ -112,11 +134,23 @@ function DecisionBadge({ allowed }: { allowed: boolean }) {
 }
 
 function RulePreview({ rule }: { rule: { type: string; value: string; notes?: string | null } }) {
+  const risky = isRuleRisky(rule);
   return (
-    <div className="rounded-md border border-border bg-background p-3 text-sm">
+    <div
+      className={cn(
+        'rounded-md border bg-background p-3 text-sm',
+        risky ? 'border-warning/70 bg-warning/5' : 'border-border'
+      )}
+    >
       <div className="font-medium">{rule.type}</div>
-      <div className="text-muted-foreground">{rule.value}</div>
+      <div className="text-muted-foreground break-words">{rule.value}</div>
       {rule.notes ? <div className="mt-2 text-xs text-muted-foreground">{rule.notes}</div> : null}
+      {risky ? (
+        <div className="mt-2 flex items-center gap-1 text-xs text-warning">
+          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+          Review this wildcard or pattern carefully before enforcing.
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -153,6 +187,9 @@ function ScopeScreen() {
   const [parseInput, setParseInput] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [suggestions, setSuggestions] = useState<ScopeParseSuggestion[]>([]);
+  const [selectedBenchmarkId, setSelectedBenchmarkId] = useState(scopeBenchmarks[0]?.id ?? '');
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkOutcome | null>(null);
   const [dryRunInput, setDryRunInput] = useState('');
   const [isDryRunning, setIsDryRunning] = useState(false);
   const [dryRunResults, setDryRunResults] = useState<ScopeDryRunDecision[]>([]);
@@ -212,6 +249,14 @@ function ScopeScreen() {
   const hasUnsavedChanges = useMemo(() => {
     return (activePolicy?.policy ?? '') !== policy;
   }, [activePolicy, policy]);
+
+  const selectedBenchmark = useMemo(() => {
+    return scopeBenchmarks.find((benchmark) => benchmark.id === selectedBenchmarkId) ?? null;
+  }, [selectedBenchmarkId]);
+
+  useEffect(() => {
+    setBenchmarkResult(null);
+  }, [selectedBenchmarkId]);
 
   const handleValidate = async () => {
     setIsValidating(true);
@@ -282,8 +327,82 @@ function ScopeScreen() {
   };
 
   const handleApplySuggestion = (suggestion: ScopeParseSuggestion) => {
+    const containsWildcard = Boolean(
+      suggestion.rules?.allow?.some((rule) => isRuleRisky(rule)) ||
+        suggestion.rules?.deny?.some((rule) => isRuleRisky(rule))
+    );
+
+    if (containsWildcard) {
+      const confirmed = window.confirm(
+        'This suggestion includes wildcard or pattern rules. Confirm before replacing the current policy?'
+      );
+      if (!confirmed) {
+        toast.info('Wildcard suggestion was not applied.');
+        return;
+      }
+    }
+
     setPolicy(suggestion.policy);
     toast.success('Replaced the editor contents with the generated policy.');
+  };
+
+  const normalizePolicy = (value: string) =>
+    value
+      .replace(/\r?\n/g, '\n')
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trim();
+
+  const handleRunBenchmark = async () => {
+    if (!selectedBenchmark) {
+      toast.info('Select a policy snippet to benchmark.');
+      return;
+    }
+
+    setIsBenchmarking(true);
+    setBenchmarkResult(null);
+
+    try {
+      const response = await parseScopeText(selectedBenchmark.text);
+
+      if (response.suggestions.length === 0) {
+        setBenchmarkResult({ status: 'error', error: 'No suggestions were returned for this snippet.' });
+        toast.error('Benchmark did not return any scope suggestions.');
+        return;
+      }
+
+      const [primarySuggestion] = response.suggestions;
+      const expected = normalizePolicy(selectedBenchmark.expectedPolicy);
+      const actual = normalizePolicy(primarySuggestion.policy);
+      const status: 'pass' | 'fail' = expected === actual ? 'pass' : 'fail';
+
+      setBenchmarkResult({
+        status,
+        expected,
+        actual,
+        summary: primarySuggestion.summary,
+        rationale:
+          primarySuggestion.rationale && primarySuggestion.rationale.length > 0
+            ? primarySuggestion.rationale
+            : primarySuggestion.notes
+              ? [primarySuggestion.notes]
+              : undefined
+      });
+
+      if (status === 'pass') {
+        toast.success('Generated policy matches the golden benchmark.');
+      } else {
+        toast.error('Generated policy differs from the golden benchmark.');
+      }
+    } catch (error) {
+      console.error('Failed to run scope benchmark', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setBenchmarkResult({ status: 'error', error: errorMessage });
+      toast.error('Unable to run the benchmark against the policy service.');
+    } finally {
+      setIsBenchmarking(false);
+    }
   };
 
   const handleDryRun = async () => {
@@ -463,40 +582,189 @@ function ScopeScreen() {
               </div>
               {suggestions.length > 0 ? (
                 <div className="space-y-4">
-                  {suggestions.map((suggestion, index) => (
-                    <div key={index} className="rounded-lg border border-border bg-background p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-sm font-medium">Suggestion {index + 1}</div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void handleCopySuggestion(suggestion)}
-                          >
-                            <ClipboardCopy className="mr-2 h-4 w-4" aria-hidden />
-                            Copy YAML
-                          </Button>
-                          <Button type="button" size="sm" onClick={() => handleApplySuggestion(suggestion)}>
-                            Apply to editor
-                          </Button>
+                  {suggestions.map((suggestion, index) => {
+                    const allowRules = suggestion.rules?.allow ?? [];
+                    const denyRules = suggestion.rules?.deny ?? [];
+                    const hasWildcards =
+                      allowRules.some((rule) => isRuleRisky(rule)) || denyRules.some((rule) => isRuleRisky(rule));
+                    const rationaleItems =
+                      suggestion.rationale && suggestion.rationale.length > 0
+                        ? suggestion.rationale
+                        : suggestion.notes
+                          ? [suggestion.notes]
+                          : [];
+
+                    return (
+                      <div
+                        key={index}
+                        className={cn(
+                          'rounded-lg border bg-background p-3',
+                          hasWildcards ? 'border-warning/70' : 'border-border'
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-medium">Suggestion {index + 1}</div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleCopySuggestion(suggestion)}
+                            >
+                              <ClipboardCopy className="mr-2 h-4 w-4" aria-hidden />
+                              Copy YAML
+                            </Button>
+                            <Button type="button" size="sm" onClick={() => handleApplySuggestion(suggestion)}>
+                              Apply to editor
+                            </Button>
+                          </div>
+                        </div>
+                        {suggestion.summary ? (
+                          <p className="mt-2 text-xs text-muted-foreground">{suggestion.summary}</p>
+                        ) : null}
+                        {hasWildcards ? (
+                          <div className="mt-3 flex items-start gap-2 rounded-md border border-warning/70 bg-warning/10 p-2 text-xs text-warning">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                            <span>Wildcard or pattern matches detected. You will be asked to confirm before applying.</span>
+                          </div>
+                        ) : null}
+                        {rationaleItems.length > 0 ? (
+                          <div className="mt-3 rounded-md border border-border/70 bg-muted/10 p-3 text-xs">
+                            <div className="flex items-center gap-2 font-medium text-foreground">
+                              <FileText className="h-3.5 w-3.5" aria-hidden />
+                              Rationale
+                            </div>
+                            <ul className="mt-2 space-y-1 list-disc pl-4 text-muted-foreground">
+                              {rationaleItems.map((item, rationaleIndex) => (
+                                <li key={rationaleIndex}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        <div className="mt-3">
+                          <div className="text-xs font-medium uppercase text-muted-foreground">Proposed policy</div>
+                          <pre className="mt-1 max-h-64 overflow-auto rounded-md border border-border bg-background p-2 text-xs">
+                            {suggestion.policy}
+                          </pre>
+                        </div>
+                        {allowRules.length + denyRules.length > 0 ? (
+                          <div className="mt-3 grid gap-2 md:grid-cols-2">
+                            {allowRules.map((rule, ruleIndex) => (
+                              <RulePreview key={`allow-${rule.type}-${ruleIndex}`} rule={rule} />
+                            ))}
+                            {denyRules.map((rule, ruleIndex) => (
+                              <RulePreview key={`deny-${rule.type}-${ruleIndex}`} rule={rule} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div>
+                <h2 className="text-lg font-semibold">Test bench</h2>
+                <p className="text-xs text-muted-foreground">
+                  Run saved program snippets against golden policies to spot regressions.
+                </p>
+              </div>
+              <ListChecks className="h-4 w-4 text-primary" aria-hidden />
+            </div>
+            <div className="space-y-3 p-4 text-sm">
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="scope-benchmark">
+                  Snippet
+                </label>
+                <select
+                  id="scope-benchmark"
+                  value={selectedBenchmarkId}
+                  onChange={(event) => setSelectedBenchmarkId(event.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {scopeBenchmarks.map((benchmark) => (
+                    <option key={benchmark.id} value={benchmark.id}>
+                      {benchmark.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedBenchmark?.description ? (
+                <p className="text-xs text-muted-foreground">{selectedBenchmark.description}</p>
+              ) : null}
+              {selectedBenchmark?.notes ? (
+                <p className="text-xs text-muted-foreground">{selectedBenchmark.notes}</p>
+              ) : null}
+              {selectedBenchmark ? (
+                <div className="rounded-md border border-dashed border-border bg-background/80 p-3 text-xs text-muted-foreground whitespace-pre-wrap">
+                  {selectedBenchmark.text}
+                </div>
+              ) : null}
+              <div className="flex justify-end">
+                <Button type="button" size="sm" onClick={handleRunBenchmark} disabled={isBenchmarking || !selectedBenchmark}>
+                  {isBenchmarking ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ListChecks className="mr-2 h-4 w-4" aria-hidden />
+                  )}
+                  Run benchmark
+                </Button>
+              </div>
+              {benchmarkResult ? (
+                <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-3 text-xs">
+                  {benchmarkResult.status === 'error' ? (
+                    <div className="flex items-start gap-2 text-destructive">
+                      <AlertCircle className="mt-0.5 h-4 w-4" aria-hidden />
+                      <span>{benchmarkResult.error}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {benchmarkResult.status === 'pass' ? (
+                          <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-destructive" aria-hidden />
+                        )}
+                        {benchmarkResult.status === 'pass'
+                          ? 'Generated policy matches the golden result.'
+                          : 'Generated policy deviates from the golden result.'}
+                      </div>
+                      {benchmarkResult.summary ? (
+                        <p className="text-muted-foreground">{benchmarkResult.summary}</p>
+                      ) : null}
+                      {benchmarkResult.rationale && benchmarkResult.rationale.length > 0 ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 font-medium text-foreground">
+                            <FileText className="h-3.5 w-3.5" aria-hidden />
+                            Rationale from model
+                          </div>
+                          <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                            {benchmarkResult.rationale.map((item, rationaleIndex) => (
+                              <li key={`benchmark-rationale-${rationaleIndex}`}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <div className="text-xs font-medium uppercase text-muted-foreground">Expected</div>
+                          <pre className="mt-1 max-h-60 overflow-auto rounded-md border border-border bg-background p-2 text-[11px]">
+                            {benchmarkResult.expected}
+                          </pre>
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium uppercase text-muted-foreground">Generated</div>
+                          <pre className="mt-1 max-h-60 overflow-auto rounded-md border border-border bg-background p-2 text-[11px]">
+                            {benchmarkResult.actual}
+                          </pre>
                         </div>
                       </div>
-                      {suggestion.summary ? (
-                        <p className="mt-2 text-xs text-muted-foreground">{suggestion.summary}</p>
-                      ) : null}
-                      {suggestion.rules ? (
-                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          {suggestion.rules.allow?.map((rule, ruleIndex) => (
-                            <RulePreview key={`allow-${rule.type}-${ruleIndex}`} rule={rule} />
-                          ))}
-                          {suggestion.rules.deny?.map((rule, ruleIndex) => (
-                            <RulePreview key={`deny-${rule.type}-${ruleIndex}`} rule={rule} />
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
