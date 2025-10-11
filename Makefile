@@ -30,11 +30,15 @@ test:
 
 .PHONY: lint
 lint:
-	go vet ./...
+        go vet ./...
+
+.PHONY: updater:build-manifests
+updater:build-manifests:
+        @GLYPH_UPDATER_SIGNING_KEY=$${GLYPH_UPDATER_SIGNING_KEY:-} go run ./hack/updater/build_manifests.go
 
 .PHONY: build
 build:
-	go build ./...
+        go build ./...
 
 .PHONY: validate-manifests
 validate-manifests:

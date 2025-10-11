@@ -1,0 +1,15 @@
+{
+  "channel": "stable",
+  "version": "1.0.0",
+  "notes_url": "https://glyph.dev/releases/1.0.0",
+  "builds": [
+    {
+      "os": "linux",
+      "arch": "amd64",
+      "full": {
+        "url": "https://cdn.example.invalid/glyphctl.tar.gz",
+        "path": "../../out/dist/linux-amd64/glyphctl.tar.gz"
+      }
+    }
+  ]
+}

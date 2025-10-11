@@ -20,6 +20,7 @@ nav:
   - Developer Guide:
       - Overview: dev-guide/index.md
       - E2E Scenario Suite: dev/e2e-scenarios.md
+      - Updater channels & rollback: dev/updater.md
       - Accessibility modes: dev-guide/accessibility-modes.md
   - Security:
       - Overview: security/index.md
@@ -68,6 +69,7 @@ plugins:
           CLI: CLI
           Developer Guide: Guía de desarrollo
           E2E Scenario Suite: Escenarios E2E
+          Updater channels & rollback: Canales de actualización y reversión
           Accessibility modes: Modos de accesibilidad
           Security: Seguridad
           Versions: Versiones

@@ -64,9 +64,12 @@ you debug the plugin in real time.
    [`RowanDark/homebrew-glyph`](https://github.com/RowanDark/homebrew-glyph)
    formula in sync and the `bump-homebrew` workflow opens a pull request with the
    changes.
-5. Run `scripts/snapshot_docs.py vX.Y.Z --latest` to archive the documentation
+5. Build and sign the update manifests as described in the
+   [updater guide](../dev/updater.md), then stage delta packages for macOS,
+   Windows, and Linux.
+6. Run `scripts/snapshot_docs.py vX.Y.Z --latest` to archive the documentation
    into `docs/en/versions/` and update the version selector manifest.
-6. Push a Git tag (for example `v1.2.3`) to trigger the release workflows and
+7. Push a Git tag (for example `v1.2.3`) to trigger the release workflows and
    publish the freshly versioned documentation.
 
 Refer to [`CONTRIBUTING.md`]({{ config.repo_url }}/blob/main/CONTRIBUTING.md) for coding conventions and code
