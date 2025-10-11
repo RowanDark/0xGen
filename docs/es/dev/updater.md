@@ -25,10 +25,15 @@ configuración del usuario para futuras comprobaciones automáticas.
 ### Indicador de canal en la CLI {#cli-channel-flag}
 
 `glyphctl` expone el comando `self-update` con la opción
-`--channel=<stable|beta>`. El valor predeterminado es `stable` y se guarda en
-`~/.config/glyphctl/updater.json` para que las ejecuciones no supervisadas se
-mantengan en el mismo canal. Pasar la opción en la línea de comandos solo afecta
-a la ejecución actual.
+`--channel=<stable|beta>`. El valor predeterminado es el canal almacenado y la
+opción funciona como un override temporal. Para cambiar la preferencia persistida
+ejecuta `glyphctl self-update channel <stable|beta>`; guardamos el resultado en
+`~/.config/glyphctl/updater.json` junto con los datos necesarios para la
+reversión. `glyphctl self-update channel` sin argumentos imprime el canal activo.
+
+El updater conserva el binario anterior en el mismo directorio de configuración.
+`glyphctl self-update --rollback` restaura esa copia y restablece el canal a
+`stable` como medida de seguridad.
 
 Ambos clientes incluyen el canal en los encabezados de la petición. La API de
 actualizaciones devuelve el manifiesto correspondiente a esa cohorte.
@@ -71,11 +76,15 @@ botón "Restaurar versión anterior" y `glyphctl self-update` acepta `--rollback
 
 Suma estos pasos al proceso habitual:
 
-1. Ejecuta `make updater:build-manifests` para crear y firmar los manifiestos.
-2. Revisa `out/updater/` y confirma que existan los deltas esperados o que el
+1. Completa los archivos JSON en `packaging/updater/` con los artefactos del
+   release. Consulta `packaging/updater/README.md` para ver el esquema.
+2. Exporta la clave privada ed25519 en base64 mediante la variable de entorno
+   `GLYPH_UPDATER_SIGNING_KEY`.
+3. Ejecuta `make updater:build-manifests` para crear y firmar los manifiestos.
+4. Revisa `out/updater/` y confirma que existan los deltas esperados o que el
    manifiesto marque la ausencia correctamente.
-3. Publica artefactos y manifiestos en la CDN.
-4. Realiza pruebas de humo en macOS, Windows y Linux con el canal beta antes de
+5. Publica artefactos y manifiestos en la CDN.
+6. Realiza pruebas de humo en macOS, Windows y Linux con el canal beta antes de
    promover a estable.
-5. Archiva la telemetría de la actualización para facilitar el análisis de
+7. Archiva la telemetría de la actualización para facilitar el análisis de
    reversiones.

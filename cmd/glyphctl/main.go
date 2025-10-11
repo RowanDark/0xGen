@@ -99,9 +99,11 @@ func main() {
                 os.Exit(runReplay(args[1:]))
         case "version":
                 os.Exit(runVersion(args[1:]))
+        case "self-update":
+                os.Exit(runSelfUpdate(args[1:]))
         default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
-		flag.Usage()
-		os.Exit(2)
-	}
+                fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
+                flag.Usage()
+                os.Exit(2)
+        }
 }

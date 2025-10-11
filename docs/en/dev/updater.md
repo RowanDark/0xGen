@@ -26,11 +26,16 @@ future auto-checks continue to poll the chosen channel.
 ### CLI channel flag {#cli-channel-flag}
 
 `glyphctl` exposes a `self-update` command that accepts a
-`--channel=<stable|beta>` flag. The flag defaults to `stable` to match prior
-behaviour. We persist the chosen channel in `~/.config/glyphctl/updater.json`
-so unattended update jobs stay aligned with the user preference. Passing the
-flag overrides the stored value for the current invocation without writing it
-back.
+`--channel=<stable|beta>` flag. The flag defaults to the stored preference and
+acts as a one-shot override for the current invocation. To change the persisted
+channel run `glyphctl self-update channel <stable|beta>`; we store the result in
+`~/.config/glyphctl/updater.json` alongside bookkeeping data for rollback. The
+CLI prints the active channel when invoked as `glyphctl self-update channel`.
+
+The updater keeps a copy of the previous binary in the same configuration
+directory. `glyphctl self-update --rollback` replaces the current executable
+with that cached build and flips the stored channel back to `stable` as a safety
+valve.
 
 Both the desktop and CLI clients include the channel name in the update request
 headers. The update API uses the header to return the latest manifest for that
@@ -93,15 +98,18 @@ accepts `--rollback` to revert to the cached build.
 
 When cutting a release, append the following steps to the standard checklist:
 
-1. Run `make updater:build-manifests` to produce signed manifests for both
+1. Populate `packaging/updater/` with JSON channel definitions that point at the
+   release artifacts. See `packaging/updater/README.md` for the schema.
+2. Export the base64-encoded ed25519 private key as `GLYPH_UPDATER_SIGNING_KEY`.
+3. Run `make updater:build-manifests` to produce signed manifests for both
    channels.
-2. Inspect `out/updater/` to confirm delta packages were generated for every
+4. Inspect `out/updater/` to confirm delta packages were generated for every
    supported platform and that the manifest flags fallback builds appropriately.
-3. Upload the delta and full artifacts to the CDN and publish the manifests to
+5. Upload the delta and full artifacts to the CDN and publish the manifests to
    `/updates/<channel>/manifest.json` alongside the detached signatures.
-4. Smoke-test `glyphctl self-update --channel beta` and a desktop beta install on
+6. Smoke-test `glyphctl self-update --channel beta` and a desktop beta install on
    macOS, Windows, and Linux before promoting the build to stable.
-5. Archive the release telemetry in the incident response dashboard so we can
+7. Archive the release telemetry in the incident response dashboard so we can
    trace rollbacks.
 
 Following this checklist keeps the auto-update surface safe even as we roll out
