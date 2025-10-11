@@ -326,6 +326,7 @@ const ScopeParseSuggestionSchema = z.object({
   policy: z.string(),
   summary: z.string().optional(),
   notes: z.string().optional(),
+  rationale: z.array(z.string()).optional(),
   rules: z
     .object({
       allow: z.array(ScopeRuleSchema).optional().default([]),
