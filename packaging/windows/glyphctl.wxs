@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <?if $(var.WixPlatform) = "x64" ?>
     <?define ProgramFilesFolder = "ProgramFiles64Folder" ?>
   <?elseif $(var.WixPlatform) = "arm64" ?>
@@ -21,8 +22,12 @@
     <MediaTemplate EmbedCab="yes" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of Glyph is already installed." AllowSameVersionUpgrades="yes" />
 
-    <Feature Id="GlyphCLI" Title="Glyph CLI" Description="Installs the glyphctl command-line interface." Level="1">
+    <Feature Id="GlyphCLI" Title="Glyph CLI" Description="Installs the glyphctl command-line interface." Level="1" Display="expand">
       <ComponentGroupRef Id="GlyphComponents" />
+      <ComponentRef Id="GlyphStartMenuShortcuts" />
+    </Feature>
+    <Feature Id="ProxyCATrust" Title="Trust Galdr proxy certificate" Description="Installs the Glyph proxy certificate into the current user's trusted root store." Level="200" AllowAdvertise="no">
+      <ComponentRef Id="GlyphProxyTrust" />
     </Feature>
   </Product>
 
@@ -30,6 +35,9 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="$(var.ProgramFilesFolder)">
         <Directory Id="INSTALLFOLDER" Name="Glyph" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="GlyphProgramMenu" Name="Glyph" />
       </Directory>
     </Directory>
   </Fragment>
@@ -47,7 +55,36 @@
                      Part="last"
                      System="yes"
                      Permanent="no" />
+        <util:FirewallException Id="GlyphProxyFirewall" Name="Glyph proxy" Program="[#GlyphExecutableFile]" Scope="any" Profile="all" />
+        <util:FirewallException Id="GlyphReplayFirewall" Name="Glyph replay server" Program="[#GlyphExecutableFile]" Scope="any" Profile="all" />
       </Component>
     </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="GlyphStartMenuShortcuts" Guid="{EC1F5AAF-8570-46B6-9E51-845B32ECA3AB}" Directory="GlyphProgramMenu" Win64="yes">
+      <Shortcut Id="GlyphShortcut" Name="Glyph CLI" Description="Open a shell with glyphctl on PATH." Target="[#GlyphExecutableFile]" WorkingDirectory="INSTALLFOLDER" />
+      <Shortcut Id="GlyphDemoShortcut" Name="Glyph demo" Description="Run the glyphctl demo workflow." Target="[#GlyphExecutableFile]" Arguments="demo" WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKCU" Key="Software\Glyph" Name="StartMenuShortcuts" Type="integer" Value="1" KeyPath="yes" />
+      <RemoveFolder Id="GlyphProgramMenuFolder" Directory="GlyphProgramMenu" On="uninstall" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="GlyphProxyTrust" Guid="{B702D0D2-D922-45C7-98AA-A6F9464C7647}" Directory="INSTALLFOLDER" Win64="yes">
+      <RegistryValue Root="HKCU" Key="Software\Glyph" Name="ProxyCATrust" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <CustomAction Id="InstallProxyCertificate"
+                  Directory="INSTALLFOLDER"
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="yes"
+                  ExeCommand="&quot;[#GlyphExecutableFile]&quot; proxy trust --install --quiet" />
+    <InstallExecuteSequence>
+      <Custom Action="InstallProxyCertificate" After="InstallFiles">NOT REMOVE AND (&ProxyCATrust = 3)</Custom>
+    </InstallExecuteSequence>
   </Fragment>
 </Wix>

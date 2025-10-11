@@ -22,6 +22,8 @@ nav:
       - Overview: dev-guide/index.md
       - E2E Scenario Suite: dev/e2e-scenarios.md
       - Updater channels & rollback: dev/updater.md
+      - Windows & WSL interop: dev/windows-wsl.md
+      - Running tests locally: dev/testing.md
       - Accessibility modes: dev-guide/accessibility-modes.md
   - Security:
       - Overview: security/index.md
@@ -71,6 +73,7 @@ plugins:
           Developer Guide: Guía de desarrollo
           E2E Scenario Suite: Escenarios E2E
           Updater channels & rollback: Canales de actualización y reversión
+          Running tests locally: Ejecución de pruebas en local
           Accessibility modes: Modos de accesibilidad
           Security: Seguridad
           Versions: Versiones

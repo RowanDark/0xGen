@@ -23,6 +23,25 @@ const (
 	defaultCAKeyName  = "galdr_proxy_ca.key"
 )
 
+// DefaultCACertificatePath returns the path where the proxy root certificate is stored when no override is provided.
+func DefaultCACertificatePath() string {
+	return filepath.Join(defaultOutputDir(), defaultCACertName)
+}
+
+// DefaultCAKeyPath returns the path where the proxy private key is stored when no override is provided.
+func DefaultCAKeyPath() string {
+	return filepath.Join(defaultOutputDir(), defaultCAKeyName)
+}
+
+// EnsureRootCertificate returns the PEM-encoded proxy certificate, creating it when necessary.
+func EnsureRootCertificate(certPath, keyPath string) ([]byte, error) {
+	certPEM, _, err := loadOrCreateCA(certPath, keyPath)
+	if err != nil {
+		return nil, err
+	}
+	return certPEM, nil
+}
+
 type caStore struct {
 	cert    *x509.Certificate
 	key     *rsa.PrivateKey

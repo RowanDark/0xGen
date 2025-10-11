@@ -1,0 +1,21 @@
+PackageIdentifier: RowanDark.Glyph
+PackageVersion: 0.0.0
+DefaultLocale:
+  PackageLocale: en-US
+  Publisher: Glyph Project
+  PackageName: Glyph CLI
+  License: Apache-2.0
+  ShortDescription: Glyph automation toolkit command-line interface.
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/RowanDark/Glyph/releases/download/v0.0.0/glyphctl_v0.0.0_windows_amd64.zip
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    Commands:
+      - glyphctl
+  - Architecture: arm64
+    InstallerType: portable
+    InstallerUrl: https://github.com/RowanDark/Glyph/releases/download/v0.0.0/glyphctl_v0.0.0_windows_arm64.zip
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    Commands:
+      - glyphctl
