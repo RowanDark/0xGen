@@ -19,8 +19,10 @@ func runReportAt(args []string, now time.Time) int {
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", reporter.DefaultFindingsPath, "path to findings JSONL input")
 	output := fs.String("out", reporter.DefaultReportPath, "path to write the report")
-	formatRaw := fs.String("format", string(reporter.FormatMarkdown), "report format (md or html)")
+	formatRaw := fs.String("format", string(reporter.FormatMarkdown), "report format (md, html, or json)")
 	sinceRaw := fs.String("since", "", "only include findings detected on or after this RFC-3339 timestamp or duration (e.g. 24h)")
+	sbomPath := fs.String("sbom", "", "path to an SBOM file included in the JSON bundle metadata")
+	signingKey := fs.String("sign", "", "path to a cosign-compatible private key used to sign JSON output")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -39,19 +41,37 @@ func runReportAt(args []string, now time.Time) int {
 		}
 		opts.Since = &since
 	}
+	opts.SBOMPath = strings.TrimSpace(*sbomPath)
 
 	format := reporter.ReportFormat(strings.ToLower(strings.TrimSpace(*formatRaw)))
 	if format == "" {
 		format = reporter.FormatMarkdown
 	}
-	if format != reporter.FormatMarkdown && format != reporter.FormatHTML {
-		fmt.Fprintf(os.Stderr, "invalid --format value %q (expected md or html)\n", *formatRaw)
+	if format != reporter.FormatMarkdown && format != reporter.FormatHTML && format != reporter.FormatJSON {
+		fmt.Fprintf(os.Stderr, "invalid --format value %q (expected md, html, or json)\n", *formatRaw)
+		return 2
+	}
+
+	if strings.TrimSpace(*signingKey) != "" && format != reporter.FormatJSON {
+		fmt.Fprintln(os.Stderr, "--sign is only supported for --format json")
 		return 2
 	}
 
 	if err := reporter.RenderReport(*input, *output, format, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "generate report: %v\n", err)
 		return 1
+	}
+
+	if format == reporter.FormatJSON {
+		keyPath := strings.TrimSpace(*signingKey)
+		if keyPath != "" {
+			signaturePath, err := reporter.SignArtifact(*output, keyPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "sign JSON report: %v\n", err)
+				return 1
+			}
+			fmt.Fprintf(os.Stdout, "Signature written to %s\n", signaturePath)
+		}
 	}
 
 	return 0
