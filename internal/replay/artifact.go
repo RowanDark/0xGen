@@ -3,6 +3,7 @@ package replay
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 )
 
 // isWithinBase reports whether the target path resides within the base directory.
@@ -42,8 +45,34 @@ const (
 
 // CreateArtifact writes the replay manifest and referenced files to a gzipped tarball.
 func CreateArtifact(path string, manifest Manifest, files map[string][]byte) error {
+	return CreateArtifactWithContext(context.Background(), path, manifest, files)
+}
+
+// CreateArtifactWithContext writes the replay manifest and referenced files to a gzipped tarball using the provided context for tracing.
+func CreateArtifactWithContext(ctx context.Context, path string, manifest Manifest, files map[string][]byte) error {
+	attrs := map[string]any{
+		"glyph.replay.artifact_path": strings.TrimSpace(path),
+		"glyph.replay.file_count":    len(files),
+	}
+	_, span := tracing.StartSpan(ctx, "replay.create_artifact", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
+	status := tracing.StatusOK
+	statusMsg := ""
+	record := func(err error, msg string) error {
+		if span != nil && err != nil {
+			span.RecordError(err)
+		}
+		status = tracing.StatusError
+		statusMsg = msg
+		return err
+	}
+	defer func() {
+		if span != nil {
+			span.EndWithStatus(status, statusMsg)
+		}
+	}()
+
 	if strings.TrimSpace(path) == "" {
-		return errors.New("artefact path is required")
+		return record(errors.New("artefact path is required"), "missing artifact path")
 	}
 	if manifest.Version == "" {
 		manifest.Version = ManifestVersion
@@ -52,27 +81,27 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 		manifest.Runner = DefaultRunnerInfo()
 	}
 	var err error
-        manifest.FindingsFile, err = normalizeFileRef(manifest.FindingsFile)
-        if err != nil {
-                return err
-        }
-        manifest.CasesFile, err = normalizeFileRef(manifest.CasesFile)
-        if err != nil {
-                return err
-        }
-        if strings.TrimSpace(manifest.FlowsFile) != "" {
-                manifest.FlowsFile, err = normalizeFileRef(manifest.FlowsFile)
-                if err != nil {
-                        return err
-                }
-        }
-        for i := range manifest.Responses {
-                if manifest.Responses[i].BodyFile == "" {
-                        continue
-                }
-                manifest.Responses[i].BodyFile, err = normalizeFileRef(manifest.Responses[i].BodyFile)
+	manifest.FindingsFile, err = normalizeFileRef(manifest.FindingsFile)
+	if err != nil {
+		return record(err, "normalise findings file")
+	}
+	manifest.CasesFile, err = normalizeFileRef(manifest.CasesFile)
+	if err != nil {
+		return record(err, "normalise cases file")
+	}
+	if strings.TrimSpace(manifest.FlowsFile) != "" {
+		manifest.FlowsFile, err = normalizeFileRef(manifest.FlowsFile)
 		if err != nil {
-			return fmt.Errorf("normalise response[%d] body file: %w", i, err)
+			return record(err, "normalise flows file")
+		}
+	}
+	for i := range manifest.Responses {
+		if manifest.Responses[i].BodyFile == "" {
+			continue
+		}
+		manifest.Responses[i].BodyFile, err = normalizeFileRef(manifest.Responses[i].BodyFile)
+		if err != nil {
+			return record(fmt.Errorf("normalise response[%d] body file: %w", i, err), "normalise response file")
 		}
 	}
 	for i := range manifest.Robots {
@@ -81,36 +110,36 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 		}
 		manifest.Robots[i].BodyFile, err = normalizeFileRef(manifest.Robots[i].BodyFile)
 		if err != nil {
-			return fmt.Errorf("normalise robots[%d] body file: %w", i, err)
+			return record(fmt.Errorf("normalise robots[%d] body file: %w", i, err), "normalise robots file")
 		}
 	}
 	manifest.Normalize()
 
 	if err := manifest.Validate(); err != nil {
-		return err
+		return record(err, "validate manifest")
 	}
 
 	findingsKey := strings.TrimPrefix(manifest.FindingsFile, filesDir+"/")
 	if _, ok := files[findingsKey]; !ok {
-		return fmt.Errorf("findings_file %q not provided", findingsKey)
+		return record(fmt.Errorf("findings_file %q not provided", findingsKey), "missing findings file")
 	}
 	casesKey := strings.TrimPrefix(manifest.CasesFile, filesDir+"/")
-        if _, ok := files[casesKey]; !ok {
-                return fmt.Errorf("cases_file %q not provided", casesKey)
-        }
-        if strings.TrimSpace(manifest.FlowsFile) != "" {
-                key := strings.TrimPrefix(manifest.FlowsFile, filesDir+"/")
-                if _, ok := files[key]; !ok {
-                        return fmt.Errorf("flows file %q not provided", key)
-                }
-        }
-        for _, resp := range manifest.Responses {
-                if resp.BodyFile == "" {
-                        continue
-                }
-                key := strings.TrimPrefix(resp.BodyFile, filesDir+"/")
+	if _, ok := files[casesKey]; !ok {
+		return record(fmt.Errorf("cases_file %q not provided", casesKey), "missing cases file")
+	}
+	if strings.TrimSpace(manifest.FlowsFile) != "" {
+		key := strings.TrimPrefix(manifest.FlowsFile, filesDir+"/")
 		if _, ok := files[key]; !ok {
-			return fmt.Errorf("response body file %q not provided", key)
+			return record(fmt.Errorf("flows file %q not provided", key), "missing flows file")
+		}
+	}
+	for _, resp := range manifest.Responses {
+		if resp.BodyFile == "" {
+			continue
+		}
+		key := strings.TrimPrefix(resp.BodyFile, filesDir+"/")
+		if _, ok := files[key]; !ok {
+			return record(fmt.Errorf("response body file %q not provided", key), "missing response body")
 		}
 	}
 	for _, rob := range manifest.Robots {
@@ -119,17 +148,17 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 		}
 		key := strings.TrimPrefix(rob.BodyFile, filesDir+"/")
 		if _, ok := files[key]; !ok {
-			return fmt.Errorf("robots body file %q not provided", key)
+			return record(fmt.Errorf("robots body file %q not provided", key), "missing robots body")
 		}
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create artefact directory: %w", err)
+		return record(fmt.Errorf("create artefact directory: %w", err), "create artifact directory")
 	}
 
 	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("create artefact: %w", err)
+		return record(fmt.Errorf("create artefact: %w", err), "create artifact file")
 	}
 	defer func() {
 		_ = file.Close()
@@ -148,20 +177,20 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 	// Encode manifest with indentation for readability.
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
-		return fmt.Errorf("encode manifest: %w", err)
+		return record(fmt.Errorf("encode manifest: %w", err), "encode manifest")
 	}
 	if err := writeTarFile(tw, manifestName, manifestData, 0o644); err != nil {
-		return err
+		return record(err, "write manifest")
 	}
 
 	for name, data := range files {
 		clean := sanitizeFileName(name)
 		if clean == "" {
-			return fmt.Errorf("invalid file name %q", name)
+			return record(fmt.Errorf("invalid file name %q", name), "sanitize file name")
 		}
 		fullPath := filepath.ToSlash(filepath.Join(filesDir, clean))
 		if err := writeTarFile(tw, fullPath, data, 0o644); err != nil {
-			return err
+			return record(err, "write artifact file")
 		}
 	}
 	return nil
@@ -169,6 +198,10 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 
 // ExtractArtifact expands the artefact under the destination directory and returns the manifest.
 func ExtractArtifact(path, dest string) (Manifest, error) {
+	return ExtractArtifactWithContext(context.Background(), path, dest)
+}
+
+func ExtractArtifactWithContext(ctx context.Context, path, dest string) (Manifest, error) {
 	var manifest Manifest
 	if strings.TrimSpace(path) == "" {
 		return manifest, errors.New("artefact path is required")
@@ -176,13 +209,34 @@ func ExtractArtifact(path, dest string) (Manifest, error) {
 	if strings.TrimSpace(dest) == "" {
 		return manifest, errors.New("destination path is required")
 	}
+	attrs := map[string]any{
+		"glyph.replay.artifact_path": strings.TrimSpace(path),
+		"glyph.replay.extract_dest":  strings.TrimSpace(dest),
+	}
+	_, span := tracing.StartSpan(ctx, "replay.extract_artifact", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
+	status := tracing.StatusOK
+	statusMsg := ""
+	record := func(err error, msg string) (Manifest, error) {
+		if span != nil && err != nil {
+			span.RecordError(err)
+		}
+		status = tracing.StatusError
+		statusMsg = msg
+		return manifest, err
+	}
+	defer func() {
+		if span != nil {
+			span.EndWithStatus(status, statusMsg)
+		}
+	}()
+
 	if err := os.MkdirAll(dest, 0o755); err != nil {
-		return manifest, fmt.Errorf("create destination: %w", err)
+		return record(fmt.Errorf("create destination: %w", err), "create destination")
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		return manifest, fmt.Errorf("open artefact: %w", err)
+		return record(fmt.Errorf("open artefact: %w", err), "open artifact")
 	}
 	defer func() {
 		_ = file.Close()
@@ -190,7 +244,7 @@ func ExtractArtifact(path, dest string) (Manifest, error) {
 
 	gz, err := gzip.NewReader(file)
 	if err != nil {
-		return manifest, fmt.Errorf("open gzip reader: %w", err)
+		return record(fmt.Errorf("open gzip reader: %w", err), "open gzip")
 	}
 	defer func() {
 		_ = gz.Close()
@@ -205,50 +259,50 @@ func ExtractArtifact(path, dest string) (Manifest, error) {
 			break
 		}
 		if err != nil {
-			return manifest, fmt.Errorf("read tar entry: %w", err)
+			return record(fmt.Errorf("read tar entry: %w", err), "read tar entry")
 		}
 
 		name := filepath.Clean(hdr.Name)
 		if strings.HasPrefix(name, "..") {
-			return manifest, fmt.Errorf("invalid entry name %q", hdr.Name)
+			return record(fmt.Errorf("invalid entry name %q", hdr.Name), "invalid entry name")
 		}
 		target := filepath.Join(dest, name)
 		within, err := isWithinBase(dest, target)
 		if err != nil {
-			return manifest, fmt.Errorf("validate entry path for %q: %w", hdr.Name, err)
+			return record(fmt.Errorf("validate entry path for %q: %w", hdr.Name, err), "validate entry path")
 		}
 		if !within {
-			return manifest, fmt.Errorf("entry %q would escape destination", hdr.Name)
+			return record(fmt.Errorf("entry %q would escape destination", hdr.Name), "entry escapes destination")
 		}
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, 0o755); err != nil {
-				return manifest, fmt.Errorf("create directory %s: %w", name, err)
+				return record(fmt.Errorf("create directory %s: %w", name, err), "create directory")
 			}
 		case tar.TypeReg, tar.TypeRegA:
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return manifest, fmt.Errorf("create parent directory for %s: %w", name, err)
+				return record(fmt.Errorf("create parent directory for %s: %w", name, err), "create parent directory")
 			}
 			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(hdr.Mode))
 			if err != nil {
-				return manifest, fmt.Errorf("create file %s: %w", name, err)
+				return record(fmt.Errorf("create file %s: %w", name, err), "create file")
 			}
 			if _, err := io.Copy(out, tr); err != nil {
 				_ = out.Close()
-				return manifest, fmt.Errorf("extract file %s: %w", name, err)
+				return record(fmt.Errorf("extract file %s: %w", name, err), "write file")
 			}
 			if err := out.Close(); err != nil {
-				return manifest, fmt.Errorf("close file %s: %w", name, err)
+				return record(fmt.Errorf("close file %s: %w", name, err), "close file")
 			}
 			if name == manifestName {
 				manifestSeen = true
 				data, err := os.ReadFile(target)
 				if err != nil {
-					return manifest, fmt.Errorf("read manifest: %w", err)
+					return record(fmt.Errorf("read manifest: %w", err), "read manifest")
 				}
 				if err := json.Unmarshal(data, &manifest); err != nil {
-					return manifest, fmt.Errorf("decode manifest: %w", err)
+					return record(fmt.Errorf("decode manifest: %w", err), "decode manifest")
 				}
 			}
 		default:
@@ -257,7 +311,7 @@ func ExtractArtifact(path, dest string) (Manifest, error) {
 	}
 
 	if !manifestSeen {
-		return manifest, errors.New("manifest not found in artefact")
+		return record(errors.New("manifest not found in artefact"), "missing manifest")
 	}
 	return manifest, nil
 }

@@ -28,6 +28,7 @@ import (
 
 	"github.com/RowanDark/Glyph/internal/flows"
 	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 	"github.com/RowanDark/Glyph/internal/scope"
 	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
 )
@@ -546,8 +547,33 @@ func (w *tlsResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 }
 
 func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme, hostOverride, clientAddr string, applyRules, recordHistory, publishFlows bool) {
+	ctx := r.Context()
+	spanCtx, span := tracing.StartSpan(ctx, "proxy.capture_flow", tracing.WithSpanKind(tracing.SpanKindServer))
+	status := tracing.StatusOK
+	statusMsg := ""
+	var state *proxyFlowState
+	defer func() {
+		if span == nil {
+			return
+		}
+		if state != nil {
+			if state.flowTracked {
+				span.SetAttribute("glyph.flow.id", state.flowID)
+			}
+			if state.statusCode != 0 {
+				span.SetAttribute("http.status_code", state.statusCode)
+			}
+		}
+		span.EndWithStatus(status, statusMsg)
+	}()
+
+	r = r.WithContext(spanCtx)
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		span.RecordError(fmt.Errorf("read request body: %w", err))
+		status = tracing.StatusError
+		statusMsg = "read request body"
 		http.Error(w, "failed to read request body", http.StatusBadRequest)
 		return
 	}
@@ -556,6 +582,14 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 	if clientAddr == "" {
 		clientAddr = r.RemoteAddr
 	}
+	span.SetAttribute("net.peer.ip", clientAddr)
+
+	method := strings.ToUpper(strings.TrimSpace(r.Method))
+	if method == "" {
+		method = http.MethodGet
+	}
+	span.SetAttribute("http.method", method)
+	r.Method = method
 
 	targetURL := copyURL(r.URL)
 	if scheme != "" {
@@ -570,18 +604,25 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 	if targetURL.Host == "" {
 		targetURL.Host = r.Host
 	}
+	span.SetAttribute("http.scheme", targetURL.Scheme)
 	if strings.TrimSpace(targetURL.Host) == "" {
+		status = tracing.StatusError
+		statusMsg = "missing target host"
+		span.RecordError(errors.New("missing target host"))
 		http.Error(w, "missing target host", http.StatusBadRequest)
 		return
 	}
+	span.SetAttribute("http.host", targetURL.Host)
+	span.SetAttribute("http.target", targetURL.String())
 
-	matched, names := p.rules.match(r.Method, targetURL.String())
+	matched, names := p.rules.match(method, targetURL.String())
+	span.SetAttribute("glyph.proxy.rules", len(matched))
 
 	headers := cloneHeader(r.Header)
 	r.Header = headers
 
-	state := &proxyFlowState{
-		method:         r.Method,
+	state = &proxyFlowState{
+		method:         method,
 		url:            targetURL.String(),
 		protocol:       targetURL.Scheme,
 		host:           targetURL.Host,
@@ -605,8 +646,13 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 		} else {
 			state.flowTracked = true
 			state.flowID = p.generateFlowID(p.flowIDs.Add(1))
+			span.SetAttribute("glyph.flow.sampled", true)
 		}
 	}
+	if !state.flowTracked {
+		span.SetAttribute("glyph.flow.sampled", false)
+	}
+	span.SetAttribute("glyph.proxy.publish", state.publishFlows)
 
 	if len(body) == 0 {
 		r.Body = http.NoBody
@@ -618,6 +664,14 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 
 	proxy := p.newReverseProxy(targetURL, state)
 	proxy.ServeHTTP(w, r)
+
+	if state.statusCode != 0 {
+		span.SetAttribute("http.status_code", state.statusCode)
+		if state.statusCode >= 500 && status != tracing.StatusError {
+			status = tracing.StatusError
+			statusMsg = fmt.Sprintf("upstream status %d", state.statusCode)
+		}
+	}
 }
 
 func (p *Proxy) newReverseProxy(target *url.URL, state *proxyFlowState) *httputil.ReverseProxy {
@@ -921,11 +975,7 @@ func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
 			obsmetrics.RecordFlowRedaction("raw_truncated")
 		}
 		p.recordFlowEvent(event)
-		if p.publisher != nil {
-			if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
-				p.logger.Warn("failed to publish request event", "error", err)
-			}
-		}
+		p.emitFlowEvent(ctx, *event, "request")
 	}
 	if event := buildResponseEvent(state, p.flowCfg); event != nil {
 		event.ID = fmt.Sprintf("%s:response", state.flowID)
@@ -938,11 +988,7 @@ func (p *Proxy) publishFlowEvents(ctx context.Context, state *proxyFlowState) {
 			obsmetrics.RecordFlowRedaction("raw_truncated")
 		}
 		p.recordFlowEvent(event)
-		if p.publisher != nil {
-			if err := p.publisher.PublishFlowEvent(ctx, event.Clone()); err != nil {
-				p.logger.Warn("failed to publish response event", "error", err)
-			}
-		}
+		p.emitFlowEvent(ctx, *event, "response")
 	}
 }
 
@@ -952,6 +998,36 @@ func (p *Proxy) recordFlowEvent(event *flows.Event) {
 	}
 	if err := p.flowLog.Record(event.Clone()); err != nil {
 		p.logger.Warn("failed to persist flow log", "error", err, "flow_id", event.ID)
+	}
+}
+
+func (p *Proxy) emitFlowEvent(ctx context.Context, event flows.Event, phase string) {
+	if p == nil || p.publisher == nil {
+		return
+	}
+	attrs := map[string]any{
+		"glyph.flow.id":            event.ID,
+		"glyph.flow.sequence":      event.Sequence,
+		"glyph.flow.phase":         phase,
+		"glyph.flow.type":          event.Type.String(),
+		"glyph.flow.has_raw":       len(event.Raw) > 0,
+		"glyph.flow.has_sanitized": len(event.Sanitized) > 0,
+	}
+	pubCtx, span := tracing.StartSpan(ctx, "proxy.publish_flow_event", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
+	status := tracing.StatusOK
+	statusMsg := ""
+	defer func() {
+		if span == nil {
+			return
+		}
+		span.EndWithStatus(status, statusMsg)
+	}()
+
+	if err := p.publisher.PublishFlowEvent(pubCtx, event.Clone()); err != nil {
+		span.RecordError(err)
+		status = tracing.StatusError
+		statusMsg = "publish flow event failed"
+		p.logger.Warn("failed to publish flow event", "error", err, "flow_id", event.ID, "phase", phase)
 	}
 }
 

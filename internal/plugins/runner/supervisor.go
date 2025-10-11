@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 )
 
 const (
@@ -113,6 +114,30 @@ func (s *Supervisor) RunTask(ctx context.Context, task Task) (Result, error) {
 	if taskCtx == nil {
 		taskCtx = context.Background()
 	}
+	attrs := map[string]any{
+		"glyph.task.id":       strings.TrimSpace(task.ID),
+		"glyph.plugin.id":     strings.TrimSpace(task.PluginID),
+		"glyph.runner.binary": cfg.Binary,
+	}
+	if cfg.Limits.CPUSeconds > 0 {
+		attrs["glyph.runner.cpu_seconds"] = cfg.Limits.CPUSeconds
+	}
+	if cfg.Limits.MemoryBytes > 0 {
+		attrs["glyph.runner.memory_bytes"] = cfg.Limits.MemoryBytes
+	}
+	if cfg.Limits.WallTime > 0 {
+		attrs["glyph.runner.wall_time"] = cfg.Limits.WallTime.String()
+	}
+	spanCtx, span := tracing.StartSpan(taskCtx, "plugin.supervisor.task", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
+	status := tracing.StatusOK
+	statusMsg := ""
+	defer func() {
+		if span == nil {
+			return
+		}
+		span.EndWithStatus(status, statusMsg)
+	}()
+	taskCtx = spanCtx
 	if task.Timeout > 0 {
 		var cancel context.CancelFunc
 		taskCtx, cancel = context.WithTimeout(taskCtx, task.Timeout)
@@ -126,9 +151,19 @@ func (s *Supervisor) RunTask(ctx context.Context, task Task) (Result, error) {
 
 	termination := classifyTermination(err, cfg.Limits)
 	if termination != nil {
+		span.RecordError(err)
+		span.SetAttribute("glyph.task.termination", string(termination.Reason))
+		if detail := strings.TrimSpace(termination.Detail); detail != "" {
+			span.SetAttribute("glyph.task.detail", detail)
+		}
+		status = tracing.StatusError
+		statusMsg = "plugin terminated"
 		s.logTermination(task, *termination)
 		return Result{Termination: termination}, err
 	}
+	span.RecordError(err)
+	status = tracing.StatusError
+	statusMsg = "plugin execution error"
 	return Result{}, err
 }
 

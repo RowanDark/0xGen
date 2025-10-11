@@ -1,80 +1,258 @@
 {
-  "title": "Glyph Telemetry",
-  "uid": "glyph-observability",
-  "tags": ["glyph", "observability"],
-  "timezone": "browser",
-  "schemaVersion": 39,
-  "version": 1,
-  "refresh": "30s",
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "iteration": 1740000000000,
+  "links": [],
   "panels": [
     {
-      "type": "stat",
-      "title": "Total RPC Requests",
-      "id": 1,
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "sum(glyph_rpc_requests_total)",
-          "legendFormat": "requests"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "RPC Error Rate",
-      "id": 2,
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "sum(rate(glyph_rpc_errors_total[5m]))",
-          "legendFormat": "errors"
-        }
-      ],
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
-          "unit": "ops"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Plugin Event Latency",
-      "id": 3,
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(glyph_plugin_event_duration_seconds_bucket[5m])) by (le, plugin))",
-          "legendFormat": "{{plugin}} p95"
+          "color": { "mode": "palette-classic" },
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 50 },
+              { "color": "red", "value": 80 }
+            ]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": ["max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
         {
-          "expr": "histogram_quantile(0.5, sum(rate(glyph_plugin_event_duration_seconds_bucket[5m])) by (le, plugin))",
-          "legendFormat": "{{plugin}} p50"
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "max_over_time(glyph_plugin_queue_length{job=~\"$job\",plugin=~\"$plugin\"}[5m])",
+          "legendFormat": "{{plugin}}",
+          "range": true,
+          "refId": "A"
         }
-      ]
-    },
-    {
-      "type": "timeseries",
+      ],
       "title": "Plugin Queue Depth",
-      "id": 4,
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "glyph_plugin_queue_length",
-          "legendFormat": "{{plugin}}"
-        }
-      ]
+      "type": "timeSeries"
     },
     {
-      "type": "timeseries",
-      "title": "Active Plugin Connections",
-      "id": 5,
-      "datasource": "Prometheus",
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 2 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
       "targets": [
         {
-          "expr": "glyph_active_plugins",
-          "legendFormat": "active"
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_http_request_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin))",
+          "legendFormat": "{{plugin}}",
+          "range": true,
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "HTTP Request Latency (P95)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_flow_dispatch_seconds_bucket{job=~\"$job\",subscription=~\"$subscription\",variant=~\"$variant\"}[5m])) by (le,subscription,variant))",
+          "legendFormat": "{{subscription}} :: {{variant}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Flow Dispatch Latency (P95)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_plugin_event_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin,event))",
+          "legendFormat": "{{plugin}} :: {{event}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Plugin Event Duration (P95)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 16 },
+      "id": 5,
+      "options": {
+        "displayMode": "gradient",
+        "legend": { "displayMode": "table" },
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "sum by (component,method) (rate(glyph_rpc_duration_seconds_sum{job=~\"$job\"}[5m]) / rate(glyph_rpc_duration_seconds_count{job=~\"$job\"}[5m]))",
+          "legendFormat": "{{component}} :: {{method}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "RPC Handler Duration (avg over 5m)",
+      "type": "heatmap"
     }
-  ]
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["glyph"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "all", "value": ".*" },
+        "datasource": "Prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Job",
+        "multi": false,
+        "name": "job",
+        "query": "label_values(glyph_rpc_requests_total, job)",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "all", "value": ".*" },
+        "datasource": "Prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Plugin",
+        "multi": false,
+        "name": "plugin",
+        "query": "label_values(glyph_plugin_queue_length, plugin)",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "all", "value": ".*" },
+        "datasource": "Prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Subscription",
+        "multi": false,
+        "name": "subscription",
+        "query": "label_values(glyph_flow_dispatch_seconds_bucket, subscription)",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "all", "value": ".*" },
+        "datasource": "Prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Variant",
+        "multi": false,
+        "name": "variant",
+        "query": "label_values(glyph_flow_dispatch_seconds_bucket, variant)",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["10s", "30s", "1m", "5m"] },
+  "timezone": "",
+  "title": "Glyph Operations Overview",
+  "version": 2
 }

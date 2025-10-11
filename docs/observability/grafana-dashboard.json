@@ -18,8 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1680000000000,
+  "iteration": 1740000000000,
   "links": [],
   "panels": [
     {
@@ -27,6 +26,7 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
+          "custom": { "exemplars": { "display": true } },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -62,6 +62,7 @@
       "datasource": null,
       "fieldConfig": {
         "defaults": {
+          "custom": { "exemplars": { "display": true } },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -84,19 +85,91 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(glyph_http_request_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le))",
-          "legendFormat": "95th percentile",
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_http_request_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin))",
+          "legendFormat": "{{plugin}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "HTTP Request Latency (95th percentile)",
+      "title": "HTTP Request Latency (P95)",
       "type": "timeSeries"
     },
     {
       "datasource": null,
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "id": 3,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_flow_dispatch_seconds_bucket{job=~\"$job\",subscription=~\"$subscription\",variant=~\"$variant\"}[5m])) by (le,subscription,variant))",
+          "legendFormat": "{{subscription}} :: {{variant}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Flow Dispatch Latency (P95)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(glyph_plugin_event_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin,event))",
+          "legendFormat": "{{plugin}} :: {{event}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Plugin Event Duration (P95)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 16 },
+      "id": 5,
       "options": {
         "displayMode": "gradient",
         "legend": { "displayMode": "table" },
@@ -118,7 +191,7 @@
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 37,
+  "schemaVersion": 39,
   "style": "dark",
   "tags": ["glyph"],
   "templating": {
@@ -148,6 +221,32 @@
         "refresh": 1,
         "regex": "",
         "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "all", "value": ".*" },
+        "datasource": "Prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Subscription",
+        "multi": false,
+        "name": "subscription",
+        "query": "label_values(glyph_flow_dispatch_seconds_bucket, subscription)",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "all", "value": ".*" },
+        "datasource": "Prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Variant",
+        "multi": false,
+        "name": "variant",
+        "query": "label_values(glyph_flow_dispatch_seconds_bucket, variant)",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
       }
     ]
   },
@@ -155,5 +254,5 @@
   "timepicker": { "refresh_intervals": ["10s", "30s", "1m", "5m"] },
   "timezone": "",
   "title": "Glyph Operations Overview",
-  "version": 1
+  "version": 2
 }
