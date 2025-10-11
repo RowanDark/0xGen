@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/RowanDark/Glyph/internal/findings"
@@ -934,8 +935,11 @@ func sha256Base64(data []byte) string {
 	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
+var scriptCloseTagPattern = regexp.MustCompile(`(?i)</script`)
+
 func escapeScriptContent(input string) string {
-	// Prevent </script> from terminating the element prematurely.
-	escaped := strings.ReplaceAll(input, "</script", "<\\/script")
-	return escaped
+	// Prevent </script> (in any casing) from terminating the element prematurely.
+	return scriptCloseTagPattern.ReplaceAllStringFunc(input, func(match string) string {
+		return "<\\/" + match[2:]
+	})
 }
