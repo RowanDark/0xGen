@@ -82,7 +82,7 @@
                   Execute="deferred"
                   Return="check"
                   Impersonate="yes"
-                  ExeCommand="[#GlyphExecutableFile] proxy trust --install --quiet" />
+                  ExeCommand="&quot;[#GlyphExecutableFile]&quot; proxy trust --install --quiet" />
     <InstallExecuteSequence>
       <Custom Action="InstallProxyCertificate" After="InstallFiles">NOT REMOVE AND (&ProxyCATrust = 3)</Custom>
     </InstallExecuteSequence>
