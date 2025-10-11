@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -9,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 )
 
 type collector interface {
@@ -44,9 +47,15 @@ type histogramVec struct {
 }
 
 type histogramValue struct {
-	counts []uint64
-	sum    float64
-	total  uint64
+	counts   []uint64
+	sum      float64
+	total    uint64
+	exemplar *metricExemplar
+}
+
+type metricExemplar struct {
+	traceID string
+	value   float64
 }
 
 var (
@@ -191,6 +200,14 @@ func (gv *gaugeVec) write(sb *strings.Builder) {
 }
 
 func (hv *histogramVec) Observe(values []string, sample float64) {
+	hv.observe(values, sample, nil)
+}
+
+func (hv *histogramVec) ObserveWithContext(ctx context.Context, values []string, sample float64) {
+	hv.observe(values, sample, exemplarFromContext(ctx, sample))
+}
+
+func (hv *histogramVec) observe(values []string, sample float64, ex *metricExemplar) {
 	if len(values) != len(hv.labels) {
 		panic(fmt.Sprintf("expected %d labels, got %d", len(hv.labels), len(values)))
 	}
@@ -214,6 +231,9 @@ func (hv *histogramVec) Observe(values []string, sample float64) {
 	}
 	if !placed {
 		entry.counts[len(hv.buckets)]++
+	}
+	if ex != nil {
+		entry.exemplar = ex
 	}
 }
 
@@ -270,7 +290,14 @@ func (hv *histogramVec) write(sb *strings.Builder) {
 			}
 			sb.WriteString("}")
 		}
-		sb.WriteString(fmt.Sprintf(" %g\n", entry.sum))
+		sb.WriteString(fmt.Sprintf(" %g", entry.sum))
+		if entry.exemplar != nil && entry.exemplar.traceID != "" {
+			sb.WriteString(" # {trace_id=\"")
+			sb.WriteString(escapeLabel(entry.exemplar.traceID))
+			sb.WriteString("\"} ")
+			sb.WriteString(fmt.Sprintf("%g", entry.exemplar.value))
+		}
+		sb.WriteString("\n")
 		sb.WriteString(hv.name)
 		sb.WriteString("_count")
 		if len(hv.labels) > 0 {
@@ -301,6 +328,17 @@ func writeHeader(sb *strings.Builder, name, help, metricType string) {
 	sb.WriteString(" ")
 	sb.WriteString(metricType)
 	sb.WriteString("\n")
+}
+
+func exemplarFromContext(ctx context.Context, sample float64) *metricExemplar {
+	if ctx == nil {
+		return nil
+	}
+	traceID := tracing.TraceIDFromContext(ctx)
+	if traceID == "" {
+		return nil
+	}
+	return &metricExemplar{traceID: traceID, value: sample}
 }
 
 func escapeLabel(value string) string {
@@ -334,8 +372,8 @@ func RecordRPCError(component, method, code string) {
 }
 
 // ObserveRPCLatency records the duration spent serving an RPC method and tags it by status code.
-func ObserveRPCLatency(component, method, code string, dur time.Duration) {
-	rpcLatency.Observe([]string{component, method, code}, dur.Seconds())
+func ObserveRPCLatency(ctx context.Context, component, method, code string, dur time.Duration) {
+	rpcLatency.ObserveWithContext(ctx, []string{component, method, code}, dur.Seconds())
 }
 
 // RecordHTTPThrottle increments the counter for HTTP throttle events at the provided scope.
@@ -385,8 +423,8 @@ func RecordFlowDrop(subscription, reason string, count int) {
 }
 
 // ObserveFlowDispatchLatency records the time spent dispatching a flow event to subscribers.
-func ObserveFlowDispatchLatency(subscription, variant string, dur time.Duration) {
-	flowDispatchLatency.Observe([]string{subscription, variant}, dur.Seconds())
+func ObserveFlowDispatchLatency(ctx context.Context, subscription, variant string, dur time.Duration) {
+	flowDispatchLatency.ObserveWithContext(ctx, []string{subscription, variant}, dur.Seconds())
 }
 
 // RecordFlowRedaction counts sanitisation or truncation operations applied to flow payloads.

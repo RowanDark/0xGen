@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/RowanDark/Glyph/internal/observability/tracing"
 )
 
 // Limits configures the sandbox applied to plugin subprocesses.
@@ -40,6 +42,30 @@ func Run(ctx context.Context, cfg Config) error {
 		ctx = context.Background()
 	}
 
+	spanAttrs := map[string]any{
+		"glyph.runner.binary":  cfg.Binary,
+		"glyph.runner.arg_len": len(cfg.Args),
+	}
+	if cfg.Limits.CPUSeconds > 0 {
+		spanAttrs["glyph.runner.cpu_seconds"] = cfg.Limits.CPUSeconds
+	}
+	if cfg.Limits.MemoryBytes > 0 {
+		spanAttrs["glyph.runner.memory_bytes"] = cfg.Limits.MemoryBytes
+	}
+	if cfg.Limits.WallTime > 0 {
+		spanAttrs["glyph.runner.wall_time"] = cfg.Limits.WallTime.String()
+	}
+	spanCtx, span := tracing.StartSpan(ctx, "plugin.runner.exec", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(spanAttrs))
+	status := tracing.StatusOK
+	statusMsg := ""
+	defer func() {
+		if span == nil {
+			return
+		}
+		span.EndWithStatus(status, statusMsg)
+	}()
+	ctx = spanCtx
+
 	wallCtx := ctx
 	var cancel context.CancelFunc
 	if cfg.Limits.WallTime > 0 {
@@ -49,6 +75,9 @@ func Run(ctx context.Context, cfg Config) error {
 
 	tmpDir, err := os.MkdirTemp("", "glyph-plugin-")
 	if err != nil {
+		span.RecordError(err)
+		status = tracing.StatusError
+		statusMsg = "create temp dir"
 		return fmt.Errorf("create temp dir: %w", err)
 	}
 	defer func() {
@@ -69,6 +98,9 @@ func Run(ctx context.Context, cfg Config) error {
 	cmd.Env = buildEnv(tmpDir, cfg.Env)
 
 	if err := startWithLimits(cmd, cfg.Limits); err != nil {
+		span.RecordError(err)
+		status = tracing.StatusError
+		statusMsg = "start plugin"
 		return err
 	}
 
@@ -79,11 +111,22 @@ func Run(ctx context.Context, cfg Config) error {
 
 	select {
 	case err := <-result:
+		if err != nil {
+			span.RecordError(err)
+			status = tracing.StatusError
+			statusMsg = "plugin exit"
+		}
 		return err
 	case <-wallCtx.Done():
 		killProcessGroup(cmd)
 		<-result
-		return wallCtx.Err()
+		err := wallCtx.Err()
+		if err != nil {
+			span.RecordError(err)
+			status = tracing.StatusError
+			statusMsg = "wall timeout"
+		}
+		return err
 	}
 }
 

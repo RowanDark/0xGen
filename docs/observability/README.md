@@ -7,7 +7,10 @@ available telemetry and provides example tooling configurations.
 ## Tracing
 
 `glyphd` now emits structured spans that describe plugin lifecycle events, RPC handlers, and
-network activity performed on behalf of plugins. Tracing is disabled by default; enable it with
+network activity performed on behalf of plugins. New spans cover the full HTTP capture pipeline
+(`proxy.capture_flow`), fan-out to plugins (`plugin_bus.dispatch_flow`), plugin execution inside the
+supervisor (`plugin.supervisor.task` / `plugin.runner.exec`), replay tooling (`replay.load_flows`,
+`replay.write_cases`, etc.), and exporter jobs (`replay.write_flows`, `replay.write_cases`). Tracing is disabled by default; enable it with
 the new CLI flags:
 
 ```bash
@@ -24,8 +27,9 @@ glyphd \
 * `--trace-file` – optional JSONL archive of every exported span (viewable via Chrome trace viewer).
 * `--trace-headers` – attach additional HTTP headers when posting OTLP payloads.
 
-Audit events automatically include the active `trace_id` so that log entries correlate with spans.
-Outbound HTTP requests executed through the netgate are wrapped in spans that record
+A span's `trace_id` is propagated into metrics as Prometheus exemplars and into structured audit
+events, allowing Grafana panels to link directly to their originating trace. Outbound HTTP requests
+executed through the netgate are wrapped in spans that record
 latency, response code, capabilities, and rate-limiter waits. When rate limiting delays a request,
 `netgate.rate_limit_wait` spans show the exact wait duration and scope (global or per-host).
 
@@ -41,9 +45,11 @@ Glyph continues to expose Prometheus metrics at `/metrics`. Notable series inclu
 * `glyph_http_request_duration_seconds` – latency of proxied HTTP requests.
 * `glyph_plugin_event_duration_seconds` – time spent handling plugin-sent events.
 * `glyph_http_throttle_total` – rate-limiter activations.
+* `glyph_flow_dispatch_seconds` – latency for sanitized/raw flow fan-out to plugins.
 
-The Grafana dashboard in [`grafana-dashboard.json`](grafana-dashboard.json) plots queue depth,
-HTTP latency heatmaps, and RPC timings with templated selectors for environment and plugin.
+The Grafana dashboard in [`grafana-dashboard.json`](grafana-dashboard.json) now ships exemplar-aware
+panels for HTTP, flow dispatch, and plugin event latency. Selecting an exemplar opens the associated
+trace in Tempo/Jaeger, letting you pivot from 95th percentile latency straight into a correlated span.
 
 ## Alerting
 
