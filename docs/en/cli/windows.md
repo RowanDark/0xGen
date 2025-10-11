@@ -17,8 +17,9 @@ version command and plugin subsystem operate correctly.
 
    Replace `<arch>` with `amd64` or `arm64` depending on your platform.
 3. The installer places `glyphctl.exe` under `C:\Program Files\Glyph`, amends the
-   system `PATH`, and registers an uninstall entry. Open a new PowerShell
-   session and confirm the CLI is reachable:
+   system `PATH`, registers an uninstall entry, and adds Start menu shortcuts for
+   the CLI and demo workflow. Open a new PowerShell session and confirm the CLI
+   is reachable:
 
    ```powershell
    glyphctl --version
@@ -29,6 +30,14 @@ version command and plugin subsystem operate correctly.
    ```powershell
    msiexec /x .\glyphctl_v<version>_windows_amd64.msi /qn /norestart
    ```
+
+### Trusting the proxy certificate
+
+During installation you can opt into the **Trust Galdr proxy certificate**
+feature. Enabling it runs `glyphctl proxy trust --install --quiet` after Glyph's
+files are copied, generating the proxy root certificate if needed and importing
+it into the current user's trusted root store. Re-run the command manually if
+you later rotate the certificate or install Glyph for another account.
 
 ## Portable ZIP
 
@@ -56,6 +65,12 @@ glyphctl --version
 ```
 
 Scoop installs the same signed binary shipped in the portable ZIP.
+
+## WSL interoperability
+
+Mixing Windows and WSL tooling? Use `glyphctl wsl path` to translate file paths
+and follow the [WSL interop guide](../dev/windows-wsl.md) for advice on sharing
+proxy certificates between environments.
 
 ## Verifying plugin support
 

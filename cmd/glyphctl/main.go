@@ -101,6 +101,30 @@ func main() {
                 os.Exit(runVersion(args[1:]))
         case "self-update":
                 os.Exit(runSelfUpdate(args[1:]))
+        case "proxy":
+                if len(args) < 2 {
+                        fmt.Fprintln(os.Stderr, "proxy subcommand required")
+                        os.Exit(2)
+                }
+                switch args[1] {
+                case "trust":
+                        os.Exit(runProxyTrust(args[2:]))
+                default:
+                        fmt.Fprintf(os.Stderr, "unknown proxy subcommand: %s\n", args[1])
+                        os.Exit(2)
+                }
+        case "wsl":
+                if len(args) < 2 {
+                        fmt.Fprintln(os.Stderr, "wsl subcommand required")
+                        os.Exit(2)
+                }
+                switch args[1] {
+                case "path":
+                        os.Exit(runWSLPath(args[2:]))
+                default:
+                        fmt.Fprintf(os.Stderr, "unknown wsl subcommand: %s\n", args[1])
+                        os.Exit(2)
+                }
         default:
                 fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
                 flag.Usage()
