@@ -13,6 +13,7 @@ nav:
       - Go Safe Starter: plugins/safe-starter-go.md
       - Marketplace: plugins/catalog.md
       - Compatibility Matrix: plugins/compatibility-matrix.md
+      - Install wizard: plugins/install-wizard.md
   - CLI:
       - Overview: cli/index.md
       - Configuration: cli/configuration.md
