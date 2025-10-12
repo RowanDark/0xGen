@@ -346,14 +346,22 @@ fn read_recent_file(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
     let metadata = file
         .metadata()
         .map_err(|err| format!("stat {path:?}: {err}"))?;
+    let truncated = metadata.len() > limit;
     let mut buffer = Vec::new();
-    if metadata.len() > limit {
+    if truncated {
         let offset = i64::try_from(limit).unwrap_or(i64::MAX);
         file.seek(SeekFrom::End(-offset))
             .map_err(|err| format!("seek {path:?}: {err}"))?;
     }
     file.read_to_end(&mut buffer)
         .map_err(|err| format!("read {path:?}: {err}"))?;
+    if truncated {
+        if let Some(first_newline) = buffer.iter().position(|&byte| byte == b'\n') {
+            buffer.drain(..=first_newline);
+        } else {
+            buffer.clear();
+        }
+    }
     Ok(buffer)
 }
 
@@ -389,6 +397,33 @@ fn capture_audit_log(path: &Path) -> Result<Option<CrashFile>, String> {
         sanitized,
         true,
     )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn read_recent_file_discards_partial_first_line_when_truncated() {
+        let mut file = NamedTempFile::new().expect("create temp file");
+        write!(file, "line1\nline2\nline3\n").expect("write log contents");
+
+        let data = read_recent_file(file.path(), 10).expect("read truncated log");
+
+        assert_eq!(String::from_utf8(data).unwrap(), "line3\n");
+    }
+
+    #[test]
+    fn read_recent_file_returns_full_contents_when_not_truncated() {
+        let mut file = NamedTempFile::new().expect("create temp file");
+        write!(file, "line1\nline2\n").expect("write log contents");
+
+        let data = read_recent_file(file.path(), 1024).expect("read full log");
+
+        assert_eq!(String::from_utf8(data).unwrap(), "line1\nline2\n");
+    }
 }
 
 async fn capture_metrics(api: &GlyphApi) -> Result<CrashFile, String> {
