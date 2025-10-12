@@ -1,11 +1,8 @@
-# Glyph
+# 0xgen
 
 <!-- version-badge -->[![Release](https://img.shields.io/badge/release-v0.0.0--dev-blue)](https://github.com/RowanDark/Glyph/releases/latest)<!-- /version-badge --> [![Build status](https://github.com/RowanDark/Glyph/actions/workflows/ci.yml/badge.svg)](https://github.com/RowanDark/Glyph/actions/workflows/ci.yml) [![Docs](https://img.shields.io/badge/docs-material-blue)](https://rowandark.github.io/Glyph/) [![Plugin count](https://img.shields.io/endpoint?url=https://rowandark.github.io/Glyph/api/plugin-stats.json&cacheSeconds=3600)](https://rowandark.github.io/Glyph/plugins/catalog/)
 
-Glyph is an automation toolkit for orchestrating red-team and detection workflows.
-It coordinates plugins such as Galdr (HTTP rewriting proxy), Excavator (Playwright
-crawler), Seer (secret/PII detector), Ranker, and Scribe to turn raw telemetry into
-ranked findings and human-readable reports.
+0xgen — Generation Zero: AI-driven offensive security.
 
 The badges above highlight the most recent Glyph release, continuous-integration
 status, documentation portal, and the live plugin catalog size published from the
