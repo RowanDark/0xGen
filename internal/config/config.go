@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,7 +50,8 @@ func Default() Config {
 // Load resolves the Glyph configuration using defaults, configuration files, and
 // environment overrides. The lookup order for configuration files is:
 //  1. ./glyph.yml (YAML)
-//  2. ~/.glyph/config.toml (TOML)
+//  2. ~/.0xgen/config.toml (TOML)
+//  3. ~/.glyph/config.toml (TOML, legacy)
 //
 // Environment variables prefixed with GLYPH_ have the highest precedence.
 func Load() (Config, error) {
@@ -75,16 +77,30 @@ func loadHomeConfig(cfg *Config) error {
 		}
 		return fmt.Errorf("determine home directory: %w", err)
 	}
-	path := filepath.Join(home, ".glyph", "config.toml")
-	data, err := os.ReadFile(path)
+
+	newPath := filepath.Join(home, ".0xgen", "config.toml")
+	data, err := os.ReadFile(newPath)
+	if err == nil {
+		if err := applyFileConfig(cfg, data, "toml"); err != nil {
+			return fmt.Errorf("parse config %s: %w", newPath, err)
+		}
+		return nil
+	}
+	if err != nil && !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read config %s: %w", newPath, err)
+	}
+
+	legacyPath := filepath.Join(home, ".glyph", "config.toml")
+	data, err = os.ReadFile(legacyPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
-		return fmt.Errorf("read config %s: %w", path, err)
+		return fmt.Errorf("read config %s: %w", legacyPath, err)
 	}
+	log.Println("Using legacy Glyph config")
 	if err := applyFileConfig(cfg, data, "toml"); err != nil {
-		return fmt.Errorf("parse config %s: %w", path, err)
+		return fmt.Errorf("parse config %s: %w", legacyPath, err)
 	}
 	return nil
 }

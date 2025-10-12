@@ -9,7 +9,7 @@ import (
 func TestLoadPrecedence(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Configure HOME to a temp directory containing ~/.glyph/config.toml.
+	// Configure HOME to a temp directory containing only the legacy ~/.glyph/config.toml.
 	homeDir := filepath.Join(tempDir, "home")
 	if err := os.Mkdir(homeDir, 0o755); err != nil {
 		t.Fatalf("mkdir home: %v", err)
@@ -93,5 +93,42 @@ func TestLoadDefaults(t *testing.T) {
 	defaults := Default()
 	if cfg != defaults {
 		t.Fatalf("expected defaults, got %#v", cfg)
+	}
+}
+
+func TestLoadPrefers0xgenConfig(t *testing.T) {
+	tempDir := t.TempDir()
+
+	homeDir := filepath.Join(tempDir, "home")
+	if err := os.Mkdir(homeDir, 0o755); err != nil {
+		t.Fatalf("mkdir home: %v", err)
+	}
+	t.Setenv("HOME", homeDir)
+
+	legacyDir := filepath.Join(homeDir, ".glyph")
+	if err := os.Mkdir(legacyDir, 0o755); err != nil {
+		t.Fatalf("mkdir legacy dir: %v", err)
+	}
+	legacyConfig := []byte(`output_dir = "/legacy"`)
+	if err := os.WriteFile(filepath.Join(legacyDir, "config.toml"), legacyConfig, 0o644); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	modernDir := filepath.Join(homeDir, ".0xgen")
+	if err := os.Mkdir(modernDir, 0o755); err != nil {
+		t.Fatalf("mkdir modern dir: %v", err)
+	}
+	modernConfig := []byte(`output_dir = "/modern"`)
+	if err := os.WriteFile(filepath.Join(modernDir, "config.toml"), modernConfig, 0o644); err != nil {
+		t.Fatalf("write modern config: %v", err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.OutputDir != "/modern" {
+		t.Fatalf("expected modern config to take precedence, got %s", cfg.OutputDir)
 	}
 }
