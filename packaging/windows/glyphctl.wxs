@@ -46,6 +46,7 @@
     <ComponentGroup Id="GlyphComponents">
       <Component Id="GlyphExecutable" Guid="{2DFEEA0E-4FD0-4F71-83F2-5C2F11C278F7}" Directory="INSTALLFOLDER" Win64="yes">
         <File Id="GlyphExecutableFile" Source="$(var.PayloadDir)/glyphctl.exe" KeyPath="yes" />
+        <File Id="GlyphAliasFile" Source="$(var.PayloadDir)/0xgenctl.cmd" />
         <File Id="GlyphLicenseFile" Source="$(var.PayloadDir)/LICENSE.txt" />
         <File Id="GlyphReadmeFile" Source="$(var.PayloadDir)/README.txt" />
         <Environment Id="GlyphPath"

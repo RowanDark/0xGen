@@ -50,6 +50,7 @@ $tempDir = New-Item -ItemType Directory -Path (Join-Path -Path ([IO.Path]::GetTe
 try {
     $repoRoot = (Resolve-Path (Join-Path -Path $PSScriptRoot -ChildPath '..')).Path
     Copy-Item -Path $payloadExecutable -Destination (Join-Path -Path $tempDir -ChildPath 'glyphctl.exe')
+    Copy-Item -Path (Join-Path -Path $repoRoot -ChildPath 'scripts/0xgenctl.cmd') -Destination (Join-Path -Path $tempDir -ChildPath '0xgenctl.cmd')
     Copy-Item -Path (Join-Path -Path $repoRoot -ChildPath 'README.md') -Destination (Join-Path -Path $tempDir -ChildPath 'README.txt')
     Copy-Item -Path (Join-Path -Path $repoRoot -ChildPath 'LICENSE') -Destination (Join-Path -Path $tempDir -ChildPath 'LICENSE.txt')
 

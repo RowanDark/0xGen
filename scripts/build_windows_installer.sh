@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 if [[ $# -ne 4 ]]; then
   cat >&2 <<'EOF'
 Usage: build_windows_installer.sh <tag> <arch> <payload_dir> <output_dir>
@@ -63,8 +65,9 @@ trap 'rm -rf "$stage"' EXIT
 mkdir -p "$output_dir"
 
 cp "$payload_dir/glyphctl.exe" "$stage/glyphctl.exe"
-cp README.md "$stage/README.txt"
-cp LICENSE "$stage/LICENSE.txt"
+cp "$ROOT_DIR/scripts/0xgenctl.cmd" "$stage/0xgenctl.cmd"
+cp "$ROOT_DIR/README.md" "$stage/README.txt"
+cp "$ROOT_DIR/LICENSE" "$stage/LICENSE.txt"
 
 wixl \
   -DVersion="$msi_version" \

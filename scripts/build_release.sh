@@ -38,6 +38,8 @@ for target in "${targets[@]}"; do
                 go build -ldflags "$LDFLAGS" -o "$BUILD_DIR/glyphctl" ./cmd/glyphctl
 
         cp "$ROOT_DIR/LICENSE" "$BUILD_DIR/"
+        cp "$ROOT_DIR/scripts/0xgenctl" "$BUILD_DIR/"
+        chmod +x "$BUILD_DIR/0xgenctl"
 
         (cd "$DIST_DIR" && tar -czf "$ARCHIVE_BASENAME.tar.gz" "$ARCHIVE_BASENAME")
         rm -rf "$BUILD_DIR"
