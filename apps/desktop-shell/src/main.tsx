@@ -10,6 +10,7 @@ import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
 import { ArtifactProvider } from './providers/artifact-provider';
 import { CommandCenterProvider } from './providers/command-center';
 import { MetricsProvider } from './providers/metrics-provider';
+import { CrashReporterProvider } from './providers/crash-reporter';
 
 bootstrapTheme();
 
@@ -22,16 +23,18 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ThemeProvider>
-      <AppErrorBoundary>
-        <ArtifactProvider>
-          <MetricsProvider>
-            <CommandCenterProvider>
-              <Toaster />
-              <RouterProvider router={router} />
-            </CommandCenterProvider>
-          </MetricsProvider>
-        </ArtifactProvider>
-      </AppErrorBoundary>
+      <CrashReporterProvider>
+        <AppErrorBoundary>
+          <ArtifactProvider>
+            <MetricsProvider>
+              <CommandCenterProvider>
+                <Toaster />
+                <RouterProvider router={router} />
+              </CommandCenterProvider>
+            </MetricsProvider>
+          </ArtifactProvider>
+        </AppErrorBoundary>
+      </CrashReporterProvider>
     </ThemeProvider>
   </React.StrictMode>,
 );

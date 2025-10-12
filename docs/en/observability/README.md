@@ -2,9 +2,9 @@
 search: false
 ---
 
-# Glyph Telemetry
+# Glyph Telemetry and Crash Insight
 
-Glyph now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation.
+Glyph now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation. For post-mortem analysis of fatal errors, see the [crash reporting workflow](./crash-reporting.md) that explains how the desktop shell captures redacted, text-only bundles ready for handoff to maintainers.
 
 ## Metrics Endpoint
 
