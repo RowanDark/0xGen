@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "Glyph Desktop",
+    "productName": "0xgen",
     "version": "0.1.0"
   },
   "tauri": {
@@ -35,7 +35,7 @@
     },
     "windows": [
       {
-        "title": "Glyph Desktop",
+        "title": "0xgen",
         "width": 1200,
         "height": 800,
         "resizable": true,
