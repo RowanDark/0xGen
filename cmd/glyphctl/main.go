@@ -6,6 +6,20 @@ import (
 	"os"
 )
 
+const productName = "0xgen"
+const cliBanner = productName + " CLI (glyphctl)"
+
+func init() {
+	defaultUsage := flag.Usage
+	flag.Usage = func() {
+		fmt.Fprintln(flag.CommandLine.Output(), cliBanner)
+		fmt.Fprintln(flag.CommandLine.Output())
+		if defaultUsage != nil {
+			defaultUsage()
+		}
+	}
+}
+
 func main() {
 	// Parse global flags (including --manifest-validate) once.
 	flag.Parse()
@@ -41,22 +55,22 @@ func main() {
 		os.Exit(runConfig(args[1:]))
 	case "scope":
 		os.Exit(runScope(args[1:]))
-        case "plugin":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "plugin subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "run":
-                        os.Exit(runPluginRun(args[2:]))
-                case "verify":
-                        os.Exit(runPluginVerify(args[2:]))
-                case "registry":
-                        os.Exit(runPluginRegistry(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
+	case "plugin":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "plugin subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "run":
+			os.Exit(runPluginRun(args[2:]))
+		case "verify":
+			os.Exit(runPluginVerify(args[2:]))
+		case "registry":
+			os.Exit(runPluginRegistry(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
 	case "raider":
 		os.Exit(runRaider(args[1:]))
 	case "history":
@@ -76,58 +90,58 @@ func main() {
 			fmt.Fprintln(os.Stderr, "repeater subcommand required")
 			os.Exit(2)
 		}
-                switch args[1] {
-                case "send":
-                        os.Exit(runRepeaterSend(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown repeater subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
-        case "serve":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "serve subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "ui":
-                        os.Exit(runServeUI(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown serve subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
-        case "replay":
-                os.Exit(runReplay(args[1:]))
-        case "version":
-                os.Exit(runVersion(args[1:]))
-        case "self-update":
-                os.Exit(runSelfUpdate(args[1:]))
-        case "proxy":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "proxy subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "trust":
-                        os.Exit(runProxyTrust(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown proxy subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
-        case "wsl":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "wsl subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "path":
-                        os.Exit(runWSLPath(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown wsl subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
-        default:
-                fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
-                flag.Usage()
-                os.Exit(2)
-        }
+		switch args[1] {
+		case "send":
+			os.Exit(runRepeaterSend(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown repeater subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	case "serve":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "serve subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "ui":
+			os.Exit(runServeUI(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown serve subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	case "replay":
+		os.Exit(runReplay(args[1:]))
+	case "version":
+		os.Exit(runVersion(args[1:]))
+	case "self-update":
+		os.Exit(runSelfUpdate(args[1:]))
+	case "proxy":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "proxy subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "trust":
+			os.Exit(runProxyTrust(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown proxy subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	case "wsl":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "wsl subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "path":
+			os.Exit(runWSLPath(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown wsl subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0])
+		flag.Usage()
+		os.Exit(2)
+	}
 }
