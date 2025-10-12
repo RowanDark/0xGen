@@ -8,6 +8,10 @@ import (
 
 var version = "dev"
 
+func versionString() string {
+	return fmt.Sprintf("%s %s", productName, version)
+}
+
 func runVersion(args []string) int {
 	fs := flag.NewFlagSet("version", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -18,6 +22,6 @@ func runVersion(args []string) int {
 		fmt.Fprintln(os.Stderr, "version takes no arguments")
 		return 2
 	}
-	fmt.Println(version)
+	fmt.Println(versionString())
 	return 0
 }

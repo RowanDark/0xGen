@@ -14,6 +14,6 @@ func maybePrintVersion() bool {
 	if !*showVersion {
 		return false
 	}
-	fmt.Println(version)
+	fmt.Println(versionString())
 	return true
 }
