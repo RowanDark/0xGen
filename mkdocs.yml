@@ -24,6 +24,7 @@ nav:
       - Updater channels & rollback: dev/updater.md
       - Windows & WSL interop: dev/windows-wsl.md
       - Running tests locally: dev/testing.md
+      - Rebrand tracker (meta): dev/rebrand-tracker.md
       - Accessibility modes: dev-guide/accessibility-modes.md
   - Security:
       - Overview: security/index.md
@@ -74,6 +75,7 @@ plugins:
           E2E Scenario Suite: Escenarios E2E
           Updater channels & rollback: Canales de actualización y reversión
           Running tests locally: Ejecución de pruebas en local
+          Rebrand tracker (meta): Seguimiento de rebranding (meta)
           Accessibility modes: Modos de accesibilidad
           Security: Seguridad
           Versions: Versiones
