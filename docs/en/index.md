@@ -1,6 +1,6 @@
-# Welcome to Glyph
+# Welcome to 0xgen
 
-Glyph is an automation toolkit for orchestrating red-team and detection workflows. It
+0xgen is an automation toolkit for orchestrating red-team and detection workflows. It
 coordinates plugins such as Galdr, Excavator, Seer, Ranker, and Scribe to turn raw
 telemetry into ranked findings and human-readable reports. This site consolidates the
 operational and contributor documentation that previously lived in scattered Markdown
