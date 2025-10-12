@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod crash;
+
+use crate::crash::{self, CrashReporter};
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
@@ -85,6 +88,10 @@ impl GlyphApi {
             self.base_url.trim_end_matches('/'),
             path.trim_start_matches('/')
         )
+    }
+
+    fn base_url(&self) -> &str {
+        &self.base_url
     }
 }
 
@@ -699,11 +706,7 @@ fn sum_metric(samples: &[MetricSample], name: &str) -> f64 {
         .sum()
 }
 
-fn sum_metric_by_label(
-    samples: &[MetricSample],
-    name: &str,
-    label: &str,
-) -> HashMap<String, f64> {
+fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> HashMap<String, f64> {
     let mut totals = HashMap::new();
     for sample in samples.iter().filter(|sample| sample.name == name) {
         if let Some(value) = sample.labels.get(label) {
@@ -1101,20 +1104,20 @@ async fn fetch_metrics(
     };
     let events_total = latency_count;
     let queue_drops = sum_metric(&samples, "glyph_plugin_queue_dropped_total");
-    let latency_buckets = collect_latency_buckets(&samples, "glyph_plugin_event_duration_seconds_bucket");
+    let latency_buckets =
+        collect_latency_buckets(&samples, "glyph_plugin_event_duration_seconds_bucket");
     let mut plugin_errors: Vec<PluginErrorTotal> = sum_metric_by_label_any(
         &samples,
-        &["glyph_plugin_errors_total", "glyph_plugin_event_failures_total"],
+        &[
+            "glyph_plugin_errors_total",
+            "glyph_plugin_event_failures_total",
+        ],
         "plugin",
     )
     .into_iter()
     .map(|(plugin, errors)| PluginErrorTotal { plugin, errors })
     .collect();
-    plugin_errors.sort_by(|a, b| {
-        b.errors
-            .partial_cmp(&a.errors)
-            .unwrap_or(Ordering::Equal)
-    });
+    plugin_errors.sort_by(|a, b| b.errors.partial_cmp(&a.errors).unwrap_or(Ordering::Equal));
 
     let mut cases_found = 0.0;
     for name in [
@@ -1739,6 +1742,44 @@ async fn dry_run_scope_policy(
         .map_err(|err| err.to_string())
 }
 
+#[tauri::command]
+fn report_renderer_crash(
+    reporter: State<'_, CrashReporter>,
+    message: String,
+    stack: Option<String>,
+) -> Result<crash::CrashBundleSummary, String> {
+    reporter
+        .record_renderer_crash(message, stack)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn get_active_crash_bundle(
+    reporter: State<'_, CrashReporter>,
+) -> Option<crash::CrashBundleSummary> {
+    reporter.current_bundle()
+}
+
+#[tauri::command]
+fn preview_crash_file(
+    reporter: State<'_, CrashReporter>,
+    path: String,
+) -> Result<crash::CrashFilePreview, String> {
+    reporter.preview_file(&path).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn save_crash_bundle(reporter: State<'_, CrashReporter>, target: String) -> Result<(), String> {
+    reporter
+        .save_bundle(PathBuf::from(target))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn discard_crash_bundle(reporter: State<'_, CrashReporter>) -> Result<(), String> {
+    reporter.discard_bundle().map_err(|err| err.to_string())
+}
+
 fn configure_devtools(window: &Window) {
     let allow_devtools =
         std::env::var("GLYPH_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
@@ -1748,10 +1789,22 @@ fn configure_devtools(window: &Window) {
 }
 
 fn main() {
+    let log_buffer = crash::init_logging();
+    let api = GlyphApi::new();
+    let base_url = api.base_url().to_string();
+    let crash_reporter = CrashReporter::new(base_url, log_buffer);
+    crash::set_global_reporter(crash_reporter.clone());
+    crash::install_panic_hook();
+
     tauri::Builder::default()
-        .manage(GlyphApi::new())
+        .manage(api)
+        .manage(crash_reporter)
         .manage(ReplayState::new())
         .setup(|app| {
+            {
+                let crash_state: State<'_, CrashReporter> = app.state();
+                crash_state.attach_app(app.handle());
+            }
             if let Some(window) = app.get_window("main") {
                 configure_devtools(&window);
             }
@@ -1774,7 +1827,12 @@ fn main() {
             validate_scope_policy,
             apply_scope_policy,
             parse_scope_text,
-            dry_run_scope_policy
+            dry_run_scope_policy,
+            report_renderer_crash,
+            get_active_crash_bundle,
+            preview_crash_file,
+            save_crash_bundle,
+            discard_crash_bundle
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

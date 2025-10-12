@@ -28,6 +28,11 @@ __pycache__/
 /node_modules/
 **/node_modules/
 
+# Desktop shell artifacts
+apps/desktop-shell/dist/
+apps/desktop-shell/src-tauri/target/
+apps/desktop-shell/src-tauri/Cargo.lock
+
 # Generated reports
 /out/
 plugins/excavator/benchmarks/latest.json

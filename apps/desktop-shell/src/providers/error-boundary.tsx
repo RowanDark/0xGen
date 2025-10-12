@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { invoke } from '@tauri-apps/api/tauri';
 import { toast } from 'sonner';
 
 interface Props {
@@ -20,6 +21,12 @@ export class AppErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error) {
     console.error('Unhandled error boundary exception', error);
     toast.error(error.message ?? 'An unexpected error occurred');
+    void invoke('report_renderer_crash', {
+      message: error.message ?? 'Unhandled renderer error',
+      stack: error.stack ?? null,
+    }).catch((invokeError) => {
+      console.error('Failed to report renderer crash', invokeError);
+    });
   }
 
   render() {
