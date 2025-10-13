@@ -1,4 +1,4 @@
-name: SBOM
+name: 0xgen SBOM
 
 on:
   pull_request:
@@ -30,6 +30,6 @@ jobs:
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: glyph-sboms
+          name: 0xgen-glyph-sboms
           path: sbom/
           if-no-files-found: error

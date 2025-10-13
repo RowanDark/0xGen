@@ -1,4 +1,4 @@
-name: Demo artifact
+name: 0xgen Demo artifact
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   demo:
-    name: Build demo report
+    name: 0xgen Build demo report
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +30,7 @@ jobs:
       - name: Upload demo report
         uses: actions/upload-artifact@v4
         with:
-          name: demo-report
+          name: 0xgen-demo-report
           path: out/report.html
           if-no-files-found: error
           retention-days: 7

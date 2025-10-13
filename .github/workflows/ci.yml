@@ -1,4 +1,4 @@
-name: CI
+name: 0xgen CI
 on:
   pull_request:
     branches: [ main ]
@@ -91,7 +91,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: glyph-report-html
+          name: 0xgen-glyph-report-html
           path: report.html
           if-no-files-found: error
 
@@ -110,7 +110,7 @@ jobs:
           args: --out-format=github-actions ./...
 
   web-accessibility:
-    name: Web accessibility
+    name: 0xgen Web accessibility
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -137,14 +137,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-shell-a11y-${{ github.sha }}
+          name: 0xgen-desktop-shell-a11y-${{ github.sha }}
           path: |
             apps/desktop-shell/playwright-report
             apps/desktop-shell/test-results
           if-no-files-found: warn
 
   perf-bench:
-    name: Performance benchmarks
+    name: 0xgen Performance benchmarks
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -164,7 +164,7 @@ jobs:
       - name: Upload metrics report
         uses: actions/upload-artifact@v4
         with:
-          name: perf-metrics
+          name: 0xgen-perf-metrics
           path: |
             perf/results/latest.json
             perf/results/history.jsonl
@@ -172,7 +172,7 @@ jobs:
           if-no-files-found: error
 
   container-scan:
-    name: Container security scan
+    name: 0xgen Container security scan
     runs-on: ubuntu-latest
     permissions:
       contents: read

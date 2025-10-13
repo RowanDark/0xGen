@@ -1,4 +1,4 @@
-name: Excavator performance
+name: 0xgen Excavator performance
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   benchmark:
-    name: Run synthetic crawl benchmarks
+    name: 0xgen Run synthetic crawl benchmarks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,7 +40,7 @@ jobs:
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: excavator-benchmark
+          name: 0xgen-excavator-benchmark
           path: |
             plugins/excavator/benchmarks/latest.json
             plugins/excavator/benchmarks/summary.md

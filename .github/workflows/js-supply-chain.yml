@@ -1,4 +1,4 @@
-name: JS Supply Chain
+name: 0xgen JS Supply Chain
 
 on:
   pull_request:

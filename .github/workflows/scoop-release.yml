@@ -1,4 +1,4 @@
-name: scoop-release
+name: 0xgen scoop-release
 
 on:
   release:

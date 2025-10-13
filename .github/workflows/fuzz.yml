@@ -1,4 +1,4 @@
-name: Fuzz
+name: 0xgen Fuzz
 
 on:
   workflow_dispatch: {}
