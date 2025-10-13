@@ -12,6 +12,8 @@ Las personas usuarias de macOS pueden instalar el binario precompilado `glyphctl
 
 ```bash
 brew install rowandark/glyph/glyph
+# Alias mientras el tap mantiene el nombre de la fórmula Glyph
+brew install rowandark/glyph/0xgen
 ```
 
 ### Linux (Debian/Ubuntu)
