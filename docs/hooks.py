@@ -9,7 +9,9 @@ from typing import Any
 import uuid
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
+from mkdocs.structure.files import File
 from mkdocs.structure.pages import Page
+from urllib.parse import urljoin
 
 
 def on_page_content(html: str, page: Page, config: dict[str, Any], files: Any) -> str:  # noqa: ARG001
@@ -337,3 +339,51 @@ def _build_epub_archive(site_dir: Path, config: dict[str, Any]) -> None:
         archive.writestr("OEBPS/nav.xhtml", nav, compress_type=ZIP_DEFLATED)
         for item in items:
             archive.writestr(f"OEBPS/{item['href']}", render_page(item), compress_type=ZIP_DEFLATED)
+
+
+def on_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Inject Glyph → 0xgen redirects for every published Markdown page."""
+
+    plugins = config.get("plugins")
+    if not plugins:
+        return config
+
+    redirects_plugin = plugins.get("redirects")
+    if redirects_plugin is None:
+        return config
+
+    redirect_maps = redirects_plugin.config.get("redirect_maps")
+    if not isinstance(redirect_maps, dict):
+        return config
+
+    docs_dir = Path(config.get("docs_dir", "docs"))
+    if not docs_dir.exists():
+        return config
+
+    use_directory_urls = bool(config.get("use_directory_urls", True))
+    site_url = (config.get("site_url") or "").rstrip("/")
+
+    if site_url.endswith("/Glyph"):
+        target_root = f"{site_url[:-len('/Glyph')]}/0xgen/"
+    elif site_url:
+        target_root = f"{site_url}/0xgen/"
+    else:
+        target_root = "/0xgen/"
+
+    site_dir = config.get("site_dir", "site")
+
+    for markdown_path in docs_dir.rglob("*.md"):
+        relative_path = markdown_path.relative_to(docs_dir).as_posix()
+
+        if relative_path.startswith("overrides/"):
+            continue
+
+        legacy_path = f"Glyph/{relative_path}"
+        if legacy_path in redirect_maps:
+            continue
+
+        file = File(relative_path, docs_dir.as_posix(), site_dir, use_directory_urls)
+        redirect_maps[legacy_path] = urljoin(target_root, file.url)
+
+    return config
+

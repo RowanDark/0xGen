@@ -132,6 +132,9 @@ plugins:
         "Glyph.html": "./"
         "docs/Glyph.html": "./"
         "docs/docs.html": "./"
+        # Project rename: legacy /Glyph URLs now live under /0xgen
+        "Glyph/index.md": "https://rowandark.github.io/0xgen/"
+        "Glyph/es/index.md": "https://rowandark.github.io/0xgen/es/"
         # Archived documentation snapshots
         "v1.0/": "versions/v1.0/"
         "v1.0/index.html": "versions/v1.0/"
