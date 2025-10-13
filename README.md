@@ -19,6 +19,8 @@ macOS users can install the prebuilt `glyphctl` binary via Homebrew using the
 
 ```bash
 brew install rowandark/glyph/glyph
+# Alias while the tap still uses the Glyph formula name
+brew install rowandark/glyph/0xgen
 ```
 
 ### Linux (Debian/Ubuntu)

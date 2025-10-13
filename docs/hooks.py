@@ -356,6 +356,13 @@ def on_config(config: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(redirect_maps, dict):
         return config
 
+    default_language: str | None = None
+    i18n_plugin = plugins.get("i18n")
+    if i18n_plugin is not None:
+        configured_default = i18n_plugin.config.get("default_language")
+        if isinstance(configured_default, str) and configured_default:
+            default_language = configured_default
+
     docs_dir = Path(config.get("docs_dir", "docs"))
     if not docs_dir.exists():
         return config
@@ -378,7 +385,11 @@ def on_config(config: dict[str, Any]) -> dict[str, Any]:
         if relative_path.startswith("overrides/"):
             continue
 
-        legacy_path = f"Glyph/{relative_path}"
+        legacy_relative_path = relative_path
+        if default_language and legacy_relative_path.startswith(f"{default_language}/"):
+            legacy_relative_path = legacy_relative_path[len(default_language) + 1 :]
+
+        legacy_path = f"Glyph/{legacy_relative_path}"
         if legacy_path in redirect_maps:
             continue
 
