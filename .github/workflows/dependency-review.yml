@@ -1,4 +1,4 @@
-name: Dependency Review
+name: 0xgen Dependency Review
 
 on:
   pull_request:

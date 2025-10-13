@@ -1,4 +1,4 @@
-name: windows-install
+name: 0xgen windows-install
 
 on:
   push:

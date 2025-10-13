@@ -1,4 +1,4 @@
-name: packaging-smoke
+name: 0xgen packaging-smoke
 
 on:
   push:

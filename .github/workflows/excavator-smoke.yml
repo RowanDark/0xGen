@@ -1,4 +1,4 @@
-name: Excavator smoke
+name: 0xgen Excavator smoke
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   crawl:
-    name: Run excavator smoke test
+    name: 0xgen Run excavator smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
       - name: Upload crawl artifact
         uses: actions/upload-artifact@v4
         with:
-          name: excavator-smoke
+          name: 0xgen-excavator-smoke
           path: artifacts/excavator-smoke.json
           if-no-files-found: error
           retention-days: 7
