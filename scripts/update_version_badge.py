@@ -11,7 +11,7 @@ MARKER_START = "<!-- version-badge -->"
 MARKER_END = "<!-- /version-badge -->"
 BADGE_TEMPLATE = (
     "[![Release](https://img.shields.io/badge/release-{message}-blue)]"
-    "(https://github.com/RowanDark/Glyph/releases/latest)"
+    "(https://github.com/RowanDark/0xgen/releases/latest)"
 )
 
 

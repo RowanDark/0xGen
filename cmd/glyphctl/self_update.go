@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/updater"
+	"github.com/RowanDark/0xgen/internal/updater"
 )
 
 func runSelfUpdate(args []string) int {

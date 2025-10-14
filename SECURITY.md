@@ -19,7 +19,7 @@ flags in the release notes.
 
 * **Do not file public GitHub issues for security problems.**
 * Submit a private report through the
-  [GitHub Security Advisories portal](https://github.com/RowanDark/Glyph/security/advisories/new).
+  [GitHub Security Advisories portal](https://github.com/RowanDark/0xgen/security/advisories/new).
 * If you cannot use the portal, email the maintainers at
   [security@rowandark.dev](mailto:security@rowandark.dev).
 

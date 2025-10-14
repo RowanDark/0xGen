@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/plugins/integrity"
+	"github.com/RowanDark/0xgen/internal/plugins/integrity"
 )
 
 func runPluginVerify(args []string) int {

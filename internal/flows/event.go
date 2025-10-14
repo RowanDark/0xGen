@@ -3,7 +3,7 @@ package flows
 import (
 	"time"
 
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 )
 
 // Event encapsulates an intercepted HTTP flow destined for plugin consumers.

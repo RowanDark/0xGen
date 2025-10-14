@@ -427,7 +427,7 @@ const file_glyph_plugin_bus_proto_rawDesc = "" +
 	"\x05event2\xc3\x01\n" +
 	"\tPluginBus\x12M\n" +
 	"\vEventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x010\x01\x12g\n" +
-	"\x11GrantCapabilities\x12).glyph.plugin_bus.PluginCapabilityRequest\x1a'.glyph.plugin_bus.PluginCapabilityGrantB.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3"
+	"\x11GrantCapabilities\x12).glyph.plugin_bus.PluginCapabilityRequest\x1a'.glyph.plugin_bus.PluginCapabilityGrantB.Z,github.com/RowanDark/0xgen/proto/glyph;glyphb\x06proto3"
 
 var (
 	file_glyph_plugin_bus_proto_rawDescOnce sync.Once

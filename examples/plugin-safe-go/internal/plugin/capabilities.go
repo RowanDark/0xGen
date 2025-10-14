@@ -1,6 +1,6 @@
 package plugin
 
-import pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+import pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 
 // CapabilityMacros toggles the manifest capabilities requested by the plugin.
 // Adjust the booleans to match the broker clients you actually need.

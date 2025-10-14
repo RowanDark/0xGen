@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/RowanDark/Glyph/internal/osintwell"
+	"github.com/RowanDark/0xgen/internal/osintwell"
 )
 
 func runOSINTWell(args []string) int {

@@ -14,9 +14,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/RowanDark/Glyph/internal/findings"
-	"github.com/RowanDark/Glyph/internal/seer"
-	pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/seer"
+	pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 )
 
 const (

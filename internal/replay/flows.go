@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/observability/tracing"
+	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
 
 // FlowRecord captures a sanitized proxy flow suitable for replay.

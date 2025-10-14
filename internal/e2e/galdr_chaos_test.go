@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/proxy"
 )
 
 func TestGaldrProxyUpstreamFailureReports502(t *testing.T) {

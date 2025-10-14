@@ -1,5 +1,5 @@
 // module name: 0xgen
-module github.com/RowanDark/Glyph
+module github.com/RowanDark/0xgen
 
 go 1.24.3
 

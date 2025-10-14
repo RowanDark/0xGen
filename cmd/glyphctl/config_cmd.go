@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/RowanDark/Glyph/internal/config"
+	"github.com/RowanDark/0xgen/internal/config"
 )
 
 func runConfig(args []string) int {

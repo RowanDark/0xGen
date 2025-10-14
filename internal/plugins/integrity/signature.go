@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/plugins"
+	"github.com/RowanDark/0xgen/internal/plugins"
 )
 
 // VerifySignature validates a detached signature created with cosign's ECDSA

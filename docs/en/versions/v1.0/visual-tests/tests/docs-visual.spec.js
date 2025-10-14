@@ -9,7 +9,7 @@ const pages = [
   { slug: '/security/', name: 'security' },
 ];
 
-const baselineBaseURL = process.env.DOCS_BASELINE_URL || 'https://rowandark.github.io/Glyph/';
+const baselineBaseURL = process.env.DOCS_BASELINE_URL || 'https://rowandark.github.io/0xgen/';
 
 async function captureBaselineScreenshot(browser, pageConfig, snapshotPath) {
   const context = await browser.newContext({

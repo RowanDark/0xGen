@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/cases"
+	"github.com/RowanDark/0xgen/internal/cases"
 )
 
 var csvHeader = []string{

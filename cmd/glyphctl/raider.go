@@ -13,7 +13,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/RowanDark/Glyph/internal/raider"
+	"github.com/RowanDark/0xgen/internal/raider"
 )
 
 func runRaider(args []string) int {

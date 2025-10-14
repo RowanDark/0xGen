@@ -13,7 +13,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/perf"
+	"github.com/RowanDark/0xgen/internal/perf"
 )
 
 func main() {

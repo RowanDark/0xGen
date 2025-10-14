@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
-	"github.com/RowanDark/Glyph/internal/redact"
+	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/redact"
 )
 
 // Builder reduces raw plugin findings into high-confidence Cases.

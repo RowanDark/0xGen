@@ -3,7 +3,7 @@ package capabilityassert_test
 import (
 	"testing"
 
-	"github.com/RowanDark/Glyph/sdk/plugin-sdk/lint/capabilityassert"
+	"github.com/RowanDark/0xgen/sdk/plugin-sdk/lint/capabilityassert"
 )
 
 func TestRun(t *testing.T) {

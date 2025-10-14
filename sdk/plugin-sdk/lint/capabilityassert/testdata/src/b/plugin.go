@@ -3,7 +3,7 @@ package b
 import (
 	"context"
 
-	pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+	pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 )
 
 func doNetwork(ctx *pluginsdk.Context) error {

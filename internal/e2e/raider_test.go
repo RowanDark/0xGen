@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/raider"
+	"github.com/RowanDark/0xgen/internal/raider"
 )
 
 func TestGlyphctlRaiderRun(t *testing.T) {

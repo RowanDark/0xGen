@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/updater"
+	"github.com/RowanDark/0xgen/internal/updater"
 )
 
 type artifactInput struct {

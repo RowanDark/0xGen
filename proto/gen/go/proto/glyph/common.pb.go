@@ -283,7 +283,7 @@ const file_glyph_common_proto_rawDesc = "" +
 	"\n" +
 	"\x06MEDIUM\x10\x03\x12\b\n" +
 	"\x04HIGH\x10\x04\x12\f\n" +
-	"\bCRITICAL\x10\x05B.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3"
+	"\bCRITICAL\x10\x05B.Z,github.com/RowanDark/0xgen/proto/glyph;glyphb\x06proto3"
 
 var (
 	file_glyph_common_proto_rawDescOnce sync.Once

@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/findings"
-	"github.com/RowanDark/Glyph/internal/ranker"
+	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/ranker"
 )
 
 func TestRankOrdersFindings(t *testing.T) {

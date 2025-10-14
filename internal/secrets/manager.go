@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/logging"
+	"github.com/RowanDark/0xgen/internal/logging"
 )
 
 var (

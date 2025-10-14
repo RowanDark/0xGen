@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/proxy"
 )
 
 const defaultHistoryFilename = "proxy_history.jsonl"

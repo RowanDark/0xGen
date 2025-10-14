@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // JSONL handles persisting findings to a JSON Lines file.

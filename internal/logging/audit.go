@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/redact"
+	"github.com/RowanDark/0xgen/internal/redact"
 )
 
 type EventType string

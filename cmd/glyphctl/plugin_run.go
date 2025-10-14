@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/plugins"
-	"github.com/RowanDark/Glyph/internal/plugins/integrity"
-	"github.com/RowanDark/Glyph/internal/plugins/runner"
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/0xgen/internal/plugins"
+	"github.com/RowanDark/0xgen/internal/plugins/integrity"
+	"github.com/RowanDark/0xgen/internal/plugins/runner"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

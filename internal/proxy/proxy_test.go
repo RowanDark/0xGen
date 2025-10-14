@@ -22,9 +22,9 @@ import (
 
 	"log/slog"
 
-	"github.com/RowanDark/Glyph/internal/flows"
-	"github.com/RowanDark/Glyph/internal/scope"
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/0xgen/internal/flows"
+	"github.com/RowanDark/0xgen/internal/scope"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 )
 
 type recordedRequest struct {

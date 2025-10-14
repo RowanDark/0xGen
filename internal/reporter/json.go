@@ -3,7 +3,7 @@ package reporter
 import (
 	"encoding/json"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // RenderJSON converts a slice of findings into a signed bundle payload.

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/ranker"
+	"github.com/RowanDark/0xgen/internal/ranker"
 )
 
 func TestRunRankSuccess(t *testing.T) {

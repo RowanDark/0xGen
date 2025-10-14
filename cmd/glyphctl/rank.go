@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/ranker"
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/ranker"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 func runRank(args []string) int {

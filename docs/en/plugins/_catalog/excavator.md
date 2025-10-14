@@ -30,16 +30,16 @@ Excavator is the Playwright-powered crawler foundation for Glyph. It provides a 
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js.sig)
 
 
 ### Signature

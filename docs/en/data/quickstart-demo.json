@@ -44,12 +44,12 @@
   "artifacts": [
     {
       "label": "Open sample HTML report",
-      "href": "https://github.com/RowanDark/Glyph/blob/main/examples/quickstart/report.html",
+      "href": "https://github.com/RowanDark/0xgen/blob/main/examples/quickstart/report.html",
       "description": "Review the reference report the demo builds locally."
     },
     {
       "label": "View findings.jsonl",
-      "href": "https://github.com/RowanDark/Glyph/blob/main/examples/quickstart/findings.jsonl",
+      "href": "https://github.com/RowanDark/0xgen/blob/main/examples/quickstart/findings.jsonl",
       "description": "Inspect the structured findings that Seer emits."
     }
   ]

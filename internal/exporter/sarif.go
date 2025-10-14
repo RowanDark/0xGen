@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 const (
@@ -21,7 +21,7 @@ func EncodeSARIF(casesList []cases.Case) ([]byte, error) {
 			Driver: sarifDriver{
 				Name:           "Glyph",
 				Version:        "dev",
-				InformationURI: "https://github.com/RowanDark/Glyph",
+				InformationURI: "https://github.com/RowanDark/0xgen",
 				Rules:          make([]sarifReportingDescriptor, 0, len(casesList)),
 			},
 		},

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/logging"
+	"github.com/RowanDark/0xgen/internal/logging"
 )
 
 // RiskLevel is a coarse indicator that the UI can translate into colour coded banners.

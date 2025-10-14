@@ -1,6 +1,6 @@
 package b
 
-import pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+import pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 
 var CapabilityMacros = pluginsdk.CapabilitySet{
 	EmitFindings:  true,

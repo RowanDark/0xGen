@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/plugins"
+	"github.com/RowanDark/0xgen/internal/plugins"
 )
 
 func TestVerifySignaturePublicKey(t *testing.T) {

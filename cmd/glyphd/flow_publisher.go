@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/RowanDark/Glyph/internal/bus"
-	"github.com/RowanDark/Glyph/internal/flows"
+	"github.com/RowanDark/0xgen/internal/bus"
+	"github.com/RowanDark/0xgen/internal/flows"
 )
 
 type busFlowPublisher struct {

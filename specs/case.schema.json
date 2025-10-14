@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/RowanDark/Glyph/specs/case.schema.json",
+  "$id": "https://github.com/RowanDark/0xgen/specs/case.schema.json",
   "title": "Glyph Case v1.0",
   "type": "object",
   "additionalProperties": false,

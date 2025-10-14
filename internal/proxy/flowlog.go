@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/RowanDark/Glyph/internal/flows"
+	"github.com/RowanDark/0xgen/internal/flows"
 )
 
 type flowLogWriter struct {

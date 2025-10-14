@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/RowanDark/Glyph/internal/cases"
+	"github.com/RowanDark/0xgen/internal/cases"
 )
 
 type jsonlEntry struct {

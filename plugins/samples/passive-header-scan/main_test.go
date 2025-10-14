@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/bus"
-	"github.com/RowanDark/Glyph/internal/findings"
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/0xgen/internal/bus"
+	"github.com/RowanDark/0xgen/internal/findings"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

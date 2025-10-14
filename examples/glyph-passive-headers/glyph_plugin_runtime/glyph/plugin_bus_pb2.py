@@ -25,14 +25,14 @@ _sym_db = _symbol_database.Default()
 from . import common_pb2 as glyph_dot_common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16glyph/plugin_bus.proto\x12\x10glyph.plugin_bus\x1a\x12glyph/common.proto\"p\n\x0bPluginEvent\x12.\n\x05hello\x18\x01 \x01(\x0b\x32\x1d.glyph.plugin_bus.PluginHelloH\x00\x12(\n\x07\x66inding\x18\x02 \x01(\x0b\x32\x15.glyph.common.FindingH\x00\x42\x07\n\x05\x65vent\"p\n\x0bPluginHello\x12\x12\n\nauth_token\x18\x01 \x01(\t\x12\x13\n\x0bplugin_name\x18\x02 \x01(\t\x12\x0b\n\x03pid\x18\x03 \x01(\x05\x12\x15\n\rsubscriptions\x18\x04 \x03(\t\x12\x14\n\x0c\x63\x61pabilities\x18\x05 \x03(\t\"Y\n\tHostEvent\x12\x14\n\x0c\x63ore_version\x18\x01 \x01(\t\x12-\n\nflow_event\x18\x02 \x01(\x0b\x32\x17.glyph.common.FlowEventH\x00\x42\x07\n\x05\x65vent2Z\n\tPluginBus\x12M\n\x0b\x45ventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x01\x30\x01\x42.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16glyph/plugin_bus.proto\x12\x10glyph.plugin_bus\x1a\x12glyph/common.proto\"p\n\x0bPluginEvent\x12.\n\x05hello\x18\x01 \x01(\x0b\x32\x1d.glyph.plugin_bus.PluginHelloH\x00\x12(\n\x07\x66inding\x18\x02 \x01(\x0b\x32\x15.glyph.common.FindingH\x00\x42\x07\n\x05\x65vent\"p\n\x0bPluginHello\x12\x12\n\nauth_token\x18\x01 \x01(\t\x12\x13\n\x0bplugin_name\x18\x02 \x01(\t\x12\x0b\n\x03pid\x18\x03 \x01(\x05\x12\x15\n\rsubscriptions\x18\x04 \x03(\t\x12\x14\n\x0c\x63\x61pabilities\x18\x05 \x03(\t\"Y\n\tHostEvent\x12\x14\n\x0c\x63ore_version\x18\x01 \x01(\t\x12-\n\nflow_event\x18\x02 \x01(\x0b\x32\x17.glyph.common.FlowEventH\x00\x42\x07\n\x05\x65vent2Z\n\tPluginBus\x12M\n\x0b\x45ventStream\x12\x1d.glyph.plugin_bus.PluginEvent\x1a\x1b.glyph.plugin_bus.HostEvent(\x01\x30\x01\x42.Z,github.com/RowanDark/0xgen/proto/glyph;glyphb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'glyph.plugin_bus_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'Z,github.com/RowanDark/Glyph/proto/glyph;glyph'
+  _globals['DESCRIPTOR']._serialized_options = b'Z,github.com/RowanDark/0xgen/proto/glyph;glyph'
   _globals['_PLUGINEVENT']._serialized_start=64
   _globals['_PLUGINEVENT']._serialized_end=176
   _globals['_PLUGINHELLO']._serialized_start=178

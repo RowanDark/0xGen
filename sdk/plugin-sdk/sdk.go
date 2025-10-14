@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

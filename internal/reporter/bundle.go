@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/exporter"
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/exporter"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // BundleSchemaVersion identifies the JSON structure emitted by Glyph when exporting reports.

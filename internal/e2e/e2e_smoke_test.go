@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 func TestGlyphdSmoke(t *testing.T) {

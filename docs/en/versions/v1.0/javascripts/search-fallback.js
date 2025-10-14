@@ -13,7 +13,7 @@
       return;
     }
 
-    const url = `https://github.com/RowanDark/Glyph/search?q=${encodeURIComponent(query)}&type=code`;
+    const url = `https://github.com/RowanDark/0xgen/search?q=${encodeURIComponent(query)}&type=code`;
     const fallback = existing || document.createElement("div");
     fallback.id = FALLBACK_ID;
     fallback.className = "md-search-result__meta md-typeset";
