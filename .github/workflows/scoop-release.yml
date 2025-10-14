@@ -53,12 +53,12 @@ arm64_hash = os.environ["ARM64_HASH"]
 manifest_path = Path("scoop/bucket/glyphctl.json")
 manifest = json.loads(manifest_path.read_text())
 manifest["version"] = version
-manifest["architecture"]["64bit"]["url"] = f"https://github.com/RowanDark/Glyph/releases/download/{tag}/glyphctl_{tag}_windows_amd64.zip"
+manifest["architecture"]["64bit"]["url"] = f"https://github.com/RowanDark/0xgen/releases/download/{tag}/glyphctl_{tag}_windows_amd64.zip"
 manifest["architecture"]["64bit"]["hash"] = f"sha256:{amd64_hash}"
-manifest["architecture"]["arm64"]["url"] = f"https://github.com/RowanDark/Glyph/releases/download/{tag}/glyphctl_{tag}_windows_arm64.zip"
+manifest["architecture"]["arm64"]["url"] = f"https://github.com/RowanDark/0xgen/releases/download/{tag}/glyphctl_{tag}_windows_arm64.zip"
 manifest["architecture"]["arm64"]["hash"] = f"sha256:{arm64_hash}"
-manifest["autoupdate"]["architecture"]["64bit"]["url"] = "https://github.com/RowanDark/Glyph/releases/download/v$version/glyphctl_v$version_windows_amd64.zip"
-manifest["autoupdate"]["architecture"]["arm64"]["url"] = "https://github.com/RowanDark/Glyph/releases/download/v$version/glyphctl_v$version_windows_arm64.zip"
+manifest["autoupdate"]["architecture"]["64bit"]["url"] = "https://github.com/RowanDark/0xgen/releases/download/v$version/glyphctl_v$version_windows_amd64.zip"
+manifest["autoupdate"]["architecture"]["arm64"]["url"] = "https://github.com/RowanDark/0xgen/releases/download/v$version/glyphctl_v$version_windows_arm64.zip"
 manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 PY
 

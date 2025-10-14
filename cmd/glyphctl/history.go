@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/history"
+	"github.com/RowanDark/0xgen/internal/history"
 )
 
 func runHistorySearch(args []string) int {

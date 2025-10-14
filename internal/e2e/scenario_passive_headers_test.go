@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 //go:embed testdata/passive_header_scenarios.json

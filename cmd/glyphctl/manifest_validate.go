@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/RowanDark/Glyph/internal/plugins"
+	"github.com/RowanDark/0xgen/internal/plugins"
 )
 
 var manifestValidate = flag.String("manifest-validate", "", "Validate a plugin manifest JSON file and exit")

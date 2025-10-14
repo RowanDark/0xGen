@@ -191,7 +191,7 @@ func (fi *fileInspector) handleCall(call *ast.CallExpr, sel *ast.SelectorExpr, p
 		}
 	}
 
-	if pkgPath != "github.com/RowanDark/Glyph/sdk/plugin-sdk" {
+	if pkgPath != "github.com/RowanDark/0xgen/sdk/plugin-sdk" {
 		return
 	}
 	req, ok := sdkCapabilities[sel.Sel.Name]

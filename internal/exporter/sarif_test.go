@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/cases"
+	"github.com/RowanDark/0xgen/internal/cases"
 )
 
 func TestEncodeSARIFProducesStructuredLog(t *testing.T) {

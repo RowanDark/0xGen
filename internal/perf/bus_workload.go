@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // BusWorkloadConfig configures the synthetic pipeline exercised when benchmarking

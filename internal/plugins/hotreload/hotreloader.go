@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/bus"
-	"github.com/RowanDark/Glyph/internal/logging"
-	"github.com/RowanDark/Glyph/internal/plugins"
-	"github.com/RowanDark/Glyph/internal/plugins/integrity"
+	"github.com/RowanDark/0xgen/internal/bus"
+	"github.com/RowanDark/0xgen/internal/logging"
+	"github.com/RowanDark/0xgen/internal/plugins"
+	"github.com/RowanDark/0xgen/internal/plugins/integrity"
 )
 
 const defaultPollInterval = time.Second

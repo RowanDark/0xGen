@@ -86,7 +86,7 @@ nfpms:
       - rpm
     maintainer: Rowan Dark <security@rowandark.dev>
     description: Glyph automation toolkit command-line interface.
-    homepage: https://github.com/RowanDark/Glyph
+    homepage: https://github.com/RowanDark/0xgen
     license: Apache-2.0
     bindir: /usr/local/bin
     priority: optional
@@ -109,8 +109,8 @@ dockers:
   - id: glyphctl-image
     use: buildx
     image_templates:
-      - ghcr.io/rowandark/glyphctl:{{ .Version }}
-      - ghcr.io/rowandark/glyphctl:latest
+      - ghcr.io/rowandark/0xgenctl:{{ .Version }}
+      - ghcr.io/rowandark/0xgenctl:latest
     dockerfile: Dockerfile
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
@@ -121,7 +121,7 @@ dockers:
 release:
   github:
     owner: RowanDark
-    name: Glyph
+    name: 0xgen
 
 changelog:
   use: git

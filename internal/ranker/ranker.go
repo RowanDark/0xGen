@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // ScoredFinding represents a finding annotated with deterministic ranking

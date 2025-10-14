@@ -18,10 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/logging"
-	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
-	obsmetrics "github.com/RowanDark/Glyph/internal/observability/metrics"
-	"github.com/RowanDark/Glyph/internal/observability/tracing"
+	"github.com/RowanDark/0xgen/internal/logging"
+	"github.com/RowanDark/0xgen/internal/netgate/fingerprint"
+	obsmetrics "github.com/RowanDark/0xgen/internal/observability/metrics"
+	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
 
 const (

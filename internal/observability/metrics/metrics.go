@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/observability/tracing"
+	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
 
 type collector interface {

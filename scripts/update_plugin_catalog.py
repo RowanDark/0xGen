@@ -211,12 +211,12 @@ def _current_git_ref() -> str:
 def _detect_repo_url() -> str:
     mkdocs_path = ROOT / "mkdocs.yml"
     if not mkdocs_path.exists():
-        return "https://github.com/RowanDark/Glyph"
+        return "https://github.com/RowanDark/0xgen"
     for line in mkdocs_path.read_text(encoding="utf-8").splitlines():
         if line.strip().startswith("repo_url:"):
             _, value = line.split(":", 1)
             return value.strip().strip("'\"")
-    return "https://github.com/RowanDark/Glyph"
+    return "https://github.com/RowanDark/0xgen"
 
 
 def _extract_github_repo(url: str) -> tuple[str, str]:

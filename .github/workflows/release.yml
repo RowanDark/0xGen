@@ -80,7 +80,7 @@ jobs:
               -pkcs12 "$cert" \
               "${pass_args[@]}" \
               -n "Glyph CLI" \
-              -i "https://github.com/RowanDark/Glyph" \
+              -i "https://github.com/RowanDark/0xgen" \
               -t "http://timestamp.digicert.com" \
               -in "$workdir/glyphctl.exe" \
               -out "$workdir/glyphctl-signed.exe"

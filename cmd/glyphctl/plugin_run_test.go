@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/plugins/integrity"
+	"github.com/RowanDark/0xgen/internal/plugins/integrity"
 )
 
 var cwdMu sync.Mutex

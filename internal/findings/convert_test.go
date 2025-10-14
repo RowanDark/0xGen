@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 )
 
 func TestFromProtoPopulatesDefaults(t *testing.T) {

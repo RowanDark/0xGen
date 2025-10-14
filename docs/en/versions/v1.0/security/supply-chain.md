@@ -45,13 +45,13 @@ To verify a release:
 ```bash
 # Download the archive, signature, certificate, checksum, and provenance files
 VERSION=v1.2.3
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.sig
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.pem
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt.sig
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt.pem
-curl -LO https://github.com/RowanDark/Glyph/releases/download/${VERSION}/glyph-${VERSION}-binaries.intoto.jsonl
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.sig
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.pem
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt.sig
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt.pem
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph-${VERSION}-binaries.intoto.jsonl
 
 # Verify the signature matches the downloaded archive
 cosign verify-blob \
@@ -62,7 +62,7 @@ cosign verify-blob \
 # Validate the SLSA provenance
 slsa-verifier verify-artifact \
   --provenance glyph-${VERSION}-binaries.intoto.jsonl \
-  --source-uri github.com/RowanDark/Glyph \
+  --source-uri github.com/RowanDark/0xgen \
   --builder-id \
     https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
   glyphctl_${VERSION}_linux_amd64.tar.gz

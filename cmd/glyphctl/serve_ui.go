@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/exporter"
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/exporter"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 // uiAssets contains the static files that power the Glyph UI server.

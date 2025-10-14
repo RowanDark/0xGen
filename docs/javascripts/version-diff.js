@@ -1,5 +1,5 @@
 (function () {
-  const GITHUB_REPO = 'https://github.com/RowanDark/Glyph';
+  const GITHUB_REPO = 'https://github.com/RowanDark/0xgen';
   const GITHUB_CHANGELOG = `${GITHUB_REPO}/blob/main/CHANGELOG.md`;
 
   function init() {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // ReportFormat identifies the type of report to generate.

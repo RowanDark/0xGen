@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	glyphhttp3 "github.com/RowanDark/Glyph/internal/netgate/http3"
+	glyphhttp3 "github.com/RowanDark/0xgen/internal/netgate/http3"
 )
 
 func TestRoundTripHTTP3Success(t *testing.T) {

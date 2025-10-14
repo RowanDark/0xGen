@@ -21,11 +21,11 @@
       "signature_sha256": "f54b4fe62f3e51008998a1520e6ccc416a82481bfa3a21779178c255f246892d",
       "links": {
         "documentation": "../plugins/_catalog/cartographer/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cartographer#getting-started"
       },
       "categories": [
         "Discovery",
@@ -60,11 +60,11 @@
       "signature_sha256": "01ea86b0677f49572e048da1ce3a0eab4edb85f8b431886d6aef33945119e91e",
       "links": {
         "documentation": "../plugins/_catalog/cryptographer/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/cryptographer#getting-started"
       },
       "categories": [
         "Utilities"
@@ -98,10 +98,10 @@
       "signature_sha256": "779e349dd31e35291496df536b5ae87721cf219fa8cefe74f57f8e891aa81969",
       "links": {
         "documentation": "../plugins/_catalog/example-hello/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello/main.go",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello/main.go.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello/main.go",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/example-hello/main.go.sig"
       },
       "categories": [
         "Examples"
@@ -137,11 +137,11 @@
       "signature_sha256": "2bc2a623ba05c425735f1fc72530ed2db0f3b16602b57c6d0a0779dbf1555975",
       "links": {
         "documentation": "../plugins/_catalog/excavator/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/excavator#getting-started"
       },
       "categories": [
         "Automation",
@@ -178,10 +178,10 @@
       "signature_sha256": "50a8b2a25abd06346fc849bab40232de2d768cc60d6f9155bb42caf76b1dcb60",
       "links": {
         "documentation": "../plugins/_catalog/galdr-proxy/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js.sig"
       },
       "categories": [
         "Interception"
@@ -215,10 +215,10 @@
       "signature_sha256": "ca64abd3b27388206879f4134976387239fd50f4ac6fc3044d812703f8d2af20",
       "links": {
         "documentation": "../plugins/_catalog/grapher/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher/main.go",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher/main.go.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher/main.go",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/grapher/main.go.sig"
       },
       "categories": [
         "Visualization"
@@ -253,11 +253,11 @@
       "signature_sha256": "e7a804c5ede93f41fd2eb0871ab380f53d3342b0667f6a969c5c6fcb95b2c027",
       "links": {
         "documentation": "../plugins/_catalog/osint-well/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well#installation"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well#installation"
       },
       "categories": [
         "Intelligence"
@@ -293,11 +293,11 @@
       "signature_sha256": "ac97711a74c78f33d6dbb08d3a4a7e9f9534671db0be96afa84a4b8e451c69dd",
       "links": {
         "documentation": "../plugins/_catalog/raider/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/raider#getting-started"
       },
       "categories": [
         "Offense"
@@ -331,11 +331,11 @@
       "signature_sha256": "a45acedbd3421c054d07db91f12938ac13f928d47170de6cec88770c5fde13f3",
       "links": {
         "documentation": "../plugins/_catalog/ranker/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker#getting-started"
       },
       "categories": [
         "Analytics"
@@ -369,11 +369,11 @@
       "signature_sha256": "61b004d72d616382997a2689a3f85d6a032cb29ffe2e53297440a4ee5bb1c0d0",
       "links": {
         "documentation": "../plugins/_catalog/scribe/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe#getting-started"
       },
       "categories": [
         "Reporting"
@@ -408,10 +408,10 @@
       "signature_sha256": "46e816b1b0cbd7f804430df0a730f8983004f3136739b6b62818a00b7b7b0fce",
       "links": {
         "documentation": "../plugins/_catalog/seer/",
-        "readme": "https://github.com/RowanDark/Glyph/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/main.go",
-        "signature": "https://raw.githubusercontent.com/RowanDark/Glyph/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/main.go.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/main.go",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/seer/main.go.sig"
       },
       "categories": [
         "Detection"

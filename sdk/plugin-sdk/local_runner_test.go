@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+	pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 )
 
 func TestRunLocalEnforcesCapabilities(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/RowanDark/Glyph/internal/netgate/http3/httpcommon"
+	"github.com/RowanDark/0xgen/internal/netgate/http3/httpcommon"
 )
 
 type roundTripState struct {

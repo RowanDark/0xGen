@@ -50,4 +50,4 @@ instantly, and search works across plugin names, authors, and categories.
 
 For deeper integration details, consult the release notes in
 [`CHANGELOG.md`]({{ config.repo_url }}/blob/main/CHANGELOG.md) or reach out in
-the [Glyph community forums](https://github.com/RowanDark/Glyph/discussions).
+the [Glyph community forums](https://github.com/RowanDark/0xgen/discussions).

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/logging"
+	"github.com/RowanDark/0xgen/internal/logging"
 )
 
 func newTestAuditLogger(t *testing.T) (*logging.AuditLogger, *bytes.Buffer) {

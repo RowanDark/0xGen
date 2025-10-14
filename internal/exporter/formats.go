@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // Request captures the data set that exporters operate on.

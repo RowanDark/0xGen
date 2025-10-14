@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 func (b *Builder) clusterFindings(fs []findings.Finding) [][]findings.Finding {

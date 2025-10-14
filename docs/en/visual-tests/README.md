@@ -20,7 +20,7 @@ npm run --prefix docs/visual-tests test         # validate against the productio
 npm run --prefix docs/visual-tests test:update  # refresh snapshots after intentional UI changes
 ```
 
-By default the tests build the MkDocs site into `docs/visual-tests/.site` and serve it locally. They fetch the baseline from the published [documentation homepage](../index.md) (default `DOCS_BASELINE_URL=https://rowandark.github.io/Glyph/`) so the comparison always runs against the latest public documentation. Override the baseline with `DOCS_BASELINE_URL` when comparing against a staging environment.
+By default the tests build the MkDocs site into `docs/visual-tests/.site` and serve it locally. They fetch the baseline from the published [documentation homepage](../index.md) (default `DOCS_BASELINE_URL=https://rowandark.github.io/0xgen/`) so the comparison always runs against the latest public documentation. Override the baseline with `DOCS_BASELINE_URL` when comparing against a staging environment.
 
 ```bash
 DOCS_BASELINE_URL="https://docs-preview.example.com" \

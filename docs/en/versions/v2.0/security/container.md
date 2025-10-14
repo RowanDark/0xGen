@@ -35,7 +35,7 @@ docker run \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
   --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
   --mount type=volume,source=glyph-output,dst=/out \
-  ghcr.io/rowandark/glyphctl:latest --help
+  ghcr.io/rowandark/0xgenctl:latest --help
 ```
 
 ## Usage examples
@@ -57,7 +57,7 @@ docker run \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
   --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
   --mount type=volume,source=glyph-output,dst=/out \
-  ghcr.io/rowandark/glyphctl:latest demo --out /out/demo
+  ghcr.io/rowandark/0xgenctl:latest demo --out /out/demo
 ```
 
 Validate the generated findings without relaxing the sandbox by mounting the
@@ -76,7 +76,7 @@ docker run \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
   --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph,ro \
   --mount type=volume,source=glyph-output,dst=/out,ro \
-  ghcr.io/rowandark/glyphctl:latest findings validate --input /out/demo/findings.jsonl
+  ghcr.io/rowandark/0xgenctl:latest findings validate --input /out/demo/findings.jsonl
 ```
 
 ## CI usage
@@ -94,7 +94,7 @@ docker run \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
   --mount type=bind,src="$PWD",dst=/workspace,ro \
   --workdir /workspace \
-  ghcr.io/rowandark/glyphctl:latest demo
+  ghcr.io/rowandark/0xgenctl:latest demo
 ```
 
 Mount any plugin directories that need to be executed into `/plugins` with a

@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/exporter"
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/exporter"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 func runExport(args []string) int {

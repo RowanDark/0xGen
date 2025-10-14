@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/netgate/fingerprint"
-	"github.com/RowanDark/Glyph/internal/observability/tracing"
+	"github.com/RowanDark/0xgen/internal/netgate/fingerprint"
+	"github.com/RowanDark/0xgen/internal/observability/tracing"
 	"golang.org/x/net/http2"
 )
 

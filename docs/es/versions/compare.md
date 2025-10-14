@@ -13,10 +13,10 @@ changelog del proyecto.
 <div data-version-diff class="doc-version-diff">
   <noscript>
     <p><strong>Se requiere JavaScript:</strong> habilita JavaScript para generar el
-    diff. Como alternativa abre el <a href="https://github.com/RowanDark/Glyph/blob/main/CHANGELOG.md" target="_blank" rel="noopener">changelog</a> o usa
+    diff. Como alternativa abre el <a href="https://github.com/RowanDark/0xgen/blob/main/CHANGELOG.md" target="_blank" rel="noopener">changelog</a> o usa
     manualmente la herramienta de comparación de GitHub:</p>
     <ol>
-      <li>Visita <a href="https://github.com/RowanDark/Glyph/compare" target="_blank" rel="noopener">github.com/RowanDark/Glyph/compare</a>.</li>
+      <li>Visita <a href="https://github.com/RowanDark/0xgen/compare" target="_blank" rel="noopener">github.com/RowanDark/0xgen/compare</a>.</li>
       <li>Introduce la etiqueta de la versión base (más antigua) y después la etiqueta destino.</li>
       <li>Añade <code>?diff=split</code> a la URL (o usa los controles de la
         interfaz) y escribe <code>docs/</code> en el cuadro <strong>Filter changed

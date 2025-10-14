@@ -4,9 +4,9 @@ import (
     "context"
     "testing"
 
-    pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+    pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 
-    "github.com/RowanDark/Glyph/examples/plugin-safe-go/internal/plugin"
+    "github.com/RowanDark/0xgen/examples/plugin-safe-go/internal/plugin"
 )
 
 func TestHooksWithCapabilities(t *testing.T) {

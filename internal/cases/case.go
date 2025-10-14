@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // CaseSchemaVersion captures the version of the Case JSON structure emitted by the builder.

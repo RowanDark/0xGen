@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/config"
+	"github.com/RowanDark/0xgen/internal/config"
 )
 
 func TestPrintResolvedConfig(t *testing.T) {

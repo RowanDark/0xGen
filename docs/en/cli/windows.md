@@ -8,7 +8,7 @@ version command and plugin subsystem operate correctly.
 ## Installer (MSI)
 
 1. Download the `glyphctl_v<version>_windows_<arch>.msi` asset from the
-   [GitHub Releases page](https://github.com/RowanDark/Glyph/releases).
+   [GitHub Releases page](https://github.com/RowanDark/0xgen/releases).
 2. Install it with the Windows Installer UI or from PowerShell:
 
    ```powershell
@@ -59,7 +59,7 @@ If you prefer package managers, add the Glyph bucket to Scoop and install the
 manifest published from this repository:
 
 ```powershell
-scoop bucket add glyph https://github.com/RowanDark/Glyph
+scoop bucket add glyph https://github.com/RowanDark/0xgen
 scoop install glyphctl
 glyphctl --version
 ```

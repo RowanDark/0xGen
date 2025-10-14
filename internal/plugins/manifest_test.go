@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/plugins"
+	"github.com/RowanDark/0xgen/internal/plugins"
 )
 
 func validManifest() plugins.Manifest {

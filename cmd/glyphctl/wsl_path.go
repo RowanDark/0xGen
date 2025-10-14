@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/RowanDark/Glyph/internal/system/wslpath"
+	"github.com/RowanDark/0xgen/internal/system/wslpath"
 )
 
 func runWSLPath(args []string) int {

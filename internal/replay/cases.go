@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/observability/tracing"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
 
 // LoadCases reads cases from a JSON file.

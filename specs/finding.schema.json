@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/RowanDark/Glyph/specs/finding.schema.json",
+  "$id": "https://github.com/RowanDark/0xgen/specs/finding.schema.json",
   "title": "Glyph Finding v0.2",
   "type": "object",
   "additionalProperties": false,

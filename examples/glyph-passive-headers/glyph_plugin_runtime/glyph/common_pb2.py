@@ -24,14 +24,14 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12glyph/common.proto\x12\x0cglyph.common\"\xba\x01\n\x07\x46inding\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12(\n\x08severity\x18\x03 \x01(\x0e\x32\x16.glyph.common.Severity\x12\x35\n\x08metadata\x18\x04 \x03(\x0b\x32#.glyph.common.Finding.MetadataEntry\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x8e\x01\n\tFlowEvent\x12*\n\x04type\x18\x01 \x01(\x0e\x32\x1c.glyph.common.FlowEvent.Type\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"G\n\x04Type\x12\x1a\n\x16\x46LOW_EVENT_UNSPECIFIED\x10\x00\x12\x10\n\x0c\x46LOW_REQUEST\x10\x01\x12\x11\n\rFLOW_RESPONSE\x10\x02*[\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x08\n\x04INFO\x10\x01\x12\x07\n\x03LOW\x10\x02\x12\n\n\x06MEDIUM\x10\x03\x12\x08\n\x04HIGH\x10\x04\x12\x0c\n\x08\x43RITICAL\x10\x05\x42.Z,github.com/RowanDark/Glyph/proto/glyph;glyphb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12glyph/common.proto\x12\x0cglyph.common\"\xba\x01\n\x07\x46inding\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12(\n\x08severity\x18\x03 \x01(\x0e\x32\x16.glyph.common.Severity\x12\x35\n\x08metadata\x18\x04 \x03(\x0b\x32#.glyph.common.Finding.MetadataEntry\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x8e\x01\n\tFlowEvent\x12*\n\x04type\x18\x01 \x01(\x0e\x32\x1c.glyph.common.FlowEvent.Type\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"G\n\x04Type\x12\x1a\n\x16\x46LOW_EVENT_UNSPECIFIED\x10\x00\x12\x10\n\x0c\x46LOW_REQUEST\x10\x01\x12\x11\n\rFLOW_RESPONSE\x10\x02*[\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x08\n\x04INFO\x10\x01\x12\x07\n\x03LOW\x10\x02\x12\n\n\x06MEDIUM\x10\x03\x12\x08\n\x04HIGH\x10\x04\x12\x0c\n\x08\x43RITICAL\x10\x05\x42.Z,github.com/RowanDark/0xgen/proto/glyph;glyphb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'glyph.common_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'Z,github.com/RowanDark/Glyph/proto/glyph;glyph'
+  _globals['DESCRIPTOR']._serialized_options = b'Z,github.com/RowanDark/0xgen/proto/glyph;glyph'
   _globals['_FINDING_METADATAENTRY']._loaded_options = None
   _globals['_FINDING_METADATAENTRY']._serialized_options = b'8\001'
   _globals['_SEVERITY']._serialized_start=370

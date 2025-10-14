@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/history"
-	"github.com/RowanDark/Glyph/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/history"
+	"github.com/RowanDark/0xgen/internal/proxy"
 )
 
 func TestLoadAndSearch(t *testing.T) {

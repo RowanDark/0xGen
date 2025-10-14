@@ -11,7 +11,7 @@ integrations.
 go run ./cmd/glyph-plugin init \
   --lang go \
   --name plugin-safe-go \
-  --module github.com/RowanDark/Glyph/examples/plugin-safe-go
+  --module github.com/RowanDark/0xgen/examples/plugin-safe-go
 ```
 
 The command creates a directory containing:

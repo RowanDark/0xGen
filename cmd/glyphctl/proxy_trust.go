@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/proxy"
 )
 
 func runProxyTrust(args []string) int {

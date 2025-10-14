@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/exporter"
-	"github.com/RowanDark/Glyph/internal/findings"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/exporter"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 func TestLoadUIDataset(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/scope"
+	"github.com/RowanDark/0xgen/internal/scope"
 )
 
 func runScope(args []string) int {

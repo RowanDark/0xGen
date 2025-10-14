@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
-	"github.com/RowanDark/Glyph/internal/seer"
+	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/seer"
 )
 
 type fixtureCase struct {

@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/findings"
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 type goldenFinding struct {

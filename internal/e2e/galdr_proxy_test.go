@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/proxy"
 )
 
 func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {

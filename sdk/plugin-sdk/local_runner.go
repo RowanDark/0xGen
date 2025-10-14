@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"sync"
 
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 )
 
 // LocalRunConfig configures the local integration test harness.

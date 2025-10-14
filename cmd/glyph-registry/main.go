@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/registry"
+	"github.com/RowanDark/0xgen/internal/registry"
 )
 
 func main() {

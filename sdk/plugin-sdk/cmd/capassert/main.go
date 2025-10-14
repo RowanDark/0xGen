@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/RowanDark/Glyph/sdk/plugin-sdk/lint/capabilityassert"
+	"github.com/RowanDark/0xgen/sdk/plugin-sdk/lint/capabilityassert"
 )
 
 func main() {

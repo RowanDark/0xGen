@@ -2,7 +2,7 @@
 
 Glyph plugins are Go binaries that connect to `glyphd` using the SDK in
 `sdk/plugin-sdk`. The SDK handles the gRPC transport, lifecycle hooks and safely
-emitting findings back to the host. Consult [the plugin author guide](https://rowandark.github.io/Glyph/plugins/)
+emitting findings back to the host. Consult [the plugin author guide](https://rowandark.github.io/0xgen/plugins/)
 for the full author guide, capability matrix, and JSONL emission rules.
 
 ## Hello world example
@@ -23,7 +23,7 @@ import (
     "syscall"
     "time"
 
-    pluginsdk "github.com/RowanDark/Glyph/sdk/plugin-sdk"
+    pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 )
 
 func main() {

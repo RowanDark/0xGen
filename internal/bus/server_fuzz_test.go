@@ -7,8 +7,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/RowanDark/Glyph/internal/findings"
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/0xgen/internal/findings"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )

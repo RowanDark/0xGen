@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 func runReport(args []string) int {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	glyphhttp3 "github.com/RowanDark/Glyph/internal/netgate/http3"
+	glyphhttp3 "github.com/RowanDark/0xgen/internal/netgate/http3"
 	"golang.org/x/net/quic"
 )
 

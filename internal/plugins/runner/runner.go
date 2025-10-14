@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/observability/tracing"
+	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
 
 // Limits configures the sandbox applied to plugin subprocesses.

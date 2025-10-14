@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/RowanDark/Glyph/internal/logging"
-	pb "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph"
+	"github.com/RowanDark/0xgen/internal/logging"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

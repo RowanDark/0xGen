@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package glyph.casebuilder;
 
-option go_package = "github.com/RowanDark/Glyph/proto/gen/go/proto/glyph";
+option go_package = "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph";
 
 import "glyph/common.proto";
 

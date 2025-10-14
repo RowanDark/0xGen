@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RowanDark/Glyph/internal/cases"
-	"github.com/RowanDark/Glyph/internal/replay"
-	"github.com/RowanDark/Glyph/internal/reporter"
+	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/replay"
+	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
 func runReplay(args []string) int {
