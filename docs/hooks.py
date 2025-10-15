@@ -374,10 +374,19 @@ def on_config(config: dict[str, Any]) -> dict[str, Any]:
     use_directory_urls = bool(config.get("use_directory_urls", True))
     site_url = (config.get("site_url") or "").rstrip("/")
 
-    if site_url.endswith(f"/{NEW_BRAND_SLUG}"):
+    legacy_suffix = f"/{LEGACY_BRAND_PREFIX}"
+    new_suffix = f"/{NEW_BRAND_SLUG}"
+
+    if site_url.endswith(new_suffix):
         target_root = f"{site_url}/"
+    elif site_url.endswith(legacy_suffix):
+        base = site_url[: -len(legacy_suffix)]
+        if base:
+            target_root = f"{base.rstrip('/')}{new_suffix}/"
+        else:
+            target_root = f"/{NEW_BRAND_SLUG}/"
     elif site_url:
-        target_root = f"{site_url}/{NEW_BRAND_SLUG}/"
+        target_root = f"{site_url}{new_suffix}/"
     else:
         target_root = f"/{NEW_BRAND_SLUG}/"
 
