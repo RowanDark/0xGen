@@ -4,7 +4,7 @@
     "match": {"url_contains": "/"},
     "response": {
       "add_headers": {
-        "X-Glyph": "on",
+        "X-0xgen": "on",
         "Content-Security-Policy": "default-src 'self'; script-src 'self' https://glyph.dev"
       },
       "remove_headers": ["Server"]

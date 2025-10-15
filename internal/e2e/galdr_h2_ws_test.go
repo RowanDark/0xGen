@@ -44,7 +44,7 @@ func TestGaldrProxyHTTP2HeaderRewrite(t *testing.T) {
 	pool := x509PoolFromCert(cert)
 
 	tempDir := t.TempDir()
-	rulesPath := writeTempFile(t, tempDir, "rules.json", `[{"name":"h2-rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-Glyph":"on"},"remove_headers":["Server"]}}]`)
+	rulesPath := writeTempFile(t, tempDir, "rules.json", `[{"name":"h2-rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-0xgen":"on"},"remove_headers":["Server"]}}]`)
 
 	cfg := proxy.Config{
 		Addr:        "127.0.0.1:0",
@@ -101,8 +101,11 @@ func TestGaldrProxyHTTP2HeaderRewrite(t *testing.T) {
 	defer resp.Body.Close()
 	_, _ = io.ReadAll(resp.Body)
 
-	if resp.Header.Get("X-Glyph") != "on" {
-		t.Fatalf("expected rewritten header, got %q", resp.Header.Get("X-Glyph"))
+	if resp.Header.Get("X-0xgen") != "on" {
+		t.Fatalf("expected rewritten header, got %q", resp.Header.Get("X-0xgen"))
+	}
+	if legacy := resp.Header.Get("X-Glyph"); legacy != "" {
+		t.Fatalf("expected legacy header to be absent, got %q", legacy)
 	}
 	if resp.Header.Get("Server") != "" {
 		t.Fatalf("expected server header stripped, got %q", resp.Header.Get("Server"))

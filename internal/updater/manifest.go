@@ -156,7 +156,7 @@ func download(ctx context.Context, client *http.Client, targetURL, channel strin
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("glyphctl/%s (%s/%s)", runtime.Version(), runtime.GOOS, runtime.GOARCH))
 	if channel != "" {
-		req.Header.Set("X-Glyph-Update-Channel", channel)
+		req.Header.Set("X-0xgen-Update-Channel", channel)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
