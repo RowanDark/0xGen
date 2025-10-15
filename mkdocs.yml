@@ -1,5 +1,5 @@
 site_name: 0xgen Documentation
-site_description: Documentation for the Glyph red-team and detection automation toolkit.
+site_description: Documentation for the 0xgen red-team and detection automation toolkit.
 site_url: https://rowandark.github.io/0xgen/
 repo_url: https://github.com/RowanDark/0xgen
 repo_name: RowanDark/0xgen
@@ -158,18 +158,18 @@ markdown_extensions:
       permalink: true
 
 extra:
-  cname: glyph.rowandark.com
+  cname: 0xgen.rowandark.com
   version:
     provider: mike
   alternate:
     - name: English
-      link: /Glyph/
+      link: /0xgen/
       lang: en
     - name: Español
-      link: /Glyph/es/
+      link: /0xgen/es/
       lang: es
   pdf_download:
-    path: assets/offline/glyph-docs.epub
+    path: assets/offline/0xgen-docs.epub
     labels:
       en: Download docs (EPUB)
       es: Descargar documentación (EPUB)

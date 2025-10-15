@@ -94,7 +94,7 @@ def main() -> None:
 
     documents = parse_documents(site_dir)
     session = requests.Session()
-    session.headers.update({"User-Agent": "GlyphDocsLinkChecker/1.0"})
+    session.headers.update({"User-Agent": "0xgenDocsLinkChecker/1.0"})
     external_cache: Dict[str, str | None] = {}
     errors: List[Tuple[Path, Link, str]] = []
     total_links = 0

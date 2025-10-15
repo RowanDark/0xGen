@@ -1,6 +1,6 @@
 # Container Hardening
 
-Glyph publishes a container image intended for CI pipelines and tightly scoped
+0xgen publishes a container image intended for CI pipelines and tightly scoped
 runtime environments. The image is built on the distroless `static-debian12`
 flavour, runs as an unprivileged user, and exposes no package manager or shell.
 This document captures the default hardening and recommended runtime profile.

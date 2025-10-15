@@ -1,13 +1,13 @@
 # Updater channels and rollback
 
-Glyph ships a built-in update service for both the desktop shell and the `glyphctl`
+0xgen ships a built-in update service for both the desktop shell and the `glyphctl`
 CLI. This guide documents how we stage releases to the stable and beta channels,
 how delta packages are produced, and how clients verify, apply, and roll back
 updates.
 
 ## Release channels {#release-channels}
 
-Glyph maintains two distribution channels:
+0xgen maintains two distribution channels:
 
 - **Stable** — the default for production usage. Releases land here after they
   complete smoke tests on every platform and pass the release checklist.
@@ -63,7 +63,7 @@ delta downloads when the manifest declares `delta_available = false`.
 
 Each channel publishes a JSON manifest that enumerates the available build,
 supported platforms, and the cryptographic checksums for both delta and full
-artifacts. The release pipeline signs the manifest with the Glyph release key
+artifacts. The release pipeline signs the manifest with the 0xgen release key
 using `minisign`. Clients verify the detached signature before trusting the
 metadata. Verification failure aborts the update and surfaces an actionable
 error that points users to the status page.

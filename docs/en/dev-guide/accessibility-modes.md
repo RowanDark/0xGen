@@ -1,6 +1,6 @@
 # Accessibility modes
 
-Glyph ships with a11y tooling that mirrors how operators preview the UI in challenging environments. The toggles live in the shell toolbar next to the theme selector so they are reachable with keyboard focus order.
+0xgen ships with a11y tooling that mirrors how operators preview the UI in challenging environments. The toggles live in the shell toolbar next to the theme selector so they are reachable with keyboard focus order.
 
 ## Color-vision simulation
 
@@ -10,7 +10,7 @@ Glyph ships with a11y tooling that mirrors how operators preview the UI in chall
 
 ## Blue-light comfort mode
 
-- **Manual and scheduled control.** A separate selector enables the warmer “low blue” filter. Choose `On` to lock it in, `Off` to revert, or `Auto (evening)` to let Glyph enable the tint after 19:00 local time until 06:00 the next day. The current state is exposed via an SR-only description so screen-reader users hear whether the schedule is active.
+- **Manual and scheduled control.** A separate selector enables the warmer “low blue” filter. Choose `On` to lock it in, `Off` to revert, or `Auto (evening)` to let 0xgen enable the tint after 19:00 local time until 06:00 the next day. The current state is exposed via an SR-only description so screen-reader users hear whether the schedule is active.
 - **Implementation.** The comfort mode reduces luminance/blue output via a sepia and hue rotation filter that wraps the entire document tree. Dataset flags (`data-blue-light` / `data-blue-light-mode`) allow component-specific overrides if needed.
 - **Persistence.** Preferences are stored under `glyph.blue-light.mode` and refreshed every minute while the schedule is enabled.
 

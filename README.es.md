@@ -1,8 +1,8 @@
-# Glyph
+# 0xgen
 
 [![Documentación](https://img.shields.io/badge/docs-material-blue)](https://rowandark.github.io/0xgen/)
 
-Glyph es un conjunto de herramientas de automatización para orquestar flujos de trabajo de red teaming y detección. Coordina complementos como Galdr (proxy de reescritura HTTP), Excavator (rastreador Playwright), Seer (detector de secretos/PII), Ranker y Scribe para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para humanos.
+0xgen es un conjunto de herramientas de automatización para orquestar flujos de trabajo de red teaming y detección. Coordina complementos como Galdr (proxy de reescritura HTTP), Excavator (rastreador Playwright), Seer (detector de secretos/PII), Ranker y Scribe para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para humanos.
 
 ## Instalación
 
@@ -12,7 +12,7 @@ Las personas usuarias de macOS pueden instalar el binario precompilado `glyphctl
 
 ```bash
 brew install rowandark/glyph/glyph
-# Alias mientras el tap mantiene el nombre de la fórmula Glyph
+# Alias mientras el tap mantiene el nombre de la fórmula 0xgen
 brew install rowandark/glyph/0xgen
 ```
 
@@ -46,10 +46,10 @@ Descarga el artefacto `glyphctl_v<version>_windows_amd64.msi` (o `arm64`) desde 
 msiexec /i .\glyphctl_v<version>_windows_amd64.msi /qn
 ```
 
-El instalador coloca `glyphctl.exe` en `C:\Program Files\Glyph` y actualiza `PATH` para sesiones futuras. Verifica la instalación:
+El instalador coloca `glyphctl.exe` en `C:\Program Files\0xgen` y actualiza `PATH` para sesiones futuras. Verifica la instalación:
 
 ```powershell
-"C:\Program Files\Glyph\glyphctl.exe" --version
+"C:\Program Files\0xgen\glyphctl.exe" --version
 ```
 
 #### ZIP portable
@@ -57,8 +57,8 @@ El instalador coloca `glyphctl.exe` en `C:\Program Files\Glyph` y actualiza `PAT
 Cada lanzamiento incluye un archivo portátil llamado `glyphctl_v<version>_windows_<arch>.zip`. Extráelo donde prefieras y ejecuta el binario incluido:
 
 ```powershell
-Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\Glyph
-C:\Tools\Glyph\glyphctl.exe --version
+Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
+C:\Tools\0xgen\glyphctl.exe --version
 ```
 
 #### Scoop
@@ -120,4 +120,4 @@ Explora el sitio de documentación completo en [rowandark.github.io/0xgen](https
 
 ## Seguridad
 
-Revisa nuestra [política de seguridad](SECURITY.md) para obtener instrucciones sobre cómo reportar vulnerabilidades, versiones compatibles y la cronograma de divulgación. El [modelo de amenazas de Glyph](THREAT_MODEL.md) describe los vectores de ataque principales y las suposiciones, mientras que la [guía de seguridad de complementos](PLUGIN_GUIDE.md) resume los patrones seguros para nuevas integraciones.
+Revisa nuestra [política de seguridad](SECURITY.md) para obtener instrucciones sobre cómo reportar vulnerabilidades, versiones compatibles y la cronograma de divulgación. El [modelo de amenazas de 0xgen](THREAT_MODEL.md) describe los vectores de ataque principales y las suposiciones, mientras que la [guía de seguridad de complementos](PLUGIN_GUIDE.md) resume los patrones seguros para nuevas integraciones.

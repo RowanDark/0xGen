@@ -4,7 +4,7 @@ search: false
 
 # Project Board
 
-Glyph uses a GitHub Projects board to visualise work and keep releases on track. The board lives at `https://github.com/orgs/<ORG>/projects/<ID>` (replace with the organisation and project identifiers for your deployment).
+0xgen uses a GitHub Projects board to visualise work and keep releases on track. The board lives at `https://github.com/orgs/<ORG>/projects/<ID>` (replace with the organisation and project identifiers for your deployment).
 
 ## Columns
 

@@ -4,7 +4,7 @@
 
   const STRINGS = {
     en: {
-      title: 'Try Glyph now',
+      title: 'Try 0xgen now',
       description: 'Simulate the `glyphctl demo` command and watch each stage complete without leaving your browser.',
       statusReady: 'Ready to simulate `glyphctl demo`.',
       statusRunning: 'Running the walkthrough…',
@@ -17,7 +17,7 @@
       commandPrefix: '$ ',
     },
     es: {
-      title: 'Prueba Glyph ahora',
+      title: 'Prueba 0xgen ahora',
       description: 'Simula el comando `glyphctl demo` y observa cada etapa sin salir de la documentación.',
       statusReady: 'Listo para simular `glyphctl demo`.',
       statusRunning: 'Ejecutando la demostración…',

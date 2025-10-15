@@ -1,11 +1,11 @@
 ---
 title: Plugin Marketplace
-description: Discover Glyph plugins, filter by capability, and explore their compatibility details.
+description: Discover 0xgen plugins, filter by capability, and explore their compatibility details.
 ---
 
 # Plugin marketplace
 
-Glyph ships with an extensible plugin runtime and a curated marketplace of
+0xgen ships with an extensible plugin runtime and a curated marketplace of
 first-party extensions. Use the catalogue below to browse every maintained
 plugin, inspect its capabilities, verify the detached signature, and jump
 straight into the author guides.
@@ -28,7 +28,7 @@ straight into the author guides.
     </select>
   </label>
   <label class="plugin-catalog__filter">
-    <span>Glyph version</span>
+    <span>0xgen version</span>
     <select id="plugin-glyph">
       <option value="">All versions</option>
     </select>

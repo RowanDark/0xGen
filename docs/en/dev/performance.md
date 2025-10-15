@@ -4,7 +4,7 @@ search: false
 
 # Performance Benchmarks
 
-Glyph now ships with a dedicated microbenchmark harness that exercises the
+0xgen now ships with a dedicated microbenchmark harness that exercises the
 findings bus using synthetic fan-out workloads. The goal is to maintain a stable
 baseline for throughput, latency, memory usage, and error rate so that
 regressions are surfaced before they reach `main`.

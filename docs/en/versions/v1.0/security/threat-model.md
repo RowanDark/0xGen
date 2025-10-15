@@ -1,12 +1,12 @@
 # Threat Model
 
-Glyph runs untrusted analysis plugins while aggregating findings into signed,
+0xgen runs untrusted analysis plugins while aggregating findings into signed,
 reproducible reports. This document captures the security goals, assumptions, and
 controls that underpin the default deployment model.
 
 ## Goals and assumptions {#goals-and-assumptions}
 
-- Keep the Glyph daemon (`glyphd`) and control surface (`glyphctl`) resilient to
+- Keep the 0xgen daemon (`glyphd`) and control surface (`glyphctl`) resilient to
   compromised plugins.
 - Ensure every finding and release artifact has verifiable provenance.
 - Allow operators to reproduce a reported issue from stored artifacts without
@@ -30,8 +30,8 @@ plugin stopped and correlate the event with downstream automation.
 
 ## Network posture {#network-posture}
 
-Glyph starts in a "no network" posture. The built-in configuration keeps
-`proxy.enable` set to `false`, leaving Glyph without outbound network access unless
+0xgen starts in a "no network" posture. The built-in configuration keeps
+`proxy.enable` set to `false`, leaving 0xgen without outbound network access unless
 operators explicitly toggle interception through `glyph.yml` or environment overrides.
 When the proxy is enabled it must be pointed at explicit rule and history paths,
 reinforcing intentional deployment rather than accidental active scanning.
@@ -43,7 +43,7 @@ relevant capability cannot reach the network layer at all.
 ## Finding provenance {#finding-provenance}
 
 Every release artifact ships with SLSA v3 provenance that can be verified using
-`slsa-verifier`, as described in [Build Provenance](provenance.md). Glyph's supervisors
+`slsa-verifier`, as described in [Build Provenance](provenance.md). 0xgen's supervisors
 and plugins also emit structured findings that include the plugin identity,
 configuration fingerprints, and hashes of harvested evidence. This metadata allows
 downstream systems to prove which signed binary generated a finding and to trace it

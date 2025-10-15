@@ -1,4 +1,4 @@
-# Rebrand tracker: Glyph → 0xgen (meta)
+# Rebrand tracker: brand migration (meta)
 
 > **Status:** Prep work
 
@@ -12,7 +12,7 @@ Create label: `rebrand`
 - [ ] 4 CLI banner + `--version` output text
 - [ ] 5 Config dir env vars (read new, fall back to old)
 - [ ] 6 Binary wrapper: `0xgenctl` → `glyphctl` (alias)
-- [ ] 7 Docs URLs: add redirects `/Glyph` → `/0xgen`
+- [ ] 7 Docs URLs: add redirects from the legacy prefix to `/0xgen`
 - [ ] 8 `go.mod` module comment only (no path change)
 - [ ] 9 Homebrew formula name only (alias keeps glyph)
 - [ ] 10 CI job names & artifact names (no paths)

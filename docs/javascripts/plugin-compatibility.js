@@ -93,7 +93,7 @@
       .forEach((version) => {
         const option = document.createElement('option');
         option.value = version;
-        option.textContent = `Glyph v${version}`;
+        option.textContent = `0xgen v${version}`;
         glyphFilter.appendChild(option);
       });
 
@@ -128,7 +128,7 @@
     table.className = 'plugin-compatibility__table';
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
-    ['Plugin', 'Latest version', ...glyphVersions.map((version) => `Glyph v${version}`)].forEach((heading, index) => {
+    ['Plugin', 'Latest version', ...glyphVersions.map((version) => `0xgen v${version}`)].forEach((heading, index) => {
       const cell = document.createElement('th');
       cell.scope = 'col';
       cell.textContent = heading;
@@ -240,20 +240,20 @@
       ...((plugin.categories || [])),
     ];
 
-    if (plugin.compatibility) {
-      Object.entries(plugin.compatibility).forEach(([version, entry]) => {
-        if (!entry) {
-          return;
-        }
-        haystack.push(`glyph v${version}`);
-        if (entry.status) {
-          haystack.push(entry.status);
-        }
-        if (entry.notes) {
-          haystack.push(entry.notes);
-        }
-      });
-    }
+      if (plugin.compatibility) {
+        Object.entries(plugin.compatibility).forEach(([version, entry]) => {
+          if (!entry) {
+            return;
+          }
+          haystack.push(`0xgen v${version}`);
+          if (entry.status) {
+            haystack.push(entry.status);
+          }
+          if (entry.notes) {
+            haystack.push(entry.notes);
+          }
+        });
+      }
 
     return haystack
       .filter(Boolean)

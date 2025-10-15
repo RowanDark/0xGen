@@ -253,6 +253,6 @@
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": { "refresh_intervals": ["10s", "30s", "1m", "5m"] },
   "timezone": "",
-  "title": "Glyph Operations Overview",
+  "title": "0xgen Operations Overview",
   "version": 2
 }

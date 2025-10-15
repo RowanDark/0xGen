@@ -1,6 +1,6 @@
 # Configuration
 
-Glyph reads configuration from a single resolved source that combines defaults,
+0xgen reads configuration from a single resolved source that combines defaults,
 optional configuration files, and environment variable overrides. This keeps the
 platform easy to tune locally and in production deployments.
 

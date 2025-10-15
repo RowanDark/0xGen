@@ -1,6 +1,6 @@
 # Documentation versions
 
-Glyph ships the online documentation with per-release snapshots so you can keep
+0xgen ships the online documentation with per-release snapshots so you can keep
 working against a stable API or CLI surface even after the latest release
 moves forward.
 

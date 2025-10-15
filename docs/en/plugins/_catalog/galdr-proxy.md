@@ -1,11 +1,11 @@
 ---
 title: "Galdr Proxy"
-description: "Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume."
+description: "Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume."
 ---
 
 # Galdr Proxy
 
-Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
+Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
 
 ## Metadata
 
@@ -14,7 +14,7 @@ Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | TypeScript |
 | Last updated | Sep 30, 2025 |
 

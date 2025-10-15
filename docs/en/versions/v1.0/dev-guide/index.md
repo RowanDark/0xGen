@@ -5,7 +5,7 @@ features, and ship releases with confidence.
 
 ## Prerequisites {#prerequisites}
 
-Glyph is written in Go with supporting tooling in Node.js and Python. Install the
+0xgen is written in Go with supporting tooling in Node.js and Python. Install the
 following before hacking on the repository:
 
 - Go 1.21+

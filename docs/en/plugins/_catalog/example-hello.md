@@ -1,11 +1,11 @@
 ---
 title: "Example Hello"
-description: "Example Hello is a Glyph plugin."
+description: "Example Hello is a 0xgen plugin."
 ---
 
 # Example Hello
 
-Example Hello is a Glyph plugin.
+Example Hello is a 0xgen plugin.
 
 ## Metadata
 
@@ -14,7 +14,7 @@ Example Hello is a Glyph plugin.
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | Go |
 | Last updated | Sep 30, 2025 |
 

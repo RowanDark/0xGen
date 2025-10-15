@@ -14,7 +14,7 @@ OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface 
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | TypeScript |
 | Last updated | Sep 30, 2025 |
 

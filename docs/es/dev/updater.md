@@ -1,6 +1,6 @@
 # Canales de actualización y reversión
 
-Glyph incluye un servicio de actualización automática para la aplicación de
+0xgen incluye un servicio de actualización automática para la aplicación de
 escritorio y para la CLI `glyphctl`. Este documento describe cómo publicamos en
 los canales estable y beta, cómo generamos paquetes delta y cómo los clientes
 verifican, aplican y revierten actualizaciones de forma segura.

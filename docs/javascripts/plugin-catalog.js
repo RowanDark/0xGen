@@ -3,7 +3,7 @@
   let cachedPlugins = null;
   let cachedRegistry = null;
   let catalogDataUrl = null;
-  let cachedGlyphVersions = [];
+  let cached0xgenVersions = [];
   const compatibilityStatuses = ['compatible', 'limited', 'unsupported'];
 
   const slugify = (value) =>
@@ -66,7 +66,7 @@
         const plugins = Array.isArray(registry.plugins) ? registry.plugins : [];
         const glyphVersions = Array.isArray(registry.glyph_versions) ? registry.glyph_versions : [];
         cachedPlugins = plugins;
-        cachedGlyphVersions = glyphVersions;
+        cached0xgenVersions = glyphVersions;
         renderFilters(plugins, languageFilter, categoryFilter, glyphFilter, statusFilter, glyphVersions);
         renderCatalog(plugins, container, emptyState, glyphVersions);
 
@@ -112,7 +112,7 @@
                 if (!entry) {
                   return;
                 }
-                compatibilityValues.push(`glyph v${version}`);
+                compatibilityValues.push(`0xgen v${version}`);
                 if (entry.status) {
                   compatibilityValues.push(entry.status);
                 }
@@ -226,7 +226,7 @@
       .forEach((version) => {
         const option = document.createElement('option');
         option.value = version;
-        option.textContent = `Glyph v${version}`;
+        option.textContent = `0xgen v${version}`;
         glyphFilter.appendChild(option);
       });
 
@@ -478,13 +478,13 @@
       icon.setAttribute('aria-hidden', 'true');
       icon.textContent = statusIcon(entry.status);
       const text = document.createElement('span');
-      text.textContent = `Glyph v${version}`;
+      text.textContent = `0xgen v${version}`;
       badge.appendChild(icon);
       badge.appendChild(text);
       const description = statusLabel(entry.status);
       const notes = entry.notes ? ` — ${entry.notes}` : '';
       badge.setAttribute('title', `${description}${notes}`.trim());
-      badge.setAttribute('aria-label', `${description} on Glyph v${version}${entry.notes ? `: ${entry.notes}` : ''}`);
+      badge.setAttribute('aria-label', `${description} on 0xgen v${version}${entry.notes ? `: ${entry.notes}` : ''}`);
       container.appendChild(badge);
     });
     if (!container.childElementCount) {

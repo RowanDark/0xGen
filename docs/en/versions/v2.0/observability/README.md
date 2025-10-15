@@ -2,9 +2,9 @@
 search: false
 ---
 
-# Glyph Telemetry
+# 0xgen Telemetry
 
-Glyph now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation.
+0xgen now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation.
 
 ## Metrics Endpoint
 

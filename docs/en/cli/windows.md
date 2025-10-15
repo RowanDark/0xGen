@@ -1,6 +1,6 @@
 # Windows installation
 
-Glyph ships Windows builds in two flavours: an MSI installer for system-wide
+0xgen ships Windows builds in two flavours: an MSI installer for system-wide
 deployments and a portable ZIP archive that runs without installation. Both
 variants are produced by the release workflow and validated in CI to ensure the
 version command and plugin subsystem operate correctly.
@@ -16,7 +16,7 @@ version command and plugin subsystem operate correctly.
    ```
 
    Replace `<arch>` with `amd64` or `arm64` depending on your platform.
-3. The installer places `glyphctl.exe` under `C:\Program Files\Glyph`, amends the
+3. The installer places `glyphctl.exe` under `C:\Program Files\0xgen`, amends the
    system `PATH`, registers an uninstall entry, and adds Start menu shortcuts for
    the CLI and demo workflow. Open a new PowerShell session and confirm the CLI
    is reachable:
@@ -25,7 +25,7 @@ version command and plugin subsystem operate correctly.
    glyphctl --version
    ```
 
-   You can remove Glyph at any point with:
+   You can remove 0xgen at any point with:
 
    ```powershell
    msiexec /x .\glyphctl_v<version>_windows_amd64.msi /qn /norestart
@@ -34,20 +34,20 @@ version command and plugin subsystem operate correctly.
 ### Trusting the proxy certificate
 
 During installation you can opt into the **Trust Galdr proxy certificate**
-feature. Enabling it runs `glyphctl proxy trust --install --quiet` after Glyph's
+feature. Enabling it runs `glyphctl proxy trust --install --quiet` after 0xgen's
 files are copied, generating the proxy root certificate if needed and importing
 it into the current user's trusted root store. Re-run the command manually if
-you later rotate the certificate or install Glyph for another account.
+you later rotate the certificate or install 0xgen for another account.
 
 ## Portable ZIP
 
 Each release also provides `glyphctl_v<version>_windows_<arch>.zip`. Extract it
-anywhere (for example, under `C:\Tools\Glyph`) and run the CLI without touching
+anywhere (for example, under `C:\Tools\0xgen`) and run the CLI without touching
 system state:
 
 ```powershell
-Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\Glyph
-C:\Tools\Glyph\glyphctl.exe --version
+Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
+C:\Tools\0xgen\glyphctl.exe --version
 ```
 
 Portable archives bundle `LICENSE.txt` and `README.txt` alongside the binary so
@@ -55,7 +55,7 @@ you can keep the documentation near the executable.
 
 ## Scoop bucket
 
-If you prefer package managers, add the Glyph bucket to Scoop and install the
+If you prefer package managers, add the 0xgen bucket to Scoop and install the
 manifest published from this repository:
 
 ```powershell
@@ -75,7 +75,7 @@ proxy certificates between environments.
 ## Verifying plugin support
 
 To confirm plugin loading works, point `glyphctl` at one of the sample plugins
-shipped in the repository. Compute the SHA-256 hash and ask Glyph to verify it:
+shipped in the repository. Compute the SHA-256 hash and ask 0xgen to verify it:
 
 ```powershell
 $plugin = Resolve-Path 'plugins/samples/passive-header-scan/main.go'
@@ -93,7 +93,7 @@ portable archive before building the MSI, so both distribution formats embed the
 same signature. To inspect it locally:
 
 ```powershell
-Get-AuthenticodeSignature "C:\Program Files\Glyph\glyphctl.exe"
+Get-AuthenticodeSignature "C:\Program Files\0xgen\glyphctl.exe"
 ```
 
 The output should report `Status : Valid` when a certificate is available. If no

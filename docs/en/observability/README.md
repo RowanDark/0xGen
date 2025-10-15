@@ -2,9 +2,9 @@
 search: false
 ---
 
-# Glyph Telemetry and Crash Insight
+# 0xgen Telemetry and Crash Insight
 
-Glyph now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation. For post-mortem analysis of fatal errors, see the [crash reporting workflow](./crash-reporting.md) that explains how the desktop shell captures redacted, text-only bundles ready for handoff to maintainers.
+0xgen now exposes a Prometheus-compatible metrics endpoint that makes it possible to build dashboards and alerts without custom instrumentation. For post-mortem analysis of fatal errors, see the [crash reporting workflow](./crash-reporting.md) that explains how the desktop shell captures redacted, text-only bundles ready for handoff to maintainers.
 
 ## Metrics Endpoint
 
@@ -28,11 +28,11 @@ Key exported series include:
 
 ### Prometheus scrape configuration
 
-The `/metrics` endpoint is compatible with the Prometheus text exposition format. A minimal scrape job targeting a Glyph instance running on the default metrics port looks like:
+The `/metrics` endpoint is compatible with the Prometheus text exposition format. A minimal scrape job targeting a 0xgen instance running on the default metrics port looks like:
 
 ```yaml
 scrape_configs:
-  - job_name: glyph
+  - job_name: 0xgen
     scrape_interval: 15s
     static_configs:
       - targets:

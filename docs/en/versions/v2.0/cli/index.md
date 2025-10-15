@@ -1,6 +1,6 @@
-# Glyph CLI (`glyphctl`)
+# 0xgen CLI (`glyphctl`)
 
-`glyphctl` is the command-line entry point for orchestrating Glyph. It can build and
+`glyphctl` is the command-line entry point for orchestrating 0xgen. It can build and
 launch plugins, inspect findings, and generate analyst-facing reports. This page
 summarises the most common workflows; run `glyphctl --help` to explore every
 subcommand.
@@ -50,7 +50,7 @@ Add `--sample` to target the fixture binaries under `plugins/samples/`, or provi
 
 ## Validate findings {#validate-findings}
 
-Glyph emits findings as JSON Lines (JSONL) records that conform to
+0xgen emits findings as JSON Lines (JSONL) records that conform to
 [`specs/finding.md`]({{ config.repo_url }}/blob/main/specs/finding.md). Lint generated output before shipping it
 with:
 

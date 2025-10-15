@@ -1,6 +1,6 @@
 # Quickstart: End-to-End Demo
 
-The `glyphctl demo` command gives newcomers a one-minute tour of the Glyph stack.
+The `glyphctl demo` command gives newcomers a one-minute tour of the 0xgen stack.
 It spins up a local demo target, scans the page with Seer, ranks the resulting
 findings, and renders a polished HTML report. Everything runs on localhost and
 falls back to bundled fixtures when external network access is restricted.
@@ -10,8 +10,8 @@ falls back to bundled fixtures when external network access is restricted.
 * Go 1.21+ (for `go run ./cmd/glyphctl demo`) or a downloaded `glyphctl` binary
 * Git (to clone this repository)
 
-Everything else (Glyph binaries, Playwright, etc.) is built on demand. No
-external services are required—if Glyph cannot reach `example.com` the demo
+Everything else (0xgen binaries, Playwright, etc.) is built on demand. No
+external services are required—if 0xgen cannot reach `example.com` the demo
 feeds Seer a synthetic response that mirrors the HTML shipped in
 `examples/quickstart/demo-response.html`.
 

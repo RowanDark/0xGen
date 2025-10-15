@@ -3,7 +3,7 @@
     "id": "cartographer",
     "name": "Cartographer",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
     "summary": "Cartographer charts application surfaces discovered by crawlers and passive sensors so other plugins can prioritize exploration.",
     "capabilities": [
@@ -43,7 +43,7 @@
     "id": "cryptographer",
     "name": "Cryptographer",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
     "summary": "Cryptographer is a CyberChef-inspired utility surface for quickly transforming payloads and experimenting with encoding operations during investigations.",
     "capabilities": [
@@ -81,9 +81,9 @@
     "id": "example-hello",
     "name": "Example Hello",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "Go",
-    "summary": "Example Hello is a Glyph plugin.",
+    "summary": "Example Hello is a 0xgen plugin.",
     "capabilities": [
       "CAP_EMIT_FINDINGS"
     ],
@@ -118,9 +118,9 @@
     "id": "excavator",
     "name": "Excavator",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
-    "summary": "Excavator is the Playwright-powered crawler foundation for Glyph. It provides a reproducible baseline for scripted reconnaissance of target applications.",
+    "summary": "Excavator is the Playwright-powered crawler foundation for 0xgen. It provides a reproducible baseline for scripted reconnaissance of target applications.",
     "capabilities": [
       "CAP_EMIT_FINDINGS",
       "CAP_HTTP_PASSIVE",
@@ -159,9 +159,9 @@
     "id": "galdr-proxy",
     "name": "Galdr Proxy",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
-    "summary": "Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.",
+    "summary": "Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.",
     "capabilities": [
       "CAP_HTTP_ACTIVE",
       "CAP_HTTP_PASSIVE",
@@ -197,9 +197,9 @@
     "id": "grapher",
     "name": "Grapher",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "Go",
-    "summary": "Grapher performs unauthenticated discovery of API schemas so downstream Glyph workflows can reason about surfaced endpoints without touching production credentials.",
+    "summary": "Grapher performs unauthenticated discovery of API schemas so downstream 0xgen workflows can reason about surfaced endpoints without touching production credentials.",
     "capabilities": [
       "CAP_EMIT_FINDINGS",
       "CAP_STORAGE"
@@ -235,7 +235,7 @@
     "id": "osint-well",
     "name": "OSINT Well",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
     "summary": "OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface open-source intelligence such as subdomains and infrastructure relationships. The plugin intentionally defaults to passive reconnaissance so that it can be executed safely in shared or sensitive environments.",
     "capabilities": [
@@ -274,7 +274,7 @@
     "id": "raider",
     "name": "Raider",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
     "summary": "Raider coordinates focused offensive testing campaigns once high-value targets are identified by discovery plugins.",
     "capabilities": [
@@ -313,7 +313,7 @@
     "id": "ranker",
     "name": "Ranker",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
     "summary": "Ranker scores assets, findings, and leads so teams focus on the highest-impact work first.",
     "capabilities": [
@@ -352,9 +352,9 @@
     "id": "scribe",
     "name": "Scribe",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "TypeScript",
-    "summary": "Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline.",
+    "summary": "Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.",
     "capabilities": [
       "CAP_REPORT"
     ],
@@ -390,7 +390,7 @@
     "id": "seer",
     "name": "Seer",
     "version": "0.1.0",
-    "author": "Glyph Team",
+    "author": "0xgen Team",
     "language": "Go",
     "summary": "Seer inspects passive telemetry to spot anomalies and suspicious behaviors before they escalate into incidents. The v0.3 release focuses on low-noise secret and PII detection tailored for HTTP response bodies.",
     "capabilities": [

@@ -14,7 +14,7 @@ Raider coordinates focused offensive testing campaigns once high-value targets a
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | TypeScript |
 | Last updated | Sep 30, 2025 |
 
