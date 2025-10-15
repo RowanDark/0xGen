@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/RowanDark/0xgen/internal/env"
 )
 
 // Config captures the Glyph configuration resolved from defaults, optional files,
@@ -53,7 +55,9 @@ func Default() Config {
 //  2. ~/.0xgen/config.toml (TOML)
 //  3. ~/.glyph/config.toml (TOML, legacy)
 //
-// Environment variables prefixed with GLYPH_ have the highest precedence.
+// Environment variables prefixed with 0XGEN_ have the highest precedence.
+// Legacy GLYPH_ variables remain supported for one release and emit a warning
+// when used.
 func Load() (Config, error) {
 	cfg := Default()
 
@@ -189,39 +193,59 @@ func applyFileConfig(cfg *Config, data []byte, format string) error {
 }
 
 func applyEnvOverrides(cfg *Config) {
-	if val := strings.TrimSpace(os.Getenv("GLYPH_SERVER")); val != "" {
-		cfg.ServerAddr = val
-	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_AUTH_TOKEN")); val != "" {
-		cfg.AuthToken = val
-	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_OUT")); val != "" {
-		cfg.OutputDir = val
-	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_PROXY_ENABLE")); val != "" {
-		if parsed, err := strconv.ParseBool(val); err == nil {
-			cfg.Proxy.Enable = parsed
+	if val, ok := env.Lookup("0XGEN_SERVER", "GLYPH_SERVER"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.ServerAddr = trimmed
 		}
 	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_ENABLE_PROXY")); val != "" {
-		if parsed, err := strconv.ParseBool(val); err == nil {
-			cfg.Proxy.Enable = parsed
+	if val, ok := env.Lookup("0XGEN_AUTH_TOKEN", "GLYPH_AUTH_TOKEN"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.AuthToken = trimmed
 		}
 	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_PROXY_ADDR")); val != "" {
-		cfg.Proxy.Addr = val
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.OutputDir = trimmed
+		}
 	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_PROXY_RULES")); val != "" {
-		cfg.Proxy.RulesPath = val
+	if val, ok := env.Lookup("0XGEN_PROXY_ENABLE", "GLYPH_PROXY_ENABLE"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			if parsed, err := strconv.ParseBool(trimmed); err == nil {
+				cfg.Proxy.Enable = parsed
+			}
+		}
 	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_PROXY_HISTORY")); val != "" {
-		cfg.Proxy.HistoryPath = val
+	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY", "GLYPH_ENABLE_PROXY"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			if parsed, err := strconv.ParseBool(trimmed); err == nil {
+				cfg.Proxy.Enable = parsed
+			}
+		}
 	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_PROXY_CA_CERT")); val != "" {
-		cfg.Proxy.CACertPath = val
+	if val, ok := env.Lookup("0XGEN_PROXY_ADDR", "GLYPH_PROXY_ADDR"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.Proxy.Addr = trimmed
+		}
 	}
-	if val := strings.TrimSpace(os.Getenv("GLYPH_PROXY_CA_KEY")); val != "" {
-		cfg.Proxy.CAKeyPath = val
+	if val, ok := env.Lookup("0XGEN_PROXY_RULES", "GLYPH_PROXY_RULES"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.Proxy.RulesPath = trimmed
+		}
+	}
+	if val, ok := env.Lookup("0XGEN_PROXY_HISTORY", "GLYPH_PROXY_HISTORY"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.Proxy.HistoryPath = trimmed
+		}
+	}
+	if val, ok := env.Lookup("0XGEN_PROXY_CA_CERT", "GLYPH_PROXY_CA_CERT"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.Proxy.CACertPath = trimmed
+		}
+	}
+	if val, ok := env.Lookup("0XGEN_PROXY_CA_KEY", "GLYPH_PROXY_CA_KEY"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.Proxy.CAKeyPath = trimmed
+		}
 	}
 }
 

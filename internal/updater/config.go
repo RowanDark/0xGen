@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/RowanDark/0xgen/internal/env"
 )
 
 const (
@@ -50,8 +52,10 @@ type Store struct {
 func DefaultConfigDir() (string, error) {
 	// Honour GLYPH_UPDATER_CONFIG_DIR if present so tests can override the
 	// location without polluting the real user config.
-	if override := strings.TrimSpace(os.Getenv("GLYPH_UPDATER_CONFIG_DIR")); override != "" {
-		return override, nil
+	if override, ok := env.Lookup("0XGEN_UPDATER_CONFIG_DIR", "GLYPH_UPDATER_CONFIG_DIR"); ok {
+		if trimmed := strings.TrimSpace(override); trimmed != "" {
+			return trimmed, nil
+		}
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {

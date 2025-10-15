@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/replay"
 	"github.com/RowanDark/0xgen/internal/reporter"
 )
@@ -39,9 +40,12 @@ func runReplay(args []string) int {
 
 	dest := strings.TrimSpace(*outDir)
 	if dest == "" {
-		if env := strings.TrimSpace(os.Getenv("GLYPH_OUT")); env != "" {
-			dest = filepath.Join(env, "replay")
-		} else {
+		if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+			if trimmed := strings.TrimSpace(val); trimmed != "" {
+				dest = filepath.Join(trimmed, "replay")
+			}
+		}
+		if dest == "" {
 			cwd, err := os.Getwd()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "determine working directory: %v\n", err)

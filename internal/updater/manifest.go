@@ -11,10 +11,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/RowanDark/0xgen/internal/env"
 )
 
 // DefaultBaseURL is the canonical CDN endpoint for update manifests.
@@ -186,15 +187,18 @@ func decodeSignature(raw []byte) ([]byte, error) {
 }
 
 func loadPublicKey() (ed25519.PublicKey, error) {
-	if override := strings.TrimSpace(os.Getenv("GLYPH_UPDATER_PUBLIC_KEY")); override != "" {
-		key, err := base64.StdEncoding.DecodeString(override)
-		if err != nil {
-			return nil, fmt.Errorf("decode GLYPH_UPDATER_PUBLIC_KEY: %w", err)
+	if override, ok := env.Lookup("0XGEN_UPDATER_PUBLIC_KEY", "GLYPH_UPDATER_PUBLIC_KEY"); ok {
+		trimmed := strings.TrimSpace(override)
+		if trimmed != "" {
+			key, err := base64.StdEncoding.DecodeString(trimmed)
+			if err != nil {
+				return nil, fmt.Errorf("decode GLYPH_UPDATER_PUBLIC_KEY: %w", err)
+			}
+			if len(key) != ed25519.PublicKeySize {
+				return nil, fmt.Errorf("GLYPH_UPDATER_PUBLIC_KEY has invalid length %d", len(key))
+			}
+			return ed25519.PublicKey(key), nil
 		}
-		if len(key) != ed25519.PublicKeySize {
-			return nil, fmt.Errorf("GLYPH_UPDATER_PUBLIC_KEY has invalid length %d", len(key))
-		}
-		return ed25519.PublicKey(key), nil
 	}
 	key, err := base64.StdEncoding.DecodeString(releasePublicKeyBase64)
 	if err != nil {

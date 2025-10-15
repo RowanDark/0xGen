@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/flows"
 	obsmetrics "github.com/RowanDark/0xgen/internal/observability/metrics"
 	"github.com/RowanDark/0xgen/internal/observability/tracing"
@@ -231,8 +232,10 @@ func defaultTransport() http.RoundTripper {
 }
 
 func defaultOutputDir() string {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
-		return custom
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if custom := strings.TrimSpace(val); custom != "" {
+			return custom
+		}
 	}
 	return "/out"
 }
