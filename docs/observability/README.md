@@ -40,12 +40,14 @@ The collector accepts spans from 0xgen over OTLP/HTTP, batches them, and forward
 
 0xgen continues to expose Prometheus metrics at `/metrics`. Notable series include:
 
-* `glyph_rpc_duration_seconds` – latency of core RPC handlers.
-* `glyph_plugin_queue_length` – outbound queue depth per plugin.
-* `glyph_http_request_duration_seconds` – latency of proxied HTTP requests.
-* `glyph_plugin_event_duration_seconds` – time spent handling plugin-sent events.
-* `glyph_http_throttle_total` – rate-limiter activations.
-* `glyph_flow_dispatch_seconds` – latency for sanitized/raw flow fan-out to plugins.
+* `oxg_rpc_duration_seconds` – latency of core RPC handlers.
+* `oxg_plugin_queue_length` – outbound queue depth per plugin.
+* `oxg_http_request_duration_seconds` – latency of proxied HTTP requests.
+* `oxg_plugin_event_duration_seconds` – time spent handling plugin-sent events.
+* `oxg_http_throttle_total` – rate-limiter activations.
+* `oxg_flow_dispatch_seconds` – latency for sanitized/raw flow fan-out to plugins.
+
+Legacy `glyph_*` aliases remain for this release but are deprecated and will be removed in the following cycle.
 
 The Grafana dashboard in [`grafana-dashboard.json`](grafana-dashboard.json) now ships exemplar-aware
 panels for HTTP, flow dispatch, and plugin event latency. Selecting an exemplar opens the associated
