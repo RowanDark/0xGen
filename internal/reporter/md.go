@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/findings"
 )
 
@@ -30,9 +31,11 @@ var (
 )
 
 func init() {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
-		DefaultFindingsPath = filepath.Join(custom, findingsFilename)
-		DefaultReportPath = filepath.Join(custom, reportFilename)
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if custom := strings.TrimSpace(val); custom != "" {
+			DefaultFindingsPath = filepath.Join(custom, findingsFilename)
+			DefaultReportPath = filepath.Join(custom, reportFilename)
+		}
 	}
 }
 

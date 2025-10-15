@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/proxy"
 )
 
@@ -41,9 +42,11 @@ type Index struct {
 
 // DefaultPath returns the default location of the proxy history log, honouring GLYPH_OUT.
 func DefaultPath() string {
-	dir := strings.TrimSpace(os.Getenv("GLYPH_OUT"))
-	if dir == "" {
-		dir = "/out"
+	dir := "/out"
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			dir = trimmed
+		}
 	}
 	return filepath.Join(dir, defaultHistoryFilename)
 }

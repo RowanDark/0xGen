@@ -1,9 +1,10 @@
 package exporter
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/RowanDark/0xgen/internal/env"
 )
 
 const (
@@ -35,9 +36,11 @@ var (
 )
 
 func init() {
-	base := strings.TrimSpace(os.Getenv("GLYPH_OUT"))
-	if base == "" {
-		base = defaultOutputDir
+	base := defaultOutputDir
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			base = trimmed
+		}
 	}
 
 	DefaultSARIFPath = filepath.Join(base, sarifFilename)

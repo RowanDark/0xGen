@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/plugins"
 	"github.com/RowanDark/0xgen/internal/plugins/integrity"
 	"github.com/RowanDark/0xgen/internal/plugins/runner"
@@ -102,18 +103,25 @@ func runPluginRun(args []string) int {
 	if limits.WallTime <= 0 {
 		limits.WallTime = 5 * time.Second
 	}
-	env := map[string]string{}
-	if val := os.Getenv("GLYPH_OUT"); strings.TrimSpace(val) != "" {
-		env["GLYPH_OUT"] = val
+	envVars := map[string]string{}
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			envVars["0XGEN_OUT"] = trimmed
+			envVars["GLYPH_OUT"] = trimmed
+		}
 	}
-	if val := os.Getenv("GLYPH_E2E_SMOKE"); strings.TrimSpace(val) != "" {
-		env["GLYPH_E2E_SMOKE"] = val
+	if val, ok := env.Lookup("0XGEN_E2E_SMOKE", "GLYPH_E2E_SMOKE"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			envVars["0XGEN_E2E_SMOKE"] = trimmed
+			envVars["GLYPH_E2E_SMOKE"] = trimmed
+		}
 	}
-	env["GLYPH_CAPABILITY_TOKEN"] = capToken
+	envVars["0XGEN_CAPABILITY_TOKEN"] = capToken
+	envVars["GLYPH_CAPABILITY_TOKEN"] = capToken
 	config := runner.Config{
 		Binary: binaryPath,
 		Args:   []string{"--server", *server, "--token", *token},
-		Env:    env,
+		Env:    envVars,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Limits: limits,

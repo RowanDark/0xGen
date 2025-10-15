@@ -1,9 +1,13 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/RowanDark/0xgen/internal/env"
 )
 
 func TestLoadPrecedence(t *testing.T) {
@@ -46,8 +50,8 @@ proxy:
 	}
 
 	// Ensure env overrides beat file configuration.
-	t.Setenv("GLYPH_PROXY_ADDR", "proxy-env:5555")
-	t.Setenv("GLYPH_AUTH_TOKEN", "env-token")
+	t.Setenv("0XGEN_PROXY_ADDR", "proxy-env:5555")
+	t.Setenv("0XGEN_AUTH_TOKEN", "env-token")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -130,5 +134,29 @@ func TestLoadPrefers0xgenConfig(t *testing.T) {
 
 	if cfg.OutputDir != "/modern" {
 		t.Fatalf("expected modern config to take precedence, got %s", cfg.OutputDir)
+	}
+}
+
+func TestLoadLegacyEnvWarning(t *testing.T) {
+	env.ResetWarningsForTesting()
+	var buf bytes.Buffer
+	restore := env.SetWarnLoggerForTesting(func(format string, args ...any) {
+		fmt.Fprintf(&buf, format, args...)
+	})
+	defer restore()
+
+	t.Setenv("HOME", filepath.Join(t.TempDir(), "home"))
+	t.Setenv("GLYPH_PROXY_ADDR", "legacy-env:6000")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Proxy.Addr != "legacy-env:6000" {
+		t.Fatalf("expected legacy env override, got %s", cfg.Proxy.Addr)
+	}
+
+	if got := buf.String(); got != "GLYPH_PROXY_ADDR is deprecated; use 0XGEN_PROXY_ADDR" {
+		t.Fatalf("unexpected warning: %q", got)
 	}
 }

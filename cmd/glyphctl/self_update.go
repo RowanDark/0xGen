@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/updater"
 )
 
@@ -56,7 +57,10 @@ func runSelfUpdate(args []string) int {
 		persist = false
 	}
 
-	baseURL := strings.TrimSpace(os.Getenv("GLYPH_UPDATER_BASE_URL"))
+	baseURL := ""
+	if val, ok := env.Lookup("0XGEN_UPDATER_BASE_URL", "GLYPH_UPDATER_BASE_URL"); ok {
+		baseURL = strings.TrimSpace(val)
+	}
 	client := &updater.Client{
 		Store:          store,
 		BaseURL:        baseURL,

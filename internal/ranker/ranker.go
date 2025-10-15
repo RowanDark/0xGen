@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/findings"
 )
 
@@ -38,8 +39,10 @@ const (
 var DefaultOutputPath = filepath.Join(defaultOutputDir, rankedFilename)
 
 func init() {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
-		DefaultOutputPath = filepath.Join(custom, rankedFilename)
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if custom := strings.TrimSpace(val); custom != "" {
+			DefaultOutputPath = filepath.Join(custom, rankedFilename)
+		}
 	}
 }
 

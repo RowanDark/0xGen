@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/RowanDark/0xgen/internal/env"
 )
 
 const (
@@ -23,8 +25,10 @@ const (
 var DefaultFindingsPath = filepath.Join(defaultOutputDir, defaultFilename)
 
 func init() {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
-		DefaultFindingsPath = filepath.Join(custom, defaultFilename)
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if custom := strings.TrimSpace(val); custom != "" {
+			DefaultFindingsPath = filepath.Join(custom, defaultFilename)
+		}
 	}
 }
 
@@ -80,10 +84,12 @@ func (w *Writer) Path() string {
 // NewWriter constructs a writer targeting the provided path.
 func NewWriter(path string, opts ...WriterOption) *Writer {
 	if strings.TrimSpace(path) == "" {
-		custom := strings.TrimSpace(os.Getenv("GLYPH_OUT"))
-		if custom != "" {
-			path = filepath.Join(custom, defaultFilename)
-		} else {
+		if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+			if custom := strings.TrimSpace(val); custom != "" {
+				path = filepath.Join(custom, defaultFilename)
+			}
+		}
+		if strings.TrimSpace(path) == "" {
 			path = DefaultFindingsPath
 		}
 	}
@@ -229,5 +235,8 @@ func (w *Writer) rotateIfNeeded(next int64) error {
 }
 
 func syncWritesEnabled() bool {
-	return os.Getenv("GLYPH_SYNC_WRITES") == "1"
+	if val, ok := env.Lookup("0XGEN_SYNC_WRITES", "GLYPH_SYNC_WRITES"); ok {
+		return strings.TrimSpace(val) == "1"
+	}
+	return false
 }

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/bus"
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/findings"
 	"github.com/RowanDark/0xgen/internal/logging"
 	"github.com/RowanDark/0xgen/internal/netgate"
@@ -255,7 +256,12 @@ func run(ctx context.Context, cfg config) error {
 	flowPublisher := newBusFlowPublisher()
 	cfg.proxy.FlowPublisher = flowPublisher
 
-	proxyEnabled := cfg.enableProxy || os.Getenv("GLYPH_ENABLE_PROXY") == "1"
+	proxyEnabled := cfg.enableProxy
+	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY", "GLYPH_ENABLE_PROXY"); ok {
+		if strings.TrimSpace(val) == "1" {
+			proxyEnabled = true
+		}
+	}
 
 	cancelProxy := func() {}
 	var (
@@ -499,7 +505,11 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	// once the gRPC server begins shutting down.
 	generatorCtx, cancelGenerator := context.WithCancel(context.Background())
 	defer cancelGenerator()
-	if os.Getenv("GLYPH_DISABLE_EVENT_GENERATOR") != "1" {
+	disableEvents := false
+	if val, ok := env.Lookup("0XGEN_DISABLE_EVENT_GENERATOR", "GLYPH_DISABLE_EVENT_GENERATOR"); ok {
+		disableEvents = strings.TrimSpace(val) == "1"
+	}
+	if !disableEvents {
 		go busServer.StartEventGenerator(generatorCtx)
 	}
 
@@ -532,19 +542,27 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 }
 
 func resolveFindingsPath() string {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
-		return filepath.Join(custom, "findings.jsonl")
+	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if custom := strings.TrimSpace(val); custom != "" {
+			return filepath.Join(custom, "findings.jsonl")
+		}
 	}
 	return reporter.DefaultFindingsPath
 }
 
 func newAuditLogger(component string) (*logging.AuditLogger, error) {
 	opts := []logging.Option{}
-	if disableStdout(os.Getenv("GLYPH_AUDIT_LOG_STDOUT")) {
+	auditStdout := ""
+	if val, ok := env.Lookup("0XGEN_AUDIT_LOG_STDOUT", "GLYPH_AUDIT_LOG_STDOUT"); ok {
+		auditStdout = val
+	}
+	if disableStdout(auditStdout) {
 		opts = append(opts, logging.WithoutStdout())
 	}
-	if path := strings.TrimSpace(os.Getenv("GLYPH_AUDIT_LOG_PATH")); path != "" {
-		opts = append(opts, logging.WithFile(path))
+	if val, ok := env.Lookup("0XGEN_AUDIT_LOG_PATH", "GLYPH_AUDIT_LOG_PATH"); ok {
+		if path := strings.TrimSpace(val); path != "" {
+			opts = append(opts, logging.WithFile(path))
+		}
 	}
 	return logging.NewAuditLogger(component, opts...)
 }

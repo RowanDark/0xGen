@@ -12,12 +12,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/logging"
 	"github.com/RowanDark/0xgen/internal/netgate/fingerprint"
 	obsmetrics "github.com/RowanDark/0xgen/internal/observability/metrics"
@@ -28,8 +28,10 @@ const (
 	capHTTPActive  = "CAP_HTTP_ACTIVE"
 	capHTTPPassive = "CAP_HTTP_PASSIVE"
 
-	envTimeout = "GLYPH_NET_TIMEOUT"
-	envBudget  = "GLYPH_NET_BUDGET"
+	envTimeout    = "GLYPH_NET_TIMEOUT"
+	envBudget     = "GLYPH_NET_BUDGET"
+	envTimeoutNew = "0XGEN_NET_TIMEOUT"
+	envBudgetNew  = "0XGEN_NET_BUDGET"
 
 	defaultTimeout = 5 * time.Second
 	defaultBudget  = 50
@@ -236,14 +238,18 @@ func WithAuditLogger(logger *logging.AuditLogger) Option {
 
 func loadConfigFromEnv() Config {
 	cfg := Config{Timeout: defaultTimeout, RequestBudget: defaultBudget, Retry: defaultRetryConfig()}
-	if raw := strings.TrimSpace(os.Getenv(envTimeout)); raw != "" {
-		if dur, err := time.ParseDuration(raw); err == nil {
-			cfg.Timeout = dur
+	if raw, ok := env.Lookup(envTimeoutNew, envTimeout); ok {
+		if trimmed := strings.TrimSpace(raw); trimmed != "" {
+			if dur, err := time.ParseDuration(trimmed); err == nil {
+				cfg.Timeout = dur
+			}
 		}
 	}
-	if raw := strings.TrimSpace(os.Getenv(envBudget)); raw != "" {
-		if v, err := strconv.Atoi(raw); err == nil {
-			cfg.RequestBudget = v
+	if raw, ok := env.Lookup(envBudgetNew, envBudget); ok {
+		if trimmed := strings.TrimSpace(raw); trimmed != "" {
+			if v, err := strconv.Atoi(trimmed); err == nil {
+				cfg.RequestBudget = v
+			}
 		}
 	}
 	return cfg
