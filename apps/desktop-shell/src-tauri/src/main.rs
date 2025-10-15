@@ -698,12 +698,24 @@ fn parse_metrics(body: &str) -> Vec<MetricSample> {
     body.lines().filter_map(parse_metric_line).collect()
 }
 
+fn metric_present(samples: &[MetricSample], name: &str) -> bool {
+    samples.iter().any(|sample| sample.name == name)
+}
+
 fn sum_metric(samples: &[MetricSample], name: &str) -> f64 {
     samples
         .iter()
         .filter(|sample| sample.name == name)
         .map(|sample| sample.value)
         .sum()
+}
+
+fn sum_metric_with_fallback(samples: &[MetricSample], primary: &str, legacy: &str) -> f64 {
+    if metric_present(samples, primary) {
+        sum_metric(samples, primary)
+    } else {
+        sum_metric(samples, legacy)
+    }
 }
 
 fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> HashMap<String, f64> {
@@ -716,18 +728,17 @@ fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> Has
     totals
 }
 
-fn sum_metric_by_label_any(
+fn sum_metric_by_label_with_fallback(
     samples: &[MetricSample],
-    names: &[&str],
+    primary: &str,
+    legacy: &str,
     label: &str,
 ) -> HashMap<String, f64> {
-    let mut totals = HashMap::new();
-    for name in names {
-        for (key, value) in sum_metric_by_label(samples, name, label) {
-            *totals.entry(key).or_insert(0.0) += value;
-        }
+    if metric_present(samples, primary) {
+        sum_metric_by_label(samples, primary, label)
+    } else {
+        sum_metric_by_label(samples, legacy, label)
     }
-    totals
 }
 
 fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyBucket> {
@@ -751,6 +762,18 @@ fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyB
             count,
         })
         .collect()
+}
+
+fn collect_latency_buckets_with_fallback(
+    samples: &[MetricSample],
+    primary: &str,
+    legacy: &str,
+) -> Vec<LatencyBucket> {
+    if metric_present(samples, primary) {
+        collect_latency_buckets(samples, primary)
+    } else {
+        collect_latency_buckets(samples, legacy)
+    }
 }
 
 fn unix_to_datetime(secs: i64) -> DateTime<Utc> {
@@ -1093,41 +1116,71 @@ async fn fetch_metrics(
     let body = response.text().await.map_err(|err| err.to_string())?;
     let samples = parse_metrics(&body);
 
-    let failures = sum_metric(&samples, "glyph_rpc_errors_total");
-    let queue_depth = sum_metric(&samples, "glyph_plugin_queue_length");
-    let latency_sum = sum_metric(&samples, "glyph_plugin_event_duration_seconds_sum");
-    let latency_count = sum_metric(&samples, "glyph_plugin_event_duration_seconds_count");
+    let failures =
+        sum_metric_with_fallback(&samples, "oxg_rpc_errors_total", "glyph_rpc_errors_total");
+    let queue_depth = sum_metric_with_fallback(
+        &samples,
+        "oxg_plugin_queue_length",
+        "glyph_plugin_queue_length",
+    );
+    let latency_sum = sum_metric_with_fallback(
+        &samples,
+        "oxg_plugin_event_duration_seconds_sum",
+        "glyph_plugin_event_duration_seconds_sum",
+    );
+    let latency_count = sum_metric_with_fallback(
+        &samples,
+        "oxg_plugin_event_duration_seconds_count",
+        "glyph_plugin_event_duration_seconds_count",
+    );
     let avg_latency_ms = if latency_count > 0.0 {
         (latency_sum / latency_count) * 1000.0
     } else {
         0.0
     };
     let events_total = latency_count;
-    let queue_drops = sum_metric(&samples, "glyph_plugin_queue_dropped_total");
-    let latency_buckets =
-        collect_latency_buckets(&samples, "glyph_plugin_event_duration_seconds_bucket");
-    let mut plugin_errors: Vec<PluginErrorTotal> = sum_metric_by_label_any(
+    let queue_drops = sum_metric_with_fallback(
         &samples,
-        &[
+        "oxg_plugin_queue_dropped_total",
+        "glyph_plugin_queue_dropped_total",
+    );
+    let latency_buckets = collect_latency_buckets_with_fallback(
+        &samples,
+        "oxg_plugin_event_duration_seconds_bucket",
+        "glyph_plugin_event_duration_seconds_bucket",
+    );
+    let mut plugin_errors: Vec<PluginErrorTotal> = {
+        let mut totals = sum_metric_by_label_with_fallback(
+            &samples,
+            "oxg_plugin_errors_total",
             "glyph_plugin_errors_total",
+            "plugin",
+        );
+        let event_failures = sum_metric_by_label_with_fallback(
+            &samples,
+            "oxg_plugin_event_failures_total",
             "glyph_plugin_event_failures_total",
-        ],
-        "plugin",
-    )
-    .into_iter()
-    .map(|(plugin, errors)| PluginErrorTotal { plugin, errors })
-    .collect();
+            "plugin",
+        );
+        for (plugin, count) in event_failures {
+            *totals.entry(plugin).or_insert(0.0) += count;
+        }
+        totals
+            .into_iter()
+            .map(|(plugin, errors)| PluginErrorTotal { plugin, errors })
+            .collect()
+    };
     plugin_errors.sort_by(|a, b| b.errors.partial_cmp(&a.errors).unwrap_or(Ordering::Equal));
 
     let mut cases_found = 0.0;
-    for name in [
-        "glyph_cases_total",
-        "glyph_case_reports_total",
-        "glyph_case_count",
-        "glyph_cases_emitted_total",
-        "glyph_case_findings_total",
+    for (primary, legacy) in [
+        ("oxg_cases_total", "glyph_cases_total"),
+        ("oxg_case_reports_total", "glyph_case_reports_total"),
+        ("oxg_case_count", "glyph_case_count"),
+        ("oxg_cases_emitted_total", "glyph_cases_emitted_total"),
+        ("oxg_case_findings_total", "glyph_case_findings_total"),
     ] {
-        let value = sum_metric(&samples, name);
+        let value = sum_metric_with_fallback(&samples, primary, legacy);
         if value > 0.0 {
             cases_found = value;
             break;

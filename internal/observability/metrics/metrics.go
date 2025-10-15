@@ -46,6 +46,21 @@ type histogramVec struct {
 	values map[string]*histogramValue
 }
 
+type dualCounterVec struct {
+	primary *counterVec
+	legacy  *counterVec
+}
+
+type dualGaugeVec struct {
+	primary *gaugeVec
+	legacy  *gaugeVec
+}
+
+type dualHistogramVec struct {
+	primary *histogramVec
+	legacy  *histogramVec
+}
+
 type histogramValue struct {
 	counts   []uint64
 	sum      float64
@@ -61,19 +76,19 @@ type metricExemplar struct {
 var (
 	collectors []collector
 
-	rpcRequests         = newCounterVec("glyph_rpc_requests_total", "Total number of RPC requests handled by Glyph components.", []string{"component", "method"})
-	rpcErrors           = newCounterVec("glyph_rpc_errors_total", "Total number of RPC errors emitted by Glyph components.", []string{"component", "method", "code"})
-	rpcLatency          = newHistogramVec("glyph_rpc_duration_seconds", "Latency of RPC handlers broken down by component and method.", []string{"component", "method", "code"})
-	pluginEvent         = newHistogramVec("glyph_plugin_event_duration_seconds", "Duration Glyph spends processing plugin events.", []string{"plugin", "event"})
-	pluginQueue         = newGaugeVec("glyph_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
-	activePlugs         = newGaugeVec("glyph_active_plugins", "Number of active plugin connections registered with the bus.", nil)
-	httpThrottle        = newCounterVec("glyph_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"})
-	httpBackoff         = newCounterVec("glyph_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"})
-	httpLatency         = newHistogramVec("glyph_http_request_duration_seconds", "Latency of outbound HTTP requests executed on behalf of plugins.", []string{"plugin", "capability", "method", "status"})
-	flowEvents          = newCounterVec("glyph_flow_events_total", "Number of flow events dispatched to plugins.", []string{"subscription", "variant"})
-	flowDrops           = newCounterVec("glyph_flow_events_dropped_total", "Number of flow events dropped before reaching plugins.", []string{"subscription", "reason"})
-	flowDispatchLatency = newHistogramVec("glyph_flow_dispatch_seconds", "Latency to broadcast flow events to subscribers.", []string{"subscription", "variant"})
-	flowRedactions      = newCounterVec("glyph_flow_redactions_total", "Number of sanitisation or truncation actions applied to flow payloads.", []string{"kind"})
+	rpcRequests         = newDualCounterVec("oxg_rpc_requests_total", "Total number of RPC requests handled by OxG components.", []string{"component", "method"}, "glyph_rpc_requests_total")
+	rpcErrors           = newDualCounterVec("oxg_rpc_errors_total", "Total number of RPC errors emitted by OxG components.", []string{"component", "method", "code"}, "glyph_rpc_errors_total")
+	rpcLatency          = newDualHistogramVec("oxg_rpc_duration_seconds", "Latency of RPC handlers broken down by component and method.", []string{"component", "method", "code"}, "glyph_rpc_duration_seconds")
+	pluginEvent         = newDualHistogramVec("oxg_plugin_event_duration_seconds", "Duration OxG spends processing plugin events.", []string{"plugin", "event"}, "glyph_plugin_event_duration_seconds")
+	pluginQueue         = newDualGaugeVec("oxg_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"}, "glyph_plugin_queue_length")
+	activePlugs         = newDualGaugeVec("oxg_active_plugins", "Number of active plugin connections registered with the bus.", nil, "glyph_active_plugins")
+	httpThrottle        = newDualCounterVec("oxg_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"}, "glyph_http_throttle_total")
+	httpBackoff         = newDualCounterVec("oxg_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"}, "glyph_http_backoff_total")
+	httpLatency         = newDualHistogramVec("oxg_http_request_duration_seconds", "Latency of outbound HTTP requests executed on behalf of plugins.", []string{"plugin", "capability", "method", "status"}, "glyph_http_request_duration_seconds")
+	flowEvents          = newDualCounterVec("oxg_flow_events_total", "Number of flow events dispatched to plugins.", []string{"subscription", "variant"}, "glyph_flow_events_total")
+	flowDrops           = newDualCounterVec("oxg_flow_events_dropped_total", "Number of flow events dropped before reaching plugins.", []string{"subscription", "reason"}, "glyph_flow_events_dropped_total")
+	flowDispatchLatency = newDualHistogramVec("oxg_flow_dispatch_seconds", "Latency to broadcast flow events to subscribers.", []string{"subscription", "variant"}, "glyph_flow_dispatch_seconds")
+	flowRedactions      = newDualCounterVec("oxg_flow_redactions_total", "Number of sanitisation or truncation actions applied to flow payloads.", []string{"kind"}, "glyph_flow_redactions_total")
 
 	totalRequests uint64
 )
@@ -82,12 +97,30 @@ func init() {
 	collectors = []collector{rpcRequests, rpcErrors, rpcLatency, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff, httpLatency, flowEvents, flowDrops, flowDispatchLatency, flowRedactions}
 }
 
+func deprecatedHelp(help string) string {
+	return "(DEPRECATED) " + help
+}
+
 func newCounterVec(name, help string, labels []string) *counterVec {
 	return &counterVec{name: name, help: help, labels: labels, values: make(map[string]float64)}
 }
 
+func newDualCounterVec(name, help string, labels []string, legacyName string) *dualCounterVec {
+	return &dualCounterVec{
+		primary: newCounterVec(name, help, labels),
+		legacy:  newCounterVec(legacyName, deprecatedHelp(help), labels),
+	}
+}
+
 func newGaugeVec(name, help string, labels []string) *gaugeVec {
 	return &gaugeVec{name: name, help: help, labels: labels, values: make(map[string]float64)}
+}
+
+func newDualGaugeVec(name, help string, labels []string, legacyName string) *dualGaugeVec {
+	return &dualGaugeVec{
+		primary: newGaugeVec(name, help, labels),
+		legacy:  newGaugeVec(legacyName, deprecatedHelp(help), labels),
+	}
 }
 
 func newHistogramVec(name, help string, labels []string) *histogramVec {
@@ -98,6 +131,13 @@ func newHistogramVec(name, help string, labels []string) *histogramVec {
 		labels:  labels,
 		buckets: buckets,
 		values:  make(map[string]*histogramValue),
+	}
+}
+
+func newDualHistogramVec(name, help string, labels []string, legacyName string) *dualHistogramVec {
+	return &dualHistogramVec{
+		primary: newHistogramVec(name, help, labels),
+		legacy:  newHistogramVec(legacyName, deprecatedHelp(help), labels),
 	}
 }
 
@@ -117,6 +157,21 @@ func (cv *counterVec) IncWith(values ...string) {
 
 func (cv *counterVec) AddWith(delta float64, values ...string) {
 	cv.add(delta, values...)
+}
+
+func (dcv *dualCounterVec) IncWith(values ...string) {
+	dcv.primary.IncWith(values...)
+	dcv.legacy.IncWith(values...)
+}
+
+func (dcv *dualCounterVec) AddWith(delta float64, values ...string) {
+	dcv.primary.AddWith(delta, values...)
+	dcv.legacy.AddWith(delta, values...)
+}
+
+func (dcv *dualCounterVec) write(sb *strings.Builder) {
+	dcv.primary.write(sb)
+	dcv.legacy.write(sb)
 }
 
 func (cv *counterVec) write(sb *strings.Builder) {
@@ -167,6 +222,21 @@ func (gv *gaugeVec) Delete(values ...string) {
 	gv.mu.Lock()
 	delete(gv.values, key)
 	gv.mu.Unlock()
+}
+
+func (dgv *dualGaugeVec) Set(values []string, v float64) {
+	dgv.primary.Set(values, v)
+	dgv.legacy.Set(values, v)
+}
+
+func (dgv *dualGaugeVec) Delete(values ...string) {
+	dgv.primary.Delete(values...)
+	dgv.legacy.Delete(values...)
+}
+
+func (dgv *dualGaugeVec) write(sb *strings.Builder) {
+	dgv.primary.write(sb)
+	dgv.legacy.write(sb)
 }
 
 func (gv *gaugeVec) write(sb *strings.Builder) {
@@ -316,6 +386,21 @@ func (hv *histogramVec) write(sb *strings.Builder) {
 		sb.WriteString(fmt.Sprintf(" %d\n", entry.total))
 	}
 	hv.mu.RUnlock()
+}
+
+func (dhv *dualHistogramVec) Observe(values []string, sample float64) {
+	dhv.primary.Observe(values, sample)
+	dhv.legacy.Observe(values, sample)
+}
+
+func (dhv *dualHistogramVec) ObserveWithContext(ctx context.Context, values []string, sample float64) {
+	dhv.primary.ObserveWithContext(ctx, values, sample)
+	dhv.legacy.ObserveWithContext(ctx, values, sample)
+}
+
+func (dhv *dualHistogramVec) write(sb *strings.Builder) {
+	dhv.primary.write(sb)
+	dhv.legacy.write(sb)
 }
 
 func writeHeader(sb *strings.Builder, name, help, metricType string) {

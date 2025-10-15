@@ -45,7 +45,7 @@ This document outlines the design for enabling 0xgen to operate as an intercepti
 ### Flow sanitisation & plugin delivery
 - The proxy emits a sanitized flow stream by default, redacting sensitive headers (cookies, auth tokens, API keys) and replacing bodies with `[REDACTED body length=n sha256=digest]` so plugins can still correlate payloads without access to raw content. Plugins subscribe via `FLOW_REQUEST` / `FLOW_RESPONSE` and must declare `CAP_FLOW_INSPECT`.
 - Plugins with `CAP_FLOW_INSPECT_RAW` may opt into raw events using `FLOW_REQUEST_RAW` / `FLOW_RESPONSE_RAW`. The host enforces capability checks at handshake and records drops when plugin queues back up.
-- Sanitized and raw deliveries are counted via `glyph_flow_events_total` and `glyph_flow_events_dropped_total` metrics, allowing operators to monitor throughput and backpressure.
+- Sanitized and raw deliveries are counted via `oxg_flow_events_total` and `oxg_flow_events_dropped_total` metrics (with deprecated `glyph_*` aliases), allowing operators to monitor throughput and backpressure.
 - Scope policies parsed from YAML (see `--scope-policy`) suppress out-of-scope flows before they reach plugins, ensuring redaction rules align with bounty constraints.
 
 ### Flow sampling, truncation, and replay
@@ -59,9 +59,9 @@ This document outlines the design for enabling 0xgen to operate as an intercepti
 - Flow ordering remains deterministic via monotonically increasing sequence numbers coupled with the configured seed. The `Seeds` manifest map now includes a `flows` entry when glyphd publishes the seed used during capture.
 
 ### Telemetry additions
-- `glyph_flow_dispatch_seconds` tracks broadcast latency for sanitized and raw subscriptions independently, complementing the existing event counters.
-- `glyph_flow_redactions_total` exposes how often the proxy redacts or truncates payloads, split by redaction kind (e.g., `body`, `raw_truncated`).
-- Per-plugin queue depth is still exported via `glyph_plugin_queue_length`, making it easy to spot slow consumers alongside the new flow metrics.
+- `oxg_flow_dispatch_seconds` tracks broadcast latency for sanitized and raw subscriptions independently, complementing the existing event counters (`glyph_*` aliases remain temporarily).
+- `oxg_flow_redactions_total` exposes how often the proxy redacts or truncates payloads, split by redaction kind (e.g., `body`, `raw_truncated`).
+- Per-plugin queue depth is still exported via `oxg_plugin_queue_length`, making it easy to spot slow consumers alongside the new flow metrics.
 
 ### Logging & Audit
 - Persist intercepted flows (requests/responses, edits, approvals) in a new `intercepts.db` SQLite database.
