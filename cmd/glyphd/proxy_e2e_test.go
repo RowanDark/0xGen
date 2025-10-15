@@ -60,7 +60,7 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	t.Cleanup(upstream.Close)
 
 	rulesPath := filepath.Join(outDir, "rules.json")
-	rules := `[{"name":"demo-rule","match":{"url_contains":"/demo"},"request":{"add_headers":{"X-Glyph":"on"}},"response":{"add_headers":{"X-Glyph-Proxy":"active"},"remove_headers":["Server"]}}]`
+	rules := `[{"name":"demo-rule","match":{"url_contains":"/demo"},"request":{"add_headers":{"X-0xgen":"on"}},"response":{"add_headers":{"X-0xgen-Proxy":"active"},"remove_headers":["Server"]}}]`
 	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
 		t.Fatalf("write rules: %v", err)
 	}
@@ -116,8 +116,11 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	if got := resp.Header.Get("X-Glyph-Proxy"); got != "active" {
+	if got := resp.Header.Get("X-0xgen-Proxy"); got != "active" {
 		t.Fatalf("expected response header to be rewritten, got %q", got)
+	}
+	if legacy := resp.Header.Get("X-Glyph-Proxy"); legacy != "" {
+		t.Fatalf("expected legacy proxy header to be absent, got %q", legacy)
 	}
 	if resp.Header.Get("Server") != "" {
 		t.Fatal("expected Server header to be stripped")
@@ -125,8 +128,11 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 
 	select {
 	case hdr := <-received:
-		if hdr.Get("X-Glyph") != "on" {
+		if hdr.Get("X-0xgen") != "on" {
 			t.Fatalf("upstream request missing injected header: %#v", hdr)
+		}
+		if legacy := hdr.Get("X-Glyph"); legacy != "" {
+			t.Fatalf("upstream request should not include legacy header: %#v", hdr)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("upstream request not observed")
@@ -179,8 +185,11 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	if len(entry.MatchedRules) == 0 || entry.MatchedRules[0] != "demo-rule" {
 		t.Fatalf("history missing rule reference: %#v", entry.MatchedRules)
 	}
-	if values := entry.RequestHeaders["X-Glyph"]; len(values) == 0 || values[0] != "on" {
+	if values := entry.RequestHeaders["X-0xgen"]; len(values) == 0 || values[0] != "on" {
 		t.Fatalf("history missing request header injection: %#v", entry.RequestHeaders)
+	}
+	if _, ok := entry.RequestHeaders["X-Glyph"]; ok {
+		t.Fatalf("history should not contain legacy request header: %#v", entry.RequestHeaders)
 	}
 	if _, ok := entry.ResponseHeaders["Server"]; ok {
 		t.Fatalf("history still contains stripped Server header: %#v", entry.ResponseHeaders)

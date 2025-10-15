@@ -79,6 +79,35 @@ func (r *recordingPublisher) snapshot() []recordedFlow {
 	return out
 }
 
+type logCaptureHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *logCaptureHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *logCaptureHandler) Handle(_ context.Context, record slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, record.Clone())
+	return nil
+}
+
+func (h *logCaptureHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+
+func (h *logCaptureHandler) WithGroup(string) slog.Handler { return h }
+
+func (h *logCaptureHandler) contains(level slog.Level, substr string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, rec := range h.records {
+		if rec.Level == level && strings.Contains(rec.Message, substr) {
+			return true
+		}
+	}
+	return false
+}
+
 func expectedRedactedBody(body string) string {
 	sum := sha256.Sum256([]byte(body))
 	return fmt.Sprintf("[REDACTED body length=%d sha256=%s]", len(body), hex.EncodeToString(sum[:]))
@@ -126,7 +155,7 @@ func TestProxyEndToEndHeaderRewrite(t *testing.T) {
 	t.Cleanup(upstream.Close)
 
 	tempDir := t.TempDir()
-	rules := `[{"name":"demo-rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-Glyph":"on","Content-Security-Policy":"default-src 'self'"},"remove_headers":["Server"]}}]`
+	rules := `[{"name":"demo-rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-0xgen":"on","Content-Security-Policy":"default-src 'self'"},"remove_headers":["Server"]}}]`
 	rulesPath := filepath.Join(tempDir, "rules.json")
 	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
 		t.Fatalf("write rules: %v", err)
@@ -171,8 +200,11 @@ func TestProxyEndToEndHeaderRewrite(t *testing.T) {
 	_, _ = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	if got := resp.Header.Get("X-Glyph"); got != "on" {
+	if got := resp.Header.Get("X-0xgen"); got != "on" {
 		t.Fatalf("expected injected header, got %q", got)
+	}
+	if legacy := resp.Header.Get("X-Glyph"); legacy != "" {
+		t.Fatalf("expected legacy header to be absent, got %q", legacy)
 	}
 	if got := resp.Header.Get("Content-Security-Policy"); got != "default-src 'self'" {
 		t.Fatalf("csp header = %q", got)
@@ -207,11 +239,187 @@ func TestProxyEndToEndHeaderRewrite(t *testing.T) {
 	if !contains(entry.MatchedRules, "demo-rewrite") {
 		t.Fatalf("history missing rule reference: %#v", entry.MatchedRules)
 	}
-	if headerValues := entry.ResponseHeaders["X-Glyph"]; len(headerValues) == 0 || headerValues[0] != "on" {
+	if headerValues := entry.ResponseHeaders["X-0xgen"]; len(headerValues) == 0 || headerValues[0] != "on" {
 		t.Fatalf("history missing rewritten header")
+	}
+	if _, exists := entry.ResponseHeaders["X-Glyph"]; exists {
+		t.Fatal("history should not include legacy header")
 	}
 	if _, exists := entry.ResponseHeaders["Server"]; exists {
 		t.Fatal("history should not include stripped server header")
+	}
+}
+
+func TestProxyAcceptsLegacyHeaders(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	rules := `[{"name":"legacy","match":{"url_contains":"/"},"response":{"add_headers":{"X-Glyph-Proxy":"legacy"}}}]`
+	rulesPath := filepath.Join(tempDir, "rules.json")
+	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
+		t.Fatalf("write rules: %v", err)
+	}
+
+	historyPath := filepath.Join(tempDir, "history.jsonl")
+	handler := &logCaptureHandler{}
+	cfg := Config{
+		Addr:        "127.0.0.1:0",
+		RulesPath:   rulesPath,
+		HistoryPath: historyPath,
+		CACertPath:  filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:   filepath.Join(tempDir, "ca.key"),
+		Logger:      slog.New(handler),
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	resp, err := client.Get(upstream.URL)
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	if got := resp.Header.Get("X-0xgen-Proxy"); got != "legacy" {
+		t.Fatalf("expected modern header, got %q", got)
+	}
+	if legacy := resp.Header.Get("X-Glyph-Proxy"); legacy != "" {
+		t.Fatalf("legacy header should not be emitted by default, got %q", legacy)
+	}
+
+	cancel()
+	waitErr(t, errCh)
+
+	data, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("read history: %v", err)
+	}
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		t.Fatal("history file empty")
+	}
+	var entry HistoryEntry
+	if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
+		t.Fatalf("decode history: %v", err)
+	}
+	if headers := entry.ResponseHeaders["X-0xgen-Proxy"]; len(headers) == 0 || headers[0] != "legacy" {
+		t.Fatalf("history missing modern header: %#v", entry.ResponseHeaders)
+	}
+	if _, exists := entry.ResponseHeaders["X-Glyph-Proxy"]; exists {
+		t.Fatalf("history should not record legacy header: %#v", entry.ResponseHeaders)
+	}
+	if !handler.contains(slog.LevelWarn, "legacy X-Glyph header") {
+		t.Fatal("expected legacy header warning to be logged")
+	}
+}
+
+func TestProxyEmitsLegacyHeadersWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	tempDir := t.TempDir()
+	rules := `[{"name":"dual","match":{"url_contains":"/"},"response":{"add_headers":{"X-0xgen-Proxy":"dual"}}}]`
+	rulesPath := filepath.Join(tempDir, "rules.json")
+	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
+		t.Fatalf("write rules: %v", err)
+	}
+
+	historyPath := filepath.Join(tempDir, "history.jsonl")
+	cfg := Config{
+		Addr:        "127.0.0.1:0",
+		RulesPath:   rulesPath,
+		HistoryPath: historyPath,
+		CACertPath:  filepath.Join(tempDir, "ca.pem"),
+		CAKeyPath:   filepath.Join(tempDir, "ca.key"),
+		Logger:      newTestLogger(),
+		Flow:        FlowCaptureConfig{EmitLegacyHeaders: true},
+	}
+
+	proxy, err := New(cfg)
+	if err != nil {
+		t.Fatalf("new proxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- proxy.Run(ctx)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if err := proxy.WaitUntilReady(readyCtx); err != nil {
+		t.Fatalf("proxy not ready: %v", err)
+	}
+
+	proxyURL, _ := url.Parse("http://" + proxy.Addr())
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	resp, err := client.Get(upstream.URL)
+	if err != nil {
+		t.Fatalf("http request via proxy: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+
+	if got := resp.Header.Get("X-0xgen-Proxy"); got != "dual" {
+		t.Fatalf("expected modern header, got %q", got)
+	}
+	if legacy := resp.Header.Get("X-Glyph-Proxy"); legacy != "dual" {
+		t.Fatalf("expected legacy header duplication, got %q", legacy)
+	}
+
+	cancel()
+	waitErr(t, errCh)
+
+	data, err := os.ReadFile(historyPath)
+	if err != nil {
+		t.Fatalf("read history: %v", err)
+	}
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		t.Fatal("history file empty")
+	}
+	var entry HistoryEntry
+	if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
+		t.Fatalf("decode history: %v", err)
+	}
+	if headers := entry.ResponseHeaders["X-0xgen-Proxy"]; len(headers) == 0 || headers[0] != "dual" {
+		t.Fatalf("history missing modern header: %#v", entry.ResponseHeaders)
+	}
+	if _, exists := entry.ResponseHeaders["X-Glyph-Proxy"]; exists {
+		t.Fatalf("history should not duplicate legacy header: %#v", entry.ResponseHeaders)
 	}
 }
 
@@ -442,8 +650,11 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if !strings.Contains(sanitizedReq, "X-Api-Key: [REDACTED]") && !strings.Contains(sanitizedReq, "X-API-KEY: [REDACTED]") {
 		t.Fatalf("sanitized request api key not redacted: %q", sanitizedReq)
 	}
-	if !strings.Contains(sanitizedReq, "X-Glyph-Body-Redacted: 14") {
+	if !strings.Contains(sanitizedReq, "X-0xgen-Body-Redacted: 14") {
 		t.Fatalf("sanitized request missing body metadata: %q", sanitizedReq)
+	}
+	if strings.Contains(sanitizedReq, "X-Glyph-Body-Redacted") {
+		t.Fatalf("sanitized request still includes legacy header: %q", sanitizedReq)
 	}
 	if !strings.Contains(sanitizedReq, expectedRedactedBody("sensitive-body")) {
 		t.Fatalf("sanitized request body placeholder missing: %q", sanitizedReq)
@@ -478,8 +689,11 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if !strings.Contains(sanitizedResp, "Set-Cookie: session=<redacted>; HttpOnly") {
 		t.Fatalf("sanitized response cookie not redacted: %q", sanitizedResp)
 	}
-	if !strings.Contains(sanitizedResp, "X-Glyph-Body-Redacted: 7") {
+	if !strings.Contains(sanitizedResp, "X-0xgen-Body-Redacted: 7") {
 		t.Fatalf("sanitized response missing body metadata: %q", sanitizedResp)
+	}
+	if strings.Contains(sanitizedResp, "X-Glyph-Body-Redacted") {
+		t.Fatalf("sanitized response still includes legacy header: %q", sanitizedResp)
 	}
 	if !strings.Contains(sanitizedResp, expectedRedactedBody("payload")) {
 		t.Fatalf("sanitized response body placeholder missing: %q", sanitizedResp)

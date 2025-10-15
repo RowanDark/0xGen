@@ -41,7 +41,7 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	caCertPath := filepath.Join(tempDir, "proxy_ca.pem")
 	caKeyPath := filepath.Join(tempDir, "proxy_ca.key")
 
-	rules := `[{"name":"rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-Glyph":"on"},"remove_headers":["Server"]}}]`
+	rules := `[{"name":"rewrite","match":{"url_contains":"/"},"response":{"add_headers":{"X-0xgen":"on"},"remove_headers":["Server"]}}]`
 	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
 		t.Fatalf("write rules: %v", err)
 	}
@@ -113,8 +113,11 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: %d", resp.StatusCode)
 	}
-	if got := resp.Header.Get("X-Glyph"); got != "on" {
-		t.Fatalf("expected X-Glyph header, got %q\nbody: %s", got, string(body))
+	if got := resp.Header.Get("X-0xgen"); got != "on" {
+		t.Fatalf("expected X-0xgen header, got %q\nbody: %s", got, string(body))
+	}
+	if legacy := resp.Header.Get("X-Glyph"); legacy != "" {
+		t.Fatalf("expected legacy header to be absent, got %q", legacy)
 	}
 	if got := resp.Header.Get("Server"); got != "" {
 		t.Fatalf("expected Server header stripped, got %q", got)
@@ -154,8 +157,11 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	if entry.Timestamp.IsZero() {
 		t.Fatalf("history timestamp missing: %+v", entry)
 	}
-	if headers := entry.ResponseHeaders["X-Glyph"]; len(headers) == 0 || headers[0] != "on" {
+	if headers := entry.ResponseHeaders["X-0xgen"]; len(headers) == 0 || headers[0] != "on" {
 		t.Fatalf("history missing rewritten header: %+v", entry.ResponseHeaders)
+	}
+	if _, exists := entry.ResponseHeaders["X-Glyph"]; exists {
+		t.Fatalf("history should not record legacy header: %+v", entry.ResponseHeaders)
 	}
 	if _, exists := entry.ResponseHeaders["Server"]; exists {
 		t.Fatalf("history should not record stripped server header: %+v", entry.ResponseHeaders)

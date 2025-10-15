@@ -27,7 +27,7 @@ Key files are written beneath `/out` by default:
 | CA private key | `/out/galdr_proxy_ca.key` | Used to mint leaf certificates for intercepted hosts |
 | History log | `/out/proxy_history.jsonl` | JSONL file containing every intercepted request/response |
 
-Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `--proxy-ca-key` to override the defaults. For a quick-start ruleset, copy `examples/rules.example.json` into your output directory and point `--proxy-rules` at the copied file. The example injects an `X-Glyph: on` response header, strips the upstream `Server` banner, and rewrites the content-security policy so you can immediately verify changes in a browser.
+Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `--proxy-ca-key` to override the defaults. For a quick-start ruleset, copy `examples/rules.example.json` into your output directory and point `--proxy-rules` at the copied file. The example injects an `X-0xgen: on` response header, strips the upstream `Server` banner, and rewrites the content-security policy so you can immediately verify changes in a browser.
 
 ### Install the Galdr CA
 
@@ -107,7 +107,7 @@ glyphctl repeater send \
 Example entry:
 
 ```json
-{"timestamp":"2024-01-01T12:00:00Z","client_ip":"127.0.0.1","protocol":"http","method":"GET","url":"https://example.com/demo","status_code":200,"latency_ms":42,"request_size_bytes":128,"response_size_bytes":512,"request_headers":{"X-Glyph":["on"]},"response_headers":{"X-Glyph-Proxy":["active"]},"matched_rules":["demo-rule"]}
+{"timestamp":"2024-01-01T12:00:00Z","client_ip":"127.0.0.1","protocol":"http","method":"GET","url":"https://example.com/demo","status_code":200,"latency_ms":42,"request_size_bytes":128,"response_size_bytes":512,"request_headers":{"X-0xgen":["on"]},"response_headers":{"X-0xgen-Proxy":["active"]},"matched_rules":["demo-rule"]}
 ```
 
 ### WebSocket traffic

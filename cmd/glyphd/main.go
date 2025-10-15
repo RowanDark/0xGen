@@ -62,6 +62,7 @@ func main() {
 	maxBodyKB := flag.Int("max-body-kb", 128, "maximum raw body kilobytes to include in flow events (-1 disables raw bodies)")
 	proxyFlowSeed := flag.Int64("proxy-flow-seed", 0, "seed used to deterministically order flow identifiers (default random)")
 	proxyFlowLog := flag.String("proxy-flow-log", "", "path to write sanitized flow transcripts for replay (defaults next to proxy history)")
+	proxyEmitLegacy := flag.Bool("proxy-emit-legacy-headers", false, "emit deprecated X-Glyph-* headers alongside X-0xgen-* responses")
 	scopePolicy := flag.String("scope-policy", "", "path to YAML scope policy used to suppress out-of-scope flows")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
@@ -109,11 +110,12 @@ func main() {
 			CACertPath:  *proxyCACert,
 			CAKeyPath:   *proxyCAKey,
 			Flow: proxy.FlowCaptureConfig{
-				Enabled:      *proxyFlowEnabled,
-				SampleRate:   sampleRate,
-				MaxBodyBytes: maxBodyBytes,
-				Seed:         *proxyFlowSeed,
-				LogPath:      strings.TrimSpace(*proxyFlowLog),
+				Enabled:           *proxyFlowEnabled,
+				SampleRate:        sampleRate,
+				MaxBodyBytes:      maxBodyBytes,
+				Seed:              *proxyFlowSeed,
+				LogPath:           strings.TrimSpace(*proxyFlowLog),
+				EmitLegacyHeaders: *proxyEmitLegacy,
 			},
 		},
 		enableProxy:       *enableProxy,
