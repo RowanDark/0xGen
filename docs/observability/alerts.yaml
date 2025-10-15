@@ -1,7 +1,7 @@
 groups:
-  - name: glyph-observability
+  - name: 0xgen-observability
     rules:
-      - alert: GlyphPluginLatencyCritical
+      - alert: 0xgenPluginLatencyCritical
         expr: histogram_quantile(0.95, sum(rate(glyph_plugin_event_duration_seconds_bucket[5m])) by (le, plugin)) > 5
         for: 3m
         labels:
@@ -9,10 +9,10 @@ groups:
         annotations:
           summary: "Plugin {{ $labels.plugin }} processing is slow"
           description: |
-            Glyph has spent more than 5 seconds (p95) handling plugin events for
+            0xgen has spent more than 5 seconds (p95) handling plugin events for
             {{ $labels.plugin }} during the last 5 minutes. Investigate plugin logs and traces
             for long-running EventStream handlers.
-      - alert: GlyphHTTPFailureRate
+      - alert: 0xgenHTTPFailureRate
         expr: sum(rate(glyph_http_backoff_total[5m])) by (plugin) / sum(rate(glyph_http_request_duration_seconds_count[5m])) by (plugin) > 0.2
         for: 5m
         labels:
@@ -22,7 +22,7 @@ groups:
           description: |
             More than 20% of proxied HTTP requests for {{ $labels.plugin }} have resulted
             in backoff-triggering responses during the last 5 minutes.
-      - alert: GlyphQueueBackpressure
+      - alert: 0xgenQueueBackpressure
         expr: max_over_time(glyph_plugin_queue_length[2m]) > 80
         for: 2m
         labels:

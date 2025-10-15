@@ -14,7 +14,7 @@ Cryptographer is a CyberChef-inspired utility surface for quickly transforming p
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | TypeScript |
 | Last updated | Sep 30, 2025 |
 

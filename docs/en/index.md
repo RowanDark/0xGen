@@ -6,17 +6,19 @@ telemetry into ranked findings and human-readable reports. This site consolidate
 operational and contributor documentation that previously lived in scattered Markdown
 files.
 
+_History note: 0xgen was formerly named Glyph._
+
 Use the navigation sidebar to explore:
 
 - **Quickstart** – run the five-minute demo pipeline and inspect the generated
   artifacts.
 - **Plugins** – understand the plugin runtime model and build new detectors with the
   SDK.
-- **CLI** – drive Glyph from the `glyphctl` command-line interface and tailor the
+- **CLI** – drive 0xgen from the `glyphctl` command-line interface and tailor the
   runtime configuration.
 - **Developer Guide** – set up a development environment, run the test suite, and ship
   changes confidently.
-- **Security** – review Glyph's threat model, provenance guarantees, and vulnerability
+- **Security** – review 0xgen's threat model, provenance guarantees, and vulnerability
   reporting process.
 
 If you are just getting started, the [Quickstart](quickstart.md#getting-started) walkthrough is the best

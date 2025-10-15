@@ -1,6 +1,6 @@
 # Build Provenance
 
-Glyph publishes SLSA v3 provenance for both the release binaries and the
+0xgen publishes SLSA v3 provenance for both the release binaries and the
 container image that ships with each tagged release. Provenance answers the
 question "what trusted automation produced this artifact?" and allows you to
 verify that code downloaded from GitHub was built by the official project
@@ -36,7 +36,7 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
 
    Replace the artifact path with the archive you downloaded. A successful
    verification proves the archive was produced by the tagged commit through
-   Glyph's release workflow.
+   0xgen's release workflow.
 
 ## Container image {#container-image}
 
@@ -53,7 +53,7 @@ slsa-verifier verify-image \
 ```
 
 The verifier will confirm the digest matches the provenance and that the image
-was produced by Glyph's trusted container workflow. Replace the image reference
+was produced by 0xgen's trusted container workflow. Replace the image reference
 and provenance name with the assets from the release you are checking.
 
 When both verifications succeed you gain high confidence that the downloaded

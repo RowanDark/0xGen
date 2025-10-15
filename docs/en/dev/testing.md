@@ -1,6 +1,6 @@
 # Running the Go test suite locally
 
-Glyph's Go packages include integration-heavy suites that compile helper
+0xgen's Go packages include integration-heavy suites that compile helper
 binaries and spawn subprocesses. When running `go test ./...` on constrained
 Linux containers or CI runners with strict thread limits, the
 `internal/plugins/runner` package tends to exhaust the available pthread quota

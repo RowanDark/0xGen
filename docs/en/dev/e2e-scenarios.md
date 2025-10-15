@@ -1,6 +1,6 @@
 # E2E Scenario Suite
 
-Glyph ships an end-to-end scenario harness that exercises the full stack against
+0xgen ships an end-to-end scenario harness that exercises the full stack against
 realistic, well-known training targets. The goal is to ensure that critical
 regressions in detection, proxying, or reporting are caught before a release.
 

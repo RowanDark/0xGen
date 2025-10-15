@@ -1,6 +1,6 @@
 # Ejecución de la batería de pruebas Go en local
 
-Los paquetes Go de Glyph incluyen pruebas de integración que compilan binarios
+Los paquetes Go de 0xgen incluyen pruebas de integración que compilan binarios
 auxiliares y crean subprocesos. Al ejecutar `go test ./...` en contenedores de
 Linux con pocos recursos o en ejecutores de CI con límites estrictos de hilos,
 el paquete `internal/plugins/runner` puede agotar la cuota de pthread disponible

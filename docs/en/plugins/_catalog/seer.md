@@ -14,7 +14,7 @@ Seer inspects passive telemetry to spot anomalies and suspicious behaviors befor
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | Go |
 | Last updated | Oct 03, 2025 |
 

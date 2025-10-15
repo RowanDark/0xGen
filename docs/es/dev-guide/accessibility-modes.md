@@ -1,6 +1,6 @@
 # Modos de accesibilidad
 
-Glyph incluye herramientas para simular deficiencias visuales y reducir la luz azul directamente desde la barra superior.
+0xgen incluye herramientas para simular deficiencias visuales y reducir la luz azul directamente desde la barra superior.
 
 ## Simulación de daltonismo
 

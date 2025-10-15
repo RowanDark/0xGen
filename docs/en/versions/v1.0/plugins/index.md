@@ -1,19 +1,19 @@
 # Plugin Author Guide
 
-Glyph plugins are Go binaries that connect to the platform over gRPC using the SDK
+0xgen plugins are Go binaries that connect to the platform over gRPC using the SDK
 provided in [`sdk/plugin-sdk`]({{ config.repo_url }}/tree/main/sdk/plugin-sdk). This guide documents the
 lifecycle hooks exposed by the runtime, the capabilities that can be requested in a
 manifest, and the rules for emitting JSONL findings safely.
 
 ## Plugin Roster {#plugin-roster}
 
-The following plugins form the foundation of the Glyph platform. Each directory
+The following plugins form the foundation of the 0xgen platform. Each directory
 under `plugins/` contains a manifest, implementation, documentation, and test
 fixtures to accelerate future development.
 
 | Plugin | Description |
 | ------ | ----------- |
-| `galdr-proxy` | Proxy ingress layer that streams HTTP flows into Glyph for collaborative analysis. |
+| `galdr-proxy` | Proxy ingress layer that streams HTTP flows into 0xgen for collaborative analysis. |
 | `cartographer` | Surface mapper that catalogs hosts, endpoints, and assets discovered across crawlers. |
 | `excavator` | Playwright-powered crawler starter that captures links and scripts from target applications. |
 | `raider` | Active testing coordinator that executes offensive playbooks against prioritized targets. |
@@ -40,7 +40,7 @@ fixtures to accelerate future development.
 3. Run `go test ./...` frequently to execute plugin unit tests alongside the rest
    of the repository. The example plugin test shows how to stand up the
    in-memory broker exposed by [`sdk/plugin-sdk`]({{ config.repo_url }}/tree/main/sdk/plugin-sdk)
-   so findings can be asserted without a full Glyph deployment.
+   so findings can be asserted without a full 0xgen deployment.
 
 ## Lifecycle hooks {#lifecycle-hooks}
 
@@ -82,19 +82,19 @@ missing or the plugin requests undeclared privileges.
 | `CAP_HTTP_PASSIVE` | Streams passive HTTP flow events into the plugin. Required when registering `OnHTTPPassive`. |
 | `CAP_HTTP_ACTIVE` | Grants access to active HTTP helpers exposed by `internal/netgate` for probe-style plugins. |
 | `CAP_WS` | Enables WebSocket interaction primitives for realtime protocol analysis. |
-| `CAP_SPIDER` | Permits scheduling crawl jobs through the Glyph spider/queue components. |
+| `CAP_SPIDER` | Permits scheduling crawl jobs through the 0xgen spider/queue components. |
 | `CAP_REPORT` | Allows plugins to submit rendered reports that downstream tooling (for example `scribe`) can publish. |
 | `CAP_STORAGE` | Grants access to managed storage buckets for large artefacts or binary blobs. |
 | `CAP_FLOW_INSPECT` | Enables subscriptions to sanitized HTTP flow events (`FLOW_REQUEST`, `FLOW_RESPONSE`). Sensitive headers and bodies are redacted unless explicitly allowed by program scope, with redacted bodies replaced by `[REDACTED body length=n sha256=digest]`. |
 | `CAP_FLOW_INSPECT_RAW` | Grants access to raw HTTP flow events (`FLOW_REQUEST_RAW`, `FLOW_RESPONSE_RAW`). Requires `CAP_FLOW_INSPECT` and delivers unredacted payloads for forensic tooling. |
 
 > **Note**
-> Sanitized events include placeholders and the `X-Glyph-Body-Redacted` header when payloads are removed. The placeholder embeds a SHA-256 digest so sanitized consumers can correlate flows without seeing secrets. Raw events honour `--max-body-kb`; truncated payloads receive an `X-Glyph-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect partial content and verify integrity.
+> Sanitized events include placeholders and the `X-0xgen-Body-Redacted` header when payloads are removed. The placeholder embeds a SHA-256 digest so sanitized consumers can correlate flows without seeing secrets. Raw events honour `--max-body-kb`; truncated payloads receive an `X-0xgen-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect partial content and verify integrity.
 
 Only request capabilities the plugin actively needs. The manifest validator under
 `hack/validate_manifests.sh` enforces the whitelist above.
 
-Flow subscriptions use uppercase identifiers in the runtime handshake. Sanitized streams are exposed via `FLOW_REQUEST` and `FLOW_RESPONSE`, while raw byte-for-byte payloads are available through `FLOW_REQUEST_RAW` and `FLOW_RESPONSE_RAW`. Plugins requesting either stream without the corresponding capability are rejected during the handshake. Sanitized flows retain metadata but replace secrets with placeholders and include the `X-Glyph-Body-Redacted` header to convey original body length.
+Flow subscriptions use uppercase identifiers in the runtime handshake. Sanitized streams are exposed via `FLOW_REQUEST` and `FLOW_RESPONSE`, while raw byte-for-byte payloads are available through `FLOW_REQUEST_RAW` and `FLOW_RESPONSE_RAW`. Plugins requesting either stream without the corresponding capability are rejected during the handshake. Sanitized flows retain metadata but replace secrets with placeholders and include the `X-0xgen-Body-Redacted` header to convey original body length.
 
 ## Emitting findings {#emitting-findings}
 
@@ -134,4 +134,4 @@ before distribution.
   tokens.
 
 Following these practices keeps plugins responsive, observable, and safe to run in
-shared Glyph deployments.
+shared 0xgen deployments.

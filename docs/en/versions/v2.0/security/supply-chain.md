@@ -1,6 +1,6 @@
 # Supply-Chain Hardening
 
-Glyph's CI pipelines enforce dependency hygiene, generate a software bill of
+0xgen's CI pipelines enforce dependency hygiene, generate a software bill of
 materials (SBOM), and sign every published artifact. This page documents the
 controls and the steps operators can take to validate them independently.
 
@@ -78,7 +78,7 @@ plugin is compiled or executed. Each official plugin ships with:
 
 - `<artifact>.sig` – a base64-encoded ECDSA signature generated via `cosign
   sign-blob`.
-- `plugins/keys/glyph-plugin.pub` – the public key maintained by the Glyph team.
+- `plugins/keys/glyph-plugin.pub` – the public key maintained by the 0xgen team.
 
 Plugin manifests reference these files and CI ensures they stay in sync with the
 recorded hashes. To verify manually:
@@ -91,7 +91,7 @@ cosign verify-blob \
 ```
 
 You can rotate the signing key by updating the public key, regenerating the
-signatures, and adjusting the manifests. Glyph refuses to run a plugin when the
+signatures, and adjusting the manifests. 0xgen refuses to run a plugin when the
 signature is missing or invalid.
 
 ## Trust chain summary {#trust-chain-summary}

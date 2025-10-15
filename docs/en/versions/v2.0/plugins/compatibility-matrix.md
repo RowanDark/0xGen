@@ -1,16 +1,16 @@
 ---
 title: Plugin Compatibility Matrix
-description: Understand which plugin versions work with each Glyph core release.
+description: Understand which plugin versions work with each 0xgen core release.
 ---
 
 # Plugin compatibility matrix
 
-The table below maps every supported plugin release to the Glyph core versions it
+The table below maps every supported plugin release to the 0xgen core versions it
 supports. Compatibility testing runs as part of the release pipeline—plugins are
 only published after their integration suite has passed against the targeted
 core versions.
 
-| Plugin | Latest version | Glyph v1.0 | Glyph v1.1 | Glyph v2.0 |
+| Plugin | Latest version | 0xgen v1.0 | 0xgen v1.1 | 0xgen v2.0 |
 | ------ | -------------- | ---------- | ---------- | ---------- |
 | Cartographer | `0.1.0` | ✅ 1.0.0+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
 | Cryptographer | `0.1.0` | ✅ 1.0.2+ | ✅ 1.1.0+ | ✅ 2.0.0+ |
@@ -25,20 +25,20 @@ core versions.
 
 ## Legend
 
-- ✅ — Fully compatible with the specified Glyph release.
+- ✅ — Fully compatible with the specified 0xgen release.
 - ⚠️ — Supported with caveats documented in the plugin README.
-- ❌ — Not compatible with that Glyph release.
+- ❌ — Not compatible with that 0xgen release.
 
 ## Version constraints
 
-- **Glyph v1.0** introduced the initial plugin runtime. Plugins that rely on
+- **0xgen v1.0** introduced the initial plugin runtime. Plugins that rely on
   bidirectional communications (like Galdr Proxy and Raider) require the 1.1
   transport improvements.
-- **Glyph v1.1** adds streaming responses and is the minimum version for
+- **0xgen v1.1** adds streaming responses and is the minimum version for
   real-time exploitation tooling.
-- **Glyph v2.0** is the current stable release. All plugins target this version
+- **0xgen v2.0** is the current stable release. All plugins target this version
   by default and are regression tested against it on every commit.
 
 For deeper integration details, consult the release notes in
 [`CHANGELOG.md`]({{ config.repo_url }}/blob/main/CHANGELOG.md) or reach out in
-the [Glyph community forums](https://github.com/RowanDark/0xgen/discussions).
+the [0xgen community forums](https://github.com/RowanDark/0xgen/discussions).

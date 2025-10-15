@@ -4,7 +4,7 @@ search: false
 
 # Crash reporting: redact, bundle, and share safely
 
-Glyph's desktop shell occasionally encounters unrecoverable errors (panics in the
+0xgen's desktop shell occasionally encounters unrecoverable errors (panics in the
 Rust backend or fatal renderer exceptions). When this happens we want to convert
 "it crashed" into a bundle that maintainers can replay locally without shipping
 sensitive customer data. This document describes the crash reporting pipeline

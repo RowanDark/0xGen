@@ -1,6 +1,6 @@
 # Security Overview
 
-Glyph's security model balances powerful automation with strict guardrails that keep
+0xgen's security model balances powerful automation with strict guardrails that keep
 operators in control. This section consolidates resources for security reviewers and
 incident responders.
 
@@ -13,7 +13,7 @@ supporting artifacts.
 
 ## Threat model and provenance {#threat-model-and-provenance}
 
-The [threat model](threat-model.md) explains how Glyph isolates untrusted plugins,
+The [threat model](threat-model.md) explains how 0xgen isolates untrusted plugins,
 limits network access, and captures audit trails for every run. Combine it with the
 [build provenance](provenance.md) and [supply-chain hardening](supply-chain.md)
 guides to verify that downloaded binaries and containers were produced by the
@@ -23,7 +23,7 @@ official CI pipelines and signed by trusted automation.
 
 - Disable the proxy (`proxy.enable: false`) unless you need active interception.
 - Grant plugins only the capabilities listed in their manifests.
-- Rotate the Glyph authentication token regularly and prefer long, randomly generated
+- Rotate the 0xgen authentication token regularly and prefer long, randomly generated
   values.
 - Archive the `out/` artifacts from CI or production runs to make incident response
   reproducible.

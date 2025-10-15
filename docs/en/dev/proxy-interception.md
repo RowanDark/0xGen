@@ -1,7 +1,7 @@
 # Proxy Interception Support Design
 
 ## Overview
-This document outlines the design for enabling Glyph to operate as an intercepting HTTP(S) proxy, allowing users to capture, inspect, edit, and replay requests and responses while leveraging the existing plugin pipeline.
+This document outlines the design for enabling 0xgen to operate as an intercepting HTTP(S) proxy, allowing users to capture, inspect, edit, and replay requests and responses while leveraging the existing plugin pipeline.
 
 ## Goals
 - Accept inbound HTTP and HTTPS traffic in man-in-the-middle mode.
@@ -19,12 +19,12 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 ### Proxy Listener
 - Add a new `cmd/glyph/proxy` entry point that starts an HTTP proxy listener.
 - Use Go's `net/http` with `golang.org/x/net/proxy` utilities to handle CONNECT tunneling for HTTPS.
-- Terminate TLS using a Glyph-managed root certificate issued per installation. Certificates are stored in the Glyph data directory with restricted permissions.
+- Terminate TLS using a 0xgen-managed root certificate issued per installation. Certificates are stored in the 0xgen data directory with restricted permissions.
 - Support dynamic certificate generation per host using `crypto/tls` and `crypto/x509`.
 
 ### Flow Pipeline Integration
 1. Incoming request hits proxy listener.
-2. Listener normalizes the request into Glyph's internal request model (currently used by plugins).
+2. Listener normalizes the request into 0xgen's internal request model (currently used by plugins).
 3. Emit a "flow captured" event to a new interception queue consumed by the orchestrator.
 4. The orchestrator pauses forwarding until user approval (UI/CLI). When approved, the request is handed to the plugin pipeline as if it originated from a capture file.
 5. Responses returned from upstream are likewise captured, optionally modified, and stored for replay.
@@ -52,9 +52,9 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 - `glyphd` exposes tuning flags to balance performance and fidelity:
   - `--proxy-flow-enabled` toggles publishing entirely (defaults to enabled when the bus is available).
   - `--flow-sample-rate` accepts a ratio between `0` and `1` for probabilistic sampling. A value of `0` keeps the proxy online while suppressing flow publications.
-  - `--max-body-kb` limits the number of raw body kilobytes captured per event. Values above the limit append the `X-Glyph-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect truncation while verifying integrity; `-1` disables raw body capture entirely, `0` captures headers only.
+  - `--max-body-kb` limits the number of raw body kilobytes captured per event. Values above the limit append the `X-0xgen-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect truncation while verifying integrity; `-1` disables raw body capture entirely, `0` captures headers only.
   - `--proxy-flow-seed` seeds deterministic flow identifiers, aiding replay comparisons when deterministic output is required.
-  - `--proxy-flow-log` overrides the sanitized flow transcript path. By default, Glyph writes `proxy_flows.jsonl` next to the history log for inclusion in replay artefacts.
+  - `--proxy-flow-log` overrides the sanitized flow transcript path. By default, 0xgen writes `proxy_flows.jsonl` next to the history log for inclusion in replay artefacts.
 - Sanitized flow transcripts contain base64-encoded HTTP messages plus metadata (`sequence`, `timestamp_unix`, redaction hints). These are packaged inside replay artefacts as `flows.jsonl`, copied to `flows.replay.jsonl` by `glyphctl replay`.
 - Flow ordering remains deterministic via monotonically increasing sequence numbers coupled with the configured seed. The `Seeds` manifest map now includes a `flows` entry when glyphd publishes the seed used during capture.
 
@@ -78,7 +78,7 @@ This document outlines the design for enabling Glyph to operate as an intercepti
 ## Testing Strategy
 - Unit tests for certificate management and flow serialization.
 - Integration tests using `httptest` to simulate proxy clients and upstream servers.
-- End-to-end tests with headless Chrome configured to trust Glyph's certificate (using Puppeteer) to validate interception and modification.
+- End-to-end tests with headless Chrome configured to trust 0xgen's certificate (using Puppeteer) to validate interception and modification.
 
 ## Open Questions
 - How to handle protocols beyond HTTP(S), e.g., WebSockets or gRPC over HTTP/2?

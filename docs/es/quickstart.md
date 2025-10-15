@@ -1,6 +1,6 @@
 # Inicio rápido: demostración de extremo a extremo
 
-El comando `glyphctl demo` ofrece a las personas nuevas un recorrido de un minuto por la pila de Glyph.
+El comando `glyphctl demo` ofrece a las personas nuevas un recorrido de un minuto por la pila de 0xgen.
 Levanta un objetivo de demostración local, escanea la página con Seer, clasifica los hallazgos resultantes y
 renderiza un informe HTML pulido. Todo se ejecuta en localhost y recurre a artefactos incluidos cuando el
 acceso a la red externa está restringido.
@@ -10,8 +10,8 @@ acceso a la red externa está restringido.
 - Go 1.21+ (para `go run ./cmd/glyphctl demo`) o un binario `glyphctl` descargado.
 - Git (para clonar este repositorio).
 
-Todo lo demás (binarios de Glyph, Playwright, etc.) se construye a demanda. No se requieren servicios externos;
-si Glyph no puede llegar a `example.com`, la demostración alimenta a Seer con una respuesta sintética que refleja
+Todo lo demás (binarios de 0xgen, Playwright, etc.) se construye a demanda. No se requieren servicios externos;
+si 0xgen no puede llegar a `example.com`, la demostración alimenta a Seer con una respuesta sintética que refleja
 el HTML incluido en `examples/quickstart/demo-response.html`.
 
 <div id="run-the-pipeline"></div>

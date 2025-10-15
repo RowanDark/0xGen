@@ -1,6 +1,6 @@
 # Plugin installation wizard
 
-Glyph's plugin installer now walks operators through a least-privilege review before a
+0xgen's plugin installer now walks operators through a least-privilege review before a
 binary is allowed to run. The wizard renders the manifest metadata, explains every
 requested capability in plain language, and makes it easy to deny unnecessary access or
 audit grants later. This page documents the experience so security reviewers and support
@@ -8,20 +8,20 @@ teams can validate the flow end-to-end.
 
 ## Step 1 – Manifest & signature review {#manifest-review}
 
-1. Upload the plugin bundle or point the wizard at a registry URL. Glyph extracts the
+1. Upload the plugin bundle or point the wizard at a registry URL. 0xgen extracts the
    embedded `manifest.json` and verifies the detached signature exactly as described in
    the [plugin marketplace](catalog.md) pipeline.
 2. The first screen shows the plugin name, publisher, version, and hashes alongside the
    manifest capabilities. Each capability is paired with a short human-readable summary
    describing what the plugin can touch (for example, *"CAP_HTTP_ACTIVE – allows outbound
-   HTTP requests through the Glyph netgate"*).
+   HTTP requests through the 0xgen netgate"*).
 3. Operators must acknowledge the capability list before continuing. Warnings are raised
    automatically when the manifest requests high-risk scopes such as raw flow access or
    storage privileges.
 
 ## Step 2 – Capability risk deep dive {#capability-risk}
 
-The second step expands each capability into the risks and mitigations Glyph enforces:
+The second step expands each capability into the risks and mitigations 0xgen enforces:
 
 - **Network helpers (`CAP_HTTP_ACTIVE`, `CAP_WS`)** – emphasise that these capabilities
   allow active scanning and require explicit scoping in run configurations. The wizard
@@ -36,13 +36,13 @@ The second step expands each capability into the risks and mitigations Glyph enf
   plugin from contributing to case data at all. The wizard flags the capability as a
   prerequisite for most analytical plugins so reviewers can make an informed trade-off.
 
-Capabilities disabled in this step are omitted from the runtime grant request. Glyph's
+Capabilities disabled in this step are omitted from the runtime grant request. 0xgen's
 netgate verifies the final capability list when the plugin starts; missing permissions
 result in immediate runtime denials so no unintended data is exposed.【F:internal/netgate/gate.go†L319-L402】
 
 ## Step 3 – Redaction and secret access matrix {#redaction-matrix}
 
-After selecting capabilities the wizard renders a data access matrix that mirrors Glyph's
+After selecting capabilities the wizard renders a data access matrix that mirrors 0xgen's
 runtime redaction rules:
 
 | Data source | Sanitized view | Raw view | Capability toggle |
@@ -50,7 +50,7 @@ runtime redaction rules:
 | HTTP request bodies | Secrets are replaced with `[REDACTED …]` placeholders; headers like `Authorization` are scrubbed. | Original payload with length/digest metadata; subject to the global body size limit. | `CAP_FLOW_INSPECT` for sanitized, `CAP_FLOW_INSPECT_RAW` for raw. |
 | Findings history | Read-only access to past findings for correlation. | Export and mutation via reporting helpers. | `CAP_EMIT_FINDINGS` (view), `CAP_REPORT` (export). |
 | Storage buckets | No access. | Read/write to managed artefact buckets. | `CAP_STORAGE`. |
-| HTTP egress | Blocked entirely. | Outbound requests proxied through Glyph with full observability. | `CAP_HTTP_ACTIVE` / `CAP_WS`. |
+| HTTP egress | Blocked entirely. | Outbound requests proxied through 0xgen with full observability. | `CAP_HTTP_ACTIVE` / `CAP_WS`. |
 
 Reviewers can adjust the toggles directly in the matrix. Revoking a capability updates
 the summary pane instantly and ensures the runtime never hands out access the reviewer

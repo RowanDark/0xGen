@@ -4,7 +4,7 @@
 
 0xgen — Generation Zero: AI-driven offensive security.
 
-The badges above highlight the most recent Glyph release, continuous-integration
+The badges above highlight the most recent 0xgen release, continuous-integration
 status, documentation portal, and the live plugin catalog size published from the
 docs build pipeline.
 
@@ -19,7 +19,7 @@ macOS users can install the prebuilt `glyphctl` binary via Homebrew using the
 
 ```bash
 brew install rowandark/glyph/glyph
-# Alias while the tap still uses the Glyph formula name
+# Alias while the tap still uses the 0xgen formula name
 brew install rowandark/glyph/0xgen
 ```
 
@@ -58,11 +58,11 @@ double-click or from PowerShell:
 msiexec /i .\glyphctl_v<version>_windows_amd64.msi /qn
 ```
 
-The installer places `glyphctl.exe` under `C:\Program Files\Glyph` and updates
+The installer places `glyphctl.exe` under `C:\Program Files\0xgen` and updates
 `PATH` for future shells. Verify the installation:
 
 ```powershell
-"C:\Program Files\Glyph\glyphctl.exe" --version
+"C:\Program Files\0xgen\glyphctl.exe" --version
 ```
 
 #### Portable ZIP
@@ -72,8 +72,8 @@ Every release also ships a portable archive named
 the bundled binary:
 
 ```powershell
-Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\Glyph
-C:\Tools\Glyph\glyphctl.exe --version
+Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
+C:\Tools\0xgen\glyphctl.exe --version
 ```
 
 #### Scoop
@@ -163,10 +163,10 @@ header or jump directly to [archived snapshots](https://rowandark.github.io/0xge
 
 Please review our [security policy](SECURITY.md) for instructions on reporting
 vulnerabilities, supported versions, and the disclosure timeline. The
-[Glyph threat model](THREAT_MODEL.md) outlines major attack vectors and
+[0xgen threat model](THREAT_MODEL.md) outlines major attack vectors and
 assumptions, while the [plugin security guide](PLUGIN_GUIDE.md) captures safe
 patterns for new integrations.
 
 ## Desktop Shell
 
-A cross-platform Tauri shell lives under [`apps/desktop-shell`](apps/desktop-shell). It ships a React + Vite + Tailwind front-end with TanStack Router and a hardened IPC boundary that proxies Glyph API calls.
+A cross-platform Tauri shell lives under [`apps/desktop-shell`](apps/desktop-shell). It ships a React + Vite + Tailwind front-end with TanStack Router and a hardened IPC boundary that proxies 0xgen API calls.

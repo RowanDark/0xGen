@@ -1,6 +1,6 @@
 # Versiones de la documentación
 
-Glyph publica instantáneas de la documentación para cada versión estable. Así
+0xgen publica instantáneas de la documentación para cada versión estable. Así
 puedes seguir una API o CLI concreta aunque aparezcan lanzamientos más nuevos.
 
 ## Consulta qué ha cambiado

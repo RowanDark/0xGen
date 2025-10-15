@@ -1,11 +1,11 @@
 ---
 title: "Grapher"
-description: "Grapher performs unauthenticated discovery of API schemas so downstream Glyph workflows can reason about surfaced endpoints without touching production credentials."
+description: "Grapher performs unauthenticated discovery of API schemas so downstream 0xgen workflows can reason about surfaced endpoints without touching production credentials."
 ---
 
 # Grapher
 
-Grapher performs unauthenticated discovery of API schemas so downstream Glyph workflows can reason about surfaced endpoints without touching production credentials.
+Grapher performs unauthenticated discovery of API schemas so downstream 0xgen workflows can reason about surfaced endpoints without touching production credentials.
 
 ## Metadata
 
@@ -14,7 +14,7 @@ Grapher performs unauthenticated discovery of API schemas so downstream Glyph wo
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | Go |
 | Last updated | Sep 30, 2025 |
 

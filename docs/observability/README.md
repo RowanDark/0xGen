@@ -1,6 +1,6 @@
-# Glyph Observability Guide
+# 0xgen Observability Guide
 
-Glyph exposes metrics, traces, and structured audit logs to help operators understand plugin
+0xgen exposes metrics, traces, and structured audit logs to help operators understand plugin
 behaviour and diagnose latency in the orchestration pipeline. This guide summarises the
 available telemetry and provides example tooling configurations.
 
@@ -34,11 +34,11 @@ latency, response code, capabilities, and rate-limiter waits. When rate limiting
 `netgate.rate_limit_wait` spans show the exact wait duration and scope (global or per-host).
 
 Sample OpenTelemetry Collector configuration: [`otel-collector.yaml`](otel-collector.yaml).
-The collector accepts spans from Glyph over OTLP/HTTP, batches them, and forwards to Tempo.
+The collector accepts spans from 0xgen over OTLP/HTTP, batches them, and forwards to Tempo.
 
 ## Metrics
 
-Glyph continues to expose Prometheus metrics at `/metrics`. Notable series include:
+0xgen continues to expose Prometheus metrics at `/metrics`. Notable series include:
 
 * `glyph_rpc_duration_seconds` – latency of core RPC handlers.
 * `glyph_plugin_queue_length` – outbound queue depth per plugin.
@@ -55,10 +55,10 @@ trace in Tempo/Jaeger, letting you pivot from 95th percentile latency straight i
 
 Prometheus-style alerts for anomaly detection are provided in [`alerts.yaml`](alerts.yaml):
 
-* **GlyphPluginLatencyCritical** – fires when plugin event handling exceeds the configured
+* **0xgenPluginLatencyCritical** – fires when plugin event handling exceeds the configured
   threshold (default 5s) for three consecutive evaluations.
-* **GlyphHTTPFailureRate** – highlights sustained HTTP error rates >20% over five minutes.
-* **GlyphQueueBackpressure** – alerts when a plugin queue remains over 80% full for more than
+* **0xgenHTTPFailureRate** – highlights sustained HTTP error rates >20% over five minutes.
+* **0xgenQueueBackpressure** – alerts when a plugin queue remains over 80% full for more than
   two minutes, signalling downstream congestion.
 
 Tune thresholds to match your workload, then load the ruleset into your Prometheus server.
@@ -66,7 +66,7 @@ Tune thresholds to match your workload, then load the ruleset into your Promethe
 ## Dashboard Quickstart
 
 1. Import the Grafana JSON into your Grafana instance.
-2. Configure the `Glyph` data source to point at your Prometheus server.
+2. Configure the `0xgen` data source to point at your Prometheus server.
 3. Enable tracing via the CLI flags above and point `otel-collector.yaml` at your Tempo/Jaeger.
 4. After traffic flows, the *Plugin Pipeline Latency* panel shows where time is spent:
    * `plugin_bus.EventStream` spans – plugin handshakes and event loops.

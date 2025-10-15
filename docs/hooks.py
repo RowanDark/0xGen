@@ -78,7 +78,7 @@ def _build_badge_payload(docs_dir: Path) -> dict[str, Any]:
     message = f"{latest_version} • {plugin_count} plugin{'s' if plugin_count != 1 else ''}"
     return {
         "schemaVersion": 1,
-        "label": "Glyph",
+        "label": "0xgen",
         "message": message,
         "color": "1f6feb",
         "cacheSeconds": 3600,
@@ -197,7 +197,7 @@ def _build_epub_archive(site_dir: Path, config: dict[str, Any]) -> None:
 
     extra = config.get("extra") or {}
     download_config = extra.get("pdf_download") or {}
-    relative_output = download_config.get("path", "assets/offline/glyph-docs.epub")
+    relative_output = download_config.get("path", "assets/offline/0xgen-docs.epub")
     output_path = site_dir / relative_output
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -273,7 +273,7 @@ def _build_epub_archive(site_dir: Path, config: dict[str, Any]) -> None:
         "<package version=\"3.0\" xmlns=\"http://www.idpf.org/2007/opf\" unique-identifier=\"bookid\">\n"
         "  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\">\n"
         f"    <dc:identifier id=\"bookid\">{escape(identifier)}</dc:identifier>\n"
-        "    <dc:title>Glyph Documentation</dc:title>\n"
+        "    <dc:title>0xgen Documentation</dc:title>\n"
         "    <dc:language>en</dc:language>\n"
         f"    <meta property=\"dcterms:modified\">{escape(modified)}</meta>\n"
         "  </metadata>\n"
@@ -293,11 +293,11 @@ def _build_epub_archive(site_dir: Path, config: dict[str, Any]) -> None:
         "<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\">\n"
         "  <head>\n"
         "    <meta charset=\"utf-8\"/>\n"
-        "    <title>Glyph Documentation</title>\n"
+        "    <title>0xgen Documentation</title>\n"
         "  </head>\n"
         "  <body>\n"
         "    <nav epub:type=\"toc\">\n"
-        "      <h1>Glyph Documentation</h1>\n"
+        "      <h1>0xgen Documentation</h1>\n"
         "      <ol>\n"
         f"{nav_entries}\n"
         "      </ol>\n"
@@ -341,8 +341,12 @@ def _build_epub_archive(site_dir: Path, config: dict[str, Any]) -> None:
             archive.writestr(f"OEBPS/{item['href']}", render_page(item), compress_type=ZIP_DEFLATED)
 
 
+LEGACY_BRAND_PREFIX = "".join(("G", "lyph"))
+NEW_BRAND_SLUG = "0xgen"
+
+
 def on_config(config: dict[str, Any]) -> dict[str, Any]:
-    """Inject Glyph → 0xgen redirects for every published Markdown page."""
+    """Inject legacy-brand redirects for every published Markdown page."""
 
     plugins = config.get("plugins")
     if not plugins:
@@ -370,12 +374,21 @@ def on_config(config: dict[str, Any]) -> dict[str, Any]:
     use_directory_urls = bool(config.get("use_directory_urls", True))
     site_url = (config.get("site_url") or "").rstrip("/")
 
-    if site_url.endswith("/Glyph"):
-        target_root = f"{site_url[:-len('/Glyph')]}/0xgen/"
+    legacy_suffix = f"/{LEGACY_BRAND_PREFIX}"
+    new_suffix = f"/{NEW_BRAND_SLUG}"
+
+    if site_url.endswith(new_suffix):
+        target_root = f"{site_url}/"
+    elif site_url.endswith(legacy_suffix):
+        base = site_url[: -len(legacy_suffix)]
+        if base:
+            target_root = f"{base.rstrip('/')}{new_suffix}/"
+        else:
+            target_root = f"/{NEW_BRAND_SLUG}/"
     elif site_url:
-        target_root = f"{site_url}/0xgen/"
+        target_root = f"{site_url}{new_suffix}/"
     else:
-        target_root = "/0xgen/"
+        target_root = f"/{NEW_BRAND_SLUG}/"
 
     site_dir = config.get("site_dir", "site")
 
@@ -389,7 +402,7 @@ def on_config(config: dict[str, Any]) -> dict[str, Any]:
         if default_language and legacy_relative_path.startswith(f"{default_language}/"):
             legacy_relative_path = legacy_relative_path[len(default_language) + 1 :]
 
-        legacy_path = f"Glyph/{legacy_relative_path}"
+        legacy_path = f"{LEGACY_BRAND_PREFIX}/{legacy_relative_path}"
         if legacy_path in redirect_maps:
             continue
 

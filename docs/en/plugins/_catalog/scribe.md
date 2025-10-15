@@ -1,11 +1,11 @@
 ---
 title: "Scribe"
-description: "Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline."
+description: "Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline."
 ---
 
 # Scribe
 
-Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline.
+Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.
 
 ## Metadata
 
@@ -14,7 +14,7 @@ Scribe renders investigation output into human-friendly reports, summarizing fin
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | TypeScript |
 | Last updated | Sep 30, 2025 |
 
