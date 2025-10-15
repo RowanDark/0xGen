@@ -3,8 +3,11 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/RowanDark/0xgen/internal/env"
@@ -158,5 +161,54 @@ func TestLoadLegacyEnvWarning(t *testing.T) {
 
 	if got := buf.String(); got != "GLYPH_PROXY_ADDR is deprecated; use 0XGEN_PROXY_ADDR" {
 		t.Fatalf("unexpected warning: %q", got)
+	}
+}
+
+func TestLoadLegacyConfigWarnsOnce(t *testing.T) {
+	warnLegacyConfigOnce = sync.Once{}
+
+	tempDir := t.TempDir()
+	homeDir := filepath.Join(tempDir, "home")
+	if err := os.Mkdir(homeDir, 0o755); err != nil {
+		t.Fatalf("mkdir home: %v", err)
+	}
+	t.Setenv("HOME", homeDir)
+
+	glyphDir := filepath.Join(homeDir, ".glyph")
+	if err := os.Mkdir(glyphDir, 0o755); err != nil {
+		t.Fatalf("mkdir legacy dir: %v", err)
+	}
+	legacyConfig := []byte(`output_dir = "/legacy"`)
+	if err := os.WriteFile(filepath.Join(glyphDir, "config.toml"), legacyConfig, 0o644); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	originalWriter := log.Writer()
+	originalFlags := log.Flags()
+	originalPrefix := log.Prefix()
+	defer func() {
+		log.SetOutput(originalWriter)
+		log.SetFlags(originalFlags)
+		log.SetPrefix(originalPrefix)
+	}()
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	log.SetPrefix("")
+
+	if _, err := Load(); err != nil {
+		t.Fatalf("first load: %v", err)
+	}
+	if _, err := Load(); err != nil {
+		t.Fatalf("second load: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected single warning, got %d: %v", len(lines), lines)
+	}
+	if !strings.Contains(lines[0], "legacy Glyph config") {
+		t.Fatalf("unexpected warning line: %q", lines[0])
 	}
 }

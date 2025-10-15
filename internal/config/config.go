@@ -9,9 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/RowanDark/0xgen/internal/env"
 )
+
+var warnLegacyConfigOnce sync.Once
 
 // Config captures the Glyph configuration resolved from defaults, optional files,
 // and environment overrides.
@@ -53,7 +56,7 @@ func Default() Config {
 // environment overrides. The lookup order for configuration files is:
 //  1. ./glyph.yml (YAML)
 //  2. ~/.0xgen/config.toml (TOML)
-//  3. ~/.glyph/config.toml (TOML, legacy)
+//  3. ~/.glyph/config.toml (TOML, legacy; warns once)
 //
 // Environment variables prefixed with 0XGEN_ have the highest precedence.
 // Legacy GLYPH_ variables remain supported for one release and emit a warning
@@ -102,7 +105,9 @@ func loadHomeConfig(cfg *Config) error {
 		}
 		return fmt.Errorf("read config %s: %w", legacyPath, err)
 	}
-	log.Println("Using legacy Glyph config")
+	warnLegacyConfigOnce.Do(func() {
+		log.Printf("Using legacy Glyph config at %s; run 'glyphctl config migrate' to upgrade", legacyPath)
+	})
 	if err := applyFileConfig(cfg, data, "toml"); err != nil {
 		return fmt.Errorf("parse config %s: %w", legacyPath, err)
 	}
