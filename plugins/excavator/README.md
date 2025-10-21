@@ -1,6 +1,6 @@
 # Excavator
 
-Excavator is the Playwright-powered crawler foundation for Glyph. It provides a reproducible baseline for scripted reconnaissance of target applications.
+Excavator is the Playwright-powered crawler foundation for 0xgen. It provides a reproducible baseline for scripted reconnaissance of target applications.
 
 ## Capabilities
 - `CAP_HTTP_PASSIVE`

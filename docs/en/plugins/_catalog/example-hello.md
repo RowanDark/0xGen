@@ -1,11 +1,11 @@
 ---
 title: "Example Hello"
-description: "Example Hello is a Glyph plugin."
+description: "Example Hello is a 0xgen plugin."
 ---
 
 # Example Hello
 
-Example Hello is a Glyph plugin.
+Example Hello is a 0xgen plugin.
 
 ## Metadata
 
@@ -14,7 +14,7 @@ Example Hello is a Glyph plugin.
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | Go |
 | Last updated | Oct 14, 2025 |
 
@@ -28,16 +28,16 @@ Example Hello is a Glyph plugin.
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello/main.go)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello/main.go.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go.sig)
 
 
 ### Signature

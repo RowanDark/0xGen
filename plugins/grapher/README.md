@@ -1,6 +1,6 @@
 # Grapher
 
-Grapher performs unauthenticated discovery of API schemas so downstream Glyph workflows can reason about surfaced endpoints without touching production credentials.
+Grapher performs unauthenticated discovery of API schemas so downstream 0xgen workflows can reason about surfaced endpoints without touching production credentials.
 
 ## Scope
 

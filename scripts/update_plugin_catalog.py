@@ -81,7 +81,7 @@ def main() -> None:
         summary = metadata.summary or _default_summary(display_name)
 
         language = _detect_language(manifest, plugin_dir)
-        author = manifest.get("author") or "Glyph Team"
+        author = manifest.get("author") or "0xgen Team"
         capabilities = sorted(set(manifest.get("capabilities") or []))
 
         artifact_path = _resolve_path(manifest.get("artifact"), base=plugin_dir)
@@ -299,7 +299,7 @@ def _slugify(value: str) -> str:
 
 
 def _default_summary(name: str) -> str:
-    return f"{name} is a Glyph plugin.".strip()
+    return f"{name} is a 0xgen plugin.".strip()
 
 
 def _detect_language(manifest: dict[str, Any], base: Path) -> str:
