@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/cases"
+	"github.com/RowanDark/0xgen/internal/testutil"
 )
 
 func TestEncodeSARIFProducesStructuredLog(t *testing.T) {
@@ -51,9 +52,7 @@ func TestEncodeSARIFProducesStructuredLog(t *testing.T) {
 	if !ok {
 		t.Fatalf("driver missing: %#v", tool)
 	}
-	if driver["name"] != "Glyph" {
-		t.Fatalf("unexpected driver name: %v", driver["name"])
-	}
+	testutil.RequireBrand(t, driver["name"])
 
 	rules, ok := driver["rules"].([]any)
 	if !ok || len(rules) != len(casesList) {

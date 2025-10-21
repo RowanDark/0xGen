@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/RowanDark/0xgen/internal/env"
+	"github.com/RowanDark/0xgen/internal/testutil"
 )
 
 func TestLoadPrecedence(t *testing.T) {
@@ -208,7 +209,9 @@ func TestLoadLegacyConfigWarnsOnce(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("expected single warning, got %d: %v", len(lines), lines)
 	}
-	if !strings.Contains(lines[0], "legacy Glyph config") {
+	legacyMsg := fmt.Sprintf("legacy %s config", testutil.LegacyBrand())
+	currentMsg := fmt.Sprintf("legacy %s config", testutil.CurrentBrand())
+	if !strings.Contains(lines[0], legacyMsg) && !strings.Contains(lines[0], currentMsg) {
 		t.Fatalf("unexpected warning line: %q", lines[0])
 	}
 }

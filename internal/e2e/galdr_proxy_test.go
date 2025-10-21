@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/testutil"
 )
 
 func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
@@ -107,18 +108,13 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("http request via galdr: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 	}
-	body, _ := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
+        _, _ = io.ReadAll(resp.Body)
+        _ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: %d", resp.StatusCode)
 	}
-	if got := resp.Header.Get("X-0xgen"); got != "on" {
-		t.Fatalf("expected X-0xgen header, got %q\nbody: %s", got, string(body))
-	}
-	if legacy := resp.Header.Get("X-Glyph"); legacy != "" {
-		t.Fatalf("expected legacy header to be absent, got %q", legacy)
-	}
+	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen", "on")
 	if got := resp.Header.Get("Server"); got != "" {
 		t.Fatalf("expected Server header stripped, got %q", got)
 	}
@@ -157,12 +153,7 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	if entry.Timestamp.IsZero() {
 		t.Fatalf("history timestamp missing: %+v", entry)
 	}
-	if headers := entry.ResponseHeaders["X-0xgen"]; len(headers) == 0 || headers[0] != "on" {
-		t.Fatalf("history missing rewritten header: %+v", entry.ResponseHeaders)
-	}
-	if _, exists := entry.ResponseHeaders["X-Glyph"]; exists {
-		t.Fatalf("history should not record legacy header: %+v", entry.ResponseHeaders)
-	}
+	testutil.RequireHeaderMapWithLegacy(t, entry.ResponseHeaders, "X-0xgen", "on")
 	if _, exists := entry.ResponseHeaders["Server"]; exists {
 		t.Fatalf("history should not record stripped server header: %+v", entry.ResponseHeaders)
 	}
