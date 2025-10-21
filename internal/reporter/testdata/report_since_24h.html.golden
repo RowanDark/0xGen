@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Glyph Findings Report</title>
-<style id="glyph-style" data-integrity="sha256-hLFlCIoG7TyWRiIxB0nMRAua83WOjocLAnmWfpUvShs=">
+<title>0xgen Findings Report</title>
+<style id="oxg-style" data-integrity="sha256-hLFlCIoG7TyWRiIxB0nMRAua83WOjocLAnmWfpUvShs=">
 :root {
  color-scheme: light dark;
  --bg: #0f172a;
@@ -378,11 +378,11 @@ main {
 </head>
 <body>
 <header class="header">
-<h1>Glyph Findings Report</h1>
+<h1>0xgen Findings Report</h1>
 <p class="meta">Generated at <span id="generatedAt">(pending)</span></p>
 <div class="meta">Window: <span id="windowStart">(pending)</span> → <span id="windowEnd">(pending)</span></div>
 </header>
-<main>
+<main id="oxg-report-root">
 <div id="integrityWarning" class="banner" hidden>Integrity check failed for <code>unknown</code>. Refresh or regenerate this report to continue.</div>
 <section class="controls">
 <div class="search"><input id="searchInput" type="search" placeholder="Search findings, assets, or evidence" aria-label="Search"></div>
@@ -403,7 +403,8 @@ main {
 <table class="findings-table" id="findingsTable"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>
 </section>
 </main>
-<script type="application/json" id="glyph-data" data-integrity="sha256-DsM6sIJ6GrWeE/o1R3oicnxNPB5I88qv1HxvEhmINXQ=">{
+<div id="glyph-report-root" style="display:none"></div>
+<script type="application/json" id="oxg-data" data-integrity="sha256-DsM6sIJ6GrWeE/o1R3oicnxNPB5I88qv1HxvEhmINXQ=">{
   "schema_version": "1.0",
   "generated_at": "2024-02-10T12:00:00Z",
   "findings_count": 2,
@@ -600,7 +601,7 @@ main {
   }
 }
 </script>
-<script id="glyph-app" data-integrity="sha256-Nuudq9Et0qllGWpYcpEkvLs2h48iGO+U2e1C9VS+230=">
+<script id="oxg-app" data-integrity="sha256-A87w6+ht78oM0oKinRe0sZlBh1WUX8mJZ9iIHkEXCwE=">
 (function () {
   const severityOrder = [
     { id: "crit", label: "Critical" },
@@ -617,11 +618,17 @@ main {
     filteredCases: [],
   };
 
+  const aliasMap = [
+    ["oxg-style", "glyph-style"],
+    ["oxg-data", "glyph-data"],
+    ["oxg-app", "glyph-app"],
+  ];
+
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     await verifyIntegrity();
-    const dataElement = document.getElementById("glyph-data");
+    const dataElement = getElementByIds("oxg-data", "glyph-data");
     if (!dataElement) {
       console.error("dataset element missing");
       return;
@@ -645,9 +652,8 @@ main {
     if (!window.crypto || !window.crypto.subtle) {
       return;
     }
-    const elements = ["glyph-style", "glyph-data", "glyph-app"];
-    for (const id of elements) {
-      const el = document.getElementById(id);
+    for (const ids of aliasMap) {
+      const el = getElementByIds(...ids);
       if (!el) {
         continue;
       }
@@ -664,16 +670,26 @@ main {
       if (actual !== expected) {
         console.error(
           "integrity mismatch for " +
-            id +
+            (el.id || ids[0]) +
             ": expected " +
             expected +
             ", got " +
             actual,
         );
-        showIntegrityWarning(id);
+        showIntegrityWarning(el.id || ids[0]);
         break;
       }
     }
+  }
+
+  function getElementByIds(...ids) {
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) {
+        return el;
+      }
+    }
+    return null;
   }
 
   function showIntegrityWarning(source) {
