@@ -1,6 +1,6 @@
 # Scribe
 
-Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline.
+Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.
 
 ## Capabilities
 - `CAP_REPORT`

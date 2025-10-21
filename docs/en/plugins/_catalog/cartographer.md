@@ -14,7 +14,7 @@ Cartographer charts application surfaces discovered by crawlers and passive sens
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | TypeScript |
 | Last updated | Oct 14, 2025 |
 
@@ -29,16 +29,16 @@ Cartographer charts application surfaces discovered by crawlers and passive sens
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js.sig)
 
 
 ### Signature

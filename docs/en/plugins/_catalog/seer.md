@@ -14,7 +14,7 @@ Seer inspects passive telemetry to spot anomalies and suspicious behaviors befor
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | Glyph Team |
+| Author | 0xgen Team |
 | Language | Go |
 | Last updated | Oct 14, 2025 |
 
@@ -29,16 +29,16 @@ Seer inspects passive telemetry to spot anomalies and suspicious behaviors befor
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer/main.go)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer/main.go.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go.sig)
 
 
 ### Signature

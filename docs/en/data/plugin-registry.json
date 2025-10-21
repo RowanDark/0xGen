@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-10-21T14:17:55Z",
+  "generated_at": "2025-10-21T16:15:07Z",
   "oxg_versions": [
     "1.0",
     "1.1",
@@ -10,7 +10,7 @@
       "id": "cartographer",
       "name": "Cartographer",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
       "summary": "Cartographer charts application surfaces discovered by crawlers and passive sensors so other plugins can prioritize exploration.",
       "capabilities": [
@@ -21,11 +21,11 @@
       "signature_sha256": "e9079211521cb91addb3e79d46aea9a12634b6c104a5086ea88852184e1f3afa",
       "links": {
         "documentation": "../plugins/_catalog/cartographer/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cartographer#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer#getting-started"
       },
       "categories": [
         "Discovery",
@@ -50,7 +50,7 @@
       "id": "cryptographer",
       "name": "Cryptographer",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
       "summary": "Cryptographer is a CyberChef-inspired utility surface for quickly transforming payloads and experimenting with encoding operations during investigations.",
       "capabilities": [
@@ -60,11 +60,11 @@
       "signature_sha256": "3377fc8d3fdd1f2398089a2fda88d081b001a6562dff8a3add4b0c76d17c8d23",
       "links": {
         "documentation": "../plugins/_catalog/cryptographer/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cryptographer#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cryptographer/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cryptographer/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cryptographer/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/cryptographer#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer#getting-started"
       },
       "categories": [
         "Utilities"
@@ -88,9 +88,9 @@
       "id": "example-hello",
       "name": "Example Hello",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "Go",
-      "summary": "Example Hello is a Glyph plugin.",
+      "summary": "Example Hello is a 0xgen plugin.",
       "capabilities": [
         "CAP_EMIT_FINDINGS"
       ],
@@ -98,10 +98,10 @@
       "signature_sha256": "d031975d4d4d137d6874af8806d2d1096d499f3d786f16431a556727b91b4f9c",
       "links": {
         "documentation": "../plugins/_catalog/example-hello/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello/main.go",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/example-hello/main.go.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go.sig"
       },
       "categories": [
         "Examples"
@@ -125,9 +125,9 @@
       "id": "excavator",
       "name": "Excavator",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
-      "summary": "Excavator is the Playwright-powered crawler foundation for Glyph. It provides a reproducible baseline for scripted reconnaissance of target applications.",
+      "summary": "Excavator is the Playwright-powered crawler foundation for 0xgen. It provides a reproducible baseline for scripted reconnaissance of target applications.",
       "capabilities": [
         "CAP_EMIT_FINDINGS",
         "CAP_HTTP_PASSIVE",
@@ -137,11 +137,11 @@
       "signature_sha256": "e83ff9bb048b27d7e60029c06633c6f6d1d78e8b00887b8738f6edb6093065d7",
       "links": {
         "documentation": "../plugins/_catalog/excavator/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/excavator#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/excavator/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/excavator/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/excavator/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/excavator#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator#getting-started"
       },
       "categories": [
         "Automation",
@@ -166,9 +166,9 @@
       "id": "galdr-proxy",
       "name": "Galdr Proxy",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
-      "summary": "Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.",
+      "summary": "Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.",
       "capabilities": [
         "CAP_HTTP_ACTIVE",
         "CAP_HTTP_PASSIVE",
@@ -178,10 +178,10 @@
       "signature_sha256": "aa635e921d54b8c5ab8abf1dccdee8c2b63f875dfe52c0fb63a04d6c5cfc43e8",
       "links": {
         "documentation": "../plugins/_catalog/galdr-proxy/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy/plugin.js.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy/plugin.js.sig"
       },
       "categories": [
         "Interception"
@@ -204,9 +204,9 @@
       "id": "grapher",
       "name": "Grapher",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "Go",
-      "summary": "Grapher performs unauthenticated discovery of API schemas so downstream Glyph workflows can reason about surfaced endpoints without touching production credentials.",
+      "summary": "Grapher performs unauthenticated discovery of API schemas so downstream 0xgen workflows can reason about surfaced endpoints without touching production credentials.",
       "capabilities": [
         "CAP_EMIT_FINDINGS",
         "CAP_STORAGE"
@@ -215,10 +215,10 @@
       "signature_sha256": "32856779ace62e4cc93615601c73640f1641438c6abd790aa6095ace4a836e8c",
       "links": {
         "documentation": "../plugins/_catalog/grapher/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/grapher#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/grapher/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/grapher/main.go",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/grapher/main.go.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher/main.go",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher/main.go.sig"
       },
       "categories": [
         "Visualization"
@@ -242,7 +242,7 @@
       "id": "osint-well",
       "name": "OSINT Well",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
       "summary": "OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface open-source intelligence such as subdomains and infrastructure relationships. The plugin intentionally defaults to passive reconnaissance so that it can be executed safely in shared or sensitive environments.",
       "capabilities": [
@@ -253,11 +253,11 @@
       "signature_sha256": "ca2df332e409c8e3d1ec67544c1a2d96423a0f3cba2b86ee7c26607ffe13500b",
       "links": {
         "documentation": "../plugins/_catalog/osint-well/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well#installation"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well#installation"
       },
       "categories": [
         "Intelligence"
@@ -281,7 +281,7 @@
       "id": "raider",
       "name": "Raider",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
       "summary": "Raider coordinates focused offensive testing campaigns once high-value targets are identified by discovery plugins.",
       "capabilities": [
@@ -293,11 +293,11 @@
       "signature_sha256": "01bd0e4be248d0425bb58b758dd10a7b177d79049efaa50da82eb67b37a19322",
       "links": {
         "documentation": "../plugins/_catalog/raider/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/raider#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/raider/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/raider/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/raider/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/raider#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider#getting-started"
       },
       "categories": [
         "Offense"
@@ -320,7 +320,7 @@
       "id": "ranker",
       "name": "Ranker",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
       "summary": "Ranker scores assets, findings, and leads so teams focus on the highest-impact work first.",
       "capabilities": [
@@ -331,11 +331,11 @@
       "signature_sha256": "99354598f4ab386898ee9c29758b15b97f2eef5b89dfbca684e3f546569cf6e0",
       "links": {
         "documentation": "../plugins/_catalog/ranker/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker#getting-started"
       },
       "categories": [
         "Analytics"
@@ -359,9 +359,9 @@
       "id": "scribe",
       "name": "Scribe",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "TypeScript",
-      "summary": "Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline.",
+      "summary": "Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.",
       "capabilities": [
         "CAP_REPORT"
       ],
@@ -369,11 +369,11 @@
       "signature_sha256": "ceb01ede140bfc1f8ebbb09322e14793ad9164c76ddb85a5b37a665e21ab8b4a",
       "links": {
         "documentation": "../plugins/_catalog/scribe/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe/plugin.js",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe/plugin.js.sig",
-        "installation": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe#getting-started"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe/plugin.js",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe/plugin.js.sig",
+        "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe#getting-started"
       },
       "categories": [
         "Reporting"
@@ -397,7 +397,7 @@
       "id": "seer",
       "name": "Seer",
       "version": "0.1.0",
-      "author": "Glyph Team",
+      "author": "0xgen Team",
       "language": "Go",
       "summary": "Seer inspects passive telemetry to spot anomalies and suspicious behaviors before they escalate into incidents. The v0.3 release focuses on low-noise secret and PII detection tailored for HTTP response bodies.",
       "capabilities": [
@@ -408,10 +408,10 @@
       "signature_sha256": "04956ee6c815fa456e31ee73b5519ab3987fcf2c0918235c2e47d1a8fcc84bb8",
       "links": {
         "documentation": "../plugins/_catalog/seer/",
-        "readme": "https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer#readme",
-        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer/manifest.json",
-        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer/main.go",
-        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/seer/main.go.sig"
+        "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer#readme",
+        "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/manifest.json",
+        "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go",
+        "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go.sig"
       },
       "categories": [
         "Detection"

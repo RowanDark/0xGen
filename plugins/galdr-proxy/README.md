@@ -1,6 +1,6 @@
 # Galdr Proxy
 
-Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
+Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
 
 ## Capabilities
 - `CAP_HTTP_ACTIVE`
@@ -85,7 +85,7 @@ Every flow is appended to `/out/proxy_history.jsonl` as JSON Lines. Each entry m
 | `response_headers` | object | Map of header name → array of values returned downstream after modifications. |
 | `matched_rules` | array (optional) | Names of any modification rules applied to the flow. |
 
-The log can be tailed or post-processed by other Glyph plugins for analysis. Override the path with `--proxy-history` if you prefer a custom location.
+The log can be tailed or post-processed by other 0xgen plugins for analysis. Override the path with `--proxy-history` if you prefer a custom location.
 
 #### Searching and replaying flows
 
