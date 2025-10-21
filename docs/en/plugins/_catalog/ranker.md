@@ -14,9 +14,9 @@ Ranker scores assets, findings, and leads so teams focus on the highest-impact w
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | 0xgen Team |
+| Author | Glyph Team |
 | Language | TypeScript |
-| Last updated | Sep 30, 2025 |
+| Last updated | Oct 14, 2025 |
 
 
 ## Capabilities
@@ -29,18 +29,18 @@ Ranker scores assets, findings, and leads so teams focus on the highest-impact w
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/ranker/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/ranker/plugin.js.sig)
 
 
 ### Signature
 
-`a45acedbd3421c054d07db91f12938ac13f928d47170de6cec88770c5fde13f3`
+`99354598f4ab386898ee9c29758b15b97f2eef5b89dfbca684e3f546569cf6e0`

@@ -19,13 +19,67 @@ var allowedStatuses = map[string]struct{}{
 // Dataset represents the plugin registry payload persisted to disk or served
 // via the registry API.
 type Dataset struct {
-	GeneratedAt   time.Time `json:"generated_at"`
-	GlyphVersions []string  `json:"glyph_versions"`
-	Plugins       []Plugin  `json:"plugins"`
+	GeneratedAt   time.Time
+	GlyphVersions []string
+	Plugins       []Plugin
+}
+
+type datasetJSON struct {
+	GeneratedAt time.Time `json:"generated_at"`
+	Plugins     []Plugin  `json:"plugins"`
+	OxgVersions []string  `json:"oxg_versions,omitempty"`
+	GlyphLegacy []string  `json:"glyph_versions,omitempty"`
+}
+
+// UnmarshalJSON decodes a dataset, accepting both legacy glyph_* and new oxg_*
+// field names to keep existing publishers working during the transition.
+func (d *Dataset) UnmarshalJSON(data []byte) error {
+	var payload datasetJSON
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	d.GeneratedAt = payload.GeneratedAt
+	d.Plugins = payload.Plugins
+	switch {
+	case payload.OxgVersions != nil:
+		d.GlyphVersions = payload.OxgVersions
+	case payload.GlyphLegacy != nil:
+		d.GlyphVersions = payload.GlyphLegacy
+	default:
+		d.GlyphVersions = nil
+	}
+	return nil
+}
+
+// MarshalJSON encodes the dataset using the new oxg_* field names.
+func (d Dataset) MarshalJSON() ([]byte, error) {
+	payload := datasetJSON{
+		GeneratedAt: d.GeneratedAt,
+		Plugins:     d.Plugins,
+	}
+	if len(d.GlyphVersions) > 0 {
+		payload.OxgVersions = d.GlyphVersions
+	}
+	return json.Marshal(payload)
 }
 
 // Plugin contains the metadata tracked for each registry entry.
 type Plugin struct {
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Version         string            `json:"version"`
+	Author          string            `json:"author"`
+	Language        string            `json:"language"`
+	Summary         string            `json:"summary"`
+	Capabilities    []string          `json:"capabilities"`
+	Categories      []string          `json:"categories,omitempty"`
+	LastUpdated     string            `json:"last_updated,omitempty"`
+	SignatureSHA256 string            `json:"signature_sha256"`
+	Links           map[string]string `json:"links"`
+	Compatibility   map[string]Compatibility
+}
+
+type pluginJSON struct {
 	ID              string                   `json:"id"`
 	Name            string                   `json:"name"`
 	Version         string                   `json:"version"`
@@ -38,6 +92,56 @@ type Plugin struct {
 	SignatureSHA256 string                   `json:"signature_sha256"`
 	Links           map[string]string        `json:"links"`
 	Compatibility   map[string]Compatibility `json:"compatibility,omitempty"`
+	OxgCompat       map[string]Compatibility `json:"oxg_compat,omitempty"`
+}
+
+// UnmarshalJSON decodes a plugin entry, tolerating both compatibility key names.
+func (p *Plugin) UnmarshalJSON(data []byte) error {
+	var payload pluginJSON
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	p.ID = payload.ID
+	p.Name = payload.Name
+	p.Version = payload.Version
+	p.Author = payload.Author
+	p.Language = payload.Language
+	p.Summary = payload.Summary
+	p.Capabilities = payload.Capabilities
+	p.Categories = payload.Categories
+	p.LastUpdated = payload.LastUpdated
+	p.SignatureSHA256 = payload.SignatureSHA256
+	p.Links = payload.Links
+	switch {
+	case payload.OxgCompat != nil:
+		p.Compatibility = payload.OxgCompat
+	case payload.Compatibility != nil:
+		p.Compatibility = payload.Compatibility
+	default:
+		p.Compatibility = nil
+	}
+	return nil
+}
+
+// MarshalJSON encodes the plugin entry using the new oxg_* compatibility key.
+func (p Plugin) MarshalJSON() ([]byte, error) {
+	payload := pluginJSON{
+		ID:              p.ID,
+		Name:            p.Name,
+		Version:         p.Version,
+		Author:          p.Author,
+		Language:        p.Language,
+		Summary:         p.Summary,
+		Capabilities:    p.Capabilities,
+		Categories:      p.Categories,
+		LastUpdated:     p.LastUpdated,
+		SignatureSHA256: p.SignatureSHA256,
+		Links:           p.Links,
+	}
+	if len(p.Compatibility) > 0 {
+		payload.OxgCompat = p.Compatibility
+	}
+	return json.Marshal(payload)
 }
 
 // Compatibility describes Glyph core support for a plugin release.
@@ -288,7 +392,7 @@ func matchesQuery(plugin Plugin, query string) bool {
 	}
 
 	for version, entry := range plugin.Compatibility {
-		haystack = append(haystack, "glyph v"+version, entry.Status, entry.Notes)
+		haystack = append(haystack, "0xgen v"+version, entry.Status, entry.Notes)
 	}
 
 	joined := strings.ToLower(strings.Join(haystack, " "))

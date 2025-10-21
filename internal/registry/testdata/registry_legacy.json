@@ -1,6 +1,6 @@
 {
   "generated_at": "2025-01-01T00:00:00Z",
-  "oxg_versions": ["1.0", "2.0"],
+  "glyph_versions": ["1.0", "2.0"],
   "plugins": [
     {
       "id": "alpha",
@@ -15,7 +15,7 @@
       "links": {
         "documentation": "https://example.com/alpha"
       },
-      "oxg_compat": {
+      "compatibility": {
         "1.0": {"status": "limited", "notes": "Legacy support"},
         "2.0": {"status": "compatible"}
       }
@@ -33,7 +33,7 @@
       "links": {
         "documentation": "https://example.com/bravo"
       },
-      "oxg_compat": {
+      "compatibility": {
         "2.0": {"status": "unsupported", "notes": "Requires rewrite"}
       }
     }

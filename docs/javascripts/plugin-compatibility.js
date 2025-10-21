@@ -42,17 +42,21 @@
             return response.json();
           })
           .then((payload) => {
-            if (Array.isArray(payload)) {
-              return { plugins: payload, glyph_versions: [] };
-            }
-            return payload;
-          });
+          if (Array.isArray(payload)) {
+            return { plugins: payload, oxg_versions: [] };
+          }
+          return payload;
+        });
 
     loadRegistry
       .then((registry) => {
         cachedRegistry = registry;
         const plugins = Array.isArray(registry.plugins) ? registry.plugins : [];
-        const glyphVersions = Array.isArray(registry.glyph_versions) ? registry.glyph_versions : [];
+        const glyphVersions = Array.isArray(registry.oxg_versions)
+          ? registry.oxg_versions
+          : Array.isArray(registry.glyph_versions)
+          ? registry.glyph_versions
+          : [];
         populateFilters(glyphFilter, statusFilter, glyphVersions);
         renderTable(container, plugins, glyphVersions, {
           query: '',
@@ -164,7 +168,8 @@
 
       glyphVersions.forEach((version) => {
         const cell = document.createElement('td');
-        const entry = plugin.compatibility ? plugin.compatibility[version] : null;
+        const compat = plugin.oxg_compat || plugin.compatibility || {};
+        const entry = compat[version] || null;
         if (entry && entry.status) {
           cell.appendChild(renderStatus(entry));
         } else {
@@ -209,8 +214,10 @@
     const glyph = filters.glyph;
     const status = filters.status;
 
+    const compatibility = plugin.oxg_compat || plugin.compatibility || {};
+
     if (glyph) {
-      const entry = plugin.compatibility ? plugin.compatibility[glyph] : null;
+      const entry = compatibility[glyph] || null;
       if (!entry) {
         return false;
       }
@@ -218,7 +225,7 @@
         return false;
       }
     } else if (status) {
-      const hasStatus = Object.values(plugin.compatibility || {}).some(
+      const hasStatus = Object.values(compatibility).some(
         (entry) => entry && entry.status === status,
       );
       if (!hasStatus) {
@@ -240,20 +247,20 @@
       ...((plugin.categories || [])),
     ];
 
-      if (plugin.compatibility) {
-        Object.entries(plugin.compatibility).forEach(([version, entry]) => {
-          if (!entry) {
-            return;
-          }
-          haystack.push(`0xgen v${version}`);
-          if (entry.status) {
-            haystack.push(entry.status);
-          }
-          if (entry.notes) {
-            haystack.push(entry.notes);
-          }
-        });
-      }
+    if (Object.keys(compatibility).length) {
+      Object.entries(compatibility).forEach(([version, entry]) => {
+        if (!entry) {
+          return;
+        }
+        haystack.push(`0xgen v${version}`);
+        if (entry.status) {
+          haystack.push(entry.status);
+        }
+        if (entry.notes) {
+          haystack.push(entry.notes);
+        }
+      });
+    }
 
     return haystack
       .filter(Boolean)
