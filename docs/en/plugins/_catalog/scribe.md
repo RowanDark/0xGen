@@ -1,11 +1,11 @@
 ---
 title: "Scribe"
-description: "Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline."
+description: "Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline."
 ---
 
 # Scribe
 
-Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.
+Scribe renders investigation output into human-friendly reports, summarizing findings across the Glyph pipeline.
 
 ## Metadata
 
@@ -14,9 +14,9 @@ Scribe renders investigation output into human-friendly reports, summarizing fin
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | 0xgen Team |
+| Author | Glyph Team |
 | Language | TypeScript |
-| Last updated | Sep 30, 2025 |
+| Last updated | Oct 14, 2025 |
 
 
 ## Capabilities
@@ -28,18 +28,18 @@ Scribe renders investigation output into human-friendly reports, summarizing fin
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/scribe/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/scribe/plugin.js.sig)
 
 
 ### Signature
 
-`61b004d72d616382997a2689a3f85d6a032cb29ffe2e53297440a4ee5bb1c0d0`
+`ceb01ede140bfc1f8ebbb09322e14793ad9164c76ddb85a5b37a665e21ab8b4a`

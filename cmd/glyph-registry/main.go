@@ -120,7 +120,7 @@ func (s *server) handlePlugins(w http.ResponseWriter, r *http.Request) {
 	response := struct {
 		Count         int               `json:"count"`
 		Total         int               `json:"total"`
-		GlyphVersions []string          `json:"glyph_versions"`
+		GlyphVersions []string          `json:"oxg_versions"`
 		Plugins       []registry.Plugin `json:"plugins"`
 	}{
 		Count:         len(plugins),
@@ -169,7 +169,7 @@ func (s *server) handleCompatibility(w http.ResponseWriter, r *http.Request) {
 		ID            string                            `json:"id"`
 		Name          string                            `json:"name"`
 		Version       string                            `json:"version"`
-		Compatibility map[string]registry.Compatibility `json:"compatibility"`
+		Compatibility map[string]registry.Compatibility `json:"oxg_compat"`
 	}
 	entries := make([]compatibilityEntry, 0, len(dataset.Plugins))
 	for _, plugin := range dataset.Plugins {
@@ -181,7 +181,7 @@ func (s *server) handleCompatibility(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	payload := struct {
-		GlyphVersions []string             `json:"glyph_versions"`
+		GlyphVersions []string             `json:"oxg_versions"`
 		Plugins       []compatibilityEntry `json:"plugins"`
 	}{
 		GlyphVersions: dataset.GlyphVersions,

@@ -40,3 +40,21 @@ func TestLoadDataset(t *testing.T) {
 		t.Fatalf("case-insensitive lookup failed")
 	}
 }
+
+func TestLoadDatasetLegacy(t *testing.T) {
+	path := filepath.Join("testdata", "registry_legacy.json")
+	dataset, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(dataset.GlyphVersions) != 2 {
+		t.Fatalf("expected legacy glyph versions to load, got %v", dataset.GlyphVersions)
+	}
+	bravo, ok := dataset.Plugin("bravo")
+	if !ok {
+		t.Fatalf("expected to load legacy plugin entry")
+	}
+	if status := bravo.Compatibility["2.0"].Status; status != "unsupported" {
+		t.Fatalf("unexpected legacy compatibility status: %s", status)
+	}
+}

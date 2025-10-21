@@ -1,11 +1,11 @@
 ---
 title: "Galdr Proxy"
-description: "Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume."
+description: "Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume."
 ---
 
 # Galdr Proxy
 
-Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
+Galdr Proxy is the interception layer for Glyph. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
 
 ## Metadata
 
@@ -14,9 +14,9 @@ Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | 0xgen Team |
+| Author | Glyph Team |
 | Language | TypeScript |
-| Last updated | Sep 30, 2025 |
+| Last updated | Oct 15, 2025 |
 
 
 ## Capabilities
@@ -30,18 +30,18 @@ Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/galdr-proxy/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/galdr-proxy/plugin.js.sig)
 
 
 ### Signature
 
-`50a8b2a25abd06346fc849bab40232de2d768cc60d6f9155bb42caf76b1dcb60`
+`aa635e921d54b8c5ab8abf1dccdee8c2b63f875dfe52c0fb63a04d6c5cfc43e8`

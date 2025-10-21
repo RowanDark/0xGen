@@ -14,9 +14,9 @@ OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface 
 | ----- | ----- |
 
 | Version | 0.1.0 |
-| Author | 0xgen Team |
+| Author | Glyph Team |
 | Language | TypeScript |
-| Last updated | Sep 30, 2025 |
+| Last updated | Oct 14, 2025 |
 
 
 ## Capabilities
@@ -29,18 +29,18 @@ OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface 
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well#installation) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well#installation) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/85464c5f43bc57662ffbc313c8008a6119bbc772/plugins/osint-well/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/8de85d3bfa61e76aad5fab2a2873a20754e4fec8/plugins/osint-well/plugin.js.sig)
 
 
 ### Signature
 
-`e7a804c5ede93f41fd2eb0871ab380f53d3342b0667f6a969c5c6fcb95b2c027`
+`ca2df332e409c8e3d1ec67544c1a2d96423a0f3cba2b86ee7c26607ffe13500b`

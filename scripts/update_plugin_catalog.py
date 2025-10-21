@@ -63,7 +63,8 @@ def main() -> None:
         for item in compatibility.get("plugins", [])
         if item.get("id")
     }
-    glyph_versions = list(dict.fromkeys(compatibility.get("glyph_versions") or []))
+    versions_source = compatibility.get("oxg_versions") or compatibility.get("glyph_versions") or []
+    oxg_versions = list(dict.fromkeys(versions_source))
 
     entries: list[dict[str, Any]] = []
     generated_docs: dict[str, Path] = {}
@@ -130,9 +131,9 @@ def main() -> None:
             categories = sorted(set(compat_entry.get("categories") or []))
             if categories:
                 entry["categories"] = categories
-            compatibility_data = compat_entry.get("compatibility") or {}
+            compatibility_data = compat_entry.get("oxg_compat") or compat_entry.get("compatibility") or {}
             if compatibility_data:
-                entry["compatibility"] = compatibility_data
+                entry["oxg_compat"] = compatibility_data
 
         entries.append(entry)
 
@@ -156,7 +157,7 @@ def main() -> None:
 
     registry_payload = {
         "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
-        "glyph_versions": glyph_versions,
+        "oxg_versions": oxg_versions,
         "plugins": entries,
     }
     REGISTRY_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -168,7 +169,7 @@ def main() -> None:
 def _load_compatibility() -> dict[str, Any]:
     path = PLUGINS_DIR / "compatibility.json"
     if not path.exists():
-        return {"glyph_versions": [], "plugins": []}
+        return {"oxg_versions": [], "plugins": []}
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -177,15 +178,21 @@ def _load_compatibility() -> dict[str, Any]:
 
 def _validate_compatibility(data: dict[str, Any]) -> None:
     glyph_versions = data.get("glyph_versions")
-    if glyph_versions is not None:
-        if not isinstance(glyph_versions, list) or not all(isinstance(item, str) for item in glyph_versions):
-            raise SystemExit("compatibility glyph_versions must be a list of strings")
+    oxg_versions = data.get("oxg_versions")
+    versions = None
+    if oxg_versions is not None:
+        versions = oxg_versions
+    elif glyph_versions is not None:
+        versions = glyph_versions
+    if versions is not None:
+        if not isinstance(versions, list) or not all(isinstance(item, str) for item in versions):
+            raise SystemExit("compatibility oxg_versions/glyph_versions must be a list of strings")
 
     for plugin in data.get("plugins", []):
         plugin_id = plugin.get("id")
         if not plugin_id:
             raise SystemExit("compatibility plugin entries require an id")
-        compat_map = plugin.get("compatibility") or {}
+        compat_map = plugin.get("oxg_compat") or plugin.get("compatibility") or {}
         if not isinstance(compat_map, dict):
             raise SystemExit(f"compatibility entry for {plugin_id} must be a mapping")
         for glyph_version, details in compat_map.items():

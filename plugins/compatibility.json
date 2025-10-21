@@ -1,104 +1,229 @@
 {
-  "glyph_versions": ["1.0", "1.1", "2.0"],
   "plugins": [
     {
       "id": "cartographer",
-      "categories": ["Discovery", "Recon"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.0+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Discovery",
+        "Recon"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.0+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "cryptographer",
-      "categories": ["Utilities"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.0+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Utilities"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.0+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "example-hello",
-      "categories": ["Examples"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.0+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Examples"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.0+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "excavator",
-      "categories": ["Discovery", "Automation"],
-      "compatibility": {
-        "1.0": {"status": "limited", "notes": "Requires passive mode patch"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Discovery",
+        "Automation"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "limited",
+          "notes": "Requires passive mode patch"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "galdr-proxy",
-      "categories": ["Interception"],
-      "compatibility": {
-        "1.0": {"status": "unsupported"},
-        "1.1": {"status": "limited", "notes": "HTTP-only support"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Interception"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "unsupported"
+        },
+        "1.1": {
+          "status": "limited",
+          "notes": "HTTP-only support"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "grapher",
-      "categories": ["Visualization"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.0+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Visualization"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.0+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "osint-well",
-      "categories": ["Intelligence"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.0+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Intelligence"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.0+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "raider",
-      "categories": ["Offense"],
-      "compatibility": {
-        "1.0": {"status": "unsupported"},
-        "1.1": {"status": "limited", "notes": "Requires v1.1.5 hotfix"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Offense"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "unsupported"
+        },
+        "1.1": {
+          "status": "limited",
+          "notes": "Requires v1.1.5 hotfix"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "ranker",
-      "categories": ["Analytics"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.0+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Analytics"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.0+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "scribe",
-      "categories": ["Reporting"],
-      "compatibility": {
-        "1.0": {"status": "compatible", "notes": "1.0.3+"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Reporting"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "compatible",
+          "notes": "1.0.3+"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     },
     {
       "id": "seer",
-      "categories": ["Detection"],
-      "compatibility": {
-        "1.0": {"status": "limited", "notes": "Passive-only mode"},
-        "1.1": {"status": "compatible", "notes": "1.1.0+"},
-        "2.0": {"status": "compatible", "notes": "2.0.0+"}
+      "categories": [
+        "Detection"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "limited",
+          "notes": "Passive-only mode"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
       }
     }
+  ],
+  "oxg_versions": [
+    "1.0",
+    "1.1",
+    "2.0"
   ]
 }

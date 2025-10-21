@@ -55,7 +55,7 @@
         })
         .then((payload) => {
           if (Array.isArray(payload)) {
-            return { plugins: payload, glyph_versions: [] };
+            return { plugins: payload, oxg_versions: [] };
           }
           return payload;
         });
@@ -64,7 +64,11 @@
       .then((registry) => {
         cachedRegistry = registry;
         const plugins = Array.isArray(registry.plugins) ? registry.plugins : [];
-        const glyphVersions = Array.isArray(registry.glyph_versions) ? registry.glyph_versions : [];
+        const glyphVersions = Array.isArray(registry.oxg_versions)
+          ? registry.oxg_versions
+          : Array.isArray(registry.glyph_versions)
+          ? registry.glyph_versions
+          : [];
         cachedPlugins = plugins;
         cached0xgenVersions = glyphVersions;
         renderFilters(plugins, languageFilter, categoryFilter, glyphFilter, statusFilter, glyphVersions);
@@ -85,7 +89,7 @@
               return false;
             }
             if (glyphVersion || status) {
-              const compatibility = plugin.compatibility || {};
+              const compatibility = plugin.oxg_compat || plugin.compatibility || {};
               if (glyphVersion) {
                 const glyphEntry = compatibility[glyphVersion];
                 if (!glyphEntry) {
@@ -107,8 +111,9 @@
               return true;
             }
             const compatibilityValues = [];
-            if (plugin.compatibility) {
-              Object.entries(plugin.compatibility).forEach(([version, entry]) => {
+            const pluginCompatibility = plugin.oxg_compat || plugin.compatibility;
+            if (pluginCompatibility) {
+              Object.entries(pluginCompatibility).forEach(([version, entry]) => {
                 if (!entry) {
                   return;
                 }
@@ -444,7 +449,7 @@
   }
 
   function renderCompatibility(plugin, glyphVersions) {
-    const compat = plugin.compatibility || {};
+    const compat = plugin.oxg_compat || plugin.compatibility || {};
     const orderedVersions = [];
     const seen = new Set();
     glyphVersions.forEach((version) => {
