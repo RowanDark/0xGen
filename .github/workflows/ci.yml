@@ -20,6 +20,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard against legacy branding
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: scripts/ci/check_glyph_branding.sh
 
       - name: Set up Go
         uses: actions/setup-go@v6
