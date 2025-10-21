@@ -47,7 +47,7 @@ for file in "${changed_files[@]}"; do
     continue
   fi
 
-  if matches=$(rg -n --ignore-case '\\bGlyph\\b' --color=never "$file"); then
+  if matches=$(rg -n --ignore-case '\bGlyph\b' --color=never "$file"); then
     if (( violations == 0 )); then
       echo "Forbidden legacy 'Glyph' references detected:"
     fi
