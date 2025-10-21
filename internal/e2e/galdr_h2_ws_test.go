@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/testutil"
 )
 
 func TestGaldrProxyHTTP2HeaderRewrite(t *testing.T) {
@@ -101,12 +102,7 @@ func TestGaldrProxyHTTP2HeaderRewrite(t *testing.T) {
 	defer resp.Body.Close()
 	_, _ = io.ReadAll(resp.Body)
 
-	if resp.Header.Get("X-0xgen") != "on" {
-		t.Fatalf("expected rewritten header, got %q", resp.Header.Get("X-0xgen"))
-	}
-	if legacy := resp.Header.Get("X-Glyph"); legacy != "" {
-		t.Fatalf("expected legacy header to be absent, got %q", legacy)
-	}
+	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen", "on")
 	if resp.Header.Get("Server") != "" {
 		t.Fatalf("expected server header stripped, got %q", resp.Header.Get("Server"))
 	}

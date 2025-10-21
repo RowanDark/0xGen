@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/proxy"
+	"github.com/RowanDark/0xgen/internal/testutil"
 )
 
 type addressCaptureHandler struct {
@@ -116,24 +117,14 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	if got := resp.Header.Get("X-0xgen-Proxy"); got != "active" {
-		t.Fatalf("expected response header to be rewritten, got %q", got)
-	}
-	if legacy := resp.Header.Get("X-Glyph-Proxy"); legacy != "" {
-		t.Fatalf("expected legacy proxy header to be absent, got %q", legacy)
-	}
+	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen-Proxy", "active")
 	if resp.Header.Get("Server") != "" {
 		t.Fatal("expected Server header to be stripped")
 	}
 
 	select {
 	case hdr := <-received:
-		if hdr.Get("X-0xgen") != "on" {
-			t.Fatalf("upstream request missing injected header: %#v", hdr)
-		}
-		if legacy := hdr.Get("X-Glyph"); legacy != "" {
-			t.Fatalf("upstream request should not include legacy header: %#v", hdr)
-		}
+		testutil.RequireHeaderWithLegacy(t, hdr, "X-0xgen", "on")
 	case <-time.After(2 * time.Second):
 		t.Fatal("upstream request not observed")
 	}
@@ -185,12 +176,7 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	if len(entry.MatchedRules) == 0 || entry.MatchedRules[0] != "demo-rule" {
 		t.Fatalf("history missing rule reference: %#v", entry.MatchedRules)
 	}
-	if values := entry.RequestHeaders["X-0xgen"]; len(values) == 0 || values[0] != "on" {
-		t.Fatalf("history missing request header injection: %#v", entry.RequestHeaders)
-	}
-	if _, ok := entry.RequestHeaders["X-Glyph"]; ok {
-		t.Fatalf("history should not contain legacy request header: %#v", entry.RequestHeaders)
-	}
+	testutil.RequireHeaderMapWithLegacy(t, entry.RequestHeaders, "X-0xgen", "on")
 	if _, ok := entry.ResponseHeaders["Server"]; ok {
 		t.Fatalf("history still contains stripped Server header: %#v", entry.ResponseHeaders)
 	}
