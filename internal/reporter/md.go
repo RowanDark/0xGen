@@ -13,9 +13,11 @@ import (
 )
 
 const (
-	defaultOutputDir = "/out"
-	findingsFilename = "findings.jsonl"
-	reportFilename   = "report.md"
+	defaultOutputDir   = "/out"
+	findingsFilename   = "findings.jsonl"
+	reportFilename     = "report.md"
+	htmlReportFilename = "0xgen_report.html"
+	jsonReportFilename = "0xgen_report.json"
 	// DefaultTopTargets controls how many targets appear in summary tables.
 	DefaultTopTargets     = 10
 	defaultTopPlugins     = 5
@@ -28,6 +30,10 @@ var (
 	DefaultFindingsPath = filepath.Join(defaultOutputDir, findingsFilename)
 	// DefaultReportPath is the default markdown summary written for CAP_REPORT consumers.
 	DefaultReportPath = filepath.Join(defaultOutputDir, reportFilename)
+	// DefaultHTMLReportPath is where the interactive HTML report is written when no --out flag is provided.
+	DefaultHTMLReportPath = filepath.Join(defaultOutputDir, htmlReportFilename)
+	// DefaultJSONReportPath is where the JSON bundle is written when no --out flag is provided.
+	DefaultJSONReportPath = filepath.Join(defaultOutputDir, jsonReportFilename)
 )
 
 func init() {
@@ -35,6 +41,8 @@ func init() {
 		if custom := strings.TrimSpace(val); custom != "" {
 			DefaultFindingsPath = filepath.Join(custom, findingsFilename)
 			DefaultReportPath = filepath.Join(custom, reportFilename)
+			DefaultHTMLReportPath = filepath.Join(custom, htmlReportFilename)
+			DefaultJSONReportPath = filepath.Join(custom, jsonReportFilename)
 		}
 	}
 }

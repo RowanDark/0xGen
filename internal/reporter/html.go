@@ -397,11 +397,17 @@ const htmlAppScript = `(function () {
     filteredCases: [],
   };
 
+  const aliasMap = [
+    ["oxg-style", "glyph-style"],
+    ["oxg-data", "glyph-data"],
+    ["oxg-app", "glyph-app"],
+  ];
+
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     await verifyIntegrity();
-    const dataElement = document.getElementById("glyph-data");
+    const dataElement = getElementByIds("oxg-data", "glyph-data");
     if (!dataElement) {
       console.error("dataset element missing");
       return;
@@ -425,9 +431,8 @@ const htmlAppScript = `(function () {
     if (!window.crypto || !window.crypto.subtle) {
       return;
     }
-    const elements = ["glyph-style", "glyph-data", "glyph-app"];
-    for (const id of elements) {
-      const el = document.getElementById(id);
+    for (const ids of aliasMap) {
+      const el = getElementByIds(...ids);
       if (!el) {
         continue;
       }
@@ -444,16 +449,26 @@ const htmlAppScript = `(function () {
       if (actual !== expected) {
         console.error(
           "integrity mismatch for " +
-            id +
+            (el.id || ids[0]) +
             ": expected " +
             expected +
             ", got " +
             actual,
         );
-        showIntegrityWarning(id);
+        showIntegrityWarning(el.id || ids[0]);
         break;
       }
     }
+  }
+
+  function getElementByIds(...ids) {
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) {
+        return el;
+      }
+    }
+    return null;
   }
 
   function showIntegrityWarning(source) {
@@ -914,17 +929,17 @@ func RenderHTML(list []findings.Finding, opts ReportOptions) (string, error) {
 
 	var b strings.Builder
 	b.WriteString("<!doctype html>\n")
-	b.WriteString("<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Glyph Findings Report</title>\n")
-	b.WriteString(fmt.Sprintf("<style id=\"glyph-style\" data-integrity=\"sha256-%s\">\n%s\n</style>\n", styleDigest, htmlStyles))
+	b.WriteString("<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>0xgen Findings Report</title>\n")
+	b.WriteString(fmt.Sprintf("<style id=\"oxg-style\" data-integrity=\"sha256-%s\">\n%s\n</style>\n", styleDigest, htmlStyles))
 	b.WriteString("</head>\n<body>\n")
-	b.WriteString("<header class=\"header\">\n<h1>Glyph Findings Report</h1>\n<p class=\"meta\">Generated at <span id=\"generatedAt\">(pending)</span></p>\n<div class=\"meta\">Window: <span id=\"windowStart\">(pending)</span> → <span id=\"windowEnd\">(pending)</span></div>\n</header>\n")
-	b.WriteString("<main>\n<div id=\"integrityWarning\" class=\"banner\" hidden>Integrity check failed for <code>unknown</code>. Refresh or regenerate this report to continue.</div>\n")
+	b.WriteString("<header class=\"header\">\n<h1>0xgen Findings Report</h1>\n<p class=\"meta\">Generated at <span id=\"generatedAt\">(pending)</span></p>\n<div class=\"meta\">Window: <span id=\"windowStart\">(pending)</span> → <span id=\"windowEnd\">(pending)</span></div>\n</header>\n")
+	b.WriteString("<main id=\"oxg-report-root\">\n<div id=\"integrityWarning\" class=\"banner\" hidden>Integrity check failed for <code>unknown</code>. Refresh or regenerate this report to continue.</div>\n")
 	b.WriteString("<section class=\"controls\">\n<div class=\"search\"><input id=\"searchInput\" type=\"search\" placeholder=\"Search findings, assets, or evidence\" aria-label=\"Search\"></div>\n<div class=\"severity-chips\" id=\"severityFilters\"></div>\n<button type=\"button\" id=\"resetFilters\">Reset filters</button>\n</section>\n")
 	b.WriteString("<section class=\"stats-grid\">\n<div class=\"stat-card\"><span class=\"label\">Cases in view</span><span class=\"value\" id=\"filteredCases\">0</span><span class=\"hint\">of <span id=\"totalCases\">0</span> total</span></div>\n<div class=\"stat-card\"><span class=\"label\">Findings analysed</span><span class=\"value\" id=\"totalFindings\">0</span><span class=\"hint\" id=\"sbomInfo\" hidden></span></div>\n<div class=\"stat-card\"><span class=\"label\">Critical / High / Medium</span><span class=\"value\"><span id=\"filtered-crit\">0</span> / <span id=\"filtered-high\">0</span> / <span id=\"filtered-med\">0</span></span><span class=\"hint\">Low <span id=\"filtered-low\">0</span> • Informational <span id=\"filtered-info\">0</span></span></div>\n</section>\n")
 	b.WriteString("<section class=\"panel\">\n<h2>Cases</h2>\n<div class=\"case-list\" id=\"caseList\"></div>\n</section>\n")
-	b.WriteString("<section class=\"panel\">\n<h2>Source Findings</h2>\n<table class=\"findings-table\" id=\"findingsTable\"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>\n</section>\n</main>\n")
-	b.WriteString(fmt.Sprintf("<script type=\"application/json\" id=\"glyph-data\" data-integrity=\"sha256-%s\">%s</script>\n", dataDigest, datasetEscaped))
-	b.WriteString(fmt.Sprintf("<script id=\"glyph-app\" data-integrity=\"sha256-%s\">\n%s\n</script>\n", scriptDigest, htmlAppScript))
+	b.WriteString("<section class=\"panel\">\n<h2>Source Findings</h2>\n<table class=\"findings-table\" id=\"findingsTable\"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>\n</section>\n</main>\n<div id=\"glyph-report-root\" style=\"display:none\"></div>\n")
+	b.WriteString(fmt.Sprintf("<script type=\"application/json\" id=\"oxg-data\" data-integrity=\"sha256-%s\">%s</script>\n", dataDigest, datasetEscaped))
+	b.WriteString(fmt.Sprintf("<script id=\"oxg-app\" data-integrity=\"sha256-%s\">\n%s\n</script>\n", scriptDigest, htmlAppScript))
 	b.WriteString("</body>\n</html>\n")
 
 	return b.String(), nil

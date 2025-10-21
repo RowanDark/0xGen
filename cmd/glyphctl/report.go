@@ -18,7 +18,7 @@ func runReportAt(args []string, now time.Time) int {
 	fs := flag.NewFlagSet("report", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", reporter.DefaultFindingsPath, "path to findings JSONL input")
-	output := fs.String("out", reporter.DefaultReportPath, "path to write the report")
+	output := fs.String("out", "", "path to write the report")
 	formatRaw := fs.String("format", string(reporter.FormatMarkdown), "report format (md, html, or json)")
 	sinceRaw := fs.String("since", "", "only include findings detected on or after this RFC-3339 timestamp or duration (e.g. 24h)")
 	sbomPath := fs.String("sbom", "", "path to an SBOM file included in the JSON bundle metadata")
@@ -27,8 +27,8 @@ func runReportAt(args []string, now time.Time) int {
 		return 2
 	}
 
-	if *input == "" || *output == "" {
-		fmt.Fprintln(os.Stderr, "--input and --out must be provided")
+	if *input == "" {
+		fmt.Fprintln(os.Stderr, "--input must be provided")
 		return 2
 	}
 
@@ -57,7 +57,19 @@ func runReportAt(args []string, now time.Time) int {
 		return 2
 	}
 
-	if err := reporter.RenderReport(*input, *output, format, opts); err != nil {
+	outputPath := strings.TrimSpace(*output)
+	if outputPath == "" {
+		switch format {
+		case reporter.FormatHTML:
+			outputPath = reporter.DefaultHTMLReportPath
+		case reporter.FormatJSON:
+			outputPath = reporter.DefaultJSONReportPath
+		default:
+			outputPath = reporter.DefaultReportPath
+		}
+	}
+
+	if err := reporter.RenderReport(*input, outputPath, format, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "generate report: %v\n", err)
 		return 1
 	}
@@ -65,7 +77,7 @@ func runReportAt(args []string, now time.Time) int {
 	if format == reporter.FormatJSON {
 		keyPath := strings.TrimSpace(*signingKey)
 		if keyPath != "" {
-			signaturePath, err := reporter.SignArtifact(*output, keyPath)
+			signaturePath, err := reporter.SignArtifact(outputPath, keyPath)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "sign JSON report: %v\n", err)
 				return 1
