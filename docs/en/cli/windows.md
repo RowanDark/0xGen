@@ -59,7 +59,7 @@ If you prefer package managers, add the 0xgen bucket to Scoop and install the
 manifest published from this repository:
 
 ```powershell
-scoop bucket add glyph https://github.com/RowanDark/0xgen
+scoop bucket add 0xgen https://github.com/RowanDark/0xgen
 scoop install 0xgenctl
 0xgenctl --version
 ```

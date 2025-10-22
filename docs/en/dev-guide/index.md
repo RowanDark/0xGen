@@ -61,9 +61,9 @@ you debug the plugin in real time.
 3. Execute `scripts/build_release.sh` to produce signed archives and checksums.
 4. Follow the prompts in `scripts/update-brew-formula.sh` if the Homebrew tap
    needs a new version. The script keeps the
-   [`RowanDark/homebrew-glyph`](https://github.com/RowanDark/homebrew-glyph)
-   formula in sync and the `bump-homebrew` workflow opens a pull request with the
-   changes.
+   [`RowanDark/homebrew-0xgen`](https://github.com/RowanDark/homebrew-0xgen)
+   `0xgen` formula in sync and the `bump-homebrew` workflow opens a pull request
+   with the changes.
 5. Build and sign the update manifests as described in the
    [updater guide](../dev/updater.md), then stage delta packages for macOS,
    Windows, and Linux.

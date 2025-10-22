@@ -8,10 +8,10 @@
 
 ### macOS (Homebrew)
 
-Las personas usuarias de macOS pueden instalar el binario precompilado `0xgenctl` mediante Homebrew utilizando el [tap RowanDark/homebrew-glyph](https://github.com/RowanDark/homebrew-glyph):
+Las personas usuarias de macOS pueden instalar el binario precompilado `0xgenctl` mediante Homebrew utilizando el [tap RowanDark/homebrew-0xgen](https://github.com/RowanDark/homebrew-0xgen):
 
 ```bash
-brew install rowandark/glyph/0xgenctl
+brew install rowandark/0xgen/0xgen
 ```
 
 ### Linux (Debian/Ubuntu)
@@ -64,7 +64,7 @@ C:\Tools\0xgen\0xgenctl.exe --version
 Agrega este repositorio como un bucket de Scoop e instala el manifiesto publicado:
 
 ```powershell
-scoop bucket add glyph https://github.com/RowanDark/0xgen
+scoop bucket add 0xgen https://github.com/RowanDark/0xgen
 scoop install 0xgenctl
 0xgenctl --version
 ```

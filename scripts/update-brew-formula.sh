@@ -26,7 +26,7 @@ if [[ -z "${VERSION}" ]]; then
         exit 1
 fi
 
-TAP_REPO="RowanDark/homebrew-glyph"
+TAP_REPO="RowanDark/homebrew-0xgen"
 RELEASE_OWNER="RowanDark"
 RELEASE_REPO="0xgen"
 
@@ -69,7 +69,7 @@ gh repo clone "${TAP_REPO}" "${TAP_CLONE_DIR}" >/dev/null 2>&1 || gh repo clone 
 
 pushd "${TAP_CLONE_DIR}" >/dev/null
 
-BRANCH="bump-0xgenctl-${TAG}"
+BRANCH="bump-0xgen-${TAG}"
 DEFAULT_BRANCH="$(git symbolic-ref --short refs/remotes/origin/HEAD | cut -d/ -f2)"
 
 git config user.name "github-actions[bot]"
@@ -80,8 +80,8 @@ git pull --ff-only origin "${DEFAULT_BRANCH}" >/dev/null
 git checkout -B "${BRANCH}" "${DEFAULT_BRANCH}"
 
 mkdir -p Formula Aliases
-cat >Formula/oxgenctl.rb <<FORMULA
-class Oxgenctl < Formula
+cat >Formula/0xgen.rb <<FORMULA
+class Oxgen < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/${RELEASE_OWNER}/${RELEASE_REPO}"
   version "${VERSION}"
@@ -113,11 +113,11 @@ end
 FORMULA
 
 cat >Aliases/0xgenctl <<'ALIAS'
-../Formula/oxgenctl.rb
+../Formula/0xgen.rb
 ALIAS
 
 cat >Aliases/0xgen <<'ALIAS'
-../Formula/oxgenctl.rb
+../Formula/0xgen.rb
 ALIAS
 
 if git diff --quiet; then
@@ -126,8 +126,8 @@ if git diff --quiet; then
         exit 0
 fi
 
-git add Formula/oxgenctl.rb Aliases/0xgenctl Aliases/0xgen
-git commit -m "Update 0xgenctl to ${TAG}" >/dev/null
+git add Formula/0xgen.rb Aliases/0xgenctl Aliases/0xgen
+git commit -m "Update 0xgen to ${TAG}" >/dev/null
 
 git push --set-upstream origin "${BRANCH}" --force-with-lease >/dev/null
 
@@ -136,7 +136,7 @@ if [[ -n "$(gh pr list --repo "${TAP_REPO}" --state open --head "${BRANCH}" --js
 else
         gh pr create \
                 --repo "${TAP_REPO}" \
-                --title "Update 0xgenctl to ${TAG}" \
+                --title "Update 0xgen to ${TAG}" \
                 --body "Automated update for ${TAG}." \
                 --head "${BRANCH}" \
                 --base "${DEFAULT_BRANCH}"

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Oxgenctl < Formula
+class Oxgen < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/RowanDark/0xgen"
   url "https://github.com/RowanDark/0xgen/archive/6cdf809882689869dfb340dc2d68c709675443b6.tar.gz"

@@ -61,9 +61,9 @@ you debug the plugin in real time.
 3. Execute `scripts/build_release.sh` to produce signed archives and checksums.
 4. Follow the prompts in `scripts/update-brew-formula.sh` if the Homebrew tap
    needs a new version. The script keeps the
-   [`RowanDark/homebrew-glyph`](https://github.com/RowanDark/homebrew-glyph)
-   formula in sync and the `bump-homebrew` workflow opens a pull request with the
-   changes.
+   [`RowanDark/homebrew-0xgen`](https://github.com/RowanDark/homebrew-0xgen)
+   `0xgen` formula in sync and the `bump-homebrew` workflow opens a pull request
+   with the changes.
 5. Run `scripts/snapshot_docs.py vX.Y.Z --latest` to archive the documentation
    into `docs/en/versions/` and update the version selector manifest.
 6. Push a Git tag (for example `v1.2.3`) to trigger the release workflows and
