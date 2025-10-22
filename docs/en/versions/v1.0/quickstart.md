@@ -1,13 +1,13 @@
 # Quickstart: End-to-End Demo
 
-The `glyphctl demo` command gives newcomers a one-minute tour of the 0xgen stack.
+The `0xgenctl demo` command gives newcomers a one-minute tour of the 0xgen stack.
 It spins up a local demo target, scans the page with Seer, ranks the resulting
 findings, and renders a polished HTML report. Everything runs on localhost and
 falls back to bundled fixtures when external network access is restricted.
 
 ## Prerequisites {#prerequisites}
 
-* Go 1.21+ (for `go run ./cmd/glyphctl demo`) or a downloaded `glyphctl` binary
+* Go 1.21+ (for `go run ./cmd/0xgenctl demo`) or a downloaded `0xgenctl` binary
 * Git (to clone this repository)
 
 Everything else (0xgen binaries, Playwright, etc.) is built on demand. No
@@ -19,12 +19,12 @@ feeds Seer a synthetic response that mirrors the HTML shipped in
 ## Getting started {#getting-started}
 
 ```bash
-glyphctl demo
+0xgenctl demo
 ```
 
 The command performs the following steps:
 
-1. Serve the bundled [`demo target`]({{ config.repo_url }}/blob/main/cmd/glyphctl/demo_assets/target.html)
+1. Serve the bundled [`demo target`]({{ config.repo_url }}/blob/main/cmd/0xgenctl/demo_assets/target.html)
    locally so no external network access is required.
 2. Scan the rendered page with Seer, persisting structured findings to
    `out/demo/findings.jsonl`.
@@ -63,4 +63,4 @@ Remove the generated artifacts with:
 rm -rf out/demo
 ```
 
-Rerun `glyphctl demo` at any time to regenerate the report.
+Rerun `0xgenctl demo` at any time to regenerate the report.

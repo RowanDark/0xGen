@@ -56,10 +56,10 @@ func TestGlyphctlRaiderRun(t *testing.T) {
 		t.Fatalf("write payload file: %v", err)
 	}
 
-	root := repoRoot(t)
-	glyphctl := buildGlyphctl(ctx, t, root)
+        root := repoRoot(t)
+        cliPath := buildGlyphctl(ctx, t, root)
 
-	cmd := exec.CommandContext(ctx, glyphctl, "raider", "run", "--req", reqPath, "--positions", "{{}}", "--payload", payloadPath, "--concurrency", "3", "--rate", "2/s")
+        cmd := exec.CommandContext(ctx, cliPath, "raider", "run", "--req", reqPath, "--positions", "{{}}", "--payload", payloadPath, "--concurrency", "3", "--rate", "2/s")
 	cmd.Dir = root
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -67,7 +67,7 @@ func TestGlyphctlRaiderRun(t *testing.T) {
 
 	start := time.Now()
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("glyphctl raider run failed: %v\nstderr:\n%s", err, stderr.String())
+		t.Fatalf("0xgenctl raider run failed: %v\nstderr:\n%s", err, stderr.String())
 	}
 	duration := time.Since(start)
 

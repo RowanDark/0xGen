@@ -21,8 +21,8 @@ small and deterministic for CI.
 
 ## How the tests run
 
-1. A dedicated `glyphd` instance is started with the Galdr proxy enabled.
-2. The `passive-header-scan` sample plugin is executed via `glyphctl`. The test
+1. A dedicated `0xgend` instance is started with the Galdr proxy enabled.
+2. The `passive-header-scan` sample plugin is executed via `0xgenctl`. The test
    disables the synthetic event generator to ensure that only real proxy flows
    are analysed.
 3. Traffic is replayed through the Galdr proxy to the simulated target. This is
@@ -47,7 +47,7 @@ with a three minute timeout window, which is suitable for nightly or gated
 execution. Because the fixtures are self-contained, the tests do not require
 external network access and can safely run in continuous integration.
 
-Setting `0XGEN_DISABLE_EVENT_GENERATOR=1` for `glyphd` is recommended whenever
+Setting `0XGEN_DISABLE_EVENT_GENERATOR=1` for `0xgend` is recommended whenever
 replaying captured flows. The helper introduced for these tests ensures that the
 synthetic responses are skipped so that the assertions only reflect the chosen
 scenario.

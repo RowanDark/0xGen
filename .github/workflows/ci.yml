@@ -95,7 +95,7 @@ jobs:
 
       - name: Generate sample HTML report
         if: matrix.os == 'ubuntu-latest'
-        run: go run ./cmd/glyphctl report --input examples/findings-sample.jsonl --out report.html --format html
+        run: go run ./cmd/0xgenctl report --input examples/findings-sample.jsonl --out report.html --format html
 
       - name: Upload sample HTML report
         if: matrix.os == 'ubuntu-latest'
@@ -199,7 +199,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           load: true
-          tags: glyphctl:ci
+          tags: 0xgenctl:ci
 
       - name: Container smoke test
         run: |
@@ -228,16 +228,16 @@ jobs:
 
           docker run "${common_flags[@]}" \
             --mount "type=volume,src=${out_volume},dst=/out" \
-            glyphctl:ci demo --out /out/demo
+            0xgenctl:ci demo --out /out/demo
 
           docker run "${common_flags[@]}" \
             --mount "type=volume,src=${out_volume},dst=/out,ro" \
-            glyphctl:ci findings validate --input /out/demo/findings.jsonl
+            0xgenctl:ci findings validate --input /out/demo/findings.jsonl
 
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.22.0
         with:
-          image-ref: glyphctl:ci
+          image-ref: 0xgenctl:ci
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: '1'
@@ -245,6 +245,6 @@ jobs:
       - name: Grype vulnerability scan
         uses: anchore/grype-action@v0.9.1
         with:
-          image: glyphctl:ci
+          image: 0xgenctl:ci
           fail-build: true
           severity-cutoff: high

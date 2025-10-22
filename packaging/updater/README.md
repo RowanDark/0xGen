@@ -14,14 +14,14 @@ directory and produces signed manifests under `out/updater/<channel>/`. Each
       "os": "linux",
       "arch": "amd64",
       "full": {
-        "url": "https://cdn.glyph.dev/updates/stable/linux-amd64/glyphctl.tar.gz",
-        "path": "../../out/dist/linux-amd64/glyphctl.tar.gz",
+        "url": "https://cdn.glyph.dev/updates/stable/linux-amd64/0xgenctl.tar.gz",
+        "path": "../../out/dist/linux-amd64/0xgenctl.tar.gz",
         "sha256": "optional sha override"
       },
       "delta": {
         "from_version": "1.2.2",
-        "url": "https://cdn.glyph.dev/updates/stable/linux-amd64/glyphctl-1.2.2-1.2.3.patch",
-        "path": "../../out/dist/linux-amd64/glyphctl-1.2.2-1.2.3.patch"
+        "url": "https://cdn.glyph.dev/updates/stable/linux-amd64/0xgenctl-1.2.2-1.2.3.patch",
+        "path": "../../out/dist/linux-amd64/0xgenctl-1.2.2-1.2.3.patch"
       }
     }
   ]

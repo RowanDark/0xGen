@@ -18,7 +18,7 @@ func main() {
 	}
 
 	var (
-		serverAddr = flag.String("server", "127.0.0.1:50051", "glyphd gRPC address")
+		serverAddr = flag.String("server", "127.0.0.1:50051", "0xgend gRPC address")
 		authToken  = flag.String("token", "supersecrettoken", "authentication token")
 	)
 	flag.Parse()

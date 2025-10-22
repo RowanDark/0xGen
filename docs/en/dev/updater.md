@@ -1,6 +1,6 @@
 # Updater channels and rollback
 
-0xgen ships a built-in update service for both the desktop shell and the `glyphctl`
+0xgen ships a built-in update service for both the desktop shell and the `0xgenctl`
 CLI. This guide documents how we stage releases to the stable and beta channels,
 how delta packages are produced, and how clients verify, apply, and roll back
 updates.
@@ -25,15 +25,15 @@ future auto-checks continue to poll the chosen channel.
 
 ### CLI channel flag {#cli-channel-flag}
 
-`glyphctl` exposes a `self-update` command that accepts a
+`0xgenctl` exposes a `self-update` command that accepts a
 `--channel=<stable|beta>` flag. The flag defaults to the stored preference and
 acts as a one-shot override for the current invocation. To change the persisted
-channel run `glyphctl self-update channel <stable|beta>`; we store the result in
-`~/.config/glyphctl/updater.json` alongside bookkeeping data for rollback. The
-CLI prints the active channel when invoked as `glyphctl self-update channel`.
+channel run `0xgenctl self-update channel <stable|beta>`; we store the result in
+`~/.config/0xgenctl/updater.json` alongside bookkeeping data for rollback. The
+CLI prints the active channel when invoked as `0xgenctl self-update channel`.
 
 The updater keeps a copy of the previous binary in the same configuration
-directory. `glyphctl self-update --rollback` replaces the current executable
+directory. `0xgenctl self-update --rollback` replaces the current executable
 with that cached build and flips the stored channel back to `stable` as a safety
 valve.
 
@@ -82,7 +82,7 @@ includes:
 1. Verifying the executable starts within a 30-second timeout.
 2. Confirming the local plugin registry loads.
 3. Checking telemetry heartbeats for five minutes (desktop) or one successful
-   CLI run (invoked via `glyphctl --version`).
+   CLI run (invoked via `0xgenctl --version`).
 
 If any verification step fails, the updater restores the prior bundle, replays
 the manifest signature checks to ensure integrity, and switches the auto-update
@@ -91,7 +91,7 @@ stderr output (CLI) explaining that the rollback completed and that diagnostics
 were uploaded for triage.
 
 The rollback path is also exposed manually: the desktop UI offers a "Restore
-previous version" button on the Updates panel, while `glyphctl self-update`
+previous version" button on the Updates panel, while `0xgenctl self-update`
 accepts `--rollback` to revert to the cached build.
 
 ## Release engineering checklist additions {#release-engineering}
@@ -107,7 +107,7 @@ When cutting a release, append the following steps to the standard checklist:
    supported platform and that the manifest flags fallback builds appropriately.
 5. Upload the delta and full artifacts to the CDN and publish the manifests to
    `/updates/<channel>/manifest.json` alongside the detached signatures.
-6. Smoke-test `glyphctl self-update --channel beta` and a desktop beta install on
+6. Smoke-test `0xgenctl self-update --channel beta` and a desktop beta install on
    macOS, Windows, and Linux before promoting the build to stable.
 7. Archive the release telemetry in the incident response dashboard so we can
    trace rollbacks.

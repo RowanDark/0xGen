@@ -61,7 +61,7 @@ and the compatibility matrix declared in
 feed after editing either source by running the publish workflow:
 
 ```bash
-glyphctl plugin registry publish --ref $(git rev-parse HEAD)
+0xgenctl plugin registry publish --ref $(git rev-parse HEAD)
 ```
 
 The command wraps `python scripts/update_plugin_catalog.py`, rebuilding:

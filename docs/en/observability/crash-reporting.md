@@ -86,7 +86,7 @@ safe to attach to bug reports without tripping repository binary file checks.
 ## Maintainer workflow
 
 Maintainers can reproduce the crash by unpacking the archive and running the new
-`glyphctl crash replay /path/to/bundle` helper. The command spins up the shell in
+`0xgenctl crash replay /path/to/bundle` helper. The command spins up the shell in
 replay mode, injects the captured metrics/logs, and loads the minidump JSON to
 reconstruct the call stack. Documentation for the replay flow will live alongside
 other support guides.

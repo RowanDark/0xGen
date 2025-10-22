@@ -11,7 +11,7 @@ Create label: `rebrand`
 - [ ] 3 GUI window title/icon text only
 - [ ] 4 CLI banner + `--version` output text
 - [ ] 5 Config dir env vars (read new, fall back to old)
-- [ ] 6 Binary wrapper: `0xgenctl` → `glyphctl` (alias)
+- [ ] 6 Binary wrapper: `0xgenctl` → `0xgenctl` (alias)
 - [ ] 7 Docs URLs: add redirects from the legacy prefix to `/0xgen`
 - [ ] 8 `go.mod` module comment only (no path change)
 - [ ] 9 Homebrew formula name only (alias keeps glyph)

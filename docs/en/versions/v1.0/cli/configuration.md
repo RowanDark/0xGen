@@ -16,7 +16,7 @@ Each subsequent source overrides values defined in the previous ones. Local
 project configuration therefore beats the user-level TOML file, and environment
 variables have the final say. When the loader falls back to `~/.glyph/config.toml`
 it emits a one-time warning and still honours the legacy file so existing
-installations keep working. Run `glyphctl config migrate` to copy the legacy
+installations keep working. Run `0xgenctl config migrate` to copy the legacy
 configuration into the new `~/.0xgen` directory.
 
 ## Supported fields {#supported-fields}
@@ -59,10 +59,10 @@ All variables accept whitespace-trimmed values. Boolean variables treat `1`,
 ## Inspecting the resolved configuration {#inspect-the-resolved-configuration}
 
 Run the following command to print the merged configuration as seen by
-`glyphctl`:
+`0xgenctl`:
 
 ```bash
-$ glyphctl config print
+$ 0xgenctl config print
 server_addr: 127.0.0.1:50051
 auth_token: supersecrettoken
 output_dir: /out

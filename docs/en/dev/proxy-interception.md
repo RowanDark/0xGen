@@ -49,14 +49,14 @@ This document outlines the design for enabling 0xgen to operate as an intercepti
 - Scope policies parsed from YAML (see `--scope-policy`) suppress out-of-scope flows before they reach plugins, ensuring redaction rules align with bounty constraints.
 
 ### Flow sampling, truncation, and replay
-- `glyphd` exposes tuning flags to balance performance and fidelity:
+- `0xgend` exposes tuning flags to balance performance and fidelity:
   - `--proxy-flow-enabled` toggles publishing entirely (defaults to enabled when the bus is available).
   - `--flow-sample-rate` accepts a ratio between `0` and `1` for probabilistic sampling. A value of `0` keeps the proxy online while suppressing flow publications.
   - `--max-body-kb` limits the number of raw body kilobytes captured per event. Values above the limit append the `X-0xgen-Raw-Body-Truncated: <bytes>;sha256=<digest>` header so plugins can detect truncation while verifying integrity; `-1` disables raw body capture entirely, `0` captures headers only.
   - `--proxy-flow-seed` seeds deterministic flow identifiers, aiding replay comparisons when deterministic output is required.
   - `--proxy-flow-log` overrides the sanitized flow transcript path. By default, 0xgen writes `proxy_flows.jsonl` next to the history log for inclusion in replay artefacts.
-- Sanitized flow transcripts contain base64-encoded HTTP messages plus metadata (`sequence`, `timestamp_unix`, redaction hints). These are packaged inside replay artefacts as `flows.jsonl`, copied to `flows.replay.jsonl` by `glyphctl replay`.
-- Flow ordering remains deterministic via monotonically increasing sequence numbers coupled with the configured seed. The `Seeds` manifest map now includes a `flows` entry when glyphd publishes the seed used during capture.
+- Sanitized flow transcripts contain base64-encoded HTTP messages plus metadata (`sequence`, `timestamp_unix`, redaction hints). These are packaged inside replay artefacts as `flows.jsonl`, copied to `flows.replay.jsonl` by `0xgenctl replay`.
+- Flow ordering remains deterministic via monotonically increasing sequence numbers coupled with the configured seed. The `Seeds` manifest map now includes a `flows` entry when 0xgend publishes the seed used during capture.
 
 ### Telemetry additions
 - `oxg_flow_dispatch_seconds` tracks broadcast latency for sanitized and raw subscriptions independently, complementing the existing event counters (`oxg_*` aliases remain temporarily).

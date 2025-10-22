@@ -52,7 +52,7 @@ This sprint focuses on hardening the Galdr proxy foundation while delivering fir
 **Goal:** Transform findings JSONL files into a human-friendly Markdown report.
 
 **Scope & Tasks**
-- Implement `glyphctl report --input /out/findings.jsonl --out /out/report.md`.
+- Implement `0xgenctl report --input /out/findings.jsonl --out /out/report.md`.
 - Summarize totals by severity, highlight top targets, and include a table of the most recent findings.
 - Create a golden test that validates the generated Markdown.
 - Plan future enhancements such as automated triage, but keep scope focused on deterministic reporting.

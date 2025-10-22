@@ -110,8 +110,8 @@ const ManifestResponseSchema = z.object({
 });
 
 const ManifestRunnerSchema = z.object({
-  glyphctlVersion: z.string().optional(),
-  glyphdVersion: z.string().optional(),
+  '0xgenctlVersion': z.string().optional(),
+  '0xgendVersion': z.string().optional(),
   goVersion: z.string().optional(),
   os: z.string().optional(),
   arch: z.string().optional()

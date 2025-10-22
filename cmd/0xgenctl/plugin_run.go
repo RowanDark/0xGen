@@ -25,8 +25,8 @@ func runPluginRun(args []string) int {
 	fs := flag.NewFlagSet("plugin run", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	sample := fs.String("sample", "", "sample plugin to execute")
-	server := fs.String("server", "127.0.0.1:50051", "glyphd gRPC address")
-	token := fs.String("token", "supersecrettoken", "glyphd authentication token")
+	server := fs.String("server", "127.0.0.1:50051", "0xgend gRPC address")
+	token := fs.String("token", "supersecrettoken", "0xgend authentication token")
 	duration := fs.Duration("duration", 5*time.Second, "maximum runtime before termination")
 
 	if err := fs.Parse(args); err != nil {
@@ -143,7 +143,7 @@ func requestCapabilityGrant(parent context.Context, addr, authToken string, mani
 	defer cancel()
 	conn, err := grpc.DialContext(dialCtx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return "", fmt.Errorf("dial glyphd: %w", err)
+		return "", fmt.Errorf("dial 0xgend: %w", err)
 	}
 	defer func() {
 		_ = conn.Close()

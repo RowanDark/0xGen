@@ -9,7 +9,7 @@ This document captures the default hardening and recommended runtime profile.
 
 * Multi-stage build with a minimal Alpine toolchain stage and a distroless
   runtime image.
-* `glyphctl` binary compiled with CGO disabled and Go build trimming enabled.
+* `0xgenctl` binary compiled with CGO disabled and Go build trimming enabled.
 * `nonroot` user enforced as the entrypoint user; no `root` binaries are
   present.
 * `/home/nonroot/.glyph`, `/home/nonroot/.cache`, and `/out` are declared as
@@ -99,7 +99,7 @@ docker run \
 
 Mount any plugin directories that need to be executed into `/plugins` with a
 read-only bind mount. Plugin execution continues to take place inside the
-sandbox provided by `glyphctl` and does not require elevated container
+sandbox provided by `0xgenctl` and does not require elevated container
 privileges.
 
 CI pipelines build the image, execute the demo workflow inside the hardened

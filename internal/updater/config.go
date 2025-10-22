@@ -48,7 +48,7 @@ type Store struct {
 }
 
 // DefaultConfigDir returns the platform specific configuration directory for
-// glyphctl's updater metadata.
+// 0xgenctl's updater metadata.
 func DefaultConfigDir() (string, error) {
 	// Honour 0XGEN_UPDATER_CONFIG_DIR if present so tests can override the
 	// location without polluting the real user config.
@@ -61,7 +61,7 @@ func DefaultConfigDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve config dir: %w", err)
 	}
-	return filepath.Join(dir, "glyphctl"), nil
+	return filepath.Join(dir, "0xgenctl"), nil
 }
 
 // NewStore constructs a Store rooted at dir. If dir is empty the default

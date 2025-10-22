@@ -24,7 +24,7 @@ ARG TARGETARCH
 ARG VERSION=dev
 
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/glyphctl ./cmd/glyphctl
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/0xgenctl ./cmd/0xgenctl
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
@@ -35,7 +35,7 @@ ENV HOME=/home/nonroot \
 WORKDIR /home/nonroot
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder --chown=nonroot:nonroot --chmod=0555 /out/glyphctl /usr/local/bin/glyphctl
+COPY --from=builder --chown=nonroot:nonroot --chmod=0555 /out/0xgenctl /usr/local/0xgen/bin/0xgenctl
 COPY --from=builder --chown=nonroot:nonroot --chmod=0700 /home/nonroot/.glyph /home/nonroot/.glyph
 COPY --from=builder --chown=nonroot:nonroot --chmod=0700 /home/nonroot/.cache /home/nonroot/.cache
 COPY --from=builder --chown=nonroot:nonroot --chmod=0755 /out /out
@@ -44,5 +44,5 @@ VOLUME ["/home/nonroot/.glyph", "/home/nonroot/.cache", "/out"]
 
 USER nonroot:nonroot
 
-ENTRYPOINT ["/usr/local/bin/glyphctl"]
+ENTRYPOINT ["/usr/local/0xgen/bin/0xgenctl"]
 CMD ["--help"]

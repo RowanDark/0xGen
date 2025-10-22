@@ -30,16 +30,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "glyphctl_${TAG}_windows_amd64.zip" -D dist
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "glyphctl_${TAG}_windows_arm64.zip" -D dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "0xgenctl_${TAG}_windows_amd64.zip" -D dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "0xgenctl_${TAG}_windows_arm64.zip" -D dist
 
       - name: Update Scoop manifest
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          AMD64_HASH=$(sha256sum "dist/glyphctl_${TAG}_windows_amd64.zip" | awk '{print $1}')
-          ARM64_HASH=$(sha256sum "dist/glyphctl_${TAG}_windows_arm64.zip" | awk '{print $1}')
+          AMD64_HASH=$(sha256sum "dist/0xgenctl_${TAG}_windows_amd64.zip" | awk '{print $1}')
+          ARM64_HASH=$(sha256sum "dist/0xgenctl_${TAG}_windows_arm64.zip" | awk '{print $1}')
           export AMD64_HASH ARM64_HASH
           python <<'PY'
 import json
@@ -50,26 +50,26 @@ tag = os.environ["TAG"]
 version = tag[1:] if tag.startswith("v") else tag
 amd64_hash = os.environ["AMD64_HASH"]
 arm64_hash = os.environ["ARM64_HASH"]
-manifest_path = Path("scoop/bucket/glyphctl.json")
+manifest_path = Path("scoop/bucket/0xgenctl.json")
 manifest = json.loads(manifest_path.read_text())
 manifest["version"] = version
-manifest["architecture"]["64bit"]["url"] = f"https://github.com/RowanDark/0xgen/releases/download/{tag}/glyphctl_{tag}_windows_amd64.zip"
+manifest["architecture"]["64bit"]["url"] = f"https://github.com/RowanDark/0xgen/releases/download/{tag}/0xgenctl_{tag}_windows_amd64.zip"
 manifest["architecture"]["64bit"]["hash"] = f"sha256:{amd64_hash}"
-manifest["architecture"]["arm64"]["url"] = f"https://github.com/RowanDark/0xgen/releases/download/{tag}/glyphctl_{tag}_windows_arm64.zip"
+manifest["architecture"]["arm64"]["url"] = f"https://github.com/RowanDark/0xgen/releases/download/{tag}/0xgenctl_{tag}_windows_arm64.zip"
 manifest["architecture"]["arm64"]["hash"] = f"sha256:{arm64_hash}"
-manifest["autoupdate"]["architecture"]["64bit"]["url"] = "https://github.com/RowanDark/0xgen/releases/download/v$version/glyphctl_v$version_windows_amd64.zip"
-manifest["autoupdate"]["architecture"]["arm64"]["url"] = "https://github.com/RowanDark/0xgen/releases/download/v$version/glyphctl_v$version_windows_arm64.zip"
+manifest["autoupdate"]["architecture"]["64bit"]["url"] = "https://github.com/RowanDark/0xgen/releases/download/v$version/0xgenctl_v$version_windows_amd64.zip"
+manifest["autoupdate"]["architecture"]["arm64"]["url"] = "https://github.com/RowanDark/0xgen/releases/download/v$version/0xgenctl_v$version_windows_arm64.zip"
 manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 PY
 
       - name: Commit manifest
         run: |
           set -euo pipefail
-          if git diff --quiet scoop/bucket/glyphctl.json; then
+          if git diff --quiet scoop/bucket/0xgenctl.json; then
             echo "Manifest already up to date"
             exit 0
           fi
-          git add scoop/bucket/glyphctl.json
+          git add scoop/bucket/0xgenctl.json
           git commit -m "chore: update Scoop manifest for $TAG"
           git push origin HEAD:main
         env:

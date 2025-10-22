@@ -26,7 +26,7 @@ func runPluginRegistry(args []string) int {
 }
 
 func runPluginRegistryPublish(args []string) int {
-	fs := flag.NewFlagSet("glyphctl plugin registry publish", flag.ContinueOnError)
+	fs := flag.NewFlagSet("0xgenctl plugin registry publish", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
 	ref := fs.String("ref", "", "git ref used for generated links")

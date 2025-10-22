@@ -31,7 +31,7 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
     --source-uri github.com/RowanDark/0xgen \
      --builder-id \
        https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
-     dist/glyphctl-linux-amd64.tar.gz
+     dist/0xgenctl-linux-amd64.tar.gz
    ```
 
    Replace the artifact path with the archive you downloaded. A successful

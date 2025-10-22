@@ -59,48 +59,48 @@ func TestPipelinePassiveHeaderScanGolden(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	root := repoRoot(t)
-	glyphdBin := buildGlyphd(ctx, t, root)
-	glyphctlBin := buildGlyphctl(ctx, t, root)
+        root := repoRoot(t)
+        daemonBin := buildGlyphd(ctx, t, root)
+        cliBin := buildGlyphctl(ctx, t, root)
 
 	outDir := t.TempDir()
 	findingsPath := filepath.Join(outDir, "findings.jsonl")
 
 	listenAddr, dialAddr := resolveAddresses(t)
-	cmdCtx, cmdCancel := context.WithCancel(ctx)
-	glyphd := exec.CommandContext(cmdCtx, glyphdBin, "--addr", listenAddr, "--token", "test-token")
-	glyphd.Dir = root
-	glyphd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
+        cmdCtx, cmdCancel := context.WithCancel(ctx)
+        daemon := exec.CommandContext(cmdCtx, daemonBin, "--addr", listenAddr, "--token", "test-token")
+        daemon.Dir = root
+        daemon.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 
 	var stdout, stderr bytes.Buffer
-	glyphd.Stdout = &stdout
-	glyphd.Stderr = &stderr
+        daemon.Stdout = &stdout
+        daemon.Stderr = &stderr
 
-	if err := glyphd.Start(); err != nil {
-		t.Fatalf("failed to start glyphd: %v", err)
-	}
+        if err := daemon.Start(); err != nil {
+                t.Fatalf("failed to start 0xgend: %v", err)
+        }
 
-	done := make(chan struct{})
-	var glyphdErr error
-	go func() {
-		glyphdErr = glyphd.Wait()
-		close(done)
-	}()
+        done := make(chan struct{})
+        var daemonErr error
+        go func() {
+                daemonErr = daemon.Wait()
+                close(done)
+        }()
 
 	t.Cleanup(func() {
 		cmdCancel()
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			t.Fatalf("glyphd did not exit after cancellation")
+			t.Fatalf("0xgend did not exit after cancellation")
 		}
 	})
 
-	if err := waitForListener(cmdCtx, dialAddr, done, func() error { return glyphdErr }); err != nil {
-		t.Fatalf("glyphd did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-	}
+        if err := waitForListener(cmdCtx, dialAddr, done, func() error { return daemonErr }); err != nil {
+                t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+        }
 
-	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test-token", "--duration", "6s")
+        pluginCmd := exec.CommandContext(ctx, cliBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test-token", "--duration", "6s")
 	pluginCmd.Dir = root
 	pluginCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 	var pluginOut, pluginErr bytes.Buffer
@@ -108,7 +108,7 @@ func TestPipelinePassiveHeaderScanGolden(t *testing.T) {
 	pluginCmd.Stderr = &pluginErr
 
 	if err := pluginCmd.Run(); err != nil {
-		t.Fatalf("glyphctl plugin run failed: %v\nstdout:\n%s\nstderr:\n%s", err, pluginOut.String(), pluginErr.String())
+		t.Fatalf("0xgenctl plugin run failed: %v\nstdout:\n%s\nstderr:\n%s", err, pluginOut.String(), pluginErr.String())
 	}
 
 	findingsList := waitForFindings(t, findingsPath, 4, 10*time.Second)

@@ -451,10 +451,10 @@ struct ManifestResponseRecord {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ManifestRunnerInfo {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    glyphctl_version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    glyphd_version: Option<String>,
+    #[serde(rename = "0xgenctlVersion", skip_serializing_if = "Option::is_none")]
+    cli_version: Option<String>,
+    #[serde(rename = "0xgendVersion", skip_serializing_if = "Option::is_none")]
+    daemon_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     go_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

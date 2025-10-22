@@ -19,7 +19,7 @@ import (
 )
 
 // Client orchestrates manifest fetching, artifact validation, and binary swaps
-// for glyphctl self-updates.
+// for 0xgenctl self-updates.
 type Client struct {
 	Store          *Store
 	HTTPClient     *http.Client
@@ -41,7 +41,7 @@ type RollbackOptions struct {
 }
 
 // Update downloads the manifest for opts.Channel and attempts to update the
-// glyphctl binary in-place. When PersistChannel is true the channel preference
+// 0xgenctl binary in-place. When PersistChannel is true the channel preference
 // in the config file is updated to match the effective channel.
 func (c *Client) Update(ctx context.Context, opts UpdateOptions) error {
 	if c.Store == nil {
@@ -70,7 +70,7 @@ func (c *Client) Update(ctx context.Context, opts UpdateOptions) error {
 	}
 
 	if manifest.Version == runtimeVersion || strings.TrimSpace(cfg.LastAppliedVersion) == manifest.Version {
-		fmt.Fprintf(c.Out, "glyphctl %s is already the newest build on the %s channel\n", runtimeVersion, channel)
+		fmt.Fprintf(c.Out, "0xgenctl %s is already the newest build on the %s channel\n", runtimeVersion, channel)
 		if opts.PersistChannel {
 			cfg.Channel = channel
 			if err := c.Store.Save(cfg); err != nil {
@@ -100,7 +100,7 @@ func (c *Client) Update(ctx context.Context, opts UpdateOptions) error {
 		return fmt.Errorf("stat executable: %w", err)
 	}
 
-	backupPath := filepath.Join(c.Store.Dir(), "glyphctl.previous")
+	backupPath := filepath.Join(c.Store.Dir(), "0xgenctl.previous")
 	if err := os.MkdirAll(c.Store.Dir(), 0o755); err != nil {
 		return fmt.Errorf("prepare backup dir: %w", err)
 	}
@@ -148,7 +148,7 @@ func (c *Client) Update(ctx context.Context, opts UpdateOptions) error {
 	if err := c.Store.Save(cfg); err != nil {
 		return err
 	}
-	fmt.Fprintf(c.Out, "updated glyphctl to %s on the %s channel\n", appliedVersion, channel)
+	fmt.Fprintf(c.Out, "updated 0xgenctl to %s on the %s channel\n", appliedVersion, channel)
 	return nil
 }
 
@@ -189,7 +189,7 @@ func (c *Client) applyFull(ctx context.Context, build Build, opts update.Options
 	return nil
 }
 
-// Rollback restores the previous glyphctl binary if one is available.
+// Rollback restores the previous 0xgenctl binary if one is available.
 func (c *Client) Rollback(ctx context.Context, opts RollbackOptions) error {
 	if c.Store == nil {
 		return errors.New("nil config store")
@@ -237,7 +237,7 @@ func (c *Client) Rollback(ctx context.Context, opts RollbackOptions) error {
 	if err := c.Store.Save(cfg); err != nil {
 		return err
 	}
-	fmt.Fprintf(c.Out, "rolled back glyphctl to %s\n", cfg.LastAppliedVersion)
+	fmt.Fprintf(c.Out, "rolled back 0xgenctl to %s\n", cfg.LastAppliedVersion)
 	return nil
 }
 
@@ -287,7 +287,7 @@ func (c *Client) userAgent() string {
 	if version == "" {
 		version = "dev"
 	}
-	return fmt.Sprintf("glyphctl/%s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("0xgenctl/%s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
 }
 
 func matchesCurrentVersion(from string, current string, lastApplied string) bool {

@@ -76,8 +76,8 @@ type ResponseRecord struct {
 
 // RunnerInfo records the versions of the primary executables.
 type RunnerInfo struct {
-	GlyphctlVersion string `json:"glyphctl_version"`
-	GlyphdVersion   string `json:"glyphd_version"`
+	GlyphctlVersion string `json:"0xgenctl_version"`
+	GlyphdVersion   string `json:"0xgend_version"`
 	GoVersion       string `json:"go_version,omitempty"`
 	OS              string `json:"os,omitempty"`
 	Arch            string `json:"arch,omitempty"`

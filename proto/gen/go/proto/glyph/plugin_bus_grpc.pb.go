@@ -31,7 +31,7 @@ const (
 // receive events from the host and send findings back.
 type PluginBusClient interface {
 	// EventStream is a long-lived, bi-directional stream between the host
-	// (`glyphd`) and a single plugin.
+	// (`0xgend`) and a single plugin.
 	EventStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[PluginEvent, HostEvent], error)
 	// GrantCapabilities issues a short-lived capability token for a plugin invocation.
 	GrantCapabilities(ctx context.Context, in *PluginCapabilityRequest, opts ...grpc.CallOption) (*PluginCapabilityGrant, error)
@@ -76,7 +76,7 @@ type PluginBus_EventStreamClient = grpc.BidiStreamingClient[PluginEvent, HostEve
 // receive events from the host and send findings back.
 type PluginBusServer interface {
 	// EventStream is a long-lived, bi-directional stream between the host
-	// (`glyphd`) and a single plugin.
+	// (`0xgend`) and a single plugin.
 	EventStream(grpc.BidiStreamingServer[PluginEvent, HostEvent]) error
 	// GrantCapabilities issues a short-lived capability token for a plugin invocation.
 	GrantCapabilities(context.Context, *PluginCapabilityRequest) (*PluginCapabilityGrant, error)

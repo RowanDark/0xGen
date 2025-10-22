@@ -22,7 +22,7 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 		t.Fatalf("failed to listen: %v", err)
 	}
 
-	coreLogger, err := logging.NewAuditLogger("glyphd_test", logging.WithoutStdout(), logging.WithWriter(io.Discard))
+	coreLogger, err := logging.NewAuditLogger("0xgend_test", logging.WithoutStdout(), logging.WithWriter(io.Discard))
 	if err != nil {
 		t.Fatalf("NewAuditLogger: %v", err)
 	}

@@ -45,9 +45,9 @@ To verify a release:
 ```bash
 # Download the archive, signature, certificate, checksum, and provenance files
 VERSION=v1.2.3
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.sig
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.pem
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenctl_${VERSION}_linux_amd64.tar.gz
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenctl_${VERSION}_linux_amd64.tar.gz.sig
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenctl_${VERSION}_linux_amd64.tar.gz.pem
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt.sig
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt.pem
@@ -55,9 +55,9 @@ curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph-$
 
 # Verify the signature matches the downloaded archive
 cosign verify-blob \
-  --certificate glyphctl_${VERSION}_linux_amd64.tar.gz.pem \
-  --signature glyphctl_${VERSION}_linux_amd64.tar.gz.sig \
-  glyphctl_${VERSION}_linux_amd64.tar.gz
+  --certificate 0xgenctl_${VERSION}_linux_amd64.tar.gz.pem \
+  --signature 0xgenctl_${VERSION}_linux_amd64.tar.gz.sig \
+  0xgenctl_${VERSION}_linux_amd64.tar.gz
 
 # Validate the SLSA provenance
 slsa-verifier verify-artifact \
@@ -65,7 +65,7 @@ slsa-verifier verify-artifact \
   --source-uri github.com/RowanDark/0xgen \
   --builder-id \
     https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
-  glyphctl_${VERSION}_linux_amd64.tar.gz
+  0xgenctl_${VERSION}_linux_amd64.tar.gz
 ```
 
 Successful verification proves the archive was produced by the trusted release
@@ -73,7 +73,7 @@ workflow and signed with Sigstore.
 
 ## Plugin signature verification {#plugin-signature-verification}
 
-The `glyphctl plugin run` command now validates detached signatures before a
+The `0xgenctl plugin run` command now validates detached signatures before a
 plugin is compiled or executed. Each official plugin ships with:
 
 - `<artifact>.sig` – a base64-encoded ECDSA signature generated via `cosign

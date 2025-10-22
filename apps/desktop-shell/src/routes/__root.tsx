@@ -169,7 +169,9 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
     const createdAt = status.manifest.createdAt
       ? new Date(status.manifest.createdAt).toLocaleString()
       : undefined;
-    const runner = status.manifest.runner?.glyphctlVersion ?? status.manifest.runner?.glyphdVersion;
+    const runner =
+      status.manifest.runner?.['0xgenctlVersion'] ??
+      status.manifest.runner?.['0xgendVersion'];
     if (createdAt && runner) {
       return `Captured ${createdAt} • glyph ${runner}`;
     }

@@ -318,7 +318,7 @@ func (x *PluginCapabilityGrant) GetExpiresAtUnix() int64 {
 // HostEvent is a message sent from the host to a plugin.
 type HostEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The version of the glyphd core that is sending the event.
+	// The version of the 0xgend core that is sending the event.
 	CoreVersion string `protobuf:"bytes,1,opt,name=core_version,json=coreVersion,proto3" json:"core_version,omitempty"`
 	// For now, the only event is a flow event.
 	//

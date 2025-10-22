@@ -51,7 +51,7 @@ ships them.
 
 ## Scope
 
-The policy covers the Glyph core (`glyphd`, `glyphctl`), bundled plugins, SDKs,
+The policy covers the Glyph core (`0xgend`, `0xgenctl`), bundled plugins, SDKs,
 and example tooling. Third-party plugins or forks maintained outside this
 repository are out of scope.
 

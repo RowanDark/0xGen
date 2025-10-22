@@ -3,7 +3,7 @@
 Glyph persists plugin findings as JSON Lines files under `/out`. Each entry in
 `findings.jsonl` must comply with the schema below so downstream tooling can
 parse findings deterministically. The canonical JSON Schema lives at
-`plugins/findings.schema.json` and the `glyphctl findings validate` command can
+`plugins/findings.schema.json` and the `0xgenctl findings validate` command can
 check an exported log against it.
 
 ## JSON Schema

@@ -33,8 +33,8 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	}))
 	t.Cleanup(upstream.Close)
 
-	root := repoRoot(t)
-	glyphdBin := buildGlyphd(ctx, t, root)
+        root := repoRoot(t)
+        daemonBin := buildGlyphd(ctx, t, root)
 
 	tempDir := t.TempDir()
 	rulesPath := filepath.Join(tempDir, "rules.json")
@@ -47,53 +47,53 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 		t.Fatalf("write rules: %v", err)
 	}
 
-	glyphdListen, glyphdDial := resolveAddresses(t)
+        daemonListen, daemonDial := resolveAddresses(t)
 	proxyListen, proxyDial := resolveAddresses(t)
 
-	cmdCtx, cmdCancel := context.WithCancel(ctx)
-	cmd := exec.CommandContext(cmdCtx, glyphdBin,
-		"--addr", glyphdListen,
-		"--token", "test",
-		"--enable-proxy",
-		"--proxy-addr", proxyListen,
-		"--proxy-rules", rulesPath,
-		"--proxy-history", historyPath,
-		"--proxy-ca-cert", caCertPath,
-		"--proxy-ca-key", caKeyPath,
-	)
-	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "0XGEN_OUT="+tempDir)
+        cmdCtx, cmdCancel := context.WithCancel(ctx)
+        daemonCmd := exec.CommandContext(cmdCtx, daemonBin,
+                "--addr", daemonListen,
+                "--token", "test",
+                "--enable-proxy",
+                "--proxy-addr", proxyListen,
+                "--proxy-rules", rulesPath,
+                "--proxy-history", historyPath,
+                "--proxy-ca-cert", caCertPath,
+                "--proxy-ca-key", caKeyPath,
+        )
+        daemonCmd.Dir = root
+        daemonCmd.Env = append(os.Environ(), "0XGEN_OUT="+tempDir)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+        var stdout, stderr bytes.Buffer
+        daemonCmd.Stdout = &stdout
+        daemonCmd.Stderr = &stderr
 
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start glyphd: %v", err)
-	}
+        if err := daemonCmd.Start(); err != nil {
+                t.Fatalf("failed to start 0xgend: %v", err)
+        }
 
-	done := make(chan struct{})
-	var cmdErr error
-	go func() {
-		cmdErr = cmd.Wait()
-		close(done)
-	}()
+        done := make(chan struct{})
+        var daemonErr error
+        go func() {
+                daemonErr = daemonCmd.Wait()
+                close(done)
+        }()
 
 	t.Cleanup(func() {
 		cmdCancel()
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			t.Fatalf("glyphd did not exit after cancellation")
+			t.Fatalf("0xgend did not exit after cancellation")
 		}
 	})
 
-	if err := waitForListener(cmdCtx, glyphdDial, done, func() error { return cmdErr }); err != nil {
-		t.Fatalf("glyphd gRPC listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-	}
-	if err := waitForListener(cmdCtx, proxyDial, done, func() error { return cmdErr }); err != nil {
-		t.Fatalf("galdr proxy listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-	}
+        if err := waitForListener(cmdCtx, daemonDial, done, func() error { return daemonErr }); err != nil {
+                t.Fatalf("0xgend gRPC listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+        }
+        if err := waitForListener(cmdCtx, proxyDial, done, func() error { return daemonErr }); err != nil {
+                t.Fatalf("galdr proxy listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+        }
 
 	proxyURL, err := url.Parse("http://" + proxyDial)
 	if err != nil {
@@ -119,14 +119,14 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 		t.Fatalf("expected Server header stripped, got %q", got)
 	}
 
-	if err := cmd.Process.Signal(os.Interrupt); err != nil {
-		cmdCancel()
-	}
+        if err := daemonCmd.Process.Signal(os.Interrupt); err != nil {
+                cmdCancel()
+        }
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		cmdCancel()
-		t.Fatalf("glyphd did not exit after interrupt")
+                cmdCancel()
+		t.Fatalf("0xgend did not exit after interrupt")
 	}
 
 	data, err := os.ReadFile(historyPath)

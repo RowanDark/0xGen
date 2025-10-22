@@ -55,9 +55,9 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 	target := newScenarioServer(t, scenario)
 	defer target.Close()
 
-	root := repoRoot(t)
-	glyphdBin := buildGlyphd(ctx, t, root)
-	glyphctlBin := buildGlyphctl(ctx, t, root)
+        root := repoRoot(t)
+        daemonBin := buildGlyphd(ctx, t, root)
+        cliBin := buildGlyphctl(ctx, t, root)
 
 	outDir := filepath.Join(t.TempDir(), scenario.Name)
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -67,59 +67,59 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 	reportPath := filepath.Join(outDir, "report.md")
 	historyPath := filepath.Join(outDir, fmt.Sprintf("%s_history.jsonl", scenario.Name))
 
-	glyphdListen, glyphdDial := resolveAddresses(t)
+        daemonListen, daemonDial := resolveAddresses(t)
 	proxyListen, proxyDial := resolveAddresses(t)
 
-	cmdCtx, cmdCancel := context.WithCancel(ctx)
-	glyphd := exec.CommandContext(cmdCtx, glyphdBin,
-		"--addr", glyphdListen,
-		"--token", "scenario-token",
-		"--enable-proxy",
-		"--proxy-addr", proxyListen,
-		"--proxy-history", historyPath,
-	)
-	glyphd.Dir = root
-	glyphd.Env = append(os.Environ(),
-		"0XGEN_OUT="+outDir,
-		"0XGEN_SYNC_WRITES=1",
-		"0XGEN_DISABLE_EVENT_GENERATOR=1",
-	)
+        cmdCtx, cmdCancel := context.WithCancel(ctx)
+        daemon := exec.CommandContext(cmdCtx, daemonBin,
+                "--addr", daemonListen,
+                "--token", "scenario-token",
+                "--enable-proxy",
+                "--proxy-addr", proxyListen,
+                "--proxy-history", historyPath,
+        )
+        daemon.Dir = root
+        daemon.Env = append(os.Environ(),
+                "0XGEN_OUT="+outDir,
+                "0XGEN_SYNC_WRITES=1",
+                "0XGEN_DISABLE_EVENT_GENERATOR=1",
+        )
 
-	var glyphdStdout, glyphdStderr bytes.Buffer
-	glyphd.Stdout = &glyphdStdout
-	glyphd.Stderr = &glyphdStderr
+        var daemonStdout, daemonStderr bytes.Buffer
+        daemon.Stdout = &daemonStdout
+        daemon.Stderr = &daemonStderr
 
-	if err := glyphd.Start(); err != nil {
-		t.Fatalf("failed to start glyphd: %v", err)
-	}
+        if err := daemon.Start(); err != nil {
+                t.Fatalf("failed to start 0xgend: %v", err)
+        }
 
-	done := make(chan struct{})
-	var glyphdErr error
-	go func() {
-		glyphdErr = glyphd.Wait()
-		close(done)
-	}()
+        done := make(chan struct{})
+        var daemonErr error
+        go func() {
+                daemonErr = daemon.Wait()
+                close(done)
+        }()
 
 	t.Cleanup(func() {
 		cmdCancel()
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			t.Fatalf("glyphd did not exit after cancellation\nstdout:\n%s\nstderr:\n%s", glyphdStdout.String(), glyphdStderr.String())
-		}
-	})
+                        t.Fatalf("0xgend did not exit after cancellation\nstdout:\n%s\nstderr:\n%s", daemonStdout.String(), daemonStderr.String())
+                }
+        })
 
-	if err := waitForListener(cmdCtx, glyphdDial, done, func() error { return glyphdErr }); err != nil {
-		t.Fatalf("glyphd gRPC listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, glyphdStdout.String(), glyphdStderr.String())
-	}
-	if err := waitForListener(cmdCtx, proxyDial, done, func() error { return glyphdErr }); err != nil {
-		t.Fatalf("galdr proxy listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, glyphdStdout.String(), glyphdStderr.String())
-	}
+        if err := waitForListener(cmdCtx, daemonDial, done, func() error { return daemonErr }); err != nil {
+                t.Fatalf("0xgend gRPC listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, daemonStdout.String(), daemonStderr.String())
+        }
+        if err := waitForListener(cmdCtx, proxyDial, done, func() error { return daemonErr }); err != nil {
+                t.Fatalf("galdr proxy listener not ready: %v\nstdout:\n%s\nstderr:\n%s", err, daemonStdout.String(), daemonStderr.String())
+        }
 
-	pluginCmd := exec.CommandContext(ctx, glyphctlBin,
-		"plugin", "run",
-		"--sample", "passive-header-scan",
-		"--server", glyphdDial,
+        pluginCmd := exec.CommandContext(ctx, cliBin,
+                "plugin", "run",
+                "--sample", "passive-header-scan",
+                "--server", daemonDial,
 		"--token", "scenario-token",
 		"--duration", "15s",
 	)
@@ -215,9 +215,9 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 		t.Fatalf("plugin did not exit within timeout\nstdout:\n%s\nstderr:\n%s", pluginStdout.String(), pluginStderr.String())
 	}
 
-	if glyphd.Process != nil {
-		_ = glyphd.Process.Signal(os.Interrupt)
-	}
+        if daemon.Process != nil {
+                _ = daemon.Process.Signal(os.Interrupt)
+        }
 
 	if _, err := os.Stat(historyPath); err != nil {
 		t.Fatalf("proxy history missing: %v", err)
@@ -230,8 +230,8 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 		t.Fatal("proxy history empty")
 	}
 
-	if err := runGlyphctlReport(ctx, root, glyphctlBin, findingsPath, reportPath); err != nil {
-		t.Fatalf("glyphctl report failed: %v", err)
+        if err := runGlyphctlReport(ctx, root, cliBin, findingsPath, reportPath); err != nil {
+		t.Fatalf("0xgenctl report failed: %v", err)
 	}
 	if info, err := os.Stat(reportPath); err != nil {
 		t.Fatalf("report missing: %v", err)
@@ -309,13 +309,13 @@ func expectedScenarioFindings(scenario passiveHeaderScenario) []goldenFinding {
 	return expected
 }
 
-func runGlyphctlReport(ctx context.Context, root, glyphctlBin, findingsPath, reportPath string) error {
-	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", findingsPath, "--out", reportPath)
+func runGlyphctlReport(ctx context.Context, root, cliBin, findingsPath, reportPath string) error {
+        reportCmd := exec.CommandContext(ctx, cliBin, "report", "--input", findingsPath, "--out", reportPath)
 	reportCmd.Dir = root
 	reportCmd.Env = append(os.Environ(), "0XGEN_OUT="+filepath.Dir(reportPath))
 	output, err := reportCmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("glyphctl report: %w\n%s", err, string(output))
+		return fmt.Errorf("0xgenctl report: %w\n%s", err, string(output))
 	}
 	return nil
 }

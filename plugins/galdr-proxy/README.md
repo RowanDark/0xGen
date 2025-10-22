@@ -12,10 +12,10 @@ thout downgrades.
 
 ## Running the proxy service
 
-`glyphd` now embeds the proxy. Launch it with your authentication token and enable the interception layer:
+`0xgend` now embeds the proxy. Launch it with your authentication token and enable the interception layer:
 
 ```bash
-glyphd --token <TOKEN> --enable-proxy --proxy-addr 127.0.0.1:8080 \
+0xgend --token <TOKEN> --enable-proxy --proxy-addr 127.0.0.1:8080 \
   --proxy-rules /out/proxy_rules.json --proxy-history /out/proxy_history.jsonl
 ```
 
@@ -31,7 +31,7 @@ Use `--proxy-addr`, `--proxy-rules`, `--proxy-history`, `--proxy-ca-cert`, and `
 
 ### Install the Galdr CA
 
-1. Start `glyphd` once so the proxy can generate a root CA and private key.
+1. Start `0xgend` once so the proxy can generate a root CA and private key.
 2. Copy the certificate at `/out/galdr_proxy_ca.pem` (or your custom `--proxy-ca-cert` location) to the workstation running the browser. Treat the matching `*.key` as a secret.
 3. Import the PEM into your browser or operating-system trust store. The certificate common name is **Galdr Proxy Root CA**.
    - **macOS Keychain Access:** System → Certificates → File → Import Items… → select the PEM → double-click the imported certificate and set “When using this certificate” to **Always Trust**.
@@ -89,20 +89,20 @@ The log can be tailed or post-processed by other 0xgen plugins for analysis. Ove
 
 #### Searching and replaying flows
 
-Pair the recorded history with `glyphctl` to quickly rediscover and replay interesting requests:
+Pair the recorded history with `0xgenctl` to quickly rediscover and replay interesting requests:
 
 ```bash
-glyphctl history search --history /out/proxy_history.jsonl --q 'host:example.com method:POST'
+0xgenctl history search --history /out/proxy_history.jsonl --q 'host:example.com method:POST'
 
 # Replay the captured request with an updated token and body payload.
-glyphctl repeater send \
+0xgenctl repeater send \
   --history /out/proxy_history.jsonl \
   --id 42 \
   --set 'Header:X-Token=override' \
   --set-body @payload.json
 ```
 
-`glyphctl repeater` will print a replay summary and append the upstream response to the same history log for follow-up analysis.
+`0xgenctl repeater` will print a replay summary and append the upstream response to the same history log for follow-up analysis.
 
 Example entry:
 

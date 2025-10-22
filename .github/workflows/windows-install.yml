@@ -18,20 +18,20 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build glyphctl snapshot
+      - name: Build 0xgenctl snapshot
         shell: pwsh
         run: |
-          go build -trimpath -ldflags "-s -w -X main.version=ci-snapshot" -o dist/glyphctl.exe ./cmd/glyphctl
+          go build -trimpath -ldflags "-s -w -X main.version=ci-snapshot" -o dist/0xgenctl.exe ./cmd/0xgenctl
 
       - name: Stage portable archive
         shell: pwsh
         run: |
           $portable = Join-Path dist 'portable'
           New-Item -ItemType Directory -Force -Path $portable | Out-Null
-          Copy-Item dist/glyphctl.exe (Join-Path $portable 'glyphctl.exe')
+          Copy-Item dist/0xgenctl.exe (Join-Path $portable '0xgenctl.exe')
           Copy-Item README.md (Join-Path $portable 'README.txt')
           Copy-Item LICENSE (Join-Path $portable 'LICENSE.txt')
-          Compress-Archive -Path "$portable\*" -DestinationPath dist/glyphctl_ci_windows_portable.zip -Force
+          Compress-Archive -Path "$portable\*" -DestinationPath dist/0xgenctl_ci_windows_portable.zip -Force
 
       - name: Install WiX Toolset
         shell: pwsh
@@ -47,11 +47,11 @@ jobs:
       - name: Smoke test MSI install
         shell: pwsh
         run: |
-          $msi = (Resolve-Path 'dist/glyphctl_v0.0.0-ci_windows_amd64.msi').Path
+          $msi = (Resolve-Path 'dist/0xgenctl_v0.0.0-ci_windows_amd64.msi').Path
           Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
-          $glyph = Join-Path $env:ProgramFiles 'Glyph\glyphctl.exe'
+          $glyph = Join-Path $env:ProgramFiles 'Glyph\0xgenctl.exe'
           if (-not (Test-Path $glyph -PathType Leaf)) {
-            throw "glyphctl.exe was not installed"
+            throw "0xgenctl.exe was not installed"
           }
           & $glyph --version
           $artifact = (Resolve-Path 'plugins/samples/passive-header-scan/main.go').Path
@@ -61,7 +61,7 @@ jobs:
       - name: Uninstall MSI
         shell: pwsh
         run: |
-          $msi = (Resolve-Path 'dist/glyphctl_v0.0.0-ci_windows_amd64.msi').Path
+          $msi = (Resolve-Path 'dist/0xgenctl_v0.0.0-ci_windows_amd64.msi').Path
           Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /norestart" -Wait
           $glyphDir = Join-Path $env:ProgramFiles 'Glyph'
           if (Test-Path $glyphDir) {
@@ -71,15 +71,15 @@ jobs:
       - name: Smoke test portable build
         shell: pwsh
         run: |
-          $extract = Join-Path $env:RUNNER_TEMP 'glyphctl-portable'
-          Expand-Archive -Path dist/glyphctl_ci_windows_portable.zip -DestinationPath $extract -Force
-          $glyph = Join-Path $extract 'glyphctl.exe'
+          $extract = Join-Path $env:RUNNER_TEMP '0xgenctl-portable'
+          Expand-Archive -Path dist/0xgenctl_ci_windows_portable.zip -DestinationPath $extract -Force
+          $glyph = Join-Path $extract '0xgenctl.exe'
           & $glyph --version
 
       - name: Verify plugin subsystem
         shell: pwsh
         run: |
-          $glyph = Join-Path $env:RUNNER_TEMP 'glyphctl-portable' 'glyphctl.exe'
+          $glyph = Join-Path $env:RUNNER_TEMP '0xgenctl-portable' '0xgenctl.exe'
           $artifact = Resolve-Path 'plugins/samples/passive-header-scan/main.go'
           $hash = (Get-FileHash $artifact -Algorithm SHA256).Hash
           & $glyph plugin verify $artifact --hash $hash

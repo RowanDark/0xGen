@@ -28,7 +28,7 @@ fi
 
 TAP_REPO="RowanDark/homebrew-glyph"
 RELEASE_OWNER="RowanDark"
-RELEASE_REPO="Glyph"
+RELEASE_REPO="0xgen"
 
 if ! command -v gh >/dev/null 2>&1; then
         echo "GitHub CLI (gh) is required" >&2
@@ -48,8 +48,8 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
 BASE_URL="https://github.com/${RELEASE_OWNER}/${RELEASE_REPO}/releases/download/${TAG}"
-ARM_ARCHIVE="glyphctl_${VERSION}_darwin_arm64.tar.gz"
-INTEL_ARCHIVE="glyphctl_${VERSION}_darwin_amd64.tar.gz"
+ARM_ARCHIVE="0xgenctl_${VERSION}_darwin_arm64.tar.gz"
+INTEL_ARCHIVE="0xgenctl_${VERSION}_darwin_amd64.tar.gz"
 
 for archive in "${ARM_ARCHIVE}" "${INTEL_ARCHIVE}"; do
         curl -sSLf "${BASE_URL}/${archive}" -o "${TMP_DIR}/${archive}"
@@ -69,7 +69,7 @@ gh repo clone "${TAP_REPO}" "${TAP_CLONE_DIR}" >/dev/null 2>&1 || gh repo clone 
 
 pushd "${TAP_CLONE_DIR}" >/dev/null
 
-BRANCH="bump-glyph-${TAG}"
+BRANCH="bump-0xgenctl-${TAG}"
 DEFAULT_BRANCH="$(git symbolic-ref --short refs/remotes/origin/HEAD | cut -d/ -f2)"
 
 git config user.name "github-actions[bot]"
@@ -80,8 +80,8 @@ git pull --ff-only origin "${DEFAULT_BRANCH}" >/dev/null
 git checkout -B "${BRANCH}" "${DEFAULT_BRANCH}"
 
 mkdir -p Formula
-cat >Formula/glyph.rb <<FORMULA
-class Glyph < Formula
+cat >Formula/0xgenctl.rb <<FORMULA
+class Oxgenctl < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/${RELEASE_OWNER}/${RELEASE_REPO}"
   version "${VERSION}"
@@ -101,13 +101,13 @@ class Glyph < Formula
 
   def install
     arch = Hardware::CPU.arm? ? "arm64" : "amd64"
-    target = "glyphctl_#{version}_darwin_#{arch}"
-    bin.install "#{target}/glyphctl"
+    target = "0xgenctl_#{version}_darwin_#{arch}"
+    bin.install "#{target}/0xgenctl"
     prefix.install "#{target}/LICENSE"
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/glyphctl --version")
+    assert_match version.to_s, shell_output("#{bin}/0xgenctl --version")
   end
 end
 FORMULA
@@ -118,8 +118,8 @@ if git diff --quiet; then
         exit 0
 fi
 
-git add Formula/glyph.rb
-git commit -m "Update glyph to ${TAG}" >/dev/null
+git add Formula/0xgenctl.rb
+git commit -m "Update 0xgenctl to ${TAG}" >/dev/null
 
 git push --set-upstream origin "${BRANCH}" --force-with-lease >/dev/null
 
@@ -128,7 +128,7 @@ if [[ -n "$(gh pr list --repo "${TAP_REPO}" --state open --head "${BRANCH}" --js
 else
         gh pr create \
                 --repo "${TAP_REPO}" \
-                --title "Update glyph to ${TAG}" \
+                --title "Update 0xgenctl to ${TAG}" \
                 --body "Automated update for ${TAG}." \
                 --head "${BRANCH}" \
                 --base "${DEFAULT_BRANCH}"

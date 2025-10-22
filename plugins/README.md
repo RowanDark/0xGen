@@ -1,6 +1,6 @@
 # Glyph Plugins
 
-Glyph plugins are Go binaries that connect to `glyphd` using the SDK in
+Glyph plugins are Go binaries that connect to `0xgend` using the SDK in
 `sdk/plugin-sdk`. The SDK handles the gRPC transport, lifecycle hooks and safely
 emitting findings back to the host. Consult [the plugin author guide](https://rowandark.github.io/0xgen/plugins/)
 for the full author guide, capability matrix, and JSONL emission rules.
@@ -58,10 +58,10 @@ func main() {
 }
 ```
 
-To run the sample against a local `glyphd`:
+To run the sample against a local `0xgend`:
 
 ```bash
-go run ./cmd/glyphctl plugin run --sample emit-on-start --server 127.0.0.1:50051 --token supersecrettoken
+go run ./cmd/0xgenctl plugin run --sample emit-on-start --server 127.0.0.1:50051 --token supersecrettoken
 ```
 
 Set `0XGEN_E2E_SMOKE=1` in the environment to enable the demo sample. The

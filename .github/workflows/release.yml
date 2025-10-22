@@ -64,11 +64,11 @@ jobs:
           trap 'rm -f "$cert"' EXIT
           echo "$WINDOWS_CODESIGN_PFX" | base64 -d >"$cert"
           shopt -s nullglob
-          for archive in dist/glyphctl_${TAG}_windows_*.zip; do
+          for archive in dist/0xgenctl_${TAG}_windows_*.zip; do
             workdir=$(mktemp -d)
             unzip -q "$archive" -d "$workdir"
-            if [[ ! -f "$workdir/glyphctl.exe" ]]; then
-              echo "glyphctl.exe missing from $archive" >&2
+            if [[ ! -f "$workdir/0xgenctl.exe" ]]; then
+              echo "0xgenctl.exe missing from $archive" >&2
               exit 1
             fi
             if [[ -n "${WINDOWS_CODESIGN_PASSWORD:-}" ]]; then
@@ -82,9 +82,9 @@ jobs:
               -n "Glyph CLI" \
               -i "https://github.com/RowanDark/0xgen" \
               -t "http://timestamp.digicert.com" \
-              -in "$workdir/glyphctl.exe" \
-              -out "$workdir/glyphctl-signed.exe"
-            mv "$workdir/glyphctl-signed.exe" "$workdir/glyphctl.exe"
+              -in "$workdir/0xgenctl.exe" \
+              -out "$workdir/0xgenctl-signed.exe"
+            mv "$workdir/0xgenctl-signed.exe" "$workdir/0xgenctl.exe"
             rm -f "$archive"
             (cd "$workdir" && zip -r9 "$OLDPWD/$(basename "$archive")" .)
             rm -rf "$workdir"
@@ -97,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           for arch in amd64 arm64; do
-            unzip -o "dist/glyphctl_${TAG}_windows_${arch}.zip" -d "dist/windows_${arch}"
+            unzip -o "dist/0xgenctl_${TAG}_windows_${arch}.zip" -d "dist/windows_${arch}"
             ./scripts/build_windows_installer.sh "$TAG" "$arch" "dist/windows_${arch}" dist
           done
 
@@ -108,8 +108,8 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$TAG" \
-            "dist/glyphctl_${TAG}_windows_amd64.msi" \
-            "dist/glyphctl_${TAG}_windows_arm64.msi" \
+            "dist/0xgenctl_${TAG}_windows_amd64.msi" \
+            "dist/0xgenctl_${TAG}_windows_arm64.msi" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
@@ -129,13 +129,13 @@ jobs:
       matrix:
         include:
           - image: debian:bookworm-slim
-            package_glob: glyphctl_*_linux_amd64.deb
+            package_glob: 0xgenctl_*_linux_amd64.deb
             setup: |
               apt-get update
             install: |
               apt-get install -y "./$package_basename"
           - image: quay.io/rockylinux/rockylinux:9
-            package_glob: glyphctl_*_linux_amd64.rpm
+            package_glob: 0xgenctl_*_linux_amd64.rpm
             setup: |
               dnf install -y --setopt=install_weak_deps=False ca-certificates
             install: |
@@ -163,7 +163,7 @@ jobs:
           package_basename="$(basename "$package")"
           ${{ matrix.setup }}
           ${{ matrix.install }}
-          glyphctl --version
+          0xgenctl --version
   update-readme-badge:
     name: 0xgen Update README badge
     runs-on: ubuntu-latest

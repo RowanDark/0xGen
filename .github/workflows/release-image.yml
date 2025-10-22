@@ -28,7 +28,7 @@ jobs:
         id: image
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          echo "name=ghcr.io/${owner}/glyphctl" >>"$GITHUB_OUTPUT"
+          echo "name=ghcr.io/${owner}/0xgenctl" >>"$GITHUB_OUTPUT"
 
       - name: Docker metadata
         id: meta

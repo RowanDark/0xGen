@@ -24,7 +24,7 @@ func runReplay(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: glyphctl replay [--out dir] <artifact>")
+		fmt.Fprintln(os.Stderr, "usage: 0xgenctl replay [--out dir] <artifact>")
 		return 2
 	}
 

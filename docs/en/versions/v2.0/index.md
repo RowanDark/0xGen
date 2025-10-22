@@ -12,7 +12,7 @@ Use the navigation sidebar to explore:
   artifacts.
 - **Plugins** – understand the plugin runtime model and build new detectors with the
   SDK.
-- **CLI** – drive 0xgen from the `glyphctl` command-line interface and tailor the
+- **CLI** – drive 0xgen from the `0xgenctl` command-line interface and tailor the
   runtime configuration.
 - **Developer Guide** – set up a development environment, run the test suite, and ship
   changes confidently.

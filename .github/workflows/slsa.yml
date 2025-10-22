@@ -22,7 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          artifacts=(dist/glyphctl_*.tar.gz)
+          artifacts=(dist/0xgenctl_*.tar.gz)
           if [ ${#artifacts[@]} -eq 0 ]; then
             echo "No dist artifacts found to sign; skipping."
             exit 0

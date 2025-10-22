@@ -9,7 +9,7 @@ Usa la barra lateral de navegación para explorar:
 
 - **Inicio rápido**: ejecuta la canalización de demostración de cinco minutos e inspecciona los artefactos generados.
 - **Complementos**: comprende el modelo de ejecución de complementos y crea nuevos detectores con el SDK.
-- **CLI**: ejecuta 0xgen desde la interfaz de línea de comandos `glyphctl` y adapta la configuración de ejecución.
+- **CLI**: ejecuta 0xgen desde la interfaz de línea de comandos `0xgenctl` y adapta la configuración de ejecución.
 - **Guía de desarrollo**: prepara un entorno de desarrollo, ejecuta la batería de pruebas y publica cambios con confianza.
 - **Seguridad**: revisa el modelo de amenazas de 0xgen, las garantías de procedencia y el proceso de reporte de vulnerabilidades.
 

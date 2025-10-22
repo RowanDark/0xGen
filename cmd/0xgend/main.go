@@ -70,7 +70,7 @@ func main() {
 	traceEndpoint := flag.String("trace-endpoint", "", "OTLP/HTTP endpoint for exported spans (http(s)://host:port/v1/traces)")
 	traceInsecure := flag.Bool("trace-insecure-skip-verify", false, "disable TLS verification when exporting spans")
 	traceSample := flag.Float64("trace-sample-ratio", 0.25, "probabilistic sampling ratio for root spans (0-1)")
-	traceService := flag.String("trace-service-name", "glyphd", "service.name attribute value for traces")
+	traceService := flag.String("trace-service-name", "0xgend", "service.name attribute value for traces")
 	traceFile := flag.String("trace-file", "", "optional path to write spans as JSONL")
 	traceHeaders := flag.String("trace-headers", "", "comma-separated list of additional headers for trace export requests (key=value)")
 	flag.Parse()
@@ -163,7 +163,7 @@ func kilobytesToBytes(kb int) int {
 }
 
 func run(ctx context.Context, cfg config) error {
-	coreLogger, err := newAuditLogger("glyphd")
+	coreLogger, err := newAuditLogger("0xgend")
 	if err != nil {
 		return fmt.Errorf("configure audit logger: %w", err)
 	}
