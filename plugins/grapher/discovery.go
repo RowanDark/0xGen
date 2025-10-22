@@ -383,7 +383,7 @@ func writeResults(path string, results []schemaResult) error {
 }
 
 func defaultOutputPath() string {
-	base := strings.TrimSpace(os.Getenv("GLYPH_OUT"))
+	base := strings.TrimSpace(os.Getenv("0XGEN_OUT"))
 	if base == "" {
 		base = "/out"
 	}

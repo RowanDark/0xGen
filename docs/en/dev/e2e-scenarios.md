@@ -32,7 +32,7 @@ small and deterministic for CI.
    renders a Markdown report for post-run analysis.
 
 All artifacts (findings, history, and report) are written to the temporary
-`GLYPH_OUT` directory and surfaced in the test logs.
+`0XGEN_OUT` directory and surfaced in the test logs.
 
 ## Running locally or in CI
 
@@ -47,7 +47,7 @@ with a three minute timeout window, which is suitable for nightly or gated
 execution. Because the fixtures are self-contained, the tests do not require
 external network access and can safely run in continuous integration.
 
-Setting `GLYPH_DISABLE_EVENT_GENERATOR=1` for `glyphd` is recommended whenever
+Setting `0XGEN_DISABLE_EVENT_GENERATOR=1` for `glyphd` is recommended whenever
 replaying captured flows. The helper introduced for these tests ensures that the
 synthetic responses are skipped so that the assertions only reflect the chosen
 scenario.

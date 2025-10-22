@@ -37,7 +37,7 @@ var (
 )
 
 func init() {
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if custom := strings.TrimSpace(val); custom != "" {
 			DefaultFindingsPath = filepath.Join(custom, findingsFilename)
 			DefaultReportPath = filepath.Join(custom, reportFilename)

@@ -91,7 +91,7 @@ func TestWriterRejectsInvalidFinding(t *testing.T) {
 
 func TestDefaultPathHonoursEnv(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("GLYPH_OUT", dir)
+	t.Setenv("0XGEN_OUT", dir)
 	w := NewWriter("")
 	defer func() {
 		_ = w.Close()

@@ -26,9 +26,9 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	capToken := strings.TrimSpace(os.Getenv("GLYPH_CAPABILITY_TOKEN"))
+	capToken := strings.TrimSpace(os.Getenv("0XGEN_CAPABILITY_TOKEN"))
 	if capToken == "" {
-		logger.Error("missing GLYPH_CAPABILITY_TOKEN environment variable")
+		logger.Error("missing 0XGEN_CAPABILITY_TOKEN environment variable")
 		os.Exit(1)
 	}
 
@@ -47,7 +47,7 @@ func main() {
 	hooks := pluginsdk.Hooks{
 		OnStart: func(ctx *pluginsdk.Context) error {
 			ctx.Logger().Info("plugin started", "addr", *serverAddr)
-			if os.Getenv("GLYPH_E2E_SMOKE") == "1" {
+			if os.Getenv("0XGEN_E2E_SMOKE") == "1" {
 				if err := ctx.EmitFinding(pluginsdk.Finding{
 					Type:       "e2e-smoke",
 					Message:    "e2e smoke marker",

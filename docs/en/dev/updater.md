@@ -100,7 +100,7 @@ When cutting a release, append the following steps to the standard checklist:
 
 1. Populate `packaging/updater/` with JSON channel definitions that point at the
    release artifacts. See `packaging/updater/README.md` for the schema.
-2. Export the base64-encoded ed25519 private key as `GLYPH_UPDATER_SIGNING_KEY`.
+2. Export the base64-encoded ed25519 private key as `0XGEN_UPDATER_SIGNING_KEY`.
 3. Run `make updater:build-manifests` to produce signed manifests for both
    channels.
 4. Inspect `out/updater/` to confirm delta packages were generated for every

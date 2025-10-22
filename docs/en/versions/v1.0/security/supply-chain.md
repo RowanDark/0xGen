@@ -48,9 +48,9 @@ VERSION=v1.2.3
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.sig
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyphctl_${VERSION}_linux_amd64.tar.gz.pem
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt.sig
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph_${VERSION}_checksums.txt.pem
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgen_${VERSION}_checksums.txt
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgen_${VERSION}_checksums.txt.sig
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgen_${VERSION}_checksums.txt.pem
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph-${VERSION}-binaries.intoto.jsonl
 
 # Verify the signature matches the downloaded archive

@@ -18,7 +18,7 @@ import (
 func runReplay(args []string) int {
 	fs := flag.NewFlagSet("replay", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	outDir := fs.String("out", "", "directory to write replay outputs (defaults to ${GLYPH_OUT:-.}/replay)")
+	outDir := fs.String("out", "", "directory to write replay outputs (defaults to ${0XGEN_OUT:-.}/replay)")
 	verifyOnly := fs.Bool("verify-only", false, "only verify recorded cases without writing outputs")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -40,7 +40,7 @@ func runReplay(args []string) int {
 
 	dest := strings.TrimSpace(*outDir)
 	if dest == "" {
-		if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if val, ok := env.Lookup("0XGEN_OUT"); ok {
 			if trimmed := strings.TrimSpace(val); trimmed != "" {
 				dest = filepath.Join(trimmed, "replay")
 			}

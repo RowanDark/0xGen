@@ -29,18 +29,18 @@ Seer inspects passive telemetry to spot anomalies and suspicious behaviors befor
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/seer#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/seer/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/seer/main.go)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/seer/main.go.sig)
 
 
 ### Signature
 
-`04956ee6c815fa456e31ee73b5519ab3987fcf2c0918235c2e47d1a8fcc84bb8`
+`246f61b9d8b8660f0be45f4ffe2e0d3635424d2d29be0929a2d4ab5d96fe729a`

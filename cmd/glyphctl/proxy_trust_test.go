@@ -9,7 +9,7 @@ import (
 )
 
 func TestProxyTrustRequiresAction(t *testing.T) {
-	t.Setenv("GLYPH_OUT", t.TempDir())
+	t.Setenv("0XGEN_OUT", t.TempDir())
 	if code := runProxyTrust(nil); code != 2 {
 		t.Fatalf("expected exit code 2 when no action is provided, got %d", code)
 	}
@@ -17,7 +17,7 @@ func TestProxyTrustRequiresAction(t *testing.T) {
 
 func TestProxyTrustExportToFile(t *testing.T) {
 	tempDir := t.TempDir()
-	t.Setenv("GLYPH_OUT", tempDir)
+	t.Setenv("0XGEN_OUT", tempDir)
 	out := filepath.Join(tempDir, "proxy-ca.pem")
 	if code := runProxyTrust([]string{"--out", out}); code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
@@ -35,7 +35,7 @@ func TestProxyTrustInstallUnsupportedOnNonWindows(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("installation path tested elsewhere")
 	}
-	t.Setenv("GLYPH_OUT", t.TempDir())
+	t.Setenv("0XGEN_OUT", t.TempDir())
 	if code := runProxyTrust([]string{"--install"}); code != 1 {
 		t.Fatalf("expected exit code 1 when installation is unsupported, got %d", code)
 	}

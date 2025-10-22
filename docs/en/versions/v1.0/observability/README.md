@@ -16,11 +16,11 @@ Key exported series include:
 
 | Metric | Type | Description |
 | --- | --- | --- |
-| `glyph_rpc_requests_total{component,method}` | Counter | Total RPC calls handled by the component. |
-| `glyph_rpc_errors_total{component,method,code}` | Counter | Errors emitted during RPC handling. |
-| `glyph_plugin_event_duration_seconds_bucket{plugin,event,le}` | Histogram | Latency for processing plugin events (with `_sum` and `_count`). |
-| `glyph_plugin_queue_length{plugin}` | Gauge | Depth of each plugin's outbound queue. |
-| `glyph_active_plugins` | Gauge | Number of connected plugins. |
+| `oxg_rpc_requests_total{component,method}` | Counter | Total RPC calls handled by the component. |
+| `oxg_rpc_errors_total{component,method,code}` | Counter | Errors emitted during RPC handling. |
+| `oxg_plugin_event_duration_seconds_bucket{plugin,event,le}` | Histogram | Latency for processing plugin events (with `_sum` and `_count`). |
+| `oxg_plugin_queue_length{plugin}` | Gauge | Depth of each plugin's outbound queue. |
+| `oxg_active_plugins` | Gauge | Number of connected plugins. |
 
 ## Grafana
 

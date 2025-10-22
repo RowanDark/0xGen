@@ -37,7 +37,7 @@ directory and produces signed manifests under `out/updater/<channel>/`. Each
   inherit the same checksum behaviour as `full`.
 
 During signing the script expects a base64-encoded ed25519 private key in the
-`GLYPH_UPDATER_SIGNING_KEY` environment variable. This key must match the public
+`0XGEN_UPDATER_SIGNING_KEY` environment variable. This key must match the public
 key baked into the updater clients.
 
 Files ending in `.example.json` are ignored so you can keep templates in the

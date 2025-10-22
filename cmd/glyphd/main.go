@@ -62,7 +62,6 @@ func main() {
 	maxBodyKB := flag.Int("max-body-kb", 128, "maximum raw body kilobytes to include in flow events (-1 disables raw bodies)")
 	proxyFlowSeed := flag.Int64("proxy-flow-seed", 0, "seed used to deterministically order flow identifiers (default random)")
 	proxyFlowLog := flag.String("proxy-flow-log", "", "path to write sanitized flow transcripts for replay (defaults next to proxy history)")
-	proxyEmitLegacy := flag.Bool("proxy-emit-legacy-headers", false, "emit deprecated X-Glyph-* headers alongside X-0xgen-* responses")
 	scopePolicy := flag.String("scope-policy", "", "path to YAML scope policy used to suppress out-of-scope flows")
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
@@ -110,12 +109,11 @@ func main() {
 			CACertPath:  *proxyCACert,
 			CAKeyPath:   *proxyCAKey,
 			Flow: proxy.FlowCaptureConfig{
-				Enabled:           *proxyFlowEnabled,
-				SampleRate:        sampleRate,
-				MaxBodyBytes:      maxBodyBytes,
-				Seed:              *proxyFlowSeed,
-				LogPath:           strings.TrimSpace(*proxyFlowLog),
-				EmitLegacyHeaders: *proxyEmitLegacy,
+				Enabled:      *proxyFlowEnabled,
+				SampleRate:   sampleRate,
+				MaxBodyBytes: maxBodyBytes,
+				Seed:         *proxyFlowSeed,
+				LogPath:      strings.TrimSpace(*proxyFlowLog),
 			},
 		},
 		enableProxy:       *enableProxy,
@@ -259,7 +257,7 @@ func run(ctx context.Context, cfg config) error {
 	cfg.proxy.FlowPublisher = flowPublisher
 
 	proxyEnabled := cfg.enableProxy
-	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY", "GLYPH_ENABLE_PROXY"); ok {
+	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY"); ok {
 		if strings.TrimSpace(val) == "1" {
 			proxyEnabled = true
 		}
@@ -508,7 +506,7 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 	generatorCtx, cancelGenerator := context.WithCancel(context.Background())
 	defer cancelGenerator()
 	disableEvents := false
-	if val, ok := env.Lookup("0XGEN_DISABLE_EVENT_GENERATOR", "GLYPH_DISABLE_EVENT_GENERATOR"); ok {
+	if val, ok := env.Lookup("0XGEN_DISABLE_EVENT_GENERATOR"); ok {
 		disableEvents = strings.TrimSpace(val) == "1"
 	}
 	if !disableEvents {
@@ -544,7 +542,7 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 }
 
 func resolveFindingsPath() string {
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if custom := strings.TrimSpace(val); custom != "" {
 			return filepath.Join(custom, "findings.jsonl")
 		}
@@ -555,13 +553,13 @@ func resolveFindingsPath() string {
 func newAuditLogger(component string) (*logging.AuditLogger, error) {
 	opts := []logging.Option{}
 	auditStdout := ""
-	if val, ok := env.Lookup("0XGEN_AUDIT_LOG_STDOUT", "GLYPH_AUDIT_LOG_STDOUT"); ok {
+	if val, ok := env.Lookup("0XGEN_AUDIT_LOG_STDOUT"); ok {
 		auditStdout = val
 	}
 	if disableStdout(auditStdout) {
 		opts = append(opts, logging.WithoutStdout())
 	}
-	if val, ok := env.Lookup("0XGEN_AUDIT_LOG_PATH", "GLYPH_AUDIT_LOG_PATH"); ok {
+	if val, ok := env.Lookup("0XGEN_AUDIT_LOG_PATH"); ok {
 		if path := strings.TrimSpace(val); path != "" {
 			opts = append(opts, logging.WithFile(path))
 		}

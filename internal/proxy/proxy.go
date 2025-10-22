@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -36,14 +37,10 @@ import (
 
 const (
 	defaultHistoryName      = "proxy_history.jsonl"
-	legacyProxyHeaderRoot   = "X-Glyph"
 	modernProxyHeaderRoot   = "X-0xgen"
-	legacyProxyHeaderPrefix = legacyProxyHeaderRoot + "-"
 	modernProxyHeaderPrefix = modernProxyHeaderRoot + "-"
 	bodyRedactedHeader      = modernProxyHeaderPrefix + "Body-Redacted"
-	bodyRedactedLegacy      = legacyProxyHeaderPrefix + "Body-Redacted"
-	rawBodyTruncatedLegacy  = legacyProxyHeaderPrefix + "Raw-Body-Truncated"
-	rawBodyTruncatedModern  = modernProxyHeaderPrefix + "Raw-Body-Truncated"
+	rawBodyTruncatedHeader  = modernProxyHeaderPrefix + "Raw-Body-Truncated"
 )
 
 // Config controls proxy behaviour.
@@ -64,12 +61,11 @@ type Config struct {
 // FlowCaptureConfig governs how intercepted flows are sampled, truncated, and
 // recorded for replay.
 type FlowCaptureConfig struct {
-	Enabled           bool
-	SampleRate        float64
-	MaxBodyBytes      int
-	Seed              int64
-	LogPath           string
-	EmitLegacyHeaders bool
+	Enabled      bool
+	SampleRate   float64
+	MaxBodyBytes int
+	Seed         int64
+	LogPath      string
 }
 
 // FlowPublisher propagates captured flows to downstream consumers.
@@ -85,28 +81,27 @@ type ScopeEvaluator interface {
 
 // Proxy intercepts HTTP traffic for inspection and modification.
 type Proxy struct {
-	cfg                  Config
-	logger               *slog.Logger
-	server               *http.Server
-	transport            http.RoundTripper
-	ca                   *caStore
-	history              *historyWriter
-	rules                *ruleStore
-	ready                chan struct{}
-	readyOnce            sync.Once
-	addr                 atomic.Value
-	shutdownMu           sync.Mutex
-	closed               bool
-	publisher            FlowPublisher
-	scope                ScopeEvaluator
-	flowCfg              FlowCaptureConfig
-	flowSeed             int64
-	flowIDs              atomic.Uint64
-	flowSeq              atomic.Uint64
-	sampler              *rand.Rand
-	samplerMu            sync.Mutex
-	flowLog              *flowLogWriter
-	legacyHeaderWarnings sync.Map
+	cfg        Config
+	logger     *slog.Logger
+	server     *http.Server
+	transport  http.RoundTripper
+	ca         *caStore
+	history    *historyWriter
+	rules      *ruleStore
+	ready      chan struct{}
+	readyOnce  sync.Once
+	addr       atomic.Value
+	shutdownMu sync.Mutex
+	closed     bool
+	publisher  FlowPublisher
+	scope      ScopeEvaluator
+	flowCfg    FlowCaptureConfig
+	flowSeed   int64
+	flowIDs    atomic.Uint64
+	flowSeq    atomic.Uint64
+	sampler    *rand.Rand
+	samplerMu  sync.Mutex
+	flowLog    *flowLogWriter
 }
 
 // New creates a proxy using the provided configuration.
@@ -242,7 +237,7 @@ func defaultTransport() http.RoundTripper {
 }
 
 func defaultOutputDir() string {
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if custom := strings.TrimSpace(val); custom != "" {
 			return custom
 		}
@@ -1044,7 +1039,7 @@ func (p *Proxy) emitFlowEvent(ctx context.Context, event flows.Event, phase stri
 	}
 }
 
-func encodeProxyRequest(state *proxyFlowState, limit int, emitLegacy bool) ([]byte, int) {
+func encodeProxyRequest(state *proxyFlowState, limit int) ([]byte, int) {
 	if state == nil {
 		return nil, 0
 	}
@@ -1066,13 +1061,13 @@ func encodeProxyRequest(state *proxyFlowState, limit int, emitLegacy bool) ([]by
 		truncated = true
 	}
 	headers = ensureHeader(headers)
-	applyRawBodyHeaders(headers, body, truncated, state.finalRequestBody, emitLegacy)
+	applyRawBodyHeaders(headers, body, truncated, state.finalRequestBody)
 	target := requestTarget(state.url)
 	payload := encodeHTTPRequest(method, target, proto, headers, body)
 	return payload, captured
 }
 
-func encodeSanitizedProxyRequest(state *proxyFlowState, emitLegacy bool) ([]byte, bool) {
+func encodeSanitizedProxyRequest(state *proxyFlowState) ([]byte, bool) {
 	if state == nil {
 		return nil, false
 	}
@@ -1084,12 +1079,12 @@ func encodeSanitizedProxyRequest(state *proxyFlowState, emitLegacy bool) ([]byte
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
-	headers, body, redacted := sanitizeRequest(state, emitLegacy)
+	headers, body, redacted := sanitizeRequest(state)
 	target := requestTarget(state.url)
 	return encodeHTTPRequest(method, target, proto, headers, body), redacted
 }
 
-func encodeProxyResponse(state *proxyFlowState, limit int, emitLegacy bool) ([]byte, int) {
+func encodeProxyResponse(state *proxyFlowState, limit int) ([]byte, int) {
 	if state == nil {
 		return nil, 0
 	}
@@ -1107,13 +1102,13 @@ func encodeProxyResponse(state *proxyFlowState, limit int, emitLegacy bool) ([]b
 		truncated = true
 	}
 	headers = ensureHeader(headers)
-	applyRawBodyHeaders(headers, body, truncated, state.responseBody, emitLegacy)
+	applyRawBodyHeaders(headers, body, truncated, state.responseBody)
 	status := sanitizeStatus(state.statusCode)
 	payload := encodeHTTPResponse(proto, state.statusCode, headers, body, status)
 	return payload, captured
 }
 
-func encodeSanitizedProxyResponse(state *proxyFlowState, emitLegacy bool) ([]byte, bool) {
+func encodeSanitizedProxyResponse(state *proxyFlowState) ([]byte, bool) {
 	if state == nil {
 		return nil, false
 	}
@@ -1121,7 +1116,7 @@ func encodeSanitizedProxyResponse(state *proxyFlowState, emitLegacy bool) ([]byt
 	if proto == "" {
 		proto = "HTTP/1.1"
 	}
-	headers, body, redacted := sanitizeResponse(state, emitLegacy)
+	headers, body, redacted := sanitizeResponse(state)
 	status := sanitizeStatus(state.statusCode)
 	return encodeHTTPResponse(proto, state.statusCode, headers, body, status), redacted
 }
@@ -1130,8 +1125,8 @@ func buildRequestEvent(state *proxyFlowState, cfg FlowCaptureConfig) *flows.Even
 	if state == nil {
 		return nil
 	}
-	raw, captured := encodeProxyRequest(state, cfg.MaxBodyBytes, cfg.EmitLegacyHeaders)
-	sanitized, redacted := encodeSanitizedProxyRequest(state, cfg.EmitLegacyHeaders)
+	raw, captured := encodeProxyRequest(state, cfg.MaxBodyBytes)
+	sanitized, redacted := encodeSanitizedProxyRequest(state)
 	if len(raw) == 0 && len(sanitized) == 0 {
 		return nil
 	}
@@ -1149,8 +1144,8 @@ func buildResponseEvent(state *proxyFlowState, cfg FlowCaptureConfig) *flows.Eve
 	if state == nil {
 		return nil
 	}
-	raw, captured := encodeProxyResponse(state, cfg.MaxBodyBytes, cfg.EmitLegacyHeaders)
-	sanitized, redacted := encodeSanitizedProxyResponse(state, cfg.EmitLegacyHeaders)
+	raw, captured := encodeProxyResponse(state, cfg.MaxBodyBytes)
+	sanitized, redacted := encodeSanitizedProxyResponse(state)
 	if len(raw) == 0 && len(sanitized) == 0 {
 		return nil
 	}
@@ -1213,19 +1208,19 @@ func sanitizeStatus(statusCode int) string {
 	return statusText
 }
 
-func sanitizeRequest(state *proxyFlowState, emitLegacy bool) (http.Header, []byte, bool) {
+func sanitizeRequest(state *proxyFlowState) (http.Header, []byte, bool) {
 	headers := sanitizeHeaders(state.finalRequestHeaders, true)
 	body, redacted := sanitizeBody(state.finalRequestBody)
 	headers = ensureHeader(headers)
-	applySanitizedBodyHeaders(headers, body, redacted, len(state.finalRequestBody), emitLegacy)
+	applySanitizedBodyHeaders(headers, body, redacted, len(state.finalRequestBody))
 	return headers, body, redacted
 }
 
-func sanitizeResponse(state *proxyFlowState, emitLegacy bool) (http.Header, []byte, bool) {
+func sanitizeResponse(state *proxyFlowState) (http.Header, []byte, bool) {
 	headers := sanitizeHeaders(state.responseHeaders, false)
 	body, redacted := sanitizeBody(state.responseBody)
 	headers = ensureHeader(headers)
-	applySanitizedBodyHeaders(headers, body, redacted, len(state.responseBody), emitLegacy)
+	applySanitizedBodyHeaders(headers, body, redacted, len(state.responseBody))
 	return headers, body, redacted
 }
 
@@ -1233,10 +1228,6 @@ const (
 	redactedValue        = "[REDACTED]"
 	redactedCookieValue  = "<redacted>"
 	redactedBodyTemplate = "[REDACTED body length=%d sha256=%s]"
-)
-
-var (
-	rawBodyTruncatedHeader = rawBodyTruncatedModern
 )
 
 var (
@@ -1384,7 +1375,7 @@ func ensureHeader(h http.Header) http.Header {
 	return h
 }
 
-func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, originalLen int, emitLegacy bool) {
+func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, originalLen int) {
 	if headers == nil {
 		return
 	}
@@ -1397,20 +1388,13 @@ func applySanitizedBodyHeaders(headers http.Header, body []byte, redacted bool, 
 	}
 	headers.Set("Content-Length", length)
 	if redacted {
-		value := strconv.Itoa(originalLen)
-		headers.Set(bodyRedactedHeader, value)
-		if emitLegacy {
-			headers.Set(bodyRedactedLegacy, value)
-		} else {
-			headers.Del(bodyRedactedLegacy)
-		}
+		headers.Set(bodyRedactedHeader, strconv.Itoa(originalLen))
 	} else {
 		headers.Del(bodyRedactedHeader)
-		headers.Del(bodyRedactedLegacy)
 	}
 }
 
-func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, original []byte, emitLegacy bool) {
+func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, original []byte) {
 	if headers == nil {
 		return
 	}
@@ -1426,14 +1410,8 @@ func applyRawBodyHeaders(headers http.Header, body []byte, truncated bool, origi
 		sum := sha256.Sum256(original)
 		value := fmt.Sprintf("%d;sha256=%s", len(original), hex.EncodeToString(sum[:]))
 		headers.Set(rawBodyTruncatedHeader, value)
-		if emitLegacy {
-			headers.Set(rawBodyTruncatedLegacy, value)
-		} else {
-			headers.Del(rawBodyTruncatedLegacy)
-		}
 	} else {
 		headers.Del(rawBodyTruncatedHeader)
-		headers.Del(rawBodyTruncatedLegacy)
 	}
 }
 
@@ -1484,12 +1462,9 @@ func (p *Proxy) headerToMap(h http.Header) map[string][]string {
 	}
 	out := make(map[string][]string, len(h))
 	for k, values := range h {
-		canonical, legacy := canonicalizeProxyHeaderName(k)
+		canonical := normalizeProxyHeaderName(k)
 		if canonical == "" {
 			continue
-		}
-		if legacy {
-			p.observeLegacyHeader(k)
 		}
 		copied := make([]string, len(values))
 		copy(copied, values)
@@ -1497,11 +1472,6 @@ func (p *Proxy) headerToMap(h http.Header) map[string][]string {
 			out[canonical] = append(existing, copied...)
 		} else {
 			out[canonical] = copied
-		}
-		if !p.flowCfg.EmitLegacyHeaders {
-			if alias, ok := legacyAliasForHeader(canonical); ok && alias != canonical {
-				delete(out, alias)
-			}
 		}
 	}
 	if len(out) == 0 {
@@ -1544,25 +1514,11 @@ func (p *Proxy) applyHeaderAdds(header http.Header, additions map[string]string)
 		return
 	}
 	for k, v := range additions {
-		trimmed := strings.TrimSpace(k)
-		if trimmed == "" {
-			continue
-		}
-		canonical, legacy := canonicalizeProxyHeaderName(trimmed)
+		canonical := normalizeProxyHeaderName(k)
 		if canonical == "" {
 			continue
 		}
 		header.Set(canonical, v)
-		if legacy {
-			p.observeLegacyHeader(trimmed)
-		}
-		if p.flowCfg.EmitLegacyHeaders {
-			if alias, ok := legacyAliasForHeader(canonical); ok {
-				header.Set(alias, v)
-			}
-		} else if alias, ok := legacyAliasForHeader(canonical); ok {
-			header.Del(alias)
-		}
 	}
 }
 
@@ -1571,22 +1527,24 @@ func (p *Proxy) applyHeaderRemovals(header http.Header, removals []string) {
 		return
 	}
 	for _, key := range removals {
-		trimmed := strings.TrimSpace(key)
-		if trimmed == "" {
-			continue
-		}
-		canonical, legacy := canonicalizeProxyHeaderName(trimmed)
+		canonical := normalizeProxyHeaderName(key)
 		if canonical == "" {
 			continue
 		}
 		header.Del(canonical)
-		if alias, ok := legacyAliasForHeader(canonical); ok {
-			header.Del(alias)
-		}
-		if legacy {
-			p.observeLegacyHeader(trimmed)
-		}
 	}
+}
+
+func normalizeProxyHeaderName(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return ""
+	}
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "x-glyph") {
+		return ""
+	}
+	return textproto.CanonicalMIMEHeaderKey(trimmed)
 }
 
 func canonicalizeProxyHeaderName(name string) (string, bool) {
@@ -1594,56 +1552,15 @@ func canonicalizeProxyHeaderName(name string) (string, bool) {
 	if trimmed == "" {
 		return "", false
 	}
-	lower := strings.ToLower(trimmed)
-	legacyRoot := strings.ToLower(legacyProxyHeaderRoot)
-	modernRoot := strings.ToLower(modernProxyHeaderRoot)
-	switch {
-	case lower == legacyRoot:
-		return modernProxyHeaderRoot, true
-	case strings.HasPrefix(lower, legacyRoot+"-"):
-		suffix := trimmed[len(legacyProxyHeaderRoot):]
-		return modernProxyHeaderRoot + suffix, true
-	case lower == modernRoot:
-		return modernProxyHeaderRoot, false
-	case strings.HasPrefix(lower, modernRoot+"-"):
-		suffix := trimmed[len(modernProxyHeaderRoot):]
-		return modernProxyHeaderRoot + suffix, false
-	default:
-		return trimmed, false
+	canonical := textproto.CanonicalMIMEHeaderKey(trimmed)
+	lower := strings.ToLower(canonical)
+	if lower == strings.ToLower(modernProxyHeaderRoot) {
+		return canonical, true
 	}
-}
-
-func legacyAliasForHeader(name string) (string, bool) {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return "", false
+	if strings.HasPrefix(lower, strings.ToLower(modernProxyHeaderPrefix)) {
+		return canonical, true
 	}
-	lower := strings.ToLower(trimmed)
-	modernRoot := strings.ToLower(modernProxyHeaderRoot)
-	switch {
-	case lower == modernRoot:
-		return legacyProxyHeaderRoot, true
-	case strings.HasPrefix(lower, modernRoot+"-"):
-		suffix := trimmed[len(modernProxyHeaderRoot):]
-		return legacyProxyHeaderRoot + suffix, true
-	default:
-		return "", false
-	}
-}
-
-func (p *Proxy) observeLegacyHeader(name string) {
-	if p == nil || p.logger == nil {
-		return
-	}
-	normalized := strings.ToLower(strings.TrimSpace(name))
-	if normalized == "" {
-		return
-	}
-	if _, loaded := p.legacyHeaderWarnings.LoadOrStore(normalized, struct{}{}); loaded {
-		return
-	}
-	modern, _ := canonicalizeProxyHeaderName(name)
-	p.logger.Warn("observed legacy X-Glyph header; support will be removed in a future release", "header", strings.TrimSpace(name), "replacement", modern)
+	return canonical, false
 }
 
 func isWebSocketRequest(r *http.Request) bool {

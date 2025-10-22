@@ -44,35 +44,27 @@ func RequireBrand(t testing.TB, got any) {
 	t.Fatalf("unexpected brand %q, want %q (legacy %q)", name, want, legacyBrand)
 }
 
-// LegacyHeaderName converts a modern header name to its legacy equivalent.
-func LegacyHeaderName(name string) string {
-	if !strings.Contains(name, defaultBrand) {
-		return name
-	}
-	return strings.Replace(name, defaultBrand, legacyBrand, 1)
-}
-
-// RequireHeaderWithLegacy asserts that a primary header matches the expected value
-// and validates any legacy equivalent if present.
-func RequireHeaderWithLegacy(t testing.TB, headers http.Header, name, want string) {
+// RequireModernHeader asserts that a primary header matches the expected value
+// and that no legacy equivalent is present.
+func RequireModernHeader(t testing.TB, headers http.Header, name, want string) {
 	t.Helper()
 
 	if got := headers.Get(name); got != want {
 		t.Fatalf("%s header = %q, want %q", name, got, want)
 	}
 
-	legacyName := LegacyHeaderName(name)
+	legacyName := strings.Replace(name, defaultBrand, legacyBrand, 1)
 	if legacyName == name {
 		return
 	}
 
-	if legacy := headers.Get(legacyName); legacy != "" && legacy != want {
-		t.Fatalf("%s header = %q, want %q", legacyName, legacy, want)
+	if legacy := headers.Get(legacyName); legacy != "" {
+		t.Fatalf("unexpected legacy header %s = %q", legacyName, legacy)
 	}
 }
 
-// RequireHeaderMapWithLegacy performs the same assertion for a captured header map.
-func RequireHeaderMapWithLegacy(t testing.TB, headers map[string][]string, name, want string) {
+// RequireModernHeaderMap performs the same assertion for a captured header map.
+func RequireModernHeaderMap(t testing.TB, headers map[string][]string, name, want string) {
 	t.Helper()
 
 	values := headers[name]
@@ -80,15 +72,13 @@ func RequireHeaderMapWithLegacy(t testing.TB, headers map[string][]string, name,
 		t.Fatalf("%s header values = %v, want %q", name, values, want)
 	}
 
-	legacyName := LegacyHeaderName(name)
+	legacyName := strings.Replace(name, defaultBrand, legacyBrand, 1)
 	if legacyName == name {
 		return
 	}
 
-	if legacyValues, ok := headers[legacyName]; ok {
-		if len(legacyValues) == 0 || legacyValues[0] != want {
-			t.Fatalf("%s header values = %v, want %q", legacyName, legacyValues, want)
-		}
+	if legacyValues, ok := headers[legacyName]; ok && len(legacyValues) > 0 {
+		t.Fatalf("unexpected legacy header %s values = %v", legacyName, legacyValues)
 	}
 }
 

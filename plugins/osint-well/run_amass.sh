@@ -11,7 +11,7 @@ results to Glyph's assets.jsonl format.
 Options:
   -d <domain>          Domain to enumerate (required)
   -o <path>            Output path for normalized JSONL (defaults to
-                       "${GLYPH_OUT:-/out}/assets.jsonl")
+                       "${0XGEN_OUT:-/out}/assets.jsonl")
   -b <binary>          Path to the amass binary (defaults to the first amass
                        on $PATH)
   -- <args>            Additional arguments forwarded to amass. Keep these
@@ -20,7 +20,7 @@ USAGE
 }
 
 DOMAIN=""
-OUTPUT_PATH="${GLYPH_OUT:-/out}/assets.jsonl"
+OUTPUT_PATH="${0XGEN_OUT:-/out}/assets.jsonl"
 AMASS_BIN="${AMASS_BIN:-amass}"
 EXTRA_ARGS=()
 

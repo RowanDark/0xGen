@@ -29,18 +29,18 @@ Ranker scores assets, findings, and leads so teams focus on the highest-impact w
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/ranker#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/ranker/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/ranker/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/ranker/plugin.js.sig)
 
 
 ### Signature
 
-`99354598f4ab386898ee9c29758b15b97f2eef5b89dfbca684e3f546569cf6e0`
+`0c26cd8ef0e9c36791cba8767c1e00c33a526ff30478e551b1435473b68c94bc`

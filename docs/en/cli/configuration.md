@@ -54,7 +54,7 @@ The loader accepts the following variables:
 
 All variables accept whitespace-trimmed values. Boolean variables treat `1`,
 `true`, `yes`, and `on` as true, and `0`, `false`, `no`, and `off` as false. Legacy
-`GLYPH_` variables continue to work for one release and emit a warning when used.
+`0XGEN_` variables continue to work for one release and emit a warning when used.
 
 ## Inspecting the resolved configuration {#inspect-the-resolved-configuration}
 

@@ -20,9 +20,9 @@
     }
 
     const searchField = document.getElementById('compatibility-search');
-    const glyphFilter = document.getElementById('compatibility-glyph');
+    const versionFilter = document.getElementById('compatibility-oxg');
     const statusFilter = document.getElementById('compatibility-status');
-    if (!searchField || !glyphFilter || !statusFilter) {
+    if (!searchField || !versionFilter || !statusFilter) {
       return;
     }
 
@@ -52,29 +52,27 @@
       .then((registry) => {
         cachedRegistry = registry;
         const plugins = Array.isArray(registry.plugins) ? registry.plugins : [];
-        const glyphVersions = Array.isArray(registry.oxg_versions)
+        const oxgVersions = Array.isArray(registry.oxg_versions)
           ? registry.oxg_versions
-          : Array.isArray(registry.glyph_versions)
-          ? registry.glyph_versions
           : [];
-        populateFilters(glyphFilter, statusFilter, glyphVersions);
-        renderTable(container, plugins, glyphVersions, {
+        populateFilters(versionFilter, statusFilter, oxgVersions);
+        renderTable(container, plugins, oxgVersions, {
           query: '',
-          glyph: '',
+          oxg: '',
           status: '',
         });
 
         const handleChange = () => {
           const filters = {
             query: (searchField.value || '').trim().toLowerCase(),
-            glyph: glyphFilter.value,
+            oxg: versionFilter.value,
             status: statusFilter.value,
           };
-          renderTable(container, plugins, glyphVersions, filters);
+          renderTable(container, plugins, oxgVersions, filters);
         };
 
         searchField.addEventListener('input', handleChange);
-        glyphFilter.addEventListener('change', handleChange);
+        versionFilter.addEventListener('change', handleChange);
         statusFilter.addEventListener('change', handleChange);
       })
       .catch((error) => {
@@ -89,16 +87,16 @@
       });
   }
 
-  function populateFilters(glyphFilter, statusFilter, glyphVersions) {
-    resetSelectOptions(glyphFilter);
-    glyphVersions
+  function populateFilters(versionFilter, statusFilter, oxgVersions) {
+    resetSelectOptions(versionFilter);
+    oxgVersions
       .slice()
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .forEach((version) => {
         const option = document.createElement('option');
         option.value = version;
         option.textContent = `0xgen v${version}`;
-        glyphFilter.appendChild(option);
+        versionFilter.appendChild(option);
       });
 
     resetSelectOptions(statusFilter);
@@ -110,12 +108,12 @@
     });
   }
 
-  function renderTable(container, plugins, glyphVersions, filters) {
+  function renderTable(container, plugins, oxgVersions, filters) {
     container.setAttribute('aria-busy', 'true');
     container.innerHTML = '';
 
     const filtered = plugins
-      .filter((plugin) => filterPlugin(plugin, glyphVersions, filters))
+      .filter((plugin) => filterPlugin(plugin, oxgVersions, filters))
       .sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || ''));
 
     if (!filtered.length) {
@@ -132,7 +130,7 @@
     table.className = 'plugin-compatibility__table';
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
-    ['Plugin', 'Latest version', ...glyphVersions.map((version) => `0xgen v${version}`)].forEach((heading, index) => {
+    ['Plugin', 'Latest version', ...oxgVersions.map((version) => `0xgen v${version}`)].forEach((heading, index) => {
       const cell = document.createElement('th');
       cell.scope = 'col';
       cell.textContent = heading;
@@ -166,7 +164,7 @@
       versionCell.textContent = plugin.version ? `v${plugin.version}` : 'Unversioned';
       row.appendChild(versionCell);
 
-      glyphVersions.forEach((version) => {
+      oxgVersions.forEach((version) => {
         const cell = document.createElement('td');
         const compat = plugin.oxg_compat || plugin.compatibility || {};
         const entry = compat[version] || null;
@@ -209,15 +207,15 @@
     return wrapper;
   }
 
-  function filterPlugin(plugin, glyphVersions, filters) {
+  function filterPlugin(plugin, oxgVersions, filters) {
     const query = filters.query;
-    const glyph = filters.glyph;
+    const selectedVersion = filters.oxg;
     const status = filters.status;
 
     const compatibility = plugin.oxg_compat || plugin.compatibility || {};
 
-    if (glyph) {
-      const entry = compatibility[glyph] || null;
+    if (selectedVersion) {
+      const entry = compatibility[selectedVersion] || null;
       if (!entry) {
         return false;
       }

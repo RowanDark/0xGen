@@ -33,11 +33,11 @@ func TestRunTimeoutKillsProcess(t *testing.T) {
 }
 
 func TestBuildEnvStripsHostVariables(t *testing.T) {
-	t.Setenv("GLYPH_SECRET", "classified")
+	t.Setenv("0XGEN_SECRET", "classified")
 	workDir := t.TempDir()
 	env := buildEnv(workDir, map[string]string{"EXTRA": "1"})
 	for _, entry := range env {
-		if strings.HasPrefix(entry, "GLYPH_SECRET=") {
+		if strings.HasPrefix(entry, "0XGEN_SECRET=") {
 			t.Fatalf("host environment leaked into plugin env: %q", entry)
 		}
 	}
@@ -89,7 +89,7 @@ func TestBuildEnvUsesSandboxDirectories(t *testing.T) {
 		t.Fatalf("expected custom environment override, got %q", got)
 	}
 	for key := range envMap {
-		if strings.HasPrefix(key, "GLYPH_") {
+		if strings.HasPrefix(key, "0XGEN_") {
 			t.Fatalf("unexpected host environment variable leaked: %s", key)
 		}
 	}

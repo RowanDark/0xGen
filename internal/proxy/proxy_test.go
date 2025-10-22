@@ -201,7 +201,7 @@ func TestProxyEndToEndHeaderRewrite(t *testing.T) {
 	_, _ = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen", "on")
+	testutil.RequireModernHeader(t, resp.Header, "X-0xgen", "on")
 	if got := resp.Header.Get("Content-Security-Policy"); got != "default-src 'self'" {
 		t.Fatalf("csp header = %q", got)
 	}
@@ -235,13 +235,13 @@ func TestProxyEndToEndHeaderRewrite(t *testing.T) {
 	if !contains(entry.MatchedRules, "demo-rewrite") {
 		t.Fatalf("history missing rule reference: %#v", entry.MatchedRules)
 	}
-	testutil.RequireHeaderMapWithLegacy(t, entry.ResponseHeaders, "X-0xgen", "on")
+	testutil.RequireModernHeaderMap(t, entry.ResponseHeaders, "X-0xgen", "on")
 	if _, exists := entry.ResponseHeaders["Server"]; exists {
 		t.Fatal("history should not include stripped server header")
 	}
 }
 
-func TestProxyAcceptsLegacyHeaders(t *testing.T) {
+func TestProxyIgnoresLegacyHeaders(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -296,87 +296,11 @@ func TestProxyAcceptsLegacyHeaders(t *testing.T) {
 	_, _ = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen-Proxy", "legacy")
-
-	cancel()
-	waitErr(t, errCh)
-
-	data, err := os.ReadFile(historyPath)
-	if err != nil {
-		t.Fatalf("read history: %v", err)
+	if got := resp.Header.Get("X-0xgen-Proxy"); got != "" {
+		t.Fatalf("expected X-0xgen-Proxy header to be absent, got %q", got)
 	}
-	trimmed := strings.TrimSpace(string(data))
-	if trimmed == "" {
-		t.Fatal("history file empty")
-	}
-	var entry HistoryEntry
-	if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
-		t.Fatalf("decode history: %v", err)
-	}
-	testutil.RequireHeaderMapWithLegacy(t, entry.ResponseHeaders, "X-0xgen-Proxy", "legacy")
-	if !handler.contains(slog.LevelWarn, "legacy X-Glyph header") {
-		t.Fatal("expected legacy header warning to be logged")
-	}
-}
-
-func TestProxyEmitsLegacyHeadersWhenConfigured(t *testing.T) {
-	t.Parallel()
-
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("ok"))
-	}))
-	t.Cleanup(upstream.Close)
-
-	tempDir := t.TempDir()
-	rules := `[{"name":"dual","match":{"url_contains":"/"},"response":{"add_headers":{"X-0xgen-Proxy":"dual"}}}]`
-	rulesPath := filepath.Join(tempDir, "rules.json")
-	if err := os.WriteFile(rulesPath, []byte(rules), 0o644); err != nil {
-		t.Fatalf("write rules: %v", err)
-	}
-
-	historyPath := filepath.Join(tempDir, "history.jsonl")
-	cfg := Config{
-		Addr:        "127.0.0.1:0",
-		RulesPath:   rulesPath,
-		HistoryPath: historyPath,
-		CACertPath:  filepath.Join(tempDir, "ca.pem"),
-		CAKeyPath:   filepath.Join(tempDir, "ca.key"),
-		Logger:      newTestLogger(),
-		Flow:        FlowCaptureConfig{EmitLegacyHeaders: true},
-	}
-
-	proxy, err := New(cfg)
-	if err != nil {
-		t.Fatalf("new proxy: %v", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- proxy.Run(ctx)
-	}()
-
-	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer readyCancel()
-	if err := proxy.WaitUntilReady(readyCtx); err != nil {
-		t.Fatalf("proxy not ready: %v", err)
-	}
-
-	proxyURL, _ := url.Parse("http://" + proxy.Addr())
-	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
-
-	resp, err := client.Get(upstream.URL)
-	if err != nil {
-		t.Fatalf("http request via proxy: %v", err)
-	}
-	_, _ = io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-
-	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen-Proxy", "dual")
-	if legacy := resp.Header.Get(testutil.LegacyHeaderName("X-0xgen-Proxy")); legacy == "" {
-		t.Fatal("expected legacy header duplication to be emitted")
+	if legacy := resp.Header.Get("X-Glyph-Proxy"); legacy != "" {
+		t.Fatalf("expected legacy header to be absent, got %q", legacy)
 	}
 
 	cancel()
@@ -394,7 +318,15 @@ func TestProxyEmitsLegacyHeadersWhenConfigured(t *testing.T) {
 	if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
 		t.Fatalf("decode history: %v", err)
 	}
-	testutil.RequireHeaderMapWithLegacy(t, entry.ResponseHeaders, "X-0xgen-Proxy", "dual")
+	if _, exists := entry.ResponseHeaders["X-0xgen-Proxy"]; exists {
+		t.Fatal("expected modern header to be absent in history")
+	}
+	if _, exists := entry.ResponseHeaders["X-Glyph-Proxy"]; exists {
+		t.Fatal("expected legacy header to be absent in history")
+	}
+	if handler.contains(slog.LevelWarn, "legacy") {
+		t.Fatal("unexpected legacy header warning")
+	}
 }
 
 func TestProxyHTTPModificationAndHistory(t *testing.T) {

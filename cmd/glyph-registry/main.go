@@ -113,20 +113,20 @@ func (s *server) handlePlugins(w http.ResponseWriter, r *http.Request) {
 		Language:   query.Get("language"),
 		Category:   query.Get("category"),
 		Capability: query.Get("capability"),
-		Glyph:      query.Get("glyph"),
+		Oxg:        query.Get("oxg"),
 		Status:     query.Get("status"),
 	}
 	plugins := dataset.FilterPlugins(filter)
 	response := struct {
-		Count         int               `json:"count"`
-		Total         int               `json:"total"`
-		GlyphVersions []string          `json:"oxg_versions"`
-		Plugins       []registry.Plugin `json:"plugins"`
+		Count       int               `json:"count"`
+		Total       int               `json:"total"`
+		OxgVersions []string          `json:"oxg_versions"`
+		Plugins     []registry.Plugin `json:"plugins"`
 	}{
-		Count:         len(plugins),
-		Total:         len(dataset.Plugins),
-		GlyphVersions: dataset.GlyphVersions,
-		Plugins:       plugins,
+		Count:       len(plugins),
+		Total:       len(dataset.Plugins),
+		OxgVersions: dataset.OxgVersions,
+		Plugins:     plugins,
 	}
 	s.writeJSON(w, http.StatusOK, response)
 }
@@ -181,11 +181,11 @@ func (s *server) handleCompatibility(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	payload := struct {
-		GlyphVersions []string             `json:"oxg_versions"`
-		Plugins       []compatibilityEntry `json:"plugins"`
+		OxgVersions []string             `json:"oxg_versions"`
+		Plugins     []compatibilityEntry `json:"plugins"`
 	}{
-		GlyphVersions: dataset.GlyphVersions,
-		Plugins:       entries,
+		OxgVersions: dataset.OxgVersions,
+		Plugins:     entries,
 	}
 	s.writeJSON(w, http.StatusOK, payload)
 }

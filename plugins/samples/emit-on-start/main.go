@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	if os.Getenv("GLYPH_E2E_SMOKE") != "1" {
+	if os.Getenv("0XGEN_E2E_SMOKE") != "1" {
 		return
 	}
 
@@ -28,9 +28,9 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	capToken := strings.TrimSpace(os.Getenv("GLYPH_CAPABILITY_TOKEN"))
+	capToken := strings.TrimSpace(os.Getenv("0XGEN_CAPABILITY_TOKEN"))
 	if capToken == "" {
-		logger.Error("missing GLYPH_CAPABILITY_TOKEN environment variable")
+		logger.Error("missing 0XGEN_CAPABILITY_TOKEN environment variable")
 		os.Exit(1)
 	}
 

@@ -58,11 +58,11 @@ scripts or documentation snippets.
 
 By default, 0xgen writes artefacts under `/out`. On Windows this resolves to the
 root of the current drive (for example `C:\out`). When running inside WSL, set
-`GLYPH_OUT` to a path under `/mnt/<drive>` so Windows applications can access the
+`0XGEN_OUT` to a path under `/mnt/<drive>` so Windows applications can access the
 files without additional copies:
 
 ```bash
-export GLYPH_OUT=/mnt/c/Users/alice/out
+export 0XGEN_OUT=/mnt/c/Users/alice/out
 ```
 
 The proxy certificate helper honours these overrides, so both Windows and WSL

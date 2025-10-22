@@ -104,20 +104,17 @@ func runPluginRun(args []string) int {
 		limits.WallTime = 5 * time.Second
 	}
 	envVars := map[string]string{}
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			envVars["0XGEN_OUT"] = trimmed
-			envVars["GLYPH_OUT"] = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_E2E_SMOKE", "GLYPH_E2E_SMOKE"); ok {
+	if val, ok := env.Lookup("0XGEN_E2E_SMOKE"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			envVars["0XGEN_E2E_SMOKE"] = trimmed
-			envVars["GLYPH_E2E_SMOKE"] = trimmed
 		}
 	}
 	envVars["0XGEN_CAPABILITY_TOKEN"] = capToken
-	envVars["GLYPH_CAPABILITY_TOKEN"] = capToken
 	config := runner.Config{
 		Binary: binaryPath,
 		Args:   []string{"--server", *server, "--token", *token},

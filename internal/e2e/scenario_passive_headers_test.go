@@ -80,9 +80,9 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 	)
 	glyphd.Dir = root
 	glyphd.Env = append(os.Environ(),
-		"GLYPH_OUT="+outDir,
-		"GLYPH_SYNC_WRITES=1",
-		"GLYPH_DISABLE_EVENT_GENERATOR=1",
+		"0XGEN_OUT="+outDir,
+		"0XGEN_SYNC_WRITES=1",
+		"0XGEN_DISABLE_EVENT_GENERATOR=1",
 	)
 
 	var glyphdStdout, glyphdStderr bytes.Buffer
@@ -125,8 +125,8 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 	)
 	pluginCmd.Dir = root
 	pluginCmd.Env = append(os.Environ(),
-		"GLYPH_OUT="+outDir,
-		"GLYPH_SYNC_WRITES=1",
+		"0XGEN_OUT="+outDir,
+		"0XGEN_SYNC_WRITES=1",
 	)
 
 	var pluginStdout, pluginStderr bytes.Buffer
@@ -312,7 +312,7 @@ func expectedScenarioFindings(scenario passiveHeaderScenario) []goldenFinding {
 func runGlyphctlReport(ctx context.Context, root, glyphctlBin, findingsPath, reportPath string) error {
 	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", findingsPath, "--out", reportPath)
 	reportCmd.Dir = root
-	reportCmd.Env = append(os.Environ(), "GLYPH_OUT="+filepath.Dir(reportPath))
+	reportCmd.Env = append(os.Environ(), "0XGEN_OUT="+filepath.Dir(reportPath))
 	output, err := reportCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("glyphctl report: %w\n%s", err, string(output))

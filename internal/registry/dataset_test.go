@@ -14,8 +14,8 @@ func TestLoadDataset(t *testing.T) {
 	if len(dataset.Plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(dataset.Plugins))
 	}
-	if dataset.GlyphVersions[0] != "1.0" || dataset.GlyphVersions[1] != "2.0" {
-		t.Fatalf("unexpected glyph versions: %v", dataset.GlyphVersions)
+	if dataset.OxgVersions[0] != "1.0" || dataset.OxgVersions[1] != "2.0" {
+		t.Fatalf("unexpected oxg versions: %v", dataset.OxgVersions)
 	}
 
 	alpha, ok := dataset.Plugin("alpha")
@@ -26,7 +26,7 @@ func TestLoadDataset(t *testing.T) {
 		t.Fatalf("unexpected status for alpha@2.0: %s", alpha.Compatibility["2.0"].Status)
 	}
 
-	filtered := dataset.FilterPlugins(Filter{Glyph: "2.0", Status: "compatible"})
+	filtered := dataset.FilterPlugins(Filter{Oxg: "2.0", Status: "compatible"})
 	if len(filtered) != 1 || filtered[0].ID != "alpha" {
 		t.Fatalf("expected only alpha to match, got %#v", filtered)
 	}
@@ -38,23 +38,5 @@ func TestLoadDataset(t *testing.T) {
 
 	if _, ok := dataset.Plugin("BRAVO"); !ok {
 		t.Fatalf("case-insensitive lookup failed")
-	}
-}
-
-func TestLoadDatasetLegacy(t *testing.T) {
-	path := filepath.Join("testdata", "registry_legacy.json")
-	dataset, err := Load(path)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if len(dataset.GlyphVersions) != 2 {
-		t.Fatalf("expected legacy glyph versions to load, got %v", dataset.GlyphVersions)
-	}
-	bravo, ok := dataset.Plugin("bravo")
-	if !ok {
-		t.Fatalf("expected to load legacy plugin entry")
-	}
-	if status := bravo.Compatibility["2.0"].Status; status != "unsupported" {
-		t.Fatalf("unexpected legacy compatibility status: %s", status)
 	}
 }

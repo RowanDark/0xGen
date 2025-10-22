@@ -46,7 +46,7 @@ func (h *addressCaptureHandler) WithGroup(string) slog.Handler { return h }
 
 func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	outDir := t.TempDir()
-	t.Setenv("GLYPH_OUT", outDir)
+	t.Setenv("0XGEN_OUT", outDir)
 
 	received := make(chan http.Header, 1)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -117,14 +117,14 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen-Proxy", "active")
+	testutil.RequireModernHeader(t, resp.Header, "X-0xgen-Proxy", "active")
 	if resp.Header.Get("Server") != "" {
 		t.Fatal("expected Server header to be stripped")
 	}
 
 	select {
 	case hdr := <-received:
-		testutil.RequireHeaderWithLegacy(t, hdr, "X-0xgen", "on")
+		testutil.RequireModernHeader(t, hdr, "X-0xgen", "on")
 	case <-time.After(2 * time.Second):
 		t.Fatal("upstream request not observed")
 	}
@@ -176,7 +176,7 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 	if len(entry.MatchedRules) == 0 || entry.MatchedRules[0] != "demo-rule" {
 		t.Fatalf("history missing rule reference: %#v", entry.MatchedRules)
 	}
-	testutil.RequireHeaderMapWithLegacy(t, entry.RequestHeaders, "X-0xgen", "on")
+	testutil.RequireModernHeaderMap(t, entry.RequestHeaders, "X-0xgen", "on")
 	if _, ok := entry.ResponseHeaders["Server"]; ok {
 		t.Fatalf("history still contains stripped Server header: %#v", entry.ResponseHeaders)
 	}

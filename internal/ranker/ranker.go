@@ -34,12 +34,12 @@ const (
 )
 
 // DefaultOutputPath identifies where ranked findings should be written when no
-// explicit --out flag is provided. The location respects GLYPH_OUT when set so
+// explicit --out flag is provided. The location respects 0XGEN_OUT when set so
 // CLI consumers stay consistent with other tooling.
 var DefaultOutputPath = filepath.Join(defaultOutputDir, rankedFilename)
 
 func init() {
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if custom := strings.TrimSpace(val); custom != "" {
 			DefaultOutputPath = filepath.Join(custom, rankedFilename)
 		}

@@ -79,7 +79,7 @@ Suma estos pasos al proceso habitual:
 1. Completa los archivos JSON en `packaging/updater/` con los artefactos del
    release. Consulta `packaging/updater/README.md` para ver el esquema.
 2. Exporta la clave privada ed25519 en base64 mediante la variable de entorno
-   `GLYPH_UPDATER_SIGNING_KEY`.
+   `0XGEN_UPDATER_SIGNING_KEY`.
 3. Ejecuta `make updater:build-manifests` para crear y firmar los manifiestos.
 4. Revisa `out/updater/` y confirma que existan los deltas esperados o que el
    manifiesto marque la ausencia correctamente.

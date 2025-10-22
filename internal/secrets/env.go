@@ -2,10 +2,10 @@ package secrets
 
 import "strings"
 
-const envPrefix = "GLYPH_SECRET_"
+const envPrefix = "0XGEN_SECRET_"
 
 // FromEnv parses environment variables and returns a plugin -> secret map.
-// Variables must follow the pattern GLYPH_SECRET_<PLUGIN>__<SECRET>=value.
+// Variables must follow the pattern 0XGEN_SECRET_<PLUGIN>__<SECRET>=value.
 func FromEnv(env []string) map[string]map[string]string {
 	secrets := make(map[string]map[string]string)
 	for _, entry := range env {

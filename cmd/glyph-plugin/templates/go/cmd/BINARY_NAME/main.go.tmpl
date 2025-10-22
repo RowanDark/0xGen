@@ -14,11 +14,11 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg := pluginsdk.Config{
 		PluginName:      "{{.PluginName}}",
-		Host:            envOrDefault("GLYPH_HOST", "127.0.0.1:50051"),
-		AuthToken:       os.Getenv("GLYPH_AUTH_TOKEN"),
-		CapabilityToken: os.Getenv("GLYPH_CAPABILITY_TOKEN"),
-                SecretsToken:    strings.TrimSpace(os.Getenv("GLYPH_SECRETS_TOKEN")),
-                SecretsScope:    strings.TrimSpace(os.Getenv("GLYPH_SECRETS_SCOPE")),
+		Host:            envOrDefault("0XGEN_HOST", "127.0.0.1:50051"),
+		AuthToken:       os.Getenv("0XGEN_AUTH_TOKEN"),
+		CapabilityToken: os.Getenv("0XGEN_CAPABILITY_TOKEN"),
+                SecretsToken:    strings.TrimSpace(os.Getenv("0XGEN_SECRETS_TOKEN")),
+                SecretsScope:    strings.TrimSpace(os.Getenv("0XGEN_SECRETS_SCOPE")),
                 Capabilities: plugin.CapabilityMacros.List(),
 		Logger: logger,
 	}

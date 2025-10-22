@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	if custom := strings.TrimSpace(os.Getenv("GLYPH_OUT")); custom != "" {
+	if custom := strings.TrimSpace(os.Getenv("0XGEN_OUT")); custom != "" {
 		DefaultOutputPath = filepath.Join(custom, assetsFilename)
 	}
 }

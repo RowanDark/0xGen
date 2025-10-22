@@ -72,7 +72,7 @@ should honour `ctx.Context().Done()` to exit promptly.
 Capabilities gate access to host features. Declare them in `manifest.json` under
 `capabilities`, and ensure the same set is configured in `pluginsdk.Config` so the
 SDK can enforce permissions locally. At runtime the host injects a
-`GLYPH_CAPABILITY_TOKEN` environment variable that must be supplied via
+`0XGEN_CAPABILITY_TOKEN` environment variable that must be supplied via
 `pluginsdk.Config.CapabilityToken`; the host refuses the handshake if the token is
 missing or the plugin requests undeclared privileges.
 

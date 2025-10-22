@@ -21,8 +21,8 @@ $(GLYPHCTL):
         @go build -ldflags "$(GLYPHCTL_LDFLAGS)" -o $(GLYPHCTL) ./cmd/glyphctl
 
 # Development defaults for running the Go services.
-GLYPH_ADDR ?= :50051
-GLYPH_AUTH_TOKEN ?= dev-token
+0XGEN_ADDR ?= :50051
+0XGEN_AUTH_TOKEN ?= dev-token
 
 .PHONY: test
 test:
@@ -34,7 +34,7 @@ lint:
 
 .PHONY: updater:build-manifests
 updater:build-manifests:
-        @GLYPH_UPDATER_SIGNING_KEY=$${GLYPH_UPDATER_SIGNING_KEY:-} go run ./hack/updater/build_manifests.go
+        @0XGEN_UPDATER_SIGNING_KEY=$${0XGEN_UPDATER_SIGNING_KEY:-} go run ./hack/updater/build_manifests.go
 
 .PHONY: build
 build:
@@ -95,7 +95,7 @@ verify: build
 
 .PHONY: run
 run:
-	go run ./cmd/glyphd --addr $(GLYPH_ADDR) --token $(GLYPH_AUTH_TOKEN)
+	go run ./cmd/glyphd --addr $(0XGEN_ADDR) --token $(0XGEN_AUTH_TOKEN)
 
 # Default target.
 .PHONY: all
@@ -148,7 +148,7 @@ e2e: proto
 	@go build -o glyphd ./cmd/glyphd
 	@echo "--- Running E2E test ---"
 	@rm -f glyphd.log plugin.log
-	@export GLYPH_AUTH_TOKEN="supersecrettoken" && ./glyphd > glyphd.log 2>&1 &
+	@export 0XGEN_AUTH_TOKEN="supersecrettoken" && ./glyphd > glyphd.log 2>&1 &
 	@sleep 2
 	@python -m glyph_passive_headers > plugin.log 2>&1 &
 	@echo "Server and plugin started. Waiting for interaction..."

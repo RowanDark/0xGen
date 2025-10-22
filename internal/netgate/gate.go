@@ -28,10 +28,8 @@ const (
 	capHTTPActive  = "CAP_HTTP_ACTIVE"
 	capHTTPPassive = "CAP_HTTP_PASSIVE"
 
-	envTimeout    = "GLYPH_NET_TIMEOUT"
-	envBudget     = "GLYPH_NET_BUDGET"
-	envTimeoutNew = "0XGEN_NET_TIMEOUT"
-	envBudgetNew  = "0XGEN_NET_BUDGET"
+	envTimeout = "0XGEN_NET_TIMEOUT"
+	envBudget  = "0XGEN_NET_BUDGET"
 
 	defaultTimeout = 5 * time.Second
 	defaultBudget  = 50
@@ -238,14 +236,14 @@ func WithAuditLogger(logger *logging.AuditLogger) Option {
 
 func loadConfigFromEnv() Config {
 	cfg := Config{Timeout: defaultTimeout, RequestBudget: defaultBudget, Retry: defaultRetryConfig()}
-	if raw, ok := env.Lookup(envTimeoutNew, envTimeout); ok {
+	if raw, ok := env.Lookup(envTimeout); ok {
 		if trimmed := strings.TrimSpace(raw); trimmed != "" {
 			if dur, err := time.ParseDuration(trimmed); err == nil {
 				cfg.Timeout = dur
 			}
 		}
 	}
-	if raw, ok := env.Lookup(envBudgetNew, envBudget); ok {
+	if raw, ok := env.Lookup(envBudget); ok {
 		if trimmed := strings.TrimSpace(raw); trimmed != "" {
 			if v, err := strconv.Atoi(trimmed); err == nil {
 				cfg.RequestBudget = v

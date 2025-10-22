@@ -26,7 +26,7 @@ function main() {
     process.exit(1);
   }
 
-  const defaultOut = path.join(process.env.GLYPH_OUT || '/out', 'assets.jsonl');
+  const defaultOut = path.join(process.env['0XGEN_OUT'] || '/out', 'assets.jsonl');
   const outputPath = outputArg ? path.resolve(outputArg) : defaultOut;
 
   const inputPath = inputArg === '-' ? 0 : path.resolve(inputArg);

@@ -47,7 +47,7 @@ The collector accepts spans from 0xgen over OTLP/HTTP, batches them, and forward
 * `oxg_http_throttle_total` – rate-limiter activations.
 * `oxg_flow_dispatch_seconds` – latency for sanitized/raw flow fan-out to plugins.
 
-Legacy `glyph_*` aliases remain for this release but are deprecated and will be removed in the following cycle.
+Legacy `oxg_*` aliases remain for this release but are deprecated and will be removed in the following cycle.
 
 The Grafana dashboard in [`grafana-dashboard.json`](grafana-dashboard.json) now ships exemplar-aware
 panels for HTTP, flow dispatch, and plugin event latency. Selecting an exemplar opens the associated
