@@ -56,7 +56,7 @@ patterns to keep new integrations safe.
 set -euo pipefail
 
 # Use broker-provided workspace paths
-WORKDIR="${GLYPH_WORKSPACE:?missing workspace}"
+WORKDIR="${0XGEN_WORKSPACE:?missing workspace}"
 LOG_PATH="$WORKDIR/run.log"
 
 log() {

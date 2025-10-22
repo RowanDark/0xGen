@@ -252,16 +252,16 @@ func writeSignature(manifestPath string, key ed25519.PrivateKey) error {
 }
 
 func loadSigningKey() (ed25519.PrivateKey, error) {
-	raw := strings.TrimSpace(os.Getenv("GLYPH_UPDATER_SIGNING_KEY"))
+	raw := strings.TrimSpace(os.Getenv("0XGEN_UPDATER_SIGNING_KEY"))
 	if raw == "" {
-		return nil, errors.New("GLYPH_UPDATER_SIGNING_KEY is not set")
+		return nil, errors.New("0XGEN_UPDATER_SIGNING_KEY is not set")
 	}
 	decoded, err := base64.StdEncoding.DecodeString(raw)
 	if err != nil {
-		return nil, fmt.Errorf("decode GLYPH_UPDATER_SIGNING_KEY: %w", err)
+		return nil, fmt.Errorf("decode 0XGEN_UPDATER_SIGNING_KEY: %w", err)
 	}
 	if len(decoded) != ed25519.PrivateKeySize {
-		return nil, fmt.Errorf("GLYPH_UPDATER_SIGNING_KEY has invalid length %d", len(decoded))
+		return nil, fmt.Errorf("0XGEN_UPDATER_SIGNING_KEY has invalid length %d", len(decoded))
 	}
 	return ed25519.PrivateKey(decoded), nil
 }

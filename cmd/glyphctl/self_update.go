@@ -58,7 +58,7 @@ func runSelfUpdate(args []string) int {
 	}
 
 	baseURL := ""
-	if val, ok := env.Lookup("0XGEN_UPDATER_BASE_URL", "GLYPH_UPDATER_BASE_URL"); ok {
+	if val, ok := env.Lookup("0XGEN_UPDATER_BASE_URL"); ok {
 		baseURL = strings.TrimSpace(val)
 	}
 	client := &updater.Client{

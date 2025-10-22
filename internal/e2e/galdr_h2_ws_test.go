@@ -102,7 +102,7 @@ func TestGaldrProxyHTTP2HeaderRewrite(t *testing.T) {
 	defer resp.Body.Close()
 	_, _ = io.ReadAll(resp.Body)
 
-	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen", "on")
+	testutil.RequireModernHeader(t, resp.Header, "X-0xgen", "on")
 	if resp.Header.Get("Server") != "" {
 		t.Fatalf("expected server header stripped, got %q", resp.Header.Get("Server"))
 	}

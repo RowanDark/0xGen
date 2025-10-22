@@ -40,10 +40,10 @@ type Index struct {
 	positions map[string]int
 }
 
-// DefaultPath returns the default location of the proxy history log, honouring GLYPH_OUT.
+// DefaultPath returns the default location of the proxy history log, honouring 0XGEN_OUT.
 func DefaultPath() string {
 	dir := "/out"
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			dir = trimmed
 		}

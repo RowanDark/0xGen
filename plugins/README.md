@@ -64,7 +64,7 @@ To run the sample against a local `glyphd`:
 go run ./cmd/glyphctl plugin run --sample emit-on-start --server 127.0.0.1:50051 --token supersecrettoken
 ```
 
-Set `GLYPH_E2E_SMOKE=1` in the environment to enable the demo sample. The
+Set `0XGEN_E2E_SMOKE=1` in the environment to enable the demo sample. The
 manifest and source live under `plugins/samples/emit-on-start` and serve as a
 compact reference for authoring new plugins.
 

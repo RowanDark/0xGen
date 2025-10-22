@@ -28,18 +28,18 @@ Example Hello is a 0xgen plugin.
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello#readme) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/example-hello#readme) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/example-hello/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/example-hello/main.go)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/example-hello/main.go.sig)
 
 
 ### Signature
 
-`d031975d4d4d137d6874af8806d2d1096d499f3d786f16431a556727b91b4f9c`
+`f53876ca2c8554dafb5d1c0fb1be2c83ca84235487eec49563ebba6b79b11741`

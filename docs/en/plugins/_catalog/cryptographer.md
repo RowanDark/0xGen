@@ -28,18 +28,18 @@ Cryptographer is a CyberChef-inspired utility surface for quickly transforming p
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/cryptographer#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cryptographer/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cryptographer/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cryptographer/plugin.js.sig)
 
 
 ### Signature
 
-`3377fc8d3fdd1f2398089a2fda88d081b001a6562dff8a3add4b0c76d17c8d23`
+`511dc86315ed5f9f7ae70c1659fdbabffe7b54d4bec4f04fc700e03c5de5b074`

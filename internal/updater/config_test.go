@@ -78,7 +78,7 @@ func TestNormalizeChannel(t *testing.T) {
 
 func TestDefaultConfigDirOverride(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("GLYPH_UPDATER_CONFIG_DIR", dir)
+	t.Setenv("0XGEN_UPDATER_CONFIG_DIR", dir)
 	got, err := DefaultConfigDir()
 	if err != nil {
 		t.Fatalf("DefaultConfigDir: %v", err)

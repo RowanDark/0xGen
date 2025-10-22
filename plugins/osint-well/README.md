@@ -9,7 +9,7 @@ OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface 
    ```bash
    go build ./cmd/glyphctl
    ```
-3. (Optional) Export `GLYPH_OUT` to control where normalized assets are written. The default is `/out`.
+3. (Optional) Export `0XGEN_OUT` to control where normalized assets are written. The default is `/out`.
 
 ## Passive vs. active enumeration
 
@@ -32,7 +32,7 @@ This plugin's wrapper keeps executions passive by default to minimize risk:
 Arguments:
 
 - `-d / --domain` – target domain (required).
-- `-o / --out` – destination JSONL file. Defaults to `${GLYPH_OUT:-/out}/assets.jsonl`.
+- `-o / --out` – destination JSONL file. Defaults to `${0XGEN_OUT:-/out}/assets.jsonl`.
 - `-b / --binary` – override the Amass binary path.
 - `--` – pass through additional passive-safe flags to Amass.
 

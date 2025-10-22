@@ -63,7 +63,7 @@ def main() -> None:
         for item in compatibility.get("plugins", [])
         if item.get("id")
     }
-    versions_source = compatibility.get("oxg_versions") or compatibility.get("glyph_versions") or []
+    versions_source = compatibility.get("oxg_versions") or []
     oxg_versions = list(dict.fromkeys(versions_source))
 
     entries: list[dict[str, Any]] = []
@@ -177,28 +177,22 @@ def _load_compatibility() -> dict[str, Any]:
 
 
 def _validate_compatibility(data: dict[str, Any]) -> None:
-    glyph_versions = data.get("glyph_versions")
-    oxg_versions = data.get("oxg_versions")
-    versions = None
-    if oxg_versions is not None:
-        versions = oxg_versions
-    elif glyph_versions is not None:
-        versions = glyph_versions
+    versions = data.get("oxg_versions")
     if versions is not None:
         if not isinstance(versions, list) or not all(isinstance(item, str) for item in versions):
-            raise SystemExit("compatibility oxg_versions/glyph_versions must be a list of strings")
+            raise SystemExit("compatibility oxg_versions must be a list of strings")
 
     for plugin in data.get("plugins", []):
         plugin_id = plugin.get("id")
         if not plugin_id:
             raise SystemExit("compatibility plugin entries require an id")
-        compat_map = plugin.get("oxg_compat") or plugin.get("compatibility") or {}
+        compat_map = plugin.get("oxg_compat") or {}
         if not isinstance(compat_map, dict):
             raise SystemExit(f"compatibility entry for {plugin_id} must be a mapping")
-        for glyph_version, details in compat_map.items():
+        for version, details in compat_map.items():
             if not isinstance(details, dict):
                 raise SystemExit(
-                    f"compatibility details for {plugin_id} {glyph_version} must be an object",
+                    f"compatibility details for {plugin_id} {version} must be an object",
                 )
             status = details.get("status")
             if status not in ALLOWED_COMPATIBILITY_STATUSES:

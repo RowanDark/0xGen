@@ -29,18 +29,18 @@ Cartographer charts application surfaces discovered by crawlers and passive sens
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/cartographer#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cartographer/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cartographer/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cartographer/plugin.js.sig)
 
 
 ### Signature
 
-`e9079211521cb91addb3e79d46aea9a12634b6c104a5086ea88852184e1f3afa`
+`ee2fdcd186f7c9713f7635a972103f8a256ff3dfdbd85304f6f259aa6c2233d8`

@@ -96,7 +96,7 @@ func TestSampleEmitsFinding(t *testing.T) {
 	cmd := exec.CommandContext(cmdCtx, binaryPath, "--server", lis.Addr().String(), "--token", "test-token")
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(), "GLYPH_CAPABILITY_TOKEN="+token)
+	cmd.Env = append(os.Environ(), "0XGEN_CAPABILITY_TOKEN="+token)
 
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start plugin: %v", err)

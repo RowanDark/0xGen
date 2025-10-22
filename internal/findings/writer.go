@@ -25,7 +25,7 @@ const (
 var DefaultFindingsPath = filepath.Join(defaultOutputDir, defaultFilename)
 
 func init() {
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if custom := strings.TrimSpace(val); custom != "" {
 			DefaultFindingsPath = filepath.Join(custom, defaultFilename)
 		}
@@ -84,7 +84,7 @@ func (w *Writer) Path() string {
 // NewWriter constructs a writer targeting the provided path.
 func NewWriter(path string, opts ...WriterOption) *Writer {
 	if strings.TrimSpace(path) == "" {
-		if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+		if val, ok := env.Lookup("0XGEN_OUT"); ok {
 			if custom := strings.TrimSpace(val); custom != "" {
 				path = filepath.Join(custom, defaultFilename)
 			}
@@ -235,7 +235,7 @@ func (w *Writer) rotateIfNeeded(next int64) error {
 }
 
 func syncWritesEnabled() bool {
-	if val, ok := env.Lookup("0XGEN_SYNC_WRITES", "GLYPH_SYNC_WRITES"); ok {
+	if val, ok := env.Lookup("0XGEN_SYNC_WRITES"); ok {
 		return strings.TrimSpace(val) == "1"
 	}
 	return false

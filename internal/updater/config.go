@@ -50,9 +50,9 @@ type Store struct {
 // DefaultConfigDir returns the platform specific configuration directory for
 // glyphctl's updater metadata.
 func DefaultConfigDir() (string, error) {
-	// Honour GLYPH_UPDATER_CONFIG_DIR if present so tests can override the
+	// Honour 0XGEN_UPDATER_CONFIG_DIR if present so tests can override the
 	// location without polluting the real user config.
-	if override, ok := env.Lookup("0XGEN_UPDATER_CONFIG_DIR", "GLYPH_UPDATER_CONFIG_DIR"); ok {
+	if override, ok := env.Lookup("0XGEN_UPDATER_CONFIG_DIR"); ok {
 		if trimmed := strings.TrimSpace(override); trimmed != "" {
 			return trimmed, nil
 		}

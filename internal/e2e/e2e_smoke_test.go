@@ -85,10 +85,10 @@ func TestGlyphctlSmoke(t *testing.T) {
 	glyphd := exec.CommandContext(cmdCtx, glyphdBin, "--addr", listenAddr, "--token", "test")
 	glyphd.Dir = root
 	glyphd.Env = append(os.Environ(),
-		"GLYPH_ADDR="+listenAddr,
-		"GLYPH_OUT="+outDir,
-		"GLYPH_E2E_SMOKE=1",
-		"GLYPH_SYNC_WRITES=1",
+		"0XGEN_ADDR="+listenAddr,
+		"0XGEN_OUT="+outDir,
+		"0XGEN_E2E_SMOKE=1",
+		"0XGEN_SYNC_WRITES=1",
 	)
 
 	var stdout, stderr bytes.Buffer
@@ -121,7 +121,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 
 	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "emit-on-start", "--server", dialAddr, "--token", "test", "--duration", "3s")
 	pluginCmd.Dir = root
-	pluginCmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir, "GLYPH_E2E_SMOKE=1")
+	pluginCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir, "0XGEN_E2E_SMOKE=1")
 	var pluginOut, pluginErr bytes.Buffer
 	pluginCmd.Stdout = &pluginOut
 	pluginCmd.Stderr = &pluginErr
@@ -161,7 +161,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 
 	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", findingsPath, "--out", reportPath)
 	reportCmd.Dir = root
-	reportCmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir)
+	reportCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 	if out, err := reportCmd.CombinedOutput(); err != nil {
 		t.Fatalf("glyphctl report failed: %v\n%s", err, out)
 	}
@@ -228,7 +228,7 @@ func buildGlyphctl(ctx context.Context, t *testing.T, root string) string {
 func resolveAddresses(t *testing.T) (string, string) {
 	t.Helper()
 
-	if addr := os.Getenv("GLYPH_E2E_ADDR"); addr != "" {
+	if addr := os.Getenv("0XGEN_E2E_ADDR"); addr != "" {
 		return addr, dialAddress(addr)
 	}
 

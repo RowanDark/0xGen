@@ -32,8 +32,8 @@ The binary accepts the following flags (defaults can also be provided through en
 
 | Flag | Environment | Description |
 | ---- | ----------- | ----------- |
-| `--server` | `GLYPH_SERVER` | glyphd gRPC address (defaults to `127.0.0.1:50051`). |
-| `--token` | `GLYPH_AUTH_TOKEN` | Authentication token for glyphd (defaults to `supersecrettoken`). |
+| `--server` | `0XGEN_SERVER` | glyphd gRPC address (defaults to `127.0.0.1:50051`). |
+| `--token` | `0XGEN_AUTH_TOKEN` | Authentication token for glyphd (defaults to `supersecrettoken`). |
 | `--allowlist` | `SEER_ALLOWLIST_FILE` | Optional path to a newline-separated allowlist file. Lines starting with `#` are treated as comments. |
 
 In addition, `SEER_ALLOWLIST` can supply a comma-separated list of allowlisted tokens or email addresses. All allowlist sources are merged, deduplicated case-insensitively, and applied before any findings are emitted. The plugin also skips binary payloads based on response metadata and byte heuristics to reduce noise from non-text artifacts.

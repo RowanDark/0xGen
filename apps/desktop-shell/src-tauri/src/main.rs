@@ -63,11 +63,11 @@ struct GlyphApi {
 impl GlyphApi {
     fn new() -> Self {
         let base_url =
-            std::env::var("GLYPH_API_URL").unwrap_or_else(|_| "http://127.0.0.1:8713".to_string());
-        let parsed = Url::parse(&base_url).expect("invalid GLYPH_API_URL");
+            std::env::var("0XGEN_API_URL").unwrap_or_else(|_| "http://127.0.0.1:8713".to_string());
+        let parsed = Url::parse(&base_url).expect("invalid 0XGEN_API_URL");
         match parsed.host_str() {
             Some("127.0.0.1") | Some("localhost") | Some("::1") => {}
-            other => panic!("GLYPH_API_URL must point to localhost, got {:?}", other),
+            other => panic!("0XGEN_API_URL must point to localhost, got {:?}", other),
         }
 
         let client = reqwest::Client::builder()
@@ -698,24 +698,12 @@ fn parse_metrics(body: &str) -> Vec<MetricSample> {
     body.lines().filter_map(parse_metric_line).collect()
 }
 
-fn metric_present(samples: &[MetricSample], name: &str) -> bool {
-    samples.iter().any(|sample| sample.name == name)
-}
-
 fn sum_metric(samples: &[MetricSample], name: &str) -> f64 {
     samples
         .iter()
         .filter(|sample| sample.name == name)
         .map(|sample| sample.value)
         .sum()
-}
-
-fn sum_metric_with_fallback(samples: &[MetricSample], primary: &str, legacy: &str) -> f64 {
-    if metric_present(samples, primary) {
-        sum_metric(samples, primary)
-    } else {
-        sum_metric(samples, legacy)
-    }
 }
 
 fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> HashMap<String, f64> {
@@ -726,19 +714,6 @@ fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> Has
         }
     }
     totals
-}
-
-fn sum_metric_by_label_with_fallback(
-    samples: &[MetricSample],
-    primary: &str,
-    legacy: &str,
-    label: &str,
-) -> HashMap<String, f64> {
-    if metric_present(samples, primary) {
-        sum_metric_by_label(samples, primary, label)
-    } else {
-        sum_metric_by_label(samples, legacy, label)
-    }
 }
 
 fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyBucket> {
@@ -762,18 +737,6 @@ fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyB
             count,
         })
         .collect()
-}
-
-fn collect_latency_buckets_with_fallback(
-    samples: &[MetricSample],
-    primary: &str,
-    legacy: &str,
-) -> Vec<LatencyBucket> {
-    if metric_present(samples, primary) {
-        collect_latency_buckets(samples, primary)
-    } else {
-        collect_latency_buckets(samples, legacy)
-    }
 }
 
 fn unix_to_datetime(secs: i64) -> DateTime<Utc> {
@@ -1116,52 +1079,23 @@ async fn fetch_metrics(
     let body = response.text().await.map_err(|err| err.to_string())?;
     let samples = parse_metrics(&body);
 
-    let failures =
-        sum_metric_with_fallback(&samples, "oxg_rpc_errors_total", "glyph_rpc_errors_total");
-    let queue_depth = sum_metric_with_fallback(
-        &samples,
-        "oxg_plugin_queue_length",
-        "glyph_plugin_queue_length",
-    );
-    let latency_sum = sum_metric_with_fallback(
-        &samples,
-        "oxg_plugin_event_duration_seconds_sum",
-        "glyph_plugin_event_duration_seconds_sum",
-    );
-    let latency_count = sum_metric_with_fallback(
-        &samples,
-        "oxg_plugin_event_duration_seconds_count",
-        "glyph_plugin_event_duration_seconds_count",
-    );
+    let failures = sum_metric(&samples, "oxg_rpc_errors_total");
+    let queue_depth = sum_metric(&samples, "oxg_plugin_queue_length");
+    let latency_sum = sum_metric(&samples, "oxg_plugin_event_duration_seconds_sum");
+    let latency_count = sum_metric(&samples, "oxg_plugin_event_duration_seconds_count");
     let avg_latency_ms = if latency_count > 0.0 {
         (latency_sum / latency_count) * 1000.0
     } else {
         0.0
     };
     let events_total = latency_count;
-    let queue_drops = sum_metric_with_fallback(
-        &samples,
-        "oxg_plugin_queue_dropped_total",
-        "glyph_plugin_queue_dropped_total",
-    );
-    let latency_buckets = collect_latency_buckets_with_fallback(
-        &samples,
-        "oxg_plugin_event_duration_seconds_bucket",
-        "glyph_plugin_event_duration_seconds_bucket",
-    );
+    let queue_drops = sum_metric(&samples, "oxg_plugin_queue_dropped_total");
+    let latency_buckets =
+        collect_latency_buckets(&samples, "oxg_plugin_event_duration_seconds_bucket");
     let mut plugin_errors: Vec<PluginErrorTotal> = {
-        let mut totals = sum_metric_by_label_with_fallback(
-            &samples,
-            "oxg_plugin_errors_total",
-            "glyph_plugin_errors_total",
-            "plugin",
-        );
-        let event_failures = sum_metric_by_label_with_fallback(
-            &samples,
-            "oxg_plugin_event_failures_total",
-            "glyph_plugin_event_failures_total",
-            "plugin",
-        );
+        let mut totals = sum_metric_by_label(&samples, "oxg_plugin_errors_total", "plugin");
+        let event_failures =
+            sum_metric_by_label(&samples, "oxg_plugin_event_failures_total", "plugin");
         for (plugin, count) in event_failures {
             *totals.entry(plugin).or_insert(0.0) += count;
         }
@@ -1173,14 +1107,14 @@ async fn fetch_metrics(
     plugin_errors.sort_by(|a, b| b.errors.partial_cmp(&a.errors).unwrap_or(Ordering::Equal));
 
     let mut cases_found = 0.0;
-    for (primary, legacy) in [
-        ("oxg_cases_total", "glyph_cases_total"),
-        ("oxg_case_reports_total", "glyph_case_reports_total"),
-        ("oxg_case_count", "glyph_case_count"),
-        ("oxg_cases_emitted_total", "glyph_cases_emitted_total"),
-        ("oxg_case_findings_total", "glyph_case_findings_total"),
+    for metric in [
+        "oxg_cases_total",
+        "oxg_case_reports_total",
+        "oxg_case_count",
+        "oxg_cases_emitted_total",
+        "oxg_case_findings_total",
     ] {
-        let value = sum_metric_with_fallback(&samples, primary, legacy);
+        let value = sum_metric(&samples, metric);
         if value > 0.0 {
             cases_found = value;
             break;
@@ -1835,7 +1769,7 @@ fn discard_crash_bundle(reporter: State<'_, CrashReporter>) -> Result<(), String
 
 fn configure_devtools(window: &Window) {
     let allow_devtools =
-        std::env::var("GLYPH_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+        std::env::var("0XGEN_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
     if let Ok(true) = allow_devtools {
         let _ = window.open_devtools();
     }

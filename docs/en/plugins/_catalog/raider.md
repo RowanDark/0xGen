@@ -16,7 +16,7 @@ Raider coordinates focused offensive testing campaigns once high-value targets a
 | Version | 0.1.0 |
 | Author | 0xgen Team |
 | Language | TypeScript |
-| Last updated | Oct 14, 2025 |
+| Last updated | Oct 21, 2025 |
 
 
 ## Capabilities
@@ -30,18 +30,18 @@ Raider coordinates focused offensive testing campaigns once high-value targets a
 
 Download the signed artefact and verify its signature before running the plugin.
 
-Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider#getting-started) for detailed steps.
+Follow the [installation guide](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/raider#getting-started) for detailed steps.
 
 
 ### Downloads
 
-- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/manifest.json)
+- [Manifest](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/raider/manifest.json)
 
-- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/plugin.js)
+- [Plugin artefact](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/raider/plugin.js)
 
-- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/plugin.js.sig)
+- [Detached signature](https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/raider/plugin.js.sig)
 
 
 ### Signature
 
-`01bd0e4be248d0425bb58b758dd10a7b177d79049efaa50da82eb67b37a19322`
+`e1caef5f65a00fdf75b2dc73a3a2e98186f7913ddca23a968890e298273c4221`

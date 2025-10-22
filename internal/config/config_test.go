@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/testutil"
 )
 
@@ -141,14 +140,7 @@ func TestLoadPrefers0xgenConfig(t *testing.T) {
 	}
 }
 
-func TestLoadLegacyEnvWarning(t *testing.T) {
-	env.ResetWarningsForTesting()
-	var buf bytes.Buffer
-	restore := env.SetWarnLoggerForTesting(func(format string, args ...any) {
-		fmt.Fprintf(&buf, format, args...)
-	})
-	defer restore()
-
+func TestLoadIgnoresLegacyEnvOverrides(t *testing.T) {
 	t.Setenv("HOME", filepath.Join(t.TempDir(), "home"))
 	t.Setenv("GLYPH_PROXY_ADDR", "legacy-env:6000")
 
@@ -156,12 +148,8 @@ func TestLoadLegacyEnvWarning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.Proxy.Addr != "legacy-env:6000" {
-		t.Fatalf("expected legacy env override, got %s", cfg.Proxy.Addr)
-	}
-
-	if got := buf.String(); got != "GLYPH_PROXY_ADDR is deprecated; use 0XGEN_PROXY_ADDR" {
-		t.Fatalf("unexpected warning: %q", got)
+	if cfg.Proxy.Addr == "legacy-env:6000" {
+		t.Fatalf("expected legacy env override to be ignored")
 	}
 }
 

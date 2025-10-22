@@ -70,7 +70,7 @@ func TestPipelinePassiveHeaderScanGolden(t *testing.T) {
 	cmdCtx, cmdCancel := context.WithCancel(ctx)
 	glyphd := exec.CommandContext(cmdCtx, glyphdBin, "--addr", listenAddr, "--token", "test-token")
 	glyphd.Dir = root
-	glyphd.Env = append(os.Environ(), "GLYPH_OUT="+outDir)
+	glyphd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 
 	var stdout, stderr bytes.Buffer
 	glyphd.Stdout = &stdout
@@ -102,7 +102,7 @@ func TestPipelinePassiveHeaderScanGolden(t *testing.T) {
 
 	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test-token", "--duration", "6s")
 	pluginCmd.Dir = root
-	pluginCmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir)
+	pluginCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 	var pluginOut, pluginErr bytes.Buffer
 	pluginCmd.Stdout = &pluginOut
 	pluginCmd.Stderr = &pluginErr

@@ -26,7 +26,7 @@ Key exported series include:
 | `oxg_http_throttle_total{scope}` | Counter | Number of outbound HTTP requests delayed by throttling. |
 | `oxg_http_backoff_total{status}` | Counter | Number of outbound HTTP retries triggered by upstream status codes. |
 
-Legacy `glyph_*` series remain exported as deprecated aliases for one release cycle to ease dashboard migrations.
+Legacy `oxg_*` series remain exported as deprecated aliases for one release cycle to ease dashboard migrations.
 
 ### Prometheus scrape configuration
 

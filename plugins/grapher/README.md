@@ -7,7 +7,7 @@ Grapher performs unauthenticated discovery of API schemas so downstream 0xgen wo
 - Probes common OpenAPI locations (`/.well-known/openapi.json`, `/openapi.json`, `/swagger.json`, `/swagger/v1/swagger.json`).
 - Checks likely GraphQL handlers (`/.well-known/graphql`, `/graphql`, `/api/graphql`) with safe `HEAD`/`GET` metadata requests.
 - Follows same-host 301/302 redirects, retries transient 429/503 responses with backoff, and caps response bodies at 1 MiB per request.
-- Normalizes any hits to JSON Lines at `${GLYPH_OUT:-/out}/schemas.jsonl` for later enrichment, deduped by schema type + URL + hash.
+- Normalizes any hits to JSON Lines at `${0XGEN_OUT:-/out}/schemas.jsonl` for later enrichment, deduped by schema type + URL + hash.
 - Optionally fetches JSON OpenAPI documents ≤ 256 KiB with `--fetch`, recording byte counts and SHA-256 digests for diffing. Fetching is disabled by default.
 
 The scanner intentionally uses **no authentication** and performs **no active GraphQL introspection** queries. Many production GraphQL deployments disable introspection for security-hardening, so Grapher only records whether a schema endpoint is reachable and the HTTP status returned.

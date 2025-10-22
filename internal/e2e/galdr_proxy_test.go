@@ -62,7 +62,7 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 		"--proxy-ca-key", caKeyPath,
 	)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "GLYPH_OUT="+tempDir)
+	cmd.Env = append(os.Environ(), "0XGEN_OUT="+tempDir)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -108,13 +108,13 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("http request via galdr: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 	}
-        _, _ = io.ReadAll(resp.Body)
-        _ = resp.Body.Close()
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: %d", resp.StatusCode)
 	}
-	testutil.RequireHeaderWithLegacy(t, resp.Header, "X-0xgen", "on")
+	testutil.RequireModernHeader(t, resp.Header, "X-0xgen", "on")
 	if got := resp.Header.Get("Server"); got != "" {
 		t.Fatalf("expected Server header stripped, got %q", got)
 	}
@@ -153,7 +153,7 @@ func TestGaldrProxyHeaderRewriteAndHistory(t *testing.T) {
 	if entry.Timestamp.IsZero() {
 		t.Fatalf("history timestamp missing: %+v", entry)
 	}
-	testutil.RequireHeaderMapWithLegacy(t, entry.ResponseHeaders, "X-0xgen", "on")
+	testutil.RequireModernHeaderMap(t, entry.ResponseHeaders, "X-0xgen", "on")
 	if _, exists := entry.ResponseHeaders["Server"]; exists {
 		t.Fatalf("history should not record stripped server header: %+v", entry.ResponseHeaders)
 	}

@@ -16,7 +16,7 @@ instantly, and search works across plugin names, authors, and categories.
   </label>
   <label class="plugin-compatibility__filter">
     <span>0xgen version</span>
-    <select id="compatibility-glyph">
+    <select id="compatibility-oxg">
       <option value="">All versions</option>
     </select>
   </label>

@@ -75,7 +75,7 @@ func TestClientUpdateAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
 	}
-	t.Setenv("GLYPH_UPDATER_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
+	t.Setenv("0XGEN_UPDATER_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
 
 	oldVersion := "1.0.0"
 	newVersion := "1.1.0"

@@ -49,7 +49,7 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "max_over_time(glyph_plugin_queue_length{job=~\"$job\",plugin=~\"$plugin\"}[5m])",
+          "expr": "max_over_time(oxg_plugin_queue_length{job=~\"$job\",plugin=~\"$plugin\"}[5m])",
           "legendFormat": "{{plugin}}",
           "range": true,
           "refId": "A"
@@ -85,7 +85,7 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(glyph_http_request_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin))",
+          "expr": "histogram_quantile(0.95, sum(rate(oxg_http_request_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin))",
           "legendFormat": "{{plugin}}",
           "range": true,
           "refId": "A"
@@ -121,7 +121,7 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(glyph_flow_dispatch_seconds_bucket{job=~\"$job\",subscription=~\"$subscription\",variant=~\"$variant\"}[5m])) by (le,subscription,variant))",
+          "expr": "histogram_quantile(0.95, sum(rate(oxg_flow_dispatch_seconds_bucket{job=~\"$job\",subscription=~\"$subscription\",variant=~\"$variant\"}[5m])) by (le,subscription,variant))",
           "legendFormat": "{{subscription}} :: {{variant}}",
           "range": true,
           "refId": "A"
@@ -157,7 +157,7 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(glyph_plugin_event_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin,event))",
+          "expr": "histogram_quantile(0.95, sum(rate(oxg_plugin_event_duration_seconds_bucket{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (le,plugin,event))",
           "legendFormat": "{{plugin}} :: {{event}}",
           "range": true,
           "refId": "A"
@@ -180,7 +180,7 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "sum by (component,method) (rate(glyph_rpc_duration_seconds_sum{job=~\"$job\"}[5m]) / rate(glyph_rpc_duration_seconds_count{job=~\"$job\"}[5m]))",
+          "expr": "sum by (component,method) (rate(oxg_rpc_duration_seconds_sum{job=~\"$job\"}[5m]) / rate(oxg_rpc_duration_seconds_count{job=~\"$job\"}[5m]))",
           "legendFormat": "{{component}} :: {{method}}",
           "range": true,
           "refId": "A"
@@ -204,7 +204,7 @@
         "label": "Job",
         "multi": false,
         "name": "job",
-        "query": "label_values(glyph_rpc_requests_total, job)",
+        "query": "label_values(oxg_rpc_requests_total, job)",
         "refresh": 1,
         "regex": "",
         "type": "query"
@@ -217,7 +217,7 @@
         "label": "Plugin",
         "multi": false,
         "name": "plugin",
-        "query": "label_values(glyph_plugin_queue_length, plugin)",
+        "query": "label_values(oxg_plugin_queue_length, plugin)",
         "refresh": 1,
         "regex": "",
         "type": "query"
@@ -230,7 +230,7 @@
         "label": "Subscription",
         "multi": false,
         "name": "subscription",
-        "query": "label_values(glyph_flow_dispatch_seconds_bucket, subscription)",
+        "query": "label_values(oxg_flow_dispatch_seconds_bucket, subscription)",
         "refresh": 1,
         "regex": "",
         "type": "query"
@@ -243,7 +243,7 @@
         "label": "Variant",
         "multi": false,
         "name": "variant",
-        "query": "label_values(glyph_flow_dispatch_seconds_bucket, variant)",
+        "query": "label_values(oxg_flow_dispatch_seconds_bucket, variant)",
         "refresh": 1,
         "regex": "",
         "type": "query"

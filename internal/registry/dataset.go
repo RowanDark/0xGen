@@ -19,20 +19,18 @@ var allowedStatuses = map[string]struct{}{
 // Dataset represents the plugin registry payload persisted to disk or served
 // via the registry API.
 type Dataset struct {
-	GeneratedAt   time.Time
-	GlyphVersions []string
-	Plugins       []Plugin
+	GeneratedAt time.Time
+	OxgVersions []string
+	Plugins     []Plugin
 }
 
 type datasetJSON struct {
 	GeneratedAt time.Time `json:"generated_at"`
 	Plugins     []Plugin  `json:"plugins"`
 	OxgVersions []string  `json:"oxg_versions,omitempty"`
-	GlyphLegacy []string  `json:"glyph_versions,omitempty"`
 }
 
-// UnmarshalJSON decodes a dataset, accepting both legacy glyph_* and new oxg_*
-// field names to keep existing publishers working during the transition.
+// UnmarshalJSON decodes a dataset using the oxg_* field names.
 func (d *Dataset) UnmarshalJSON(data []byte) error {
 	var payload datasetJSON
 	if err := json.Unmarshal(data, &payload); err != nil {
@@ -40,14 +38,7 @@ func (d *Dataset) UnmarshalJSON(data []byte) error {
 	}
 	d.GeneratedAt = payload.GeneratedAt
 	d.Plugins = payload.Plugins
-	switch {
-	case payload.OxgVersions != nil:
-		d.GlyphVersions = payload.OxgVersions
-	case payload.GlyphLegacy != nil:
-		d.GlyphVersions = payload.GlyphLegacy
-	default:
-		d.GlyphVersions = nil
-	}
+	d.OxgVersions = payload.OxgVersions
 	return nil
 }
 
@@ -57,8 +48,8 @@ func (d Dataset) MarshalJSON() ([]byte, error) {
 		GeneratedAt: d.GeneratedAt,
 		Plugins:     d.Plugins,
 	}
-	if len(d.GlyphVersions) > 0 {
-		payload.OxgVersions = d.GlyphVersions
+	if len(d.OxgVersions) > 0 {
+		payload.OxgVersions = d.OxgVersions
 	}
 	return json.Marshal(payload)
 }
@@ -144,7 +135,7 @@ func (p Plugin) MarshalJSON() ([]byte, error) {
 	return json.Marshal(payload)
 }
 
-// Compatibility describes Glyph core support for a plugin release.
+// Compatibility describes OxG core support for a plugin release.
 type Compatibility struct {
 	Status string `json:"status"`
 	Notes  string `json:"notes,omitempty"`
@@ -156,7 +147,7 @@ type Filter struct {
 	Language   string
 	Category   string
 	Capability string
-	Glyph      string
+	Oxg        string
 	Status     string
 }
 
@@ -186,20 +177,20 @@ func (d *Dataset) Validate() error {
 		return errors.New("registry dataset is nil")
 	}
 
-	glyphSet := make(map[string]struct{}, len(d.GlyphVersions))
-	trimmedGlyphs := d.GlyphVersions[:0]
-	for _, version := range d.GlyphVersions {
+	versionSet := make(map[string]struct{}, len(d.OxgVersions))
+	trimmedVersions := d.OxgVersions[:0]
+	for _, version := range d.OxgVersions {
 		v := strings.TrimSpace(version)
 		if v == "" {
 			continue
 		}
-		if _, exists := glyphSet[v]; exists {
+		if _, exists := versionSet[v]; exists {
 			continue
 		}
-		glyphSet[v] = struct{}{}
-		trimmedGlyphs = append(trimmedGlyphs, v)
+		versionSet[v] = struct{}{}
+		trimmedVersions = append(trimmedVersions, v)
 	}
-	d.GlyphVersions = trimmedGlyphs
+	d.OxgVersions = trimmedVersions
 
 	for idx := range d.Plugins {
 		plugin := &d.Plugins[idx]
@@ -217,39 +208,39 @@ func (d *Dataset) Validate() error {
 		plugin.Categories = unique(plugin.Categories)
 
 		if plugin.Compatibility != nil {
-			for glyph, entry := range plugin.Compatibility {
-				trimmedGlyph := strings.TrimSpace(glyph)
-				if trimmedGlyph == "" {
-					return fmt.Errorf("plugin %s has empty glyph version in compatibility", plugin.ID)
+			for version, entry := range plugin.Compatibility {
+				trimmedVersion := strings.TrimSpace(version)
+				if trimmedVersion == "" {
+					return fmt.Errorf("plugin %s has empty version in compatibility", plugin.ID)
 				}
 				entry.Status = strings.TrimSpace(entry.Status)
 				entry.Notes = strings.TrimSpace(entry.Notes)
 				if entry.Status == "" {
-					return fmt.Errorf("plugin %s compatibility for %s missing status", plugin.ID, trimmedGlyph)
+					return fmt.Errorf("plugin %s compatibility for %s missing status", plugin.ID, trimmedVersion)
 				}
 				if _, ok := allowedStatuses[entry.Status]; !ok {
 					return fmt.Errorf(
 						"plugin %s compatibility for %s has unknown status %q",
 						plugin.ID,
-						trimmedGlyph,
+						trimmedVersion,
 						entry.Status,
 					)
 				}
-				plugin.Compatibility[trimmedGlyph] = entry
-				if trimmedGlyph != glyph {
-					delete(plugin.Compatibility, glyph)
+				plugin.Compatibility[trimmedVersion] = entry
+				if trimmedVersion != version {
+					delete(plugin.Compatibility, version)
 				}
-				if _, exists := glyphSet[trimmedGlyph]; !exists {
-					glyphSet[trimmedGlyph] = struct{}{}
+				if _, exists := versionSet[trimmedVersion]; !exists {
+					versionSet[trimmedVersion] = struct{}{}
 				}
 			}
 		}
 	}
 
-	if len(d.GlyphVersions) == 0 && len(glyphSet) > 0 {
-		d.GlyphVersions = make([]string, 0, len(glyphSet))
-		for version := range glyphSet {
-			d.GlyphVersions = append(d.GlyphVersions, version)
+	if len(d.OxgVersions) == 0 && len(versionSet) > 0 {
+		d.OxgVersions = make([]string, 0, len(versionSet))
+		for version := range versionSet {
+			d.OxgVersions = append(d.OxgVersions, version)
 		}
 	}
 
@@ -262,7 +253,7 @@ func (d Dataset) FilterPlugins(filter Filter) []Plugin {
 	language := strings.TrimSpace(filter.Language)
 	category := strings.TrimSpace(filter.Category)
 	capability := strings.TrimSpace(filter.Capability)
-	glyph := strings.TrimSpace(filter.Glyph)
+	oxgVersion := strings.TrimSpace(filter.Oxg)
 	status := strings.TrimSpace(filter.Status)
 
 	var results []Plugin
@@ -276,8 +267,8 @@ func (d Dataset) FilterPlugins(filter Filter) []Plugin {
 		if capability != "" && !contains(plugin.Capabilities, capability) {
 			continue
 		}
-		if glyph != "" {
-			entry, ok := plugin.Compatibility[glyph]
+		if oxgVersion != "" {
+			entry, ok := plugin.Compatibility[oxgVersion]
 			if !ok {
 				continue
 			}
@@ -320,8 +311,8 @@ func (d Dataset) Plugin(id string) (Plugin, bool) {
 }
 
 func (d *Dataset) normalise() {
-	d.GlyphVersions = unique(d.GlyphVersions)
-	slices.Sort(d.GlyphVersions)
+	d.OxgVersions = unique(d.OxgVersions)
+	slices.Sort(d.OxgVersions)
 
 	slices.SortStableFunc(d.Plugins, func(a, b Plugin) int {
 		left := strings.ToLower(strings.TrimSpace(a.Name))
@@ -342,10 +333,10 @@ func (d *Dataset) normalise() {
 		slices.Sort(plugin.Capabilities)
 		slices.Sort(plugin.Categories)
 		if plugin.Compatibility != nil {
-			for glyph, entry := range plugin.Compatibility {
+			for version, entry := range plugin.Compatibility {
 				entry.Status = strings.TrimSpace(entry.Status)
 				entry.Notes = strings.TrimSpace(entry.Notes)
-				plugin.Compatibility[glyph] = entry
+				plugin.Compatibility[version] = entry
 			}
 		}
 	}

@@ -52,7 +52,7 @@ func TestFetchManifest(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	t.Setenv("GLYPH_UPDATER_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
+	t.Setenv("0XGEN_UPDATER_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
 
 	got, raw, err := FetchManifest(context.Background(), srv.Client(), srv.URL, ChannelStable)
 	if err != nil {
@@ -74,7 +74,7 @@ func TestFetchManifestInvalidSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
 	}
-	t.Setenv("GLYPH_UPDATER_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
+	t.Setenv("0XGEN_UPDATER_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
 
 	manifest := []byte(`{"version":"1.0.0","channel":"stable","builds":[{"os":"linux","arch":"amd64","full":{"url":"https://example.com","sha256":"aa"}}]}`)
 

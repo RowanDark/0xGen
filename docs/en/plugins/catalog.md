@@ -29,7 +29,7 @@ straight into the author guides.
   </label>
   <label class="plugin-catalog__filter">
     <span>0xgen version</span>
-    <select id="plugin-glyph">
+    <select id="plugin-oxg">
       <option value="">All versions</option>
     </select>
   </label>

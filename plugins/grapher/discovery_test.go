@@ -320,9 +320,9 @@ func TestDiscoverSchemasRetryOn429(t *testing.T) {
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
-        if got := calls.Load(); got != 4 {
-                t.Fatalf("expected 4 attempts (including fetch), got %d", got)
-        }
+	if got := calls.Load(); got != 4 {
+		t.Fatalf("expected 4 attempts (including fetch), got %d", got)
+	}
 	res := results[0]
 	if res.Status != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", res.Status)
@@ -542,7 +542,7 @@ func (fn roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 func TestDefaultOutputPath(t *testing.T) {
-	t.Setenv("GLYPH_OUT", "/custom")
+	t.Setenv("0XGEN_OUT", "/custom")
 	expected := filepath.Join("/custom", "schemas.jsonl")
 	if got := defaultOutputPath(); got != expected {
 		t.Fatalf("expected %s, got %s", expected, got)

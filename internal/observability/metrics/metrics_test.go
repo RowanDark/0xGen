@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestHandlerExportsPrimaryAndLegacyMetrics(t *testing.T) {
+func TestHandlerExportsMetrics(t *testing.T) {
 	req := httptest.NewRequest("GET", "/metrics", nil)
 	rr := httptest.NewRecorder()
 
@@ -16,7 +16,7 @@ func TestHandlerExportsPrimaryAndLegacyMetrics(t *testing.T) {
 	if !strings.Contains(body, "# HELP oxg_rpc_requests_total") {
 		t.Fatalf("expected oxg metrics to be exported, got %q", body)
 	}
-	if !strings.Contains(body, "# HELP glyph_rpc_requests_total") {
-		t.Fatalf("expected glyph legacy metrics to be exported, got %q", body)
+	if strings.Contains(body, "glyph_rpc_requests_total") {
+		t.Fatalf("unexpected legacy glyph metrics exported: %q", body)
 	}
 }

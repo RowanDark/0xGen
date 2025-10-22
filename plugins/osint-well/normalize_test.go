@@ -20,7 +20,7 @@ func TestNormalizeProducesJSONL(t *testing.T) {
 
 	normalize := filepath.Join(repoRoot, "normalize.js")
 	cmd := exec.Command("node", normalize, fixture, outputPath)
-	cmd.Env = append(os.Environ(), "GLYPH_OUT="+outDir)
+	cmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

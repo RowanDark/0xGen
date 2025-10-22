@@ -59,7 +59,7 @@ func Default() Config {
 //  3. ~/.glyph/config.toml (TOML, legacy; warns once)
 //
 // Environment variables prefixed with 0XGEN_ have the highest precedence.
-// Legacy GLYPH_ variables remain supported for one release and emit a warning
+// Legacy 0XGEN_ variables remain supported for one release and emit a warning
 // when used.
 func Load() (Config, error) {
 	cfg := Default()
@@ -198,56 +198,56 @@ func applyFileConfig(cfg *Config, data []byte, format string) error {
 }
 
 func applyEnvOverrides(cfg *Config) {
-	if val, ok := env.Lookup("0XGEN_SERVER", "GLYPH_SERVER"); ok {
+	if val, ok := env.Lookup("0XGEN_SERVER"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.ServerAddr = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_AUTH_TOKEN", "GLYPH_AUTH_TOKEN"); ok {
+	if val, ok := env.Lookup("0XGEN_AUTH_TOKEN"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.AuthToken = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.OutputDir = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_PROXY_ENABLE", "GLYPH_PROXY_ENABLE"); ok {
+	if val, ok := env.Lookup("0XGEN_PROXY_ENABLE"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			if parsed, err := strconv.ParseBool(trimmed); err == nil {
 				cfg.Proxy.Enable = parsed
 			}
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY", "GLYPH_ENABLE_PROXY"); ok {
+	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			if parsed, err := strconv.ParseBool(trimmed); err == nil {
 				cfg.Proxy.Enable = parsed
 			}
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_PROXY_ADDR", "GLYPH_PROXY_ADDR"); ok {
+	if val, ok := env.Lookup("0XGEN_PROXY_ADDR"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.Proxy.Addr = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_PROXY_RULES", "GLYPH_PROXY_RULES"); ok {
+	if val, ok := env.Lookup("0XGEN_PROXY_RULES"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.Proxy.RulesPath = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_PROXY_HISTORY", "GLYPH_PROXY_HISTORY"); ok {
+	if val, ok := env.Lookup("0XGEN_PROXY_HISTORY"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.Proxy.HistoryPath = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_PROXY_CA_CERT", "GLYPH_PROXY_CA_CERT"); ok {
+	if val, ok := env.Lookup("0XGEN_PROXY_CA_CERT"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.Proxy.CACertPath = trimmed
 		}
 	}
-	if val, ok := env.Lookup("0XGEN_PROXY_CA_KEY", "GLYPH_PROXY_CA_KEY"); ok {
+	if val, ok := env.Lookup("0XGEN_PROXY_CA_KEY"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.Proxy.CAKeyPath = trimmed
 		}

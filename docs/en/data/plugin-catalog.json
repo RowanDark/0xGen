@@ -11,14 +11,14 @@
       "CAP_SPIDER"
     ],
     "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "e9079211521cb91addb3e79d46aea9a12634b6c104a5086ea88852184e1f3afa",
+    "signature_sha256": "ee2fdcd186f7c9713f7635a972103f8a256ff3dfdbd85304f6f259aa6c2233d8",
     "links": {
       "documentation": "../plugins/_catalog/cartographer/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cartographer#getting-started"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/cartographer#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cartographer/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cartographer/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cartographer/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/cartographer#getting-started"
     },
     "categories": [
       "Discovery",
@@ -50,14 +50,14 @@
       "CAP_REPORT"
     ],
     "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "3377fc8d3fdd1f2398089a2fda88d081b001a6562dff8a3add4b0c76d17c8d23",
+    "signature_sha256": "511dc86315ed5f9f7ae70c1659fdbabffe7b54d4bec4f04fc700e03c5de5b074",
     "links": {
       "documentation": "../plugins/_catalog/cryptographer/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/cryptographer#getting-started"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/cryptographer#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cryptographer/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cryptographer/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/cryptographer/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/cryptographer#getting-started"
     },
     "categories": [
       "Utilities"
@@ -88,13 +88,13 @@
       "CAP_EMIT_FINDINGS"
     ],
     "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "d031975d4d4d137d6874af8806d2d1096d499f3d786f16431a556727b91b4f9c",
+    "signature_sha256": "f53876ca2c8554dafb5d1c0fb1be2c83ca84235487eec49563ebba6b79b11741",
     "links": {
       "documentation": "../plugins/_catalog/example-hello/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/example-hello/main.go.sig"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/example-hello#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/example-hello/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/example-hello/main.go",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/example-hello/main.go.sig"
     },
     "categories": [
       "Examples"
@@ -126,15 +126,15 @@
       "CAP_HTTP_PASSIVE",
       "CAP_SPIDER"
     ],
-    "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "e83ff9bb048b27d7e60029c06633c6f6d1d78e8b00887b8738f6edb6093065d7",
+    "last_updated": "2025-10-21T12:25:11-04:00",
+    "signature_sha256": "2693e71849a2750c898ed4517ef7e99d62009cc722a40b2084d402f55f8d2e79",
     "links": {
       "documentation": "../plugins/_catalog/excavator/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/excavator#getting-started"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/excavator#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/excavator/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/excavator/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/excavator/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/excavator#getting-started"
     },
     "categories": [
       "Automation",
@@ -167,14 +167,14 @@
       "CAP_HTTP_PASSIVE",
       "CAP_WS"
     ],
-    "last_updated": "2025-10-15T12:37:03-04:00",
-    "signature_sha256": "aa635e921d54b8c5ab8abf1dccdee8c2b63f875dfe52c0fb63a04d6c5cfc43e8",
+    "last_updated": "2025-10-21T12:25:11-04:00",
+    "signature_sha256": "6ce9e5c5e529998ad489a2c29373ae9ffda219322623a582be707754957ea9a5",
     "links": {
       "documentation": "../plugins/_catalog/galdr-proxy/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/galdr-proxy/plugin.js.sig"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/galdr-proxy#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/galdr-proxy/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/galdr-proxy/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/galdr-proxy/plugin.js.sig"
     },
     "categories": [
       "Interception"
@@ -204,14 +204,14 @@
       "CAP_EMIT_FINDINGS",
       "CAP_STORAGE"
     ],
-    "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "32856779ace62e4cc93615601c73640f1641438c6abd790aa6095ace4a836e8c",
+    "last_updated": "2025-10-21T12:25:11-04:00",
+    "signature_sha256": "627eb70497d330e9bafb878f741215c3633c2fc9e4df29b621008e8c8708647a",
     "links": {
       "documentation": "../plugins/_catalog/grapher/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher/main.go",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/grapher/main.go.sig"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/grapher#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/grapher/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/grapher/main.go",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/grapher/main.go.sig"
     },
     "categories": [
       "Visualization"
@@ -243,14 +243,14 @@
       "CAP_STORAGE"
     ],
     "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "ca2df332e409c8e3d1ec67544c1a2d96423a0f3cba2b86ee7c26607ffe13500b",
+    "signature_sha256": "e28ec0bbde7ade765745c9575a1db7eeb7c725322ed3e3912394c775db41229b",
     "links": {
       "documentation": "../plugins/_catalog/osint-well/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/osint-well#installation"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/osint-well#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/osint-well/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/osint-well/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/osint-well/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/osint-well#installation"
     },
     "categories": [
       "Intelligence"
@@ -282,15 +282,15 @@
       "CAP_HTTP_ACTIVE",
       "CAP_HTTP_PASSIVE"
     ],
-    "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "01bd0e4be248d0425bb58b758dd10a7b177d79049efaa50da82eb67b37a19322",
+    "last_updated": "2025-10-21T12:25:11-04:00",
+    "signature_sha256": "e1caef5f65a00fdf75b2dc73a3a2e98186f7913ddca23a968890e298273c4221",
     "links": {
       "documentation": "../plugins/_catalog/raider/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/raider#getting-started"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/raider#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/raider/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/raider/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/raider/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/raider#getting-started"
     },
     "categories": [
       "Offense"
@@ -321,14 +321,14 @@
       "CAP_STORAGE"
     ],
     "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "99354598f4ab386898ee9c29758b15b97f2eef5b89dfbca684e3f546569cf6e0",
+    "signature_sha256": "0c26cd8ef0e9c36791cba8767c1e00c33a526ff30478e551b1435473b68c94bc",
     "links": {
       "documentation": "../plugins/_catalog/ranker/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/ranker#getting-started"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/ranker#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/ranker/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/ranker/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/ranker/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/ranker#getting-started"
     },
     "categories": [
       "Analytics"
@@ -358,15 +358,15 @@
     "capabilities": [
       "CAP_REPORT"
     ],
-    "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "ceb01ede140bfc1f8ebbb09322e14793ad9164c76ddb85a5b37a665e21ab8b4a",
+    "last_updated": "2025-10-21T12:25:11-04:00",
+    "signature_sha256": "6e69cc5f347c30032fa620bd7574a947ccc80fc74c25f54cc6ebc536619f0fd7",
     "links": {
       "documentation": "../plugins/_catalog/scribe/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe/plugin.js",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe/plugin.js.sig",
-      "installation": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/scribe#getting-started"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/scribe#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/scribe/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/scribe/plugin.js",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/scribe/plugin.js.sig",
+      "installation": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/scribe#getting-started"
     },
     "categories": [
       "Reporting"
@@ -398,13 +398,13 @@
       "CAP_HTTP_PASSIVE"
     ],
     "last_updated": "2025-10-14T11:06:59-04:00",
-    "signature_sha256": "04956ee6c815fa456e31ee73b5519ab3987fcf2c0918235c2e47d1a8fcc84bb8",
+    "signature_sha256": "246f61b9d8b8660f0be45f4ffe2e0d3635424d2d29be0929a2d4ab5d96fe729a",
     "links": {
       "documentation": "../plugins/_catalog/seer/",
-      "readme": "https://github.com/RowanDark/0xgen/tree/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer#readme",
-      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/manifest.json",
-      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go",
-      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/c4658dd718d148ebf5f5604cdb1f1bc846ced81f/plugins/seer/main.go.sig"
+      "readme": "https://github.com/RowanDark/0xgen/tree/HEAD/plugins/seer#readme",
+      "manifest": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/seer/manifest.json",
+      "artifact": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/seer/main.go",
+      "signature": "https://raw.githubusercontent.com/RowanDark/0xgen/HEAD/plugins/seer/main.go.sig"
     },
     "categories": [
       "Detection"

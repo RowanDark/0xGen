@@ -23,7 +23,7 @@ const DefaultBaseURL = "https://updates.glyph.dev"
 
 // releasePublicKeyBase64 holds the Minisign/ed25519 public key that signs
 // production manifests. Tests can override this value via the
-// GLYPH_UPDATER_PUBLIC_KEY environment variable.
+// 0XGEN_UPDATER_PUBLIC_KEY environment variable.
 const releasePublicKeyBase64 = "dWxmMeGnkd0vaZOZHgoEta/r/sMFAWacjsJfq4uhTl0="
 
 // Manifest describes the set of builds published for a given channel.
@@ -187,15 +187,15 @@ func decodeSignature(raw []byte) ([]byte, error) {
 }
 
 func loadPublicKey() (ed25519.PublicKey, error) {
-	if override, ok := env.Lookup("0XGEN_UPDATER_PUBLIC_KEY", "GLYPH_UPDATER_PUBLIC_KEY"); ok {
+	if override, ok := env.Lookup("0XGEN_UPDATER_PUBLIC_KEY"); ok {
 		trimmed := strings.TrimSpace(override)
 		if trimmed != "" {
 			key, err := base64.StdEncoding.DecodeString(trimmed)
 			if err != nil {
-				return nil, fmt.Errorf("decode GLYPH_UPDATER_PUBLIC_KEY: %w", err)
+				return nil, fmt.Errorf("decode 0XGEN_UPDATER_PUBLIC_KEY: %w", err)
 			}
 			if len(key) != ed25519.PublicKeySize {
-				return nil, fmt.Errorf("GLYPH_UPDATER_PUBLIC_KEY has invalid length %d", len(key))
+				return nil, fmt.Errorf("0XGEN_UPDATER_PUBLIC_KEY has invalid length %d", len(key))
 			}
 			return ed25519.PublicKey(key), nil
 		}

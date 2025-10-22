@@ -26,8 +26,8 @@ const (
 )
 
 func main() {
-	defaultServer := envOrDefault("GLYPH_SERVER", "127.0.0.1:50051")
-	defaultToken := envOrDefault("GLYPH_AUTH_TOKEN", "supersecrettoken")
+	defaultServer := envOrDefault("0XGEN_SERVER", "127.0.0.1:50051")
+	defaultToken := envOrDefault("0XGEN_AUTH_TOKEN", "supersecrettoken")
 	defaultAllowlist := strings.TrimSpace(os.Getenv("SEER_ALLOWLIST_FILE"))
 	configuredEvidencePrefix := envOrDefaultInt("SEER_EVIDENCE_PREFIX", defaultEvidencePrefix)
 	configuredEvidenceSuffix := envOrDefaultInt("SEER_EVIDENCE_SUFFIX", defaultEvidenceSuffix)
@@ -52,14 +52,14 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	capToken := strings.TrimSpace(os.Getenv("GLYPH_CAPABILITY_TOKEN"))
+	capToken := strings.TrimSpace(os.Getenv("0XGEN_CAPABILITY_TOKEN"))
 	if capToken == "" {
-		logger.Error("missing GLYPH_CAPABILITY_TOKEN environment variable")
+		logger.Error("missing 0XGEN_CAPABILITY_TOKEN environment variable")
 		os.Exit(1)
 	}
 
-	secretsToken := strings.TrimSpace(os.Getenv("GLYPH_SECRETS_TOKEN"))
-	secretsScope := strings.TrimSpace(os.Getenv("GLYPH_SECRETS_SCOPE"))
+	secretsToken := strings.TrimSpace(os.Getenv("0XGEN_SECRETS_TOKEN"))
+	secretsScope := strings.TrimSpace(os.Getenv("0XGEN_SECRETS_SCOPE"))
 
 	cfg := pluginsdk.Config{
 		PluginName:      "seer",

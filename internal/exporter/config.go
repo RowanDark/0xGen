@@ -37,7 +37,7 @@ var (
 
 func init() {
 	base := defaultOutputDir
-	if val, ok := env.Lookup("0XGEN_OUT", "GLYPH_OUT"); ok {
+	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			base = trimmed
 		}
