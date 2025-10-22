@@ -79,8 +79,8 @@ git checkout "${DEFAULT_BRANCH}"
 git pull --ff-only origin "${DEFAULT_BRANCH}" >/dev/null
 git checkout -B "${BRANCH}" "${DEFAULT_BRANCH}"
 
-mkdir -p Formula
-cat >Formula/0xgenctl.rb <<FORMULA
+mkdir -p Formula Aliases
+cat >Formula/oxgenctl.rb <<FORMULA
 class Oxgenctl < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/${RELEASE_OWNER}/${RELEASE_REPO}"
@@ -112,13 +112,21 @@ class Oxgenctl < Formula
 end
 FORMULA
 
+cat >Aliases/0xgenctl <<'ALIAS'
+../Formula/oxgenctl.rb
+ALIAS
+
+cat >Aliases/0xgen <<'ALIAS'
+../Formula/oxgenctl.rb
+ALIAS
+
 if git diff --quiet; then
         echo "Formula already up to date for ${TAG}."
         popd >/dev/null
         exit 0
 fi
 
-git add Formula/0xgenctl.rb
+git add Formula/oxgenctl.rb Aliases/0xgenctl Aliases/0xgen
 git commit -m "Update 0xgenctl to ${TAG}" >/dev/null
 
 git push --set-upstream origin "${BRANCH}" --force-with-lease >/dev/null
