@@ -22,17 +22,17 @@ The [`Makefile`]({{ config.repo_url }}/blob/main/Makefile) contains convenience 
 developer workflows:
 
 ```bash
-# Compile glyphctl into ./out/
+# Compile 0xgenctl into ./out/
 make build
 
 # Run unit and integration tests
 make test
 
 # Execute the end-to-end quickstart demo
-glyphctl demo
+0xgenctl demo
 ```
 
-You can also build the CLI manually with `go build ./cmd/glyphctl`. Tests that rely on
+You can also build the CLI manually with `go build ./cmd/0xgenctl`. Tests that rely on
 Playwright or other external services automatically skip themselves when the
 prerequisites are missing, keeping `make test` fast on constrained environments.
 
@@ -48,16 +48,16 @@ invoke:
 
 ```bash
 go build ./plugins/<id>
-glyphctl plugin run --path ./plugins/<id>/<id> --duration 30s
+0xgenctl plugin run --path ./plugins/<id>/<id> --duration 30s
 ```
 
-The CLI connects to `glyphd`, streams findings back to `out/findings.jsonl`, and lets
+The CLI connects to `0xgend`, streams findings back to `out/findings.jsonl`, and lets
 you debug the plugin in real time.
 
 ## Release checklist {#release-checklist}
 
 1. Update [`CHANGELOG.md`]({{ config.repo_url }}/blob/main/CHANGELOG.md) with user-facing notes.
-2. Run `make test` and `glyphctl demo` to ensure critical paths pass.
+2. Run `make test` and `0xgenctl demo` to ensure critical paths pass.
 3. Execute `scripts/build_release.sh` to produce signed archives and checksums.
 4. Follow the prompts in `scripts/update-brew-formula.sh` if the Homebrew tap
    needs a new version. The script keeps the

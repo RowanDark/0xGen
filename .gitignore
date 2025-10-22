@@ -1,20 +1,20 @@
 # Go build artifacts
-glyphd
+0xgend
 /bin/
 *.exe
 *.so
 *.dll
 
-# Track the Go command sources even though the glyphd binary is ignored.
+# Track the Go command sources even though the 0xgend binary is ignored.
 !cmd/
-!cmd/glyphd/
+!cmd/0xgend/
 
 # Frontend test artifacts
 apps/desktop-shell/playwright-report/
 apps/desktop-shell/test-results/
-!cmd/glyphd/**
-!cmd/glyphctl/
-!cmd/glyphctl/**
+!cmd/0xgend/**
+!cmd/0xgenctl/
+!cmd/0xgenctl/**
 
 # Python artifacts
 __pycache__/

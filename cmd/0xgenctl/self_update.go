@@ -22,7 +22,7 @@ func runSelfUpdate(args []string) int {
 	fs := flag.NewFlagSet("self-update", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	channelFlag := fs.String("channel", "", "update channel to use for this invocation (stable or beta)")
-	rollback := fs.Bool("rollback", false, "restore the previous glyphctl binary")
+	rollback := fs.Bool("rollback", false, "restore the previous 0xgenctl binary")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}

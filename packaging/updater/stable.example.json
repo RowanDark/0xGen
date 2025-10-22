@@ -7,8 +7,8 @@
       "os": "linux",
       "arch": "amd64",
       "full": {
-        "url": "https://cdn.example.invalid/glyphctl.tar.gz",
-        "path": "../../out/dist/linux-amd64/glyphctl.tar.gz"
+        "url": "https://cdn.example.invalid/0xgenctl.tar.gz",
+        "path": "../../out/dist/linux-amd64/0xgenctl.tar.gz"
       }
     }
   ]

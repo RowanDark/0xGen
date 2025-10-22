@@ -8,12 +8,10 @@
 
 ### macOS (Homebrew)
 
-Las personas usuarias de macOS pueden instalar el binario precompilado `glyphctl` mediante Homebrew utilizando el [tap RowanDark/homebrew-glyph](https://github.com/RowanDark/homebrew-glyph):
+Las personas usuarias de macOS pueden instalar el binario precompilado `0xgenctl` mediante Homebrew utilizando el [tap RowanDark/homebrew-glyph](https://github.com/RowanDark/homebrew-glyph):
 
 ```bash
-brew install rowandark/glyph/glyph
-# Alias mientras el tap mantiene el nombre de la fórmula 0xgen
-brew install rowandark/glyph/0xgen
+brew install rowandark/glyph/0xgenctl
 ```
 
 ### Linux (Debian/Ubuntu)
@@ -21,17 +19,17 @@ brew install rowandark/glyph/0xgen
 Descarga el paquete `.deb` desde la [página de lanzamientos en GitHub](https://github.com/RowanDark/0xgen/releases) e instálalo con `dpkg`:
 
 ```bash
-sudo dpkg -i glyphctl_<version>_linux_amd64.deb
+sudo dpkg -i 0xgenctl_<version>_linux_amd64.deb
 ```
 
-Sustituye `<version>` por la versión que deseas instalar. El paquete instala `glyphctl` en `/usr/local/bin`.
+Sustituye `<version>` por la versión que deseas instalar. El paquete instala `0xgenctl` en `/usr/local/0xgen/bin`. Añade ese directorio a tu `PATH` o crea un enlace simbólico si prefieres invocar la CLI sin ruta completa.
 
 ### Linux (Fedora/RHEL/OpenSUSE)
 
 Los paquetes RPM se publican junto con cada lanzamiento. Instálalos con `rpm`:
 
 ```bash
-sudo rpm -i glyphctl_<version>_linux_amd64.rpm
+sudo rpm -i 0xgenctl_<version>_linux_amd64.rpm
 ```
 
 ### Windows
@@ -40,25 +38,25 @@ Hay tres métodos de instalación compatibles en Windows:
 
 #### Instalador (MSI)
 
-Descarga el artefacto `glyphctl_v<version>_windows_amd64.msi` (o `arm64`) desde la [página de lanzamientos](https://github.com/RowanDark/0xgen/releases). Ábrelo con doble clic o desde PowerShell:
+Descarga el artefacto `0xgenctl_v<version>_windows_amd64.msi` (o `arm64`) desde la [página de lanzamientos](https://github.com/RowanDark/0xgen/releases). Ábrelo con doble clic o desde PowerShell:
 
 ```powershell
-msiexec /i .\glyphctl_v<version>_windows_amd64.msi /qn
+msiexec /i .\0xgenctl_v<version>_windows_amd64.msi /qn
 ```
 
-El instalador coloca `glyphctl.exe` en `C:\Program Files\0xgen` y actualiza `PATH` para sesiones futuras. Verifica la instalación:
+El instalador coloca `0xgenctl.exe` en `C:\Program Files\0xgen` y actualiza `PATH` para sesiones futuras. Verifica la instalación:
 
 ```powershell
-"C:\Program Files\0xgen\glyphctl.exe" --version
+"C:\Program Files\0xgen\0xgenctl.exe" --version
 ```
 
 #### ZIP portable
 
-Cada lanzamiento incluye un archivo portátil llamado `glyphctl_v<version>_windows_<arch>.zip`. Extráelo donde prefieras y ejecuta el binario incluido:
+Cada lanzamiento incluye un archivo portátil llamado `0xgenctl_v<version>_windows_<arch>.zip`. Extráelo donde prefieras y ejecuta el binario incluido:
 
 ```powershell
-Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
-C:\Tools\0xgen\glyphctl.exe --version
+Expand-Archive -Path .\0xgenctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
+C:\Tools\0xgen\0xgenctl.exe --version
 ```
 
 #### Scoop
@@ -67,13 +65,13 @@ Agrega este repositorio como un bucket de Scoop e instala el manifiesto publicad
 
 ```powershell
 scoop bucket add glyph https://github.com/RowanDark/0xgen
-scoop install glyphctl
-glyphctl --version
+scoop install 0xgenctl
+0xgenctl --version
 ```
 
 ### Imagen de contenedor
 
-Se publica una imagen de contenedor reforzada en GitHub Container Registry con cada lanzamiento. La imagen se ejecuta como una persona usuaria sin privilegios y espera un sistema de archivos raíz de solo lectura. Descárgala y ejecuta `glyphctl` con el perfil de privilegios mínimos recomendado:
+Se publica una imagen de contenedor reforzada en GitHub Container Registry con cada lanzamiento. La imagen se ejecuta como una persona usuaria sin privilegios y espera un sistema de archivos raíz de solo lectura. Descárgala y ejecuta `0xgenctl` con el perfil de privilegios mínimos recomendado:
 
 ```bash
 docker pull ghcr.io/rowandark/0xgenctl:latest
@@ -99,7 +97,7 @@ Consulta la [guía de endurecimiento de contenedores](docs/en/security/container
 Clona el repositorio y ejecuta la canalización de demostración sin interacción:
 
 ```bash
-glyphctl demo
+0xgenctl demo
 ```
 
 El comando levanta un objetivo de demostración local, ejecuta el detector Seer, clasifica los hallazgos generados y emite un informe HTML interactivo en `out/demo/`. `make demo` sigue disponible como una capa delgada si prefieres un punto de entrada basado en Make. Consulta el [recorrido de Inicio rápido](https://rowandark.github.io/0xgen/quickstart/) para ver una guía completa y notas de solución de problemas.

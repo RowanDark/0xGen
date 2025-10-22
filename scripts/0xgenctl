@@ -2,4 +2,4 @@
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
-exec "$SCRIPT_DIR/glyphctl" "$@"
+exec "$SCRIPT_DIR/0xgenctl" "$@"

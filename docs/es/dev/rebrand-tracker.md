@@ -11,7 +11,7 @@ Crear etiqueta: `rebrand`
 - [ ] 3 Título/icono de la ventana GUI solo texto
 - [ ] 4 Banner de la CLI y texto de la salida de `--version`
 - [ ] 5 Variables de entorno del directorio de configuración (leer nuevo, retrocompatibilidad con el anterior)
-- [ ] 6 Wrapper binario: `0xgenctl` → `glyphctl` (alias)
+- [ ] 6 Wrapper binario: `0xgenctl` → `0xgenctl` (alias)
 - [ ] 7 URLs de la documentación: añadir redirecciones desde el prefijo heredado hacia `/0xgen`
 - [ ] 8 Comentario del módulo en `go.mod` solamente (sin cambiar la ruta)
 - [ ] 9 Nombre de la fórmula de Homebrew solamente (el alias mantiene glyph)

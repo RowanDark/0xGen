@@ -46,12 +46,12 @@ fixtures to accelerate future development.
 
 Plugins implement behaviour by registering callbacks in `pluginsdk.Hooks` before
 calling `pluginsdk.Run` or `pluginsdk.Serve`. The SDK manages the connection to
-`glyphd`, performs capability enforcement, and invokes hooks on the same goroutine
+`0xgend`, performs capability enforcement, and invokes hooks on the same goroutine
 that receives events.
 
 ### `OnStart(*pluginsdk.Context) error` {#onstart}
 
-Invoked once after the plugin authenticates with `glyphd`. Use the hook for
+Invoked once after the plugin authenticates with `0xgend`. Use the hook for
 lightweight initialisation, emitting startup findings, and launching background
 goroutines scoped to the supplied context. Returning an error terminates the
 plugin immediately.
@@ -113,7 +113,7 @@ Findings are serialised to `findings.jsonl` using the schema defined in
 
 When exporting findings to disk or downstream systems, the host enforces the
 schema described in [`specs/finding.md`]({{ config.repo_url }}/blob/main/specs/finding.md). Run
-`go run ./cmd/glyphctl findings validate --input <path>` to verify JSONL output
+`go run ./cmd/0xgenctl findings validate --input <path>` to verify JSONL output
 before distribution.
 
 ## Performance and safety guidelines {#performance-and-safety-guidelines}

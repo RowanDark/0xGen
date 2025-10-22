@@ -33,7 +33,7 @@ func main() {
 	configuredEvidenceSuffix := envOrDefaultInt("SEER_EVIDENCE_SUFFIX", defaultEvidenceSuffix)
 	configuredMaxScanBytes := envOrDefaultInt("SEER_MAX_SCAN_BYTES", defaultMaxScanBytes)
 
-	serverAddr := flag.String("server", defaultServer, "glyphd gRPC address")
+	serverAddr := flag.String("server", defaultServer, "0xgend gRPC address")
 	authToken := flag.String("token", defaultToken, "authentication token")
 	allowlistPath := flag.String("allowlist", defaultAllowlist, "path to newline-separated allowlist entries")
 	evidencePrefix := flag.Int("evidence-prefix", configuredEvidencePrefix, "characters to retain at the start of emitted evidence")

@@ -14,13 +14,11 @@ docs build pipeline.
 
 ### macOS (Homebrew)
 
-macOS users can install the prebuilt `glyphctl` binary via Homebrew using the
+macOS users can install the prebuilt `0xgenctl` binary via Homebrew using the
 [RowanDark/homebrew-glyph tap](https://github.com/RowanDark/homebrew-glyph):
 
 ```bash
-brew install rowandark/glyph/glyph
-# Alias while the tap still uses the 0xgen formula name
-brew install rowandark/glyph/0xgen
+brew install rowandark/glyph/0xgenctl
 ```
 
 ### Linux (Debian/Ubuntu)
@@ -30,18 +28,19 @@ Download the `.deb` package from the
 it with `dpkg`:
 
 ```bash
-sudo dpkg -i glyphctl_<version>_linux_amd64.deb
+sudo dpkg -i 0xgenctl_<version>_linux_amd64.deb
 ```
 
 Replace `<version>` with the release you want to install. The package installs
-`glyphctl` into `/usr/local/bin`.
+`0xgenctl` into `/usr/local/0xgen/bin`. Add that directory to your `PATH` or
+create a symlink if you want to invoke the CLI without a fully qualified path.
 
 ### Linux (Fedora/RHEL/OpenSUSE)
 
 RPM packages are published alongside each release. Install them with `rpm`:
 
 ```bash
-sudo rpm -i glyphctl_<version>_linux_amd64.rpm
+sudo rpm -i 0xgenctl_<version>_linux_amd64.rpm
 ```
 
 ### Windows
@@ -50,30 +49,30 @@ There are three supported installation paths on Windows:
 
 #### Installer (MSI)
 
-Download the `glyphctl_v<version>_windows_amd64.msi` (or `arm64`) asset from the
+Download the `0xgenctl_v<version>_windows_amd64.msi` (or `arm64`) asset from the
 [Releases page](https://github.com/RowanDark/0xgen/releases). Launch it with a
 double-click or from PowerShell:
 
 ```powershell
-msiexec /i .\glyphctl_v<version>_windows_amd64.msi /qn
+msiexec /i .\0xgenctl_v<version>_windows_amd64.msi /qn
 ```
 
-The installer places `glyphctl.exe` under `C:\Program Files\0xgen` and updates
+The installer places `0xgenctl.exe` under `C:\Program Files\0xgen` and updates
 `PATH` for future shells. Verify the installation:
 
 ```powershell
-"C:\Program Files\0xgen\glyphctl.exe" --version
+"C:\Program Files\0xgen\0xgenctl.exe" --version
 ```
 
 #### Portable ZIP
 
 Every release also ships a portable archive named
-`glyphctl_v<version>_windows_<arch>.zip`. Extract it anywhere you prefer and run
+`0xgenctl_v<version>_windows_<arch>.zip`. Extract it anywhere you prefer and run
 the bundled binary:
 
 ```powershell
-Expand-Archive -Path .\glyphctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
-C:\Tools\0xgen\glyphctl.exe --version
+Expand-Archive -Path .\0xgenctl_v<version>_windows_amd64.zip -DestinationPath C:\Tools\0xgen
+C:\Tools\0xgen\0xgenctl.exe --version
 ```
 
 #### Scoop
@@ -82,15 +81,15 @@ Add this repository as a Scoop bucket and install the published manifest:
 
 ```powershell
 scoop bucket add glyph https://github.com/RowanDark/0xgen
-scoop install glyphctl
-glyphctl --version
+scoop install 0xgenctl
+0xgenctl --version
 ```
 
 ### Container image
 
 A hardened container image is pushed to GitHub Container Registry with every
 release. The image runs as an unprivileged user and expects a read-only root
-filesystem. Pull it and run `glyphctl` with the recommended least-privilege
+filesystem. Pull it and run `0xgenctl` with the recommended least-privilege
 profile:
 
 ```bash
@@ -118,7 +117,7 @@ context, CI integration notes, and plugin execution tips.
 Clone the repository and run the zero-touch demo pipeline:
 
 ```bash
-glyphctl demo
+0xgenctl demo
 ```
 
 The command spins up a local demo target, runs the Seer detector against it, ranks
@@ -131,7 +130,7 @@ To inspect the generated Cases, launch the embedded UI server and open the
 provided address in your browser:
 
 ```bash
-glyphctl serve ui --input out/demo/findings.jsonl
+0xgenctl serve ui --input out/demo/findings.jsonl
 ```
 
 The UI lists correlated Cases, risk metadata, and evidence, and offers SARIF and

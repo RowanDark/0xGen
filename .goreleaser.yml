@@ -1,13 +1,13 @@
-project_name: glyph
+project_name: 0xgen
 
 before:
   hooks:
     - go test ./...
 
 builds:
-  - id: glyphctl
-    main: ./cmd/glyphctl
-    binary: glyphctl
+  - id: 0xgenctl
+    main: ./cmd/0xgenctl
+    binary: 0xgenctl
     env:
       - CGO_ENABLED=0
     ldflags:
@@ -19,9 +19,9 @@ builds:
     goarch:
       - amd64
       - arm64
-  - id: glyphd
-    main: ./cmd/glyphd
-    binary: glyphd
+  - id: 0xgend
+    main: ./cmd/0xgend
+    binary: 0xgend
     env:
       - CGO_ENABLED=0
     ldflags:
@@ -48,9 +48,9 @@ builds:
       - arm64
 
 archives:
-  - id: glyphctl-archive
+  - id: 0xgenctl-archive
     builds:
-      - glyphctl
+      - 0xgenctl
     name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
@@ -58,9 +58,9 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-  - id: glyphd-archive
+  - id: 0xgend-archive
     builds:
-      - glyphd
+      - 0xgend
     name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
@@ -74,39 +74,39 @@ archives:
         format: zip
 
 checksum:
-  name_template: "glyph_{{ .Tag }}_checksums.txt"
+  name_template: "0xgen_{{ .Tag }}_checksums.txt"
 
 nfpms:
-  - id: glyphctl-linux-packages
-    package_name: glyphctl
+  - id: 0xgenctl-linux-packages
+    package_name: 0xgenctl
     builds:
-      - glyphctl
+      - 0xgenctl
     formats:
       - deb
       - rpm
     maintainer: Rowan Dark <security@rowandark.dev>
-    description: Glyph automation toolkit command-line interface.
+    description: 0xgen automation toolkit command-line interface.
     homepage: https://github.com/RowanDark/0xgen
     license: Apache-2.0
-    bindir: /usr/local/bin
+    bindir: /usr/local/0xgen/bin
     priority: optional
     section: utils
-    vendor: Glyph Project
+    vendor: 0xgen Project
     provides:
-      - glyphctl
+      - 0xgenctl
     depends:
       - ca-certificates
     contents:
       - src: LICENSE
-        dst: /usr/share/doc/glyphctl/LICENSE
+        dst: /usr/share/doc/0xgenctl/LICENSE
       - src: README.md
-        dst: /usr/share/doc/glyphctl/README.md
+        dst: /usr/share/doc/0xgenctl/README.md
     file_name_template: "{{ .PackageName }}_{{ .Tag }}_{{ .Arch }}"
     scripts:
       postinstall: packaging/linux/postinstall.sh
 
 dockers:
-  - id: glyphctl-image
+  - id: 0xgenctl-image
     use: buildx
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}

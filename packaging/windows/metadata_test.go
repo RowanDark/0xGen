@@ -33,7 +33,7 @@ type wingetManifest struct {
 }
 
 func TestScoopManifestStructure(t *testing.T) {
-	path := filepath.Join("..", "..", "scoop", "bucket", "glyphctl.json")
+	path := filepath.Join("..", "..", "scoop", "bucket", "0xgenctl.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read scoop manifest: %v", err)
@@ -65,7 +65,7 @@ func TestScoopManifestStructure(t *testing.T) {
 }
 
 func TestWingetManifestStructure(t *testing.T) {
-	path := filepath.Join("winget", "glyphctl.yaml")
+	path := filepath.Join("winget", "0xgenctl.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read winget manifest: %v", err)

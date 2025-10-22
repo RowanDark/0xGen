@@ -20,7 +20,7 @@ import (
 const defaultPollInterval = time.Second
 
 // Reloader watches the plugin directory for new or updated manifests and reloads
-// plugins without requiring a glyphd restart.
+// plugins without requiring a 0xgend restart.
 type Reloader struct {
 	dir           string
 	repoRoot      string

@@ -66,7 +66,7 @@ log() {
 log "starting example plugin"
 
 # Fetch tasks via the SDK rather than raw curl
-if ! glyphctl broker task pull --out "$WORKDIR/task.json"; then
+if ! 0xgenctl broker task pull --out "$WORKDIR/task.json"; then
   log "failed to retrieve task"; exit 1
 fi
 

@@ -14,9 +14,9 @@ jobs:
     steps:
       - name: Update Homebrew
         run: brew update
-      - name: Install glyphctl from tap
+      - name: Install 0xgenctl from tap
         run: |
           set -euxo pipefail
           brew tap rowandark/glyph
           brew install glyph
-          glyphctl --version
+          0xgenctl --version

@@ -7,7 +7,7 @@ import (
 )
 
 const productName = "0xgen"
-const cliBanner = productName + " CLI (glyphctl)"
+const cliBanner = productName + " CLI (0xgenctl)"
 
 func init() {
 	defaultUsage := flag.Usage

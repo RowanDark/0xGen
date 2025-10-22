@@ -1,2 +1,2 @@
 @echo off
-"%~dp0glyphctl.exe" %*
+"%~dp00xgenctl.exe" %*

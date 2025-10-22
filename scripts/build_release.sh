@@ -29,13 +29,13 @@ declare -a targets=(
 
 for target in "${targets[@]}"; do
         read -r GOOS GOARCH <<<"$target"
-        ARCHIVE_BASENAME="glyphctl_${VERSION}_${GOOS}_${GOARCH}"
+        ARCHIVE_BASENAME="0xgenctl_${VERSION}_${GOOS}_${GOARCH}"
         BUILD_DIR="$DIST_DIR/$ARCHIVE_BASENAME"
         mkdir -p "$BUILD_DIR"
 
-        echo "Building glyphctl for $GOOS/$GOARCH"
+        echo "Building 0xgenctl for $GOOS/$GOARCH"
         GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 \
-                go build -ldflags "$LDFLAGS" -o "$BUILD_DIR/glyphctl" ./cmd/glyphctl
+                go build -ldflags "$LDFLAGS" -o "$BUILD_DIR/0xgenctl" ./cmd/0xgenctl
 
         cp "$ROOT_DIR/LICENSE" "$BUILD_DIR/"
         cp "$ROOT_DIR/scripts/0xgenctl" "$BUILD_DIR/"
@@ -48,7 +48,7 @@ done
 
 (
         cd "$DIST_DIR"
-        sha256sum *.tar.gz > "glyphctl_${VERSION}_SHA256SUMS.txt"
+        sha256sum *.tar.gz > "0xgenctl_${VERSION}_SHA256SUMS.txt"
 )
 
 printf '\nArtifacts written to %s\n' "$DIST_DIR"

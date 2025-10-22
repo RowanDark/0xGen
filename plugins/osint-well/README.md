@@ -5,9 +5,9 @@ OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface 
 ## Installation
 
 1. Install the Amass binary (v3.23.0 or newer is recommended) and ensure it is available on your `PATH`.
-2. Build `glyphctl` if you plan to orchestrate plugins locally:
+2. Build `0xgenctl` if you plan to orchestrate plugins locally:
    ```bash
-   go build ./cmd/glyphctl
+   go build ./cmd/0xgenctl
    ```
 3. (Optional) Export `0XGEN_OUT` to control where normalized assets are written. The default is `/out`.
 
@@ -54,12 +54,12 @@ Each line of the output will look like:
 
 The normalizer deduplicates subdomains, keeps the earliest timestamp when duplicates are encountered, and guarantees deterministic sorting for stable diffs.
 
-### Working with `glyphctl`
+### Working with `0xgenctl`
 
-You can also drive the plugin through `glyphctl` once it is compiled:
+You can also drive the plugin through `0xgenctl` once it is compiled:
 
 ```
-./glyphctl osint-well --domain example.com --out ./out/assets.jsonl
+./0xgenctl osint-well --domain example.com --out ./out/assets.jsonl
 ```
 
 To stay passive, avoid adding active enumeration flags via `--args`. When in doubt, consult the [Amass user guide](https://github.com/owasp-amass/amass/blob/master/doc/user_guide.md) for the distinction between passive and active options.

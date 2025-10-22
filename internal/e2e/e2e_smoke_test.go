@@ -18,7 +18,7 @@ import (
 
 func TestGlyphdSmoke(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping glyphd smoke test in short mode")
+		t.Skip("skipping 0xgend smoke test in short mode")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -40,7 +40,7 @@ func TestGlyphdSmoke(t *testing.T) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start glyphd: %v", err)
+		t.Fatalf("failed to start 0xgend: %v", err)
 	}
 
 	done := make(chan struct{})
@@ -55,36 +55,36 @@ func TestGlyphdSmoke(t *testing.T) {
 		select {
 		case <-done:
 		case <-time.After(3 * time.Second):
-			t.Fatalf("glyphd did not exit after cancellation")
+			t.Fatalf("0xgend did not exit after cancellation")
 		}
 	})
 
 	if err := waitForListener(cmdCtx, dialAddr, done, func() error { return cmdErr }); err != nil {
-		t.Fatalf("glyphd did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+		t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
 	}
 }
 
 func TestGlyphctlSmoke(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping glyphctl smoke test in short mode")
+		t.Skip("skipping 0xgenctl smoke test in short mode")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	root := repoRoot(t)
-	glyphdBin := buildGlyphd(ctx, t, root)
-	glyphctlBin := buildGlyphctl(ctx, t, root)
+        root := repoRoot(t)
+        daemonBin := buildGlyphd(ctx, t, root)
+        cliBin := buildGlyphctl(ctx, t, root)
 
 	outDir := t.TempDir()
 	findingsPath := filepath.Join(outDir, "findings.jsonl")
 	reportPath := filepath.Join(outDir, "report.md")
 
 	listenAddr, dialAddr := resolveAddresses(t)
-	cmdCtx, cmdCancel := context.WithCancel(ctx)
-	glyphd := exec.CommandContext(cmdCtx, glyphdBin, "--addr", listenAddr, "--token", "test")
-	glyphd.Dir = root
-	glyphd.Env = append(os.Environ(),
+        cmdCtx, cmdCancel := context.WithCancel(ctx)
+        daemon := exec.CommandContext(cmdCtx, daemonBin, "--addr", listenAddr, "--token", "test")
+        daemon.Dir = root
+        daemon.Env = append(os.Environ(),
 		"0XGEN_ADDR="+listenAddr,
 		"0XGEN_OUT="+outDir,
 		"0XGEN_E2E_SMOKE=1",
@@ -92,41 +92,41 @@ func TestGlyphctlSmoke(t *testing.T) {
 	)
 
 	var stdout, stderr bytes.Buffer
-	glyphd.Stdout = &stdout
-	glyphd.Stderr = &stderr
+        daemon.Stdout = &stdout
+        daemon.Stderr = &stderr
 
-	if err := glyphd.Start(); err != nil {
-		t.Fatalf("failed to start glyphd: %v", err)
-	}
+        if err := daemon.Start(); err != nil {
+                t.Fatalf("failed to start 0xgend: %v", err)
+        }
 
 	done := make(chan struct{})
-	var glyphdErr error
-	go func() {
-		glyphdErr = glyphd.Wait()
-		close(done)
-	}()
+        var daemonErr error
+        go func() {
+                daemonErr = daemon.Wait()
+                close(done)
+        }()
 
 	t.Cleanup(func() {
 		cmdCancel()
 		select {
 		case <-done:
 		case <-time.After(3 * time.Second):
-			t.Fatalf("glyphd did not exit after cancellation")
+			t.Fatalf("0xgend did not exit after cancellation")
 		}
 	})
 
-	if err := waitForListener(cmdCtx, dialAddr, done, func() error { return glyphdErr }); err != nil {
-		t.Fatalf("glyphd did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-	}
+        if err := waitForListener(cmdCtx, dialAddr, done, func() error { return daemonErr }); err != nil {
+                t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+        }
 
-	pluginCmd := exec.CommandContext(ctx, glyphctlBin, "plugin", "run", "--sample", "emit-on-start", "--server", dialAddr, "--token", "test", "--duration", "3s")
+        pluginCmd := exec.CommandContext(ctx, cliBin, "plugin", "run", "--sample", "emit-on-start", "--server", dialAddr, "--token", "test", "--duration", "3s")
 	pluginCmd.Dir = root
 	pluginCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir, "0XGEN_E2E_SMOKE=1")
 	var pluginOut, pluginErr bytes.Buffer
 	pluginCmd.Stdout = &pluginOut
 	pluginCmd.Stderr = &pluginErr
 	if err := pluginCmd.Run(); err != nil {
-		t.Fatalf("glyphctl plugin run failed: %v\nstdout:\n%s\nstderr:\n%s", err, pluginOut.String(), pluginErr.String())
+		t.Fatalf("0xgenctl plugin run failed: %v\nstdout:\n%s\nstderr:\n%s", err, pluginOut.String(), pluginErr.String())
 	}
 
 	deadline := time.Now().Add(5 * time.Second)
@@ -159,11 +159,11 @@ func TestGlyphctlSmoke(t *testing.T) {
 		t.Fatal("expected at least one finding to be recorded")
 	}
 
-	reportCmd := exec.CommandContext(ctx, glyphctlBin, "report", "--input", findingsPath, "--out", reportPath)
+        reportCmd := exec.CommandContext(ctx, cliBin, "report", "--input", findingsPath, "--out", reportPath)
 	reportCmd.Dir = root
 	reportCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 	if out, err := reportCmd.CombinedOutput(); err != nil {
-		t.Fatalf("glyphctl report failed: %v\n%s", err, out)
+		t.Fatalf("0xgenctl report failed: %v\n%s", err, out)
 	}
 
 	reportData, err := os.ReadFile(reportPath)
@@ -178,7 +178,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
 	t.Helper()
 
-	binaryName := "glyphd"
+	binaryName := "0xgend"
 	if runtime.GOOS == "windows" {
 		binaryName += ".exe"
 	}
@@ -187,14 +187,14 @@ func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
 	binaryPath := filepath.Join(outputDir, binaryName)
 
 	var output bytes.Buffer
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/glyphd")
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/0xgend")
 	cmd.Dir = root
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	cmd.Env = os.Environ()
 
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to build glyphd: %v\n%s", err, output.String())
+		t.Fatalf("failed to build 0xgend: %v\n%s", err, output.String())
 	}
 
 	return binaryPath
@@ -203,7 +203,7 @@ func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
 func buildGlyphctl(ctx context.Context, t *testing.T, root string) string {
 	t.Helper()
 
-	binaryName := "glyphctl"
+	binaryName := "0xgenctl"
 	if runtime.GOOS == "windows" {
 		binaryName += ".exe"
 	}
@@ -212,14 +212,14 @@ func buildGlyphctl(ctx context.Context, t *testing.T, root string) string {
 	binaryPath := filepath.Join(outputDir, binaryName)
 
 	var output bytes.Buffer
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/glyphctl")
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/0xgenctl")
 	cmd.Dir = root
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	cmd.Env = os.Environ()
 
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to build glyphctl: %v\n%s", err, output.String())
+		t.Fatalf("failed to build 0xgenctl: %v\n%s", err, output.String())
 	}
 
 	return binaryPath
@@ -283,9 +283,9 @@ func waitForListener(ctx context.Context, addr string, done <-chan struct{}, err
 		case <-done:
 			exitErr := errFn()
 			if exitErr == nil {
-				return fmt.Errorf("glyphd exited before %s became available", addr)
+				return fmt.Errorf("0xgend exited before %s became available", addr)
 			}
-			return fmt.Errorf("glyphd exited before %s became available: %w", addr, exitErr)
+			return fmt.Errorf("0xgend exited before %s became available: %w", addr, exitErr)
 		case <-ticker.C:
 		}
 	}

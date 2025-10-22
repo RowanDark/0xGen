@@ -17,7 +17,7 @@ func runPluginVerify(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: glyphctl plugin verify <path> --hash <sha256>")
+		fmt.Fprintln(os.Stderr, "usage: 0xgenctl plugin verify <path> --hash <sha256>")
 		return 2
 	}
 	path := fs.Arg(0)

@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	// DefaultFindingsPath is where glyphd persists findings for other tools to consume.
+	// DefaultFindingsPath is where 0xgend persists findings for other tools to consume.
 	DefaultFindingsPath = filepath.Join(defaultOutputDir, findingsFilename)
 	// DefaultReportPath is the default markdown summary written for CAP_REPORT consumers.
 	DefaultReportPath = filepath.Join(defaultOutputDir, reportFilename)

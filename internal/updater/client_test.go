@@ -79,8 +79,8 @@ func TestClientUpdateAndRollback(t *testing.T) {
 
 	oldVersion := "1.0.0"
 	newVersion := "1.1.0"
-	oldBinary := []byte("glyphctl " + oldVersion)
-	newBinary := []byte("glyphctl " + newVersion)
+	oldBinary := []byte("0xgenctl " + oldVersion)
+	newBinary := []byte("0xgenctl " + newVersion)
 
 	var deltaBuf bytes.Buffer
 	if err := binarydist.Diff(bytes.NewReader(oldBinary), bytes.NewReader(newBinary), &deltaBuf); err != nil {
@@ -93,7 +93,7 @@ func TestClientUpdateAndRollback(t *testing.T) {
 		t.Fatalf("NewStore: %v", err)
 	}
 
-	execPath := filepath.Join(t.TempDir(), "glyphctl")
+	execPath := filepath.Join(t.TempDir(), "0xgenctl")
 	if err := os.WriteFile(execPath, oldBinary, 0o755); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}

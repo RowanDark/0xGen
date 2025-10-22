@@ -1,23 +1,21 @@
-PackageIdentifier: RowanDark.Glyph
+PackageIdentifier: RowanDark.0xgenctl
 PackageVersion: 0.0.0
 DefaultLocale:
   PackageLocale: en-US
-  Publisher: Glyph Project
-  PackageName: Glyph CLI
+  Publisher: 0xgen Project
+  PackageName: 0xgen CLI
   License: Apache-2.0
-  ShortDescription: Glyph automation toolkit command-line interface.
+  ShortDescription: 0xgen automation toolkit command-line interface.
 Installers:
   - Architecture: x64
     InstallerType: portable
-    InstallerUrl: https://github.com/RowanDark/0xgen/releases/download/v0.0.0/glyphctl_v0.0.0_windows_amd64.zip
+    InstallerUrl: https://github.com/RowanDark/0xgen/releases/download/v0.0.0/0xgenctl_v0.0.0_windows_amd64.zip
     InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
     Commands:
-      - glyphctl
       - 0xgenctl
   - Architecture: arm64
     InstallerType: portable
-    InstallerUrl: https://github.com/RowanDark/0xgen/releases/download/v0.0.0/glyphctl_v0.0.0_windows_arm64.zip
+    InstallerUrl: https://github.com/RowanDark/0xgen/releases/download/v0.0.0/0xgenctl_v0.0.0_windows_arm64.zip
     InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
     Commands:
-      - glyphctl
       - 0xgenctl

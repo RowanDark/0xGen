@@ -31,7 +31,7 @@ func TestStoreRoundTrip(t *testing.T) {
 		Channel:            ChannelBeta,
 		LastAppliedVersion: "1.2.3",
 		PreviousVersion:    "1.2.2",
-		BackupPath:         filepath.Join(dir, "glyphctl.old"),
+		BackupPath:         filepath.Join(dir, "0xgenctl.old"),
 	}
 	if err := store.Save(cfg); err != nil {
 		t.Fatalf("Save: %v", err)

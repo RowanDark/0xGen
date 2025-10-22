@@ -54,8 +54,8 @@ if [[ ! "$msi_version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
   exit 1
 fi
 
-if [[ ! -f "$payload_dir/glyphctl.exe" ]]; then
-  echo "glyphctl.exe not found in payload directory '$payload_dir'" >&2
+if [[ ! -f "$payload_dir/0xgenctl.exe" ]]; then
+  echo "0xgenctl.exe not found in payload directory '$payload_dir'" >&2
   exit 1
 fi
 
@@ -64,7 +64,7 @@ trap 'rm -rf "$stage"' EXIT
 
 mkdir -p "$output_dir"
 
-cp "$payload_dir/glyphctl.exe" "$stage/glyphctl.exe"
+cp "$payload_dir/0xgenctl.exe" "$stage/0xgenctl.exe"
 cp "$ROOT_DIR/scripts/0xgenctl.cmd" "$stage/0xgenctl.cmd"
 cp "$ROOT_DIR/README.md" "$stage/README.txt"
 cp "$ROOT_DIR/LICENSE" "$stage/LICENSE.txt"
@@ -73,7 +73,7 @@ wixl \
   -DVersion="$msi_version" \
   -DWixPlatform="$wix_platform" \
   -DPayloadDir="$stage" \
-  -o "$output_dir/glyphctl_${tag}_windows_${arch}.msi" \
-  packaging/windows/glyphctl.wxs
+  -o "$output_dir/0xgenctl_${tag}_windows_${arch}.msi" \
+  packaging/windows/0xgenctl.wxs
 
-echo "Built MSI: $output_dir/glyphctl_${tag}_windows_${arch}.msi"
+echo "Built MSI: $output_dir/0xgenctl_${tag}_windows_${arch}.msi"

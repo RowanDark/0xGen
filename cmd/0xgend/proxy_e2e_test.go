@@ -137,7 +137,7 @@ func TestProxyEndToEndHTTPFlow(t *testing.T) {
 			t.Fatalf("run returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("glyphd did not shut down")
+		t.Fatal("0xgend did not shut down")
 	}
 
 	deadline := time.Now().Add(3 * time.Second)

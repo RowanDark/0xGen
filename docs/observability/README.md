@@ -6,7 +6,7 @@ available telemetry and provides example tooling configurations.
 
 ## Tracing
 
-`glyphd` now emits structured spans that describe plugin lifecycle events, RPC handlers, and
+`0xgend` now emits structured spans that describe plugin lifecycle events, RPC handlers, and
 network activity performed on behalf of plugins. New spans cover the full HTTP capture pipeline
 (`proxy.capture_flow`), fan-out to plugins (`plugin_bus.dispatch_flow`), plugin execution inside the
 supervisor (`plugin.supervisor.task` / `plugin.runner.exec`), replay tooling (`replay.load_flows`,
@@ -14,9 +14,9 @@ supervisor (`plugin.supervisor.task` / `plugin.runner.exec`), replay tooling (`r
 the new CLI flags:
 
 ```bash
-glyphd \
+0xgend \
   --trace-endpoint http://otel-collector:4318/v1/traces \
-  --trace-service-name glyphd-prod \
+  --trace-service-name 0xgend-prod \
   --trace-sample-ratio 0.5 \
   --trace-file /var/log/glyph/traces.jsonl
 ```

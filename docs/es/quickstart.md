@@ -1,13 +1,13 @@
 # Inicio rápido: demostración de extremo a extremo
 
-El comando `glyphctl demo` ofrece a las personas nuevas un recorrido de un minuto por la pila de 0xgen.
+El comando `0xgenctl demo` ofrece a las personas nuevas un recorrido de un minuto por la pila de 0xgen.
 Levanta un objetivo de demostración local, escanea la página con Seer, clasifica los hallazgos resultantes y
 renderiza un informe HTML pulido. Todo se ejecuta en localhost y recurre a artefactos incluidos cuando el
 acceso a la red externa está restringido.
 
 ## Requisitos previos {#prerequisites}
 
-- Go 1.21+ (para `go run ./cmd/glyphctl demo`) o un binario `glyphctl` descargado.
+- Go 1.21+ (para `go run ./cmd/0xgenctl demo`) o un binario `0xgenctl` descargado.
 - Git (para clonar este repositorio).
 
 Todo lo demás (binarios de 0xgen, Playwright, etc.) se construye a demanda. No se requieren servicios externos;
@@ -16,17 +16,17 @@ el HTML incluido en `examples/quickstart/demo-response.html`.
 
 <div id="run-the-pipeline"></div>
 
-La caja interactiva anterior reproduce `glyphctl demo` directamente en tu
+La caja interactiva anterior reproduce `0xgenctl demo` directamente en tu
 navegador para que puedas explorar la canalización antes de instalar nada.
 ## Primeros pasos {#getting-started}
 
 ```bash
-glyphctl demo
+0xgenctl demo
 ```
 
 El comando realiza los siguientes pasos:
 
-1. Sirve localmente el [objetivo de demostración]({{ config.repo_url }}/blob/main/cmd/glyphctl/demo_assets/target.html) incluido,
+1. Sirve localmente el [objetivo de demostración]({{ config.repo_url }}/blob/main/cmd/0xgenctl/demo_assets/target.html) incluido,
    de modo que no se necesita acceso a la red externa.
 2. Escanea la página renderizada con Seer y guarda los hallazgos estructurados en `out/demo/findings.jsonl`.
 3. Clasifica los hallazgos de manera determinista y escribe `out/demo/ranked.jsonl` para herramientas posteriores.
@@ -60,4 +60,4 @@ Elimina los artefactos generados con:
 rm -rf out/demo
 ```
 
-Ejecuta `glyphctl demo` nuevamente en cualquier momento para regenerar el informe.
+Ejecuta `0xgenctl demo` nuevamente en cualquier momento para regenerar el informe.

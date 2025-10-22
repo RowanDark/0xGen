@@ -25,7 +25,7 @@ type Config struct {
 	Proxy      ProxyConfig `yaml:"proxy" toml:"proxy"`
 }
 
-// ProxyConfig controls proxy-related behaviour for glyphd.
+// ProxyConfig controls proxy-related behaviour for 0xgend.
 type ProxyConfig struct {
 	Enable      bool   `yaml:"enable" toml:"enable"`
 	Addr        string `yaml:"addr" toml:"addr"`
@@ -106,7 +106,7 @@ func loadHomeConfig(cfg *Config) error {
 		return fmt.Errorf("read config %s: %w", legacyPath, err)
 	}
 	warnLegacyConfigOnce.Do(func() {
-		log.Printf("Using legacy Glyph config at %s; run 'glyphctl config migrate' to upgrade", legacyPath)
+		log.Printf("Using legacy Glyph config at %s; run '0xgenctl config migrate' to upgrade", legacyPath)
 	})
 	if err := applyFileConfig(cfg, data, "toml"); err != nil {
 		return fmt.Errorf("parse config %s: %w", legacyPath, err)

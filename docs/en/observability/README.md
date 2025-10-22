@@ -41,7 +41,7 @@ scrape_configs:
           - localhost:9090
 ```
 
-Adjust `targets` to match your deployment topology and set `metrics-addr` accordingly when launching `glyphd`.
+Adjust `targets` to match your deployment topology and set `metrics-addr` accordingly when launching `0xgend`.
 
 ## Grafana
 

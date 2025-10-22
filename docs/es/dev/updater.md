@@ -1,7 +1,7 @@
 # Canales de actualización y reversión
 
 0xgen incluye un servicio de actualización automática para la aplicación de
-escritorio y para la CLI `glyphctl`. Este documento describe cómo publicamos en
+escritorio y para la CLI `0xgenctl`. Este documento describe cómo publicamos en
 los canales estable y beta, cómo generamos paquetes delta y cómo los clientes
 verifican, aplican y revierten actualizaciones de forma segura.
 
@@ -24,15 +24,15 @@ configuración del usuario para futuras comprobaciones automáticas.
 
 ### Indicador de canal en la CLI {#cli-channel-flag}
 
-`glyphctl` expone el comando `self-update` con la opción
+`0xgenctl` expone el comando `self-update` con la opción
 `--channel=<stable|beta>`. El valor predeterminado es el canal almacenado y la
 opción funciona como un override temporal. Para cambiar la preferencia persistida
-ejecuta `glyphctl self-update channel <stable|beta>`; guardamos el resultado en
-`~/.config/glyphctl/updater.json` junto con los datos necesarios para la
-reversión. `glyphctl self-update channel` sin argumentos imprime el canal activo.
+ejecuta `0xgenctl self-update channel <stable|beta>`; guardamos el resultado en
+`~/.config/0xgenctl/updater.json` junto con los datos necesarios para la
+reversión. `0xgenctl self-update channel` sin argumentos imprime el canal activo.
 
 El updater conserva el binario anterior en el mismo directorio de configuración.
-`glyphctl self-update --rollback` restaura esa copia y restablece el canal a
+`0xgenctl self-update --rollback` restaura esa copia y restablece el canal a
 `stable` como medida de seguridad.
 
 Ambos clientes incluyen el canal en los encabezados de la petición. La API de
@@ -70,7 +70,7 @@ revierte automáticamente, se restablece el canal a estable y se informa al
 usuario.
 
 Los clientes también permiten la reversión manual: la UI del escritorio ofrece un
-botón "Restaurar versión anterior" y `glyphctl self-update` acepta `--rollback`.
+botón "Restaurar versión anterior" y `0xgenctl self-update` acepta `--rollback`.
 
 ## Lista de verificación para releases {#release-engineering}
 

@@ -41,21 +41,21 @@ if ($msiVersion -notmatch '^[0-9]+(\.[0-9]+){0,3}$') {
     throw "Tag '$Tag' yields invalid MSI version '$msiVersion'. Expected 'major.minor.build(.revision)'."
 }
 
-$payloadExecutable = Join-Path -Path $PayloadDir -ChildPath 'glyphctl.exe'
+$payloadExecutable = Join-Path -Path $PayloadDir -ChildPath '0xgenctl.exe'
 if (-not (Test-Path -Path $payloadExecutable -PathType Leaf)) {
-    throw "glyphctl.exe not found in payload directory '$PayloadDir'."
+    throw "0xgenctl.exe not found in payload directory '$PayloadDir'."
 }
 
 $tempDir = New-Item -ItemType Directory -Path (Join-Path -Path ([IO.Path]::GetTempPath()) -ChildPath ([IO.Path]::GetRandomFileName()))
 try {
     $repoRoot = (Resolve-Path (Join-Path -Path $PSScriptRoot -ChildPath '..')).Path
-    Copy-Item -Path $payloadExecutable -Destination (Join-Path -Path $tempDir -ChildPath 'glyphctl.exe')
+    Copy-Item -Path $payloadExecutable -Destination (Join-Path -Path $tempDir -ChildPath '0xgenctl.exe')
     Copy-Item -Path (Join-Path -Path $repoRoot -ChildPath 'scripts/0xgenctl.cmd') -Destination (Join-Path -Path $tempDir -ChildPath '0xgenctl.cmd')
     Copy-Item -Path (Join-Path -Path $repoRoot -ChildPath 'README.md') -Destination (Join-Path -Path $tempDir -ChildPath 'README.txt')
     Copy-Item -Path (Join-Path -Path $repoRoot -ChildPath 'LICENSE') -Destination (Join-Path -Path $tempDir -ChildPath 'LICENSE.txt')
 
-    $wxsPath = (Resolve-Path (Join-Path -Path $repoRoot -ChildPath 'packaging/windows/glyphctl.wxs')).Path
-    $wixObj = Join-Path -Path $tempDir -ChildPath 'glyphctl.wixobj'
+    $wxsPath = (Resolve-Path (Join-Path -Path $repoRoot -ChildPath 'packaging/windows/0xgenctl.wxs')).Path
+    $wixObj = Join-Path -Path $tempDir -ChildPath '0xgenctl.wixobj'
 
     & candle.exe "-dVersion=$msiVersion" "-dWixPlatform=$wixPlatform" "-dPayloadDir=$tempDir" "-out" $wixObj $wxsPath -ext WixUtilExtension
     if ($LASTEXITCODE -ne 0) {
@@ -66,7 +66,7 @@ try {
         New-Item -ItemType Directory -Path $OutputDir | Out-Null
     }
 
-    $outputPath = Join-Path -Path $OutputDir -ChildPath "glyphctl_${Tag}_windows_${Arch}.msi"
+    $outputPath = Join-Path -Path $OutputDir -ChildPath "0xgenctl_${Tag}_windows_${Arch}.msi"
     & light.exe "-out" $outputPath $wixObj -ext WixUtilExtension
     if ($LASTEXITCODE -ne 0) {
         throw "light.exe failed with exit code $LASTEXITCODE"

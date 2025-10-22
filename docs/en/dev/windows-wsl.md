@@ -15,7 +15,7 @@ The Windows installer includes an optional **Trust Galdr proxy certificate**
 feature. When enabled, the installer runs:
 
 ```powershell
-"C:\\Program Files\\0xgen\\glyphctl.exe" proxy trust --install --quiet
+"C:\\Program Files\\0xgen\\0xgenctl.exe" proxy trust --install --quiet
 ```
 
 This command generates the proxy certificate if it does not already exist and
@@ -26,10 +26,10 @@ environments:
 
 ```powershell
 # Windows PowerShell
-glyphctl proxy trust --out $env:TEMP\glyph-proxy.cer
+0xgenctl proxy trust --out $env:TEMP\glyph-proxy.cer
 
 # Inside WSL
-glyphctl proxy trust --out /tmp/glyph-proxy.pem
+0xgenctl proxy trust --out /tmp/glyph-proxy.pem
 ```
 
 Copy the exported file into your browser's trust store or a WSL distribution as
@@ -38,16 +38,16 @@ needed.
 ## Translating paths between Windows and WSL
 
 0xgen commands often accept file paths—for example when replaying proxy
-captures. Use the `glyphctl wsl path` helper to translate paths instead of
+captures. Use the `0xgenctl wsl path` helper to translate paths instead of
 hand-editing separators:
 
 ```powershell
 # Convert a WSL path so Windows-native tools can open it
-PS> glyphctl wsl path --to-windows /mnt/c/Users/alice/out/demo/report.html
+PS> 0xgenctl wsl path --to-windows /mnt/c/Users/alice/out/demo/report.html
 C:\Users\alice\out\demo\report.html
 
 # Convert a Windows path before passing it to a CLI running in WSL
-$ glyphctl wsl path --to-wsl "D:\\Projects\\0xgen\\replays\\latest.jsonl"
+$ 0xgenctl wsl path --to-wsl "D:\\Projects\\0xgen\\replays\\latest.jsonl"
 /mnt/d/Projects/0xgen/replays/latest.jsonl
 ```
 

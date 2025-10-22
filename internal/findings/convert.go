@@ -17,7 +17,7 @@ const (
 )
 
 // FromProto converts a protobuf Finding emitted by a plugin into the internal
-// representation persisted by glyphd.
+// representation persisted by 0xgend.
 func FromProto(pluginID string, incoming *pb.Finding) (Finding, error) {
 	return fromProtoWithClock(pluginID, incoming, time.Now)
 }

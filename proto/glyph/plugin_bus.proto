@@ -10,7 +10,7 @@ option go_package = "github.com/RowanDark/0xgen/proto/glyph;glyph";
 // receive events from the host and send findings back.
 service PluginBus {
   // EventStream is a long-lived, bi-directional stream between the host
-  // (`glyphd`) and a single plugin.
+  // (`0xgend`) and a single plugin.
   rpc EventStream(stream PluginEvent) returns (stream HostEvent);
   // GrantCapabilities issues a short-lived token binding a plugin to the
   // capabilities declared in its manifest.
@@ -62,7 +62,7 @@ message PluginCapabilityGrant {
 
 // HostEvent is a message sent from the host to a plugin.
 message HostEvent {
-  // The version of the glyphd core that is sending the event.
+  // The version of the 0xgend core that is sending the event.
   string core_version = 1;
 
   // For now, the only event is a flow event.

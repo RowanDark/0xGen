@@ -11,14 +11,14 @@ PYTHON_PLUGIN_RUNTIME_DIR := examples/glyph-passive-headers/glyph_plugin_runtime
 GO_STUBS_DIR := proto/gen/go
 
 BIN ?= ./bin
-GLYPHCTL := $(BIN)/glyphctl
+OXGENCTL := $(BIN)/0xgenctl
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-GLYPHCTL_LDFLAGS ?= -s -w -X main.version=$(VERSION)
+OXGENCTL_LDFLAGS ?= -s -w -X main.version=$(VERSION)
 
-$(GLYPHCTL):
+$(OXGENCTL):
         @mkdir -p $(BIN)
-        @go build -ldflags "$(GLYPHCTL_LDFLAGS)" -o $(GLYPHCTL) ./cmd/glyphctl
+        @go build -ldflags "$(OXGENCTL_LDFLAGS)" -o $(OXGENCTL) ./cmd/0xgenctl
 
 # Development defaults for running the Go services.
 0XGEN_ADDR ?= :50051
@@ -49,7 +49,7 @@ new-plugin:
 	@hack/new_plugin.sh "$(name)"
 
 .PHONY: plugins-skeleton
-plugins-skeleton: $(GLYPHCTL)
+plugins-skeleton: $(OXGENCTL)
 	@set -euo pipefail; \
 	plugins="galdr-proxy cartographer excavator raider osint-well seer scribe ranker grapher cryptographer"; \
 		for plugin in $$plugins; do \
@@ -58,7 +58,7 @@ plugins-skeleton: $(GLYPHCTL)
 				echo "missing manifest: $$manifest"; \
 				exit 1; \
 			fi; \
-			$(GLYPHCTL) --manifest-validate "$$manifest" >/dev/null; \
+                        $(OXGENCTL) --manifest-validate "$$manifest" >/dev/null; \
 			done
 	@echo "Running excavator crawl sanity check..."
 	@npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null
@@ -71,7 +71,7 @@ plugins-skeleton: $(GLYPHCTL)
 demo-report:
         @mkdir -p out
         @cp examples/findings-sample.jsonl out/findings.jsonl
-        @go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl report --input out/findings.jsonl --out out/report.md
+        @go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl report --input out/findings.jsonl --out out/report.md
         @echo "Report written to out/report.md"
 
 
@@ -85,7 +85,7 @@ crawl-demo:
 
 .PHONY: demo
 demo:
-@go run -ldflags "$(GLYPHCTL_LDFLAGS)" ./cmd/glyphctl demo --out out/demo
+@go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl demo --out out/demo
 
 .PHONY: verify
 verify: build
@@ -95,7 +95,7 @@ verify: build
 
 .PHONY: run
 run:
-	go run ./cmd/glyphd --addr $(0XGEN_ADDR) --token $(0XGEN_AUTH_TOKEN)
+	go run ./cmd/0xgend --addr $(0XGEN_ADDR) --token $(0XGEN_AUTH_TOKEN)
 
 # Default target.
 .PHONY: all
@@ -143,27 +143,27 @@ test-plugin:
 .PHONY: e2e
 e2e: proto
 	@echo "--- Ensuring cmd directory exists ---"
-	@mkdir -p cmd/glyphd
-	@echo "--- Building glyphd server ---"
-	@go build -o glyphd ./cmd/glyphd
+	@mkdir -p cmd/0xgend
+	@echo "--- Building 0xgend server ---"
+	@go build -o 0xgend ./cmd/0xgend
 	@echo "--- Running E2E test ---"
-	@rm -f glyphd.log plugin.log
-	@export 0XGEN_AUTH_TOKEN="supersecrettoken" && ./glyphd > glyphd.log 2>&1 &
+	@rm -f 0xgend.log plugin.log
+	@export 0XGEN_AUTH_TOKEN="supersecrettoken" && ./0xgend > 0xgend.log 2>&1 &
 	@sleep 2
 	@python -m glyph_passive_headers > plugin.log 2>&1 &
 	@echo "Server and plugin started. Waiting for interaction..."
 	@sleep 4
 	@echo "--- Stopping processes ---"
-	@pkill -f glyphd || true
+	@pkill -f 0xgend || true
 	@pkill -f glyph_passive_headers || true
 	@sleep 1
 	@echo
-	@echo "--- Server Log (glyphd.log) ---"
-	@cat glyphd.log
+	@echo "--- Server Log (0xgend.log) ---"
+	@cat 0xgend.log
 	@echo
 	@echo "--- Plugin Log (plugin.log) ---"
 	@cat plugin.log
-	@rm -f glyphd glyphd.log plugin.log
+	@rm -f 0xgend 0xgend.log plugin.log
 
 # Runs the real-world scenario regression tests.
 .PHONY: e2e-scenarios

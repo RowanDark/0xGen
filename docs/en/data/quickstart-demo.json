@@ -1,11 +1,11 @@
 {
-  "command": "glyphctl demo",
+  "command": "0xgenctl demo",
   "steps": [
     {
       "title": "Start the local target server",
       "lines": [
-        "glyphctl demo ▸ Launching static target on http://127.0.0.1:7777",
-        "glyphctl demo ▸ Using bundled fixtures so the demo works offline"
+        "0xgenctl demo ▸ Launching static target on http://127.0.0.1:7777",
+        "0xgenctl demo ▸ Using bundled fixtures so the demo works offline"
       ]
     },
     {

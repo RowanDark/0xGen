@@ -50,7 +50,7 @@ class PluginBusServicer(object):
 
     def EventStream(self, request_iterator, context):
         """EventStream is a long-lived, bi-directional stream between the host
-        (`glyphd`) and a single plugin.
+        (`0xgend`) and a single plugin.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

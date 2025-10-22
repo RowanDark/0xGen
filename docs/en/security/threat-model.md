@@ -6,7 +6,7 @@ controls that underpin the default deployment model.
 
 ## Goals and assumptions {#goals-and-assumptions}
 
-- Keep the 0xgen daemon (`glyphd`) and control surface (`glyphctl`) resilient to
+- Keep the 0xgen daemon (`0xgend`) and control surface (`0xgenctl`) resilient to
   compromised plugins.
 - Ensure every finding and release artifact has verifiable provenance.
 - Allow operators to reproduce a reported issue from stored artifacts without

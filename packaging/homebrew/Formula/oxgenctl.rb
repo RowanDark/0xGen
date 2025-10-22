@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Glyph < Formula
+class Oxgenctl < Formula
   desc "Automation toolkit for orchestrating red-team and detection workflows"
   homepage "https://github.com/RowanDark/0xgen"
   url "https://github.com/RowanDark/0xgen/archive/6cdf809882689869dfb340dc2d68c709675443b6.tar.gz"
@@ -14,10 +14,10 @@ class Glyph < Formula
     ldflags = %w[
       -s -w
     ]
-    system "go", "build", *std_go_args(output: bin/"glyphctl", ldflags: ldflags.join(" ")), "./cmd/glyphctl"
+    system "go", "build", *std_go_args(output: bin/"0xgenctl", ldflags: ldflags.join(" ")), "./cmd/0xgenctl"
   end
 
   test do
-    assert_match "glyphctl", shell_output("#{bin}/glyphctl --help")
+    assert_match "0xgenctl", shell_output("#{bin}/0xgenctl --help")
   end
 end
