@@ -147,8 +147,8 @@ func (gt *gatedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	ctx := req.Context()
 	attrs := map[string]any{
-		"glyph.plugin.id":  gt.pluginID,
-		"glyph.capability": gt.capability,
+		"oxg.plugin.id":  gt.pluginID,
+		"oxg.capability": gt.capability,
 	}
 	if req.Method != "" {
 		attrs["http.method"] = req.Method

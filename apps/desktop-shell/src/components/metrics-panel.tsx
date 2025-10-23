@@ -132,7 +132,7 @@ export function MetricsPanel({ open, onOpenChange }: { open: boolean; onOpenChan
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Operations metrics</h2>
             <p className="text-sm text-muted-foreground">
-              Live Prometheus readings from the Glyph daemon.
+              Live Prometheus readings from the 0xgen daemon.
               {lastUpdated ? ` Last updated at ${lastUpdated}.` : null}
             </p>
           </div>

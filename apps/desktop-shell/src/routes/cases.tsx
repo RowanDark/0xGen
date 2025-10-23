@@ -392,8 +392,8 @@ function CaseExplorer({ cases }: { cases: CaseViewModel[] }) {
             {
               tool: {
                 driver: {
-                  name: 'Glyph AI Investigator',
-                  informationUri: 'https://glyph.sh'
+                  name: '0xgen AI Investigator',
+                  informationUri: 'https://0xgen.sh'
                 }
               },
               artifacts: activeCase.evidence.map((item) => ({

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/RowanDark/0xgen/internal/findings"
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )

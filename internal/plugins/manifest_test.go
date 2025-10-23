@@ -18,7 +18,7 @@ func validManifest() plugins.Manifest {
 		Capabilities: []string{"CAP_HTTP_PASSIVE"},
 		Signature: &plugins.Signature{
 			Signature: "plugin.js.sig",
-			PublicKey: "glyph-plugin.pub",
+			PublicKey: "0xgen-plugin.pub",
 		},
 	}
 }
@@ -102,7 +102,7 @@ func TestValidateRequiresSignature(t *testing.T) {
 func TestLoadManifestRejectsUnknownField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manifest.json")
-	if err := os.WriteFile(path, []byte(`{"name":"demo","version":"1.0.0","entry":"plugin.js","artifact":"plugin.js","capabilities":["CAP_HTTP_PASSIVE"],"signature":{"signature":"plugin.js.sig","publicKey":"glyph-plugin.pub"},"unexpected":true}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"name":"demo","version":"1.0.0","entry":"plugin.js","artifact":"plugin.js","capabilities":["CAP_HTTP_PASSIVE"],"signature":{"signature":"plugin.js.sig","publicKey":"0xgen-plugin.pub"},"unexpected":true}`), 0o644); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
 	err := plugins.ValidateManifest(path)

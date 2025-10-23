@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -99,7 +99,7 @@ type HTTPPassiveHook func(ctx *Context, event HTTPPassiveEvent) error
 type Config struct {
 	// PluginName is the name reported to the host. It should match the manifest.
 	PluginName string
-	// Host is the host:port combination to dial the Glyph core.
+	// Host is the host:port combination to dial the 0xgen core.
 	Host string
 	// AuthToken is the shared secret required by the host.
 	AuthToken string

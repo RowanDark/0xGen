@@ -27,7 +27,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/reporter"
 	"github.com/RowanDark/0xgen/internal/scope"
 	"github.com/RowanDark/0xgen/internal/secrets"
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc"
 )
 

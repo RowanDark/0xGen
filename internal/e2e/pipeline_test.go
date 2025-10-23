@@ -59,33 +59,33 @@ func TestPipelinePassiveHeaderScanGolden(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-        root := repoRoot(t)
-        daemonBin := buildGlyphd(ctx, t, root)
-        cliBin := buildGlyphctl(ctx, t, root)
+	root := repoRoot(t)
+	daemonBin := buildDaemon(ctx, t, root)
+	cliBin := buildCli(ctx, t, root)
 
 	outDir := t.TempDir()
 	findingsPath := filepath.Join(outDir, "findings.jsonl")
 
 	listenAddr, dialAddr := resolveAddresses(t)
-        cmdCtx, cmdCancel := context.WithCancel(ctx)
-        daemon := exec.CommandContext(cmdCtx, daemonBin, "--addr", listenAddr, "--token", "test-token")
-        daemon.Dir = root
-        daemon.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
+	cmdCtx, cmdCancel := context.WithCancel(ctx)
+	daemon := exec.CommandContext(cmdCtx, daemonBin, "--addr", listenAddr, "--token", "test-token")
+	daemon.Dir = root
+	daemon.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 
 	var stdout, stderr bytes.Buffer
-        daemon.Stdout = &stdout
-        daemon.Stderr = &stderr
+	daemon.Stdout = &stdout
+	daemon.Stderr = &stderr
 
-        if err := daemon.Start(); err != nil {
-                t.Fatalf("failed to start 0xgend: %v", err)
-        }
+	if err := daemon.Start(); err != nil {
+		t.Fatalf("failed to start 0xgend: %v", err)
+	}
 
-        done := make(chan struct{})
-        var daemonErr error
-        go func() {
-                daemonErr = daemon.Wait()
-                close(done)
-        }()
+	done := make(chan struct{})
+	var daemonErr error
+	go func() {
+		daemonErr = daemon.Wait()
+		close(done)
+	}()
 
 	t.Cleanup(func() {
 		cmdCancel()
@@ -96,11 +96,11 @@ func TestPipelinePassiveHeaderScanGolden(t *testing.T) {
 		}
 	})
 
-        if err := waitForListener(cmdCtx, dialAddr, done, func() error { return daemonErr }); err != nil {
-                t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-        }
+	if err := waitForListener(cmdCtx, dialAddr, done, func() error { return daemonErr }); err != nil {
+		t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+	}
 
-        pluginCmd := exec.CommandContext(ctx, cliBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test-token", "--duration", "6s")
+	pluginCmd := exec.CommandContext(ctx, cliBin, "plugin", "run", "--sample", "passive-header-scan", "--server", dialAddr, "--token", "test-token", "--duration", "6s")
 	pluginCmd.Dir = root
 	pluginCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 	var pluginOut, pluginErr bytes.Buffer
@@ -148,7 +148,7 @@ func newPassiveTargetServer(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/security", func(w http.ResponseWriter, r *http.Request) {
 		// Deliberately omit the security headers the passive scan plugin expects.
-		w.Header().Set("Server", "glyph-e2e")
+		w.Header().Set("Server", "0xgen-e2e")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	glyphhttp3 "github.com/RowanDark/0xgen/internal/netgate/http3"
+	oxghttp3 "github.com/RowanDark/0xgen/internal/netgate/http3"
 	"golang.org/x/net/quic"
 )
 
@@ -41,7 +41,7 @@ func (lt *layeredTransport) roundTripHTTP3(req *http.Request, addr string, cfg *
 		cancel = cancelFn
 	}
 
-	transport := &glyphhttp3.Transport{
+	transport := &oxghttp3.Transport{
 		Config: &quic.Config{TLSConfig: tlsCfg},
 	}
 

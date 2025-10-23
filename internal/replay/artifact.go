@@ -51,8 +51,8 @@ func CreateArtifact(path string, manifest Manifest, files map[string][]byte) err
 // CreateArtifactWithContext writes the replay manifest and referenced files to a gzipped tarball using the provided context for tracing.
 func CreateArtifactWithContext(ctx context.Context, path string, manifest Manifest, files map[string][]byte) error {
 	attrs := map[string]any{
-		"glyph.replay.artifact_path": strings.TrimSpace(path),
-		"glyph.replay.file_count":    len(files),
+		"oxg.replay.artifact_path": strings.TrimSpace(path),
+		"oxg.replay.file_count":    len(files),
 	}
 	_, span := tracing.StartSpan(ctx, "replay.create_artifact", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK
@@ -77,7 +77,7 @@ func CreateArtifactWithContext(ctx context.Context, path string, manifest Manife
 	if manifest.Version == "" {
 		manifest.Version = ManifestVersion
 	}
-	if manifest.Runner.GlyphctlVersion == "" && manifest.Runner.GlyphdVersion == "" {
+	if manifest.Runner.CtlVersion == "" && manifest.Runner.DaemonVersion == "" {
 		manifest.Runner = DefaultRunnerInfo()
 	}
 	var err error
@@ -210,8 +210,8 @@ func ExtractArtifactWithContext(ctx context.Context, path, dest string) (Manifes
 		return manifest, errors.New("destination path is required")
 	}
 	attrs := map[string]any{
-		"glyph.replay.artifact_path": strings.TrimSpace(path),
-		"glyph.replay.extract_dest":  strings.TrimSpace(dest),
+		"oxg.replay.artifact_path": strings.TrimSpace(path),
+		"oxg.replay.extract_dest":  strings.TrimSpace(dest),
 	}
 	_, span := tracing.StartSpan(ctx, "replay.extract_artifact", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK

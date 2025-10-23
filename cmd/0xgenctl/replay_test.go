@@ -71,7 +71,7 @@ func TestRunReplay(t *testing.T) {
 		"responses/example.json": []byte(`{"status":"ok"}`),
 	}
 
-	artefact := filepath.Join(dir, "glyph.replay.tgz")
+	artefact := filepath.Join(dir, "0xgen.replay.tgz")
 	if err := replay.CreateArtifact(artefact, manifest, files); err != nil {
 		t.Fatalf("CreateArtifact failed: %v", err)
 	}

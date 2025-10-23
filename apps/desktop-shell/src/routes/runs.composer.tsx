@@ -129,13 +129,13 @@ const scopeOptions = [
     id: 'strict',
     title: 'Strict scope',
     subtitle: 'Production-only, critical endpoints',
-    description: 'Allow requests to *.glyph.app and block sensitive admin consoles.'
+    description: 'Allow requests to *.0xgen.app and block sensitive admin consoles.'
   },
   {
     id: 'staging',
     title: 'Staging mirrors',
     subtitle: 'Non-production, parity with prod',
-    description: 'Targets *.staging.glyph.app with relaxed rate limits.'
+    description: 'Targets *.staging.0xgen.app with relaxed rate limits.'
   },
   {
     id: 'broad',
@@ -146,8 +146,8 @@ const scopeOptions = [
 ];
 
 const defaultState: RunComposerState = {
-  name: 'New Glyph run',
-  targets: ['https://glyph.app'],
+  name: 'New 0xgen run',
+  targets: ['https://0xgen.app'],
   targetNotes: '',
   scopePolicy: 'strict',
   plugins: ['http-crawler', 'secrets-scanner'],
@@ -172,7 +172,7 @@ const defaultState: RunComposerState = {
   }
 };
 
-const presetStorageKey = 'glyph.desktop.runComposerPresets';
+const presetStorageKey = '0xgen.desktop.runComposerPresets';
 
 function buildStartRunPayload(
   state: RunComposerState,
@@ -536,7 +536,7 @@ function AuthStep({
             placeholder="sk_live_..."
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            Stored securely in the Glyph vault and injected only for this run.
+            Stored securely in the 0xgen vault and injected only for this run.
           </p>
         </div>
       ) : null}

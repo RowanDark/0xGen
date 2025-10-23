@@ -173,7 +173,7 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
       status.manifest.runner?.['0xgenctlVersion'] ??
       status.manifest.runner?.['0xgendVersion'];
     if (createdAt && runner) {
-      return `Captured ${createdAt} • glyph ${runner}`;
+      return `Captured ${createdAt} • 0xgen ${runner}`;
     }
     if (createdAt) {
       return `Captured ${createdAt}`;
@@ -185,7 +185,7 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
     try {
       const selection = await open({
         multiple: false,
-        filters: [{ name: 'Glyph replay artifacts', extensions: ['tgz'] }]
+        filters: [{ name: '0xgen replay artifacts', extensions: ['tgz'] }]
       });
       const file = Array.isArray(selection) ? selection[0] : selection;
       if (!file || typeof file !== 'string') {
@@ -206,7 +206,7 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
     <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
       <div className="flex items-center gap-2">
         <Menu className="h-5 w-5 text-muted-foreground" aria-hidden />
-        <span className="font-semibold">Glyph Desktop</span>
+        <span className="font-semibold">0xgen Desktop</span>
       </div>
       <nav
         className="flex items-center gap-4 text-sm font-medium"

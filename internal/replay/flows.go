@@ -34,7 +34,7 @@ func LoadFlows(path string) ([]FlowRecord, error) {
 
 // LoadFlowsWithContext reads flow records from a JSONL file using the provided context for tracing.
 func LoadFlowsWithContext(ctx context.Context, path string) ([]FlowRecord, error) {
-	attrs := map[string]any{"glyph.replay.flows_path": strings.TrimSpace(path)}
+	attrs := map[string]any{"oxg.replay.flows_path": strings.TrimSpace(path)}
 	_, span := tracing.StartSpan(ctx, "replay.load_flows", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK
 	statusMsg := ""
@@ -88,7 +88,7 @@ func LoadFlowsWithContext(ctx context.Context, path string) ([]FlowRecord, error
 		return records[i].Sequence < records[j].Sequence
 	})
 	if span != nil {
-		span.SetAttribute("glyph.replay.flow_records", len(records))
+		span.SetAttribute("oxg.replay.flow_records", len(records))
 	}
 	return records, nil
 }
@@ -101,8 +101,8 @@ func WriteFlows(path string, flows []FlowRecord) error {
 // WriteFlowsWithContext persists flow records using the provided context for tracing.
 func WriteFlowsWithContext(ctx context.Context, path string, flows []FlowRecord) error {
 	attrs := map[string]any{
-		"glyph.replay.flows_path":   strings.TrimSpace(path),
-		"glyph.replay.flow_records": len(flows),
+		"oxg.replay.flows_path":   strings.TrimSpace(path),
+		"oxg.replay.flow_records": len(flows),
 	}
 	_, span := tracing.StartSpan(ctx, "replay.write_flows", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK

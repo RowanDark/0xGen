@@ -16,7 +16,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/plugins"
 	"github.com/RowanDark/0xgen/internal/plugins/integrity"
 	"github.com/RowanDark/0xgen/internal/plugins/runner"
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -70,7 +70,7 @@ func runPluginRun(args []string) int {
 	}
 
 	pluginDir := filepath.Dir(manifestPath)
-	binaryDir, err := os.MkdirTemp("", "glyph-plugin-build-")
+	binaryDir, err := os.MkdirTemp("", "0xgen-plugin-build-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "create build dir: %v\n", err)
 		return 1

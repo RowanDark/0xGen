@@ -385,9 +385,9 @@ function parseHttpMessage(raw: string): ParsedHttpMessage | null {
   const isTruncated = headers.some((header) => {
     const key = header.name.toLowerCase();
     return (
-      key === 'x-glyph-body-redacted' ||
-      key === 'x-glyph-raw-body-truncated' ||
-      key === 'x-glyph-body-truncated'
+      key === 'x-0xgen-body-redacted' ||
+      key === 'x-0xgen-raw-body-truncated' ||
+      key === 'x-0xgen-body-truncated'
     );
   });
 

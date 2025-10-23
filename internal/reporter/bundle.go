@@ -17,7 +17,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/findings"
 )
 
-// BundleSchemaVersion identifies the JSON structure emitted by Glyph when exporting reports.
+// BundleSchemaVersion identifies the JSON structure emitted by 0xgen when exporting reports.
 const BundleSchemaVersion = "1.0"
 
 // Digest captures a cryptographic digest and the algorithm that produced it.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 )
 
 const (

@@ -1,9 +1,9 @@
 [package]
-name = "glyph-desktop-shell"
+name = "oxg-desktop-shell"
 version = "0.1.0"
 edition = "2021"
-description = "Glyph desktop shell"
-authors = ["Glyph"]
+description = "0xgen desktop shell"
+authors = ["0xgen"]
 license = "Apache-2.0"
 
 [build-dependencies]

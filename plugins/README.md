@@ -1,6 +1,6 @@
-# Glyph Plugins
+# 0xgen Plugins
 
-Glyph plugins are Go binaries that connect to `0xgend` using the SDK in
+0xgen plugins are Go binaries that connect to `0xgend` using the SDK in
 `sdk/plugin-sdk`. The SDK handles the gRPC transport, lifecycle hooks and safely
 emitting findings back to the host. Consult [the plugin author guide](https://rowandark.github.io/0xgen/plugins/)
 for the full author guide, capability matrix, and JSONL emission rules.
@@ -43,7 +43,7 @@ func main() {
         OnStart: func(ctx *pluginsdk.Context) error {
             return ctx.EmitFinding(pluginsdk.Finding{
                 Type:       "demo.startup",
-                Message:    "Hello from the Glyph SDK!",
+                Message:    "Hello from the 0xgen SDK!",
                 Target:     "demo://hello",
                 Severity:   pluginsdk.SeverityInfo,
                 DetectedAt: time.Now().UTC(),
@@ -78,12 +78,12 @@ To generate a signature with a cosign key pair:
 
 ```bash
 cosign sign-blob \
-  --key /path/to/glyph-plugin.key \
+  --key /path/to/0xgen-plugin.key \
   --output-signature plugin.js.sig \
   --output-certificate plugin.js.pem \
   plugin.js
 ```
 
 Commit the updated signature file and reference the certificate or public key in
-the manifest. Glyph refuses to run plugins whose signature does not match the
+the manifest. 0xgen refuses to run plugins whose signature does not match the
 allowlisted hash and public key.

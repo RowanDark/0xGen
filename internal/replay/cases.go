@@ -20,7 +20,7 @@ func LoadCases(path string) ([]cases.Case, error) {
 
 // LoadCasesWithContext reads cases from a JSON file using the provided context for tracing.
 func LoadCasesWithContext(ctx context.Context, path string) ([]cases.Case, error) {
-	_, span := tracing.StartSpan(ctx, "replay.load_cases", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{"glyph.replay.cases_path": strings.TrimSpace(path)}))
+	_, span := tracing.StartSpan(ctx, "replay.load_cases", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{"oxg.replay.cases_path": strings.TrimSpace(path)}))
 	status := tracing.StatusOK
 	statusMsg := ""
 	defer func() {
@@ -48,7 +48,7 @@ func LoadCasesWithContext(ctx context.Context, path string) ([]cases.Case, error
 		return nil, fmt.Errorf("decode cases: %w", err)
 	}
 	if span != nil {
-		span.SetAttribute("glyph.replay.case_count", len(list))
+		span.SetAttribute("oxg.replay.case_count", len(list))
 	}
 	return list, nil
 }
@@ -61,8 +61,8 @@ func WriteCases(path string, list []cases.Case) error {
 // WriteCasesWithContext writes cases using the provided context for tracing.
 func WriteCasesWithContext(ctx context.Context, path string, list []cases.Case) error {
 	attrs := map[string]any{
-		"glyph.replay.cases_path": strings.TrimSpace(path),
-		"glyph.replay.case_count": len(list),
+		"oxg.replay.cases_path": strings.TrimSpace(path),
+		"oxg.replay.case_count": len(list),
 	}
 	_, span := tracing.StartSpan(ctx, "replay.write_cases", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK

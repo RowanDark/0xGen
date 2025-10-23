@@ -54,13 +54,13 @@ fn build_stream_key(prefix: &str, id: &str) -> String {
     format!("{prefix}:{id}")
 }
 
-struct GlyphApi {
+struct OxgApi {
     client: reqwest::Client,
     base_url: String,
     streams: Mutex<HashMap<String, StreamController>>,
 }
 
-impl GlyphApi {
+impl OxgApi {
     fn new() -> Self {
         let base_url =
             std::env::var("0XGEN_API_URL").unwrap_or_else(|_| "http://127.0.0.1:8713".to_string());
@@ -985,7 +985,7 @@ fn list_cases(replay: State<'_, ReplayState>) -> Result<Vec<CaseRecord>, String>
 }
 
 #[tauri::command]
-async fn list_runs(api: State<'_, GlyphApi>) -> Result<Vec<Run>, String> {
+async fn list_runs(api: State<'_, OxgApi>) -> Result<Vec<Run>, String> {
     let url = api.endpoint("runs");
     let response = api
         .client
@@ -1008,7 +1008,7 @@ async fn list_runs(api: State<'_, GlyphApi>) -> Result<Vec<Run>, String> {
 
 #[tauri::command]
 async fn start_run(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     payload: StartRunRequest,
 ) -> Result<StartRunResponse, String> {
     let url = api.endpoint("runs");
@@ -1052,7 +1052,7 @@ fn emit_flow_event(
 
 #[tauri::command]
 async fn fetch_metrics(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     replay: State<'_, ReplayState>,
 ) -> Result<DashboardMetrics, String> {
     if let Some(metrics) = {
@@ -1136,7 +1136,7 @@ async fn fetch_metrics(
 
 #[tauri::command]
 async fn list_flows(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     replay: State<'_, ReplayState>,
     cursor: Option<String>,
     limit: Option<u32>,
@@ -1254,7 +1254,7 @@ async fn list_flows(
 #[tauri::command]
 async fn stream_events(
     app: tauri::AppHandle,
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     run_id: String,
 ) -> Result<(), String> {
     let window = app
@@ -1340,7 +1340,7 @@ async fn stream_events(
 }
 
 #[tauri::command]
-async fn stop_stream(api: State<'_, GlyphApi>, run_id: String) -> Result<(), String> {
+async fn stop_stream(api: State<'_, OxgApi>, run_id: String) -> Result<(), String> {
     let key = build_stream_key("run", &run_id);
     if let Some(controller) = api
         .streams
@@ -1357,7 +1357,7 @@ async fn stop_stream(api: State<'_, GlyphApi>, run_id: String) -> Result<(), Str
 #[tauri::command]
 async fn stream_flows(
     app: tauri::AppHandle,
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     replay: State<'_, ReplayState>,
     stream_id: String,
     filters: Option<FlowFilters>,
@@ -1508,7 +1508,7 @@ async fn stream_flows(
 }
 
 #[tauri::command]
-async fn stop_flow_stream(api: State<'_, GlyphApi>, stream_id: String) -> Result<(), String> {
+async fn stop_flow_stream(api: State<'_, OxgApi>, stream_id: String) -> Result<(), String> {
     let key = build_stream_key("flow", &stream_id);
     if let Some(controller) = api
         .streams
@@ -1524,7 +1524,7 @@ async fn stop_flow_stream(api: State<'_, GlyphApi>, stream_id: String) -> Result
 
 #[tauri::command]
 async fn resend_flow(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     replay: State<'_, ReplayState>,
     flow_id: String,
     message: String,
@@ -1559,7 +1559,7 @@ async fn resend_flow(
 }
 
 #[tauri::command]
-async fn fetch_scope_policy(api: State<'_, GlyphApi>) -> Result<ScopePolicyDocument, String> {
+async fn fetch_scope_policy(api: State<'_, OxgApi>) -> Result<ScopePolicyDocument, String> {
     let url = api.endpoint("scope/policy");
     let response = api
         .client
@@ -1597,7 +1597,7 @@ async fn fetch_scope_policy(api: State<'_, GlyphApi>) -> Result<ScopePolicyDocum
 
 #[tauri::command]
 async fn validate_scope_policy(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     policy: String,
 ) -> Result<ScopeValidationResult, String> {
     let url = api.endpoint("scope/policy/validate");
@@ -1624,7 +1624,7 @@ async fn validate_scope_policy(
 
 #[tauri::command]
 async fn apply_scope_policy(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     policy: String,
 ) -> Result<ScopeApplyResponse, String> {
     let url = api.endpoint("scope/policy/apply");
@@ -1651,7 +1651,7 @@ async fn apply_scope_policy(
 
 #[tauri::command]
 async fn parse_scope_text(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     text: String,
 ) -> Result<ScopeParseResponse, String> {
     let url = api.endpoint("scope/policy/parse");
@@ -1678,7 +1678,7 @@ async fn parse_scope_text(
 
 #[tauri::command]
 async fn dry_run_scope_policy(
-    api: State<'_, GlyphApi>,
+    api: State<'_, OxgApi>,
     policy: Option<String>,
     urls: Vec<String>,
 ) -> Result<ScopeDryRunResponse, String> {
@@ -1777,7 +1777,7 @@ fn configure_devtools(window: &Window) {
 
 fn main() {
     let log_buffer = crash::init_logging();
-    let api = GlyphApi::new();
+    let api = OxgApi::new();
     let base_url = api.base_url().to_string();
     let crash_reporter = CrashReporter::new(base_url, log_buffer);
     crash::set_global_reporter(crash_reporter.clone());

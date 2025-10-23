@@ -4,19 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/RowanDark/0xgen/internal/env"
 )
 
-var warnLegacyConfigOnce sync.Once
-
-// Config captures the Glyph configuration resolved from defaults, optional files,
+// Config captures the 0xgen configuration resolved from defaults, optional files,
 // and environment overrides.
 type Config struct {
 	ServerAddr string      `yaml:"server_addr" toml:"server_addr"`
@@ -35,7 +31,7 @@ type ProxyConfig struct {
 	CAKeyPath   string `yaml:"ca_key_path" toml:"ca_key_path"`
 }
 
-// Default returns the built-in Glyph configuration.
+// Default returns the built-in 0xgen configuration.
 func Default() Config {
 	return Config{
 		ServerAddr: "127.0.0.1:50051",
@@ -52,11 +48,10 @@ func Default() Config {
 	}
 }
 
-// Load resolves the Glyph configuration using defaults, configuration files, and
+// Load resolves the 0xgen configuration using defaults, configuration files, and
 // environment overrides. The lookup order for configuration files is:
-//  1. ./glyph.yml (YAML)
+//  1. ./0xgen.yml (YAML)
 //  2. ~/.0xgen/config.toml (TOML)
-//  3. ~/.glyph/config.toml (TOML, legacy; warns once)
 //
 // Environment variables prefixed with 0XGEN_ have the highest precedence.
 // Legacy 0XGEN_ variables remain supported for one release and emit a warning
@@ -97,20 +92,6 @@ func loadHomeConfig(cfg *Config) error {
 		return fmt.Errorf("read config %s: %w", newPath, err)
 	}
 
-	legacyPath := filepath.Join(home, ".glyph", "config.toml")
-	data, err = os.ReadFile(legacyPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return fmt.Errorf("read config %s: %w", legacyPath, err)
-	}
-	warnLegacyConfigOnce.Do(func() {
-		log.Printf("Using legacy Glyph config at %s; run '0xgenctl config migrate' to upgrade", legacyPath)
-	})
-	if err := applyFileConfig(cfg, data, "toml"); err != nil {
-		return fmt.Errorf("parse config %s: %w", legacyPath, err)
-	}
 	return nil
 }
 
@@ -119,7 +100,7 @@ func loadLocalConfig(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("determine working directory: %w", err)
 	}
-	path := filepath.Join(wd, "glyph.yml")
+	path := filepath.Join(wd, "0xgen.yml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, os.ErrNotExist) {

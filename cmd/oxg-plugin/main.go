@@ -30,13 +30,13 @@ func run(args []string) error {
 }
 
 func usage() error {
-	fmt.Fprintf(os.Stderr, "glyph-plugin commands:\n")
+	fmt.Fprintf(os.Stderr, "oxg-plugin commands:\n")
 	fmt.Fprintf(os.Stderr, "  init   scaffold a new plugin project\n")
 	return errors.New("usage")
 }
 
 func runInit(args []string) error {
-	fs := flag.NewFlagSet("glyph-plugin init", flag.ContinueOnError)
+	fs := flag.NewFlagSet("oxg-plugin init", flag.ContinueOnError)
 	lang := fs.String("lang", "go", "language for the plugin (go|node)")
 	name := fs.String("name", "", "directory name for the new plugin")
 	module := fs.String("module", "", "Go module path (required for --lang=go)")

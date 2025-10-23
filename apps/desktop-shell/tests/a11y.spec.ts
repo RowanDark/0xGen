@@ -35,13 +35,13 @@ const SERIOUS_IMPACTS = new Set(['serious', 'critical']);
 const THEMES = ['light', 'dark', 'cyber', 'red', 'blue', 'purple', 'amber', 'cb-safe'] as const;
 
 const STORAGE_KEYS = {
-  projectTheme: 'glyph.theme.project.default',
-  themeScope: 'glyph.theme.scope.default',
-  userTheme: 'glyph.theme.user',
-  legacyTheme: 'glyph.theme.default',
-  highContrast: 'glyph.high-contrast.default',
-  motion: 'glyph.motion.default',
-  fontScale: 'glyph.font-scale'
+  projectTheme: '0xgen.theme.project.default',
+  themeScope: '0xgen.theme.scope.default',
+  userTheme: '0xgen.theme.user',
+  legacyTheme: '0xgen.theme.default',
+  highContrast: '0xgen.high-contrast.default',
+  motion: '0xgen.motion.default',
+  fontScale: '0xgen.font-scale'
 } as const;
 
 test.describe('Accessibility regressions', () => {

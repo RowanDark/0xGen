@@ -16,7 +16,7 @@ func TestHandlerExportsMetrics(t *testing.T) {
 	if !strings.Contains(body, "# HELP oxg_rpc_requests_total") {
 		t.Fatalf("expected oxg metrics to be exported, got %q", body)
 	}
-	if strings.Contains(body, "glyph_rpc_requests_total") {
-		t.Fatalf("unexpected legacy glyph metrics exported: %q", body)
+	if strings.Contains(body, "oxg_rpc_requests_total") {
+		t.Fatalf("unexpected legacy metrics exported: %q", body)
 	}
 }

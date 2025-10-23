@@ -32,7 +32,7 @@ import (
 	obsmetrics "github.com/RowanDark/0xgen/internal/observability/metrics"
 	"github.com/RowanDark/0xgen/internal/observability/tracing"
 	"github.com/RowanDark/0xgen/internal/scope"
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 )
 
 const (
@@ -566,7 +566,7 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 		}
 		if state != nil {
 			if state.flowTracked {
-				span.SetAttribute("glyph.flow.id", state.flowID)
+				span.SetAttribute("oxg.flow.id", state.flowID)
 			}
 			if state.statusCode != 0 {
 				span.SetAttribute("http.status_code", state.statusCode)
@@ -624,7 +624,7 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 	span.SetAttribute("http.target", targetURL.String())
 
 	matched, names := p.rules.match(method, targetURL.String())
-	span.SetAttribute("glyph.proxy.rules", len(matched))
+	span.SetAttribute("oxg.proxy.rules", len(matched))
 
 	headers := cloneHeader(r.Header)
 	r.Header = headers
@@ -654,13 +654,13 @@ func (p *Proxy) serveProxyRequest(w http.ResponseWriter, r *http.Request, scheme
 		} else {
 			state.flowTracked = true
 			state.flowID = p.generateFlowID(p.flowIDs.Add(1))
-			span.SetAttribute("glyph.flow.sampled", true)
+			span.SetAttribute("oxg.flow.sampled", true)
 		}
 	}
 	if !state.flowTracked {
-		span.SetAttribute("glyph.flow.sampled", false)
+		span.SetAttribute("oxg.flow.sampled", false)
 	}
-	span.SetAttribute("glyph.proxy.publish", state.publishFlows)
+	span.SetAttribute("oxg.proxy.publish", state.publishFlows)
 
 	if len(body) == 0 {
 		r.Body = http.NoBody
@@ -1014,12 +1014,12 @@ func (p *Proxy) emitFlowEvent(ctx context.Context, event flows.Event, phase stri
 		return
 	}
 	attrs := map[string]any{
-		"glyph.flow.id":            event.ID,
-		"glyph.flow.sequence":      event.Sequence,
-		"glyph.flow.phase":         phase,
-		"glyph.flow.type":          event.Type.String(),
-		"glyph.flow.has_raw":       len(event.Raw) > 0,
-		"glyph.flow.has_sanitized": len(event.Sanitized) > 0,
+		"oxg.flow.id":            event.ID,
+		"oxg.flow.sequence":      event.Sequence,
+		"oxg.flow.phase":         phase,
+		"oxg.flow.type":          event.Type.String(),
+		"oxg.flow.has_raw":       len(event.Raw) > 0,
+		"oxg.flow.has_sanitized": len(event.Sanitized) > 0,
 	}
 	pubCtx, span := tracing.StartSpan(ctx, "proxy.publish_flow_event", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK
@@ -1541,7 +1541,7 @@ func normalizeProxyHeaderName(name string) string {
 		return ""
 	}
 	lower := strings.ToLower(trimmed)
-	if strings.HasPrefix(lower, "x-glyph") {
+	if strings.HasPrefix(lower, "x-0xgen") {
 		return ""
 	}
 	return textproto.CanonicalMIMEHeaderKey(trimmed)

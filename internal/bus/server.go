@@ -16,7 +16,7 @@ import (
 	obsmetrics "github.com/RowanDark/0xgen/internal/observability/metrics"
 	"github.com/RowanDark/0xgen/internal/observability/tracing"
 	"github.com/RowanDark/0xgen/internal/plugins/capabilities"
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -110,8 +110,8 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	}()
 
 	rpcSpan := tracing.SpanFromContext(ctx)
-	rpcSpan.SetAttribute("glyph.component", "plugin_bus")
-	rpcSpan.SetAttribute("glyph.rpc.method", "EventStream")
+	rpcSpan.SetAttribute("oxg.component", "plugin_bus")
+	rpcSpan.SetAttribute("oxg.rpc.method", "EventStream")
 
 	authCtx, authSpan := tracing.StartSpan(ctx, "plugin_bus.authenticate", tracing.WithSpanKind(tracing.SpanKindInternal))
 	hello, err := s.authenticate(stream)
@@ -132,8 +132,8 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	authSpan.EndWithStatus(tracing.StatusOK, "")
 
 	pluginID := fmt.Sprintf("%s-%d", hello.GetPluginName(), hello.GetPid())
-	rpcSpan.SetAttribute("glyph.plugin.name", hello.GetPluginName())
-	rpcSpan.SetAttribute("glyph.plugin.pid", hello.GetPid())
+	rpcSpan.SetAttribute("oxg.plugin.name", hello.GetPluginName())
+	rpcSpan.SetAttribute("oxg.plugin.pid", hello.GetPid())
 
 	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
 	if err != nil {
@@ -239,7 +239,7 @@ func (s *Server) GrantCapabilities(ctx context.Context, req *pb.PluginCapability
 		code = codes.InvalidArgument.String()
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
-	span.SetAttribute("glyph.plugin.name", strings.TrimSpace(req.GetPluginName()))
+	span.SetAttribute("oxg.plugin.name", strings.TrimSpace(req.GetPluginName()))
 	if req.GetAuthToken() != s.authToken {
 		obsmetrics.RecordRPCError("plugin_bus", "GrantCapabilities", codes.PermissionDenied.String())
 		code = codes.PermissionDenied.String()
@@ -337,8 +337,8 @@ func (s *Server) sendEvents(ctx context.Context, stream pb.PluginBus_EventStream
 				return
 			}
 			sendCtx, span := tracing.StartSpan(ctx, "plugin_bus.dispatch_event", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{
-				"glyph.plugin.id":  pluginID,
-				"glyph.event.type": getEventType(event),
+				"oxg.plugin.id":  pluginID,
+				"oxg.event.type": getEventType(event),
 			}))
 			if err := stream.Send(event); err != nil {
 				span.RecordError(err)
@@ -365,7 +365,7 @@ func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStr
 	}
 	for {
 		recvCtx, span := tracing.StartSpan(ctx, "plugin_bus.receive_event", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{
-			"glyph.plugin.id": pluginID,
+			"oxg.plugin.id": pluginID,
 		}))
 		event, err := stream.Recv()
 		if err == io.EOF {
@@ -393,7 +393,7 @@ func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStr
 
 		switch e := event.Event.(type) {
 		case *pb.PluginEvent_Finding:
-			span.SetAttribute("glyph.event.type", "finding")
+			span.SetAttribute("oxg.event.type", "finding")
 			start := time.Now()
 			if _, ok := p.capabilities[CapEmitFindings]; !ok {
 				obsmetrics.RecordRPCError("plugin_bus", "EventStreamRecv", codes.PermissionDenied.String())
@@ -423,7 +423,7 @@ func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStr
 			obsmetrics.ObservePluginEventDuration(pluginID, "finding", time.Since(start))
 			span.EndWithStatus(tracing.StatusOK, "")
 		default:
-			span.SetAttribute("glyph.event.type", "unknown")
+			span.SetAttribute("oxg.event.type", "unknown")
 			span.EndWithStatus(tracing.StatusOK, "")
 			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventRPCCall,
@@ -552,7 +552,7 @@ func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent, eventType s
 		obsmetrics.ObserveRPCLatency(ctx, "plugin_bus", "Broadcast", code, time.Since(start))
 	}()
 	spanCtx, span := tracing.StartSpan(ctx, "plugin_bus.broadcast", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(map[string]any{
-		"glyph.event.type": eventType,
+		"oxg.event.type": eventType,
 	}))
 	var hadChannelError bool
 	s.emit(spanCtx, logging.AuditEvent{
@@ -626,11 +626,11 @@ func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 		start := time.Now()
 		subscription := flowSubscriptionName(event.Type, false)
 		attrs := map[string]any{
-			"glyph.flow.id":        event.ID,
-			"glyph.flow.variant":   "sanitized",
-			"glyph.flow.type":      event.Type.String(),
-			"glyph.flow.sequence":  event.Sequence,
-			"glyph.flow.timestamp": event.Timestamp.Unix(),
+			"oxg.flow.id":        event.ID,
+			"oxg.flow.variant":   "sanitized",
+			"oxg.flow.type":      event.Type.String(),
+			"oxg.flow.sequence":  event.Sequence,
+			"oxg.flow.timestamp": event.Timestamp.Unix(),
 		}
 		dispatchCtx, span := tracing.StartSpan(ctx, "plugin_bus.dispatch_flow", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 		status := tracing.StatusOK
@@ -641,14 +641,14 @@ func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 		obsmetrics.ObserveFlowDispatchLatency(dispatchCtx, subscription, "sanitized", time.Since(start))
 		if delivered > 0 {
 			obsmetrics.RecordFlowEvent(subscription, "sanitized", delivered)
-			span.SetAttribute("glyph.flow.delivered", delivered)
+			span.SetAttribute("oxg.flow.delivered", delivered)
 		}
 		if dropped > 0 {
 			obsmetrics.RecordFlowDrop(subscription, "channel_full", dropped)
 			span.RecordError(fmt.Errorf("sanitized dispatch dropped %d event(s)", dropped))
 			status = tracing.StatusError
 			statusMsg = "sanitized dispatch backpressure"
-			span.SetAttribute("glyph.flow.dropped", dropped)
+			span.SetAttribute("oxg.flow.dropped", dropped)
 		}
 		span.EndWithStatus(status, statusMsg)
 	}
@@ -666,11 +666,11 @@ func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 		start := time.Now()
 		subscription := flowSubscriptionName(event.Type, true)
 		attrs := map[string]any{
-			"glyph.flow.id":        event.ID,
-			"glyph.flow.variant":   "raw",
-			"glyph.flow.type":      event.Type.String(),
-			"glyph.flow.sequence":  event.Sequence,
-			"glyph.flow.timestamp": event.Timestamp.Unix(),
+			"oxg.flow.id":        event.ID,
+			"oxg.flow.variant":   "raw",
+			"oxg.flow.type":      event.Type.String(),
+			"oxg.flow.sequence":  event.Sequence,
+			"oxg.flow.timestamp": event.Timestamp.Unix(),
 		}
 		dispatchCtx, span := tracing.StartSpan(ctx, "plugin_bus.dispatch_flow", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 		status := tracing.StatusOK
@@ -681,14 +681,14 @@ func (s *Server) PublishFlowEvent(ctx context.Context, event flows.Event) {
 		obsmetrics.ObserveFlowDispatchLatency(dispatchCtx, subscription, "raw", time.Since(start))
 		if delivered > 0 {
 			obsmetrics.RecordFlowEvent(subscription, "raw", delivered)
-			span.SetAttribute("glyph.flow.delivered", delivered)
+			span.SetAttribute("oxg.flow.delivered", delivered)
 		}
 		if dropped > 0 {
 			obsmetrics.RecordFlowDrop(subscription, "channel_full", dropped)
 			span.RecordError(fmt.Errorf("raw dispatch dropped %d event(s)", dropped))
 			status = tracing.StatusError
 			statusMsg = "raw dispatch backpressure"
-			span.SetAttribute("glyph.flow.dropped", dropped)
+			span.SetAttribute("oxg.flow.dropped", dropped)
 		}
 		span.EndWithStatus(status, statusMsg)
 	}

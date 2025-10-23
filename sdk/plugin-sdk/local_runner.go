@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"sync"
 
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 )
 
 // LocalRunConfig configures the local integration test harness.
@@ -24,7 +24,7 @@ type LocalRunResult struct {
 	Findings []Finding
 }
 
-// RunLocal executes the plugin hooks without connecting to a real Glyph host.
+// RunLocal executes the plugin hooks without connecting to a real 0xgen host.
 func RunLocal(ctx context.Context, cfg LocalRunConfig) (*LocalRunResult, error) {
 	logger := cfg.Logger
 	if logger == nil {

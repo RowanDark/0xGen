@@ -6,7 +6,7 @@ usage() {
 Usage: $0 [-o <assets.jsonl>] [-b <amass-binary>] -d <domain> [-- <extra passive amass args>]
 
 Runs "amass enum --passive" for the requested domain and normalizes the
-results to Glyph's assets.jsonl format.
+results to 0xgen's assets.jsonl format.
 
 Options:
   -d <domain>          Domain to enumerate (required)

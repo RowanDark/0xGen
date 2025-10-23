@@ -9,6 +9,6 @@
   },
   "signature": {
     "signature": "main.go.sig",
-    "publicKey": "../../keys/glyph-plugin.pub"
+    "publicKey": "../../keys/0xgen-plugin.pub"
   }
 }

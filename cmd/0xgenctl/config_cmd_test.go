@@ -65,12 +65,12 @@ func TestRunConfigMigrateCopiesLegacyConfig(t *testing.T) {
 	}
 	t.Setenv("HOME", homeDir)
 
-	glyphDir := filepath.Join(homeDir, ".glyph")
-	if err := os.Mkdir(glyphDir, 0o755); err != nil {
+	legacyDir := filepath.Join(homeDir, ".0xgen")
+	if err := os.Mkdir(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir legacy dir: %v", err)
 	}
 	legacyContent := []byte("server_addr = \"1.2.3.4:5000\"\n")
-	if err := os.WriteFile(filepath.Join(glyphDir, "config.toml"), legacyContent, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(legacyDir, "config.toml"), legacyContent, 0o600); err != nil {
 		t.Fatalf("write legacy config: %v", err)
 	}
 
