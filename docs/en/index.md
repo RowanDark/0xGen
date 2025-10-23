@@ -6,7 +6,6 @@ telemetry into ranked findings and human-readable reports. This site consolidate
 operational and contributor documentation that previously lived in scattered Markdown
 files.
 
-_History note: 0xgen was formerly named Glyph._
 
 Use the navigation sidebar to explore:
 

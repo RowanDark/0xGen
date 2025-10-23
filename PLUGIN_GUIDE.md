@@ -1,6 +1,6 @@
 # Plugin Security Guide
 
-This guide summarizes the expectations for Glyph plugins and provides practical
+This guide summarizes the expectations for 0xgen plugins and provides practical
 patterns to keep new integrations safe.
 
 ## Design principles
@@ -89,6 +89,6 @@ sandbox and avoid `sudo`, host mounts, or direct Docker API access.
 
 ## Further reading
 
-* [Glyph threat model](THREAT_MODEL.md)
+* [0xgen threat model](THREAT_MODEL.md)
 * [Security policy](SECURITY.md)
 * [SDK documentation](docs/sdk/README.md)

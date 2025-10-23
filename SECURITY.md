@@ -1,6 +1,6 @@
 # Security Policy
 
-We take the security of Glyph deployments seriously. Responsible disclosure
+We take the security of 0xgen deployments seriously. Responsible disclosure
 helps the community remediate issues quickly and protect operators who rely on
 the toolkit.
 
@@ -25,7 +25,7 @@ flags in the release notes.
 
 Please include the following details to help us triage your report:
 
-* A description of the vulnerability and the affected Glyph components.
+* A description of the vulnerability and the affected 0xgen components.
 * Steps to reproduce the issue, including configuration snippets or sample
   inputs.
 * Any suggested mitigations or potential impact.
@@ -51,7 +51,7 @@ ships them.
 
 ## Scope
 
-The policy covers the Glyph core (`0xgend`, `0xgenctl`), bundled plugins, SDKs,
+The policy covers the 0xgen core (`0xgend`, `0xgenctl`), bundled plugins, SDKs,
 and example tooling. Third-party plugins or forks maintained outside this
 repository are out of scope.
 
