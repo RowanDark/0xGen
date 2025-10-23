@@ -1,6 +1,6 @@
 # 0xgen
 
-<!-- version-badge -->[![Release](https://img.shields.io/badge/release-v0.0.0--dev-blue)](https://github.com/RowanDark/0xgen/releases/latest)<!-- /version-badge --> [![Build status](https://github.com/RowanDark/0xgen/actions/workflows/ci.yml/badge.svg)](https://github.com/RowanDark/0xgen/actions/workflows/ci.yml) [![Docs](https://img.shields.io/badge/docs-material-blue)](https://rowandark.github.io/0xgen/) [![Plugin count](https://img.shields.io/endpoint?url=https://rowandark.github.io/0xgen/api/plugin-stats.json&cacheSeconds=3600)](https://rowandark.github.io/0xgen/plugins/catalog/)
+<!-- version-badge -->[![Release](https://img.shields.io/badge/release-v0.0.0--dev-blue)](https://github.com/RowanDark/0xgen/releases/latest)<!-- /version-badge --> [![Build status](https://github.com/RowanDark/0xgen/actions/workflows/ci.yml/badge.svg)](https://github.com/RowanDark/0xgen/actions/workflows/ci.yml) [![Docs status](https://github.com/RowanDark/0xgen/actions/workflows/docs.yml/badge.svg?branch=main)](https://rowandark.github.io/0xgen/) [![Plugin count](https://img.shields.io/endpoint?url=https://rowandark.github.io/0xgen/api/plugin-stats.json&cacheSeconds=3600)](https://rowandark.github.io/0xgen/plugins/catalog/)
 
 0xgen — Generation Zero: AI-driven offensive security.
 
