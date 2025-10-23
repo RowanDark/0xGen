@@ -134,15 +134,32 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Assert canonical site prefix
+        run: |
+          expected="https://rowandark.github.io/0xgen/"
+          actual="${{ steps.deployment.outputs.page_url }}"
+          if [ "${actual%/}/" != "$expected" ]; then
+            echo "::error ::Unexpected page URL '$actual' (expected '$expected')."
+            exit 1
+          fi
+
   smoke:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
       - name: Check published pages
         env:
-          BASE_URL: ${{ needs.deploy.outputs.page_url }}
+          PUBLISHED_URL: ${{ needs.deploy.outputs.page_url }}
+          CANONICAL_URL: https://rowandark.github.io/0xgen/
         run: |
-          url="${BASE_URL%/}"
-          for p in "" "quickstart/" "cli/" "plugins/" "security/"; do
-            curl -fSL "${url}/${p}" >/dev/null
+          published="${PUBLISHED_URL%/}/"
+          canonical="$CANONICAL_URL"
+          if [ "$published" != "$canonical" ]; then
+            echo "::error ::Unexpected published URL '$published' (expected '$canonical')."
+            exit 1
+          fi
+
+          base="${canonical%/}"
+          for path in "" "quickstart/" "cli/" "plugins/" "security/"; do
+            curl -fSL "${base}/${path}" >/dev/null
           done

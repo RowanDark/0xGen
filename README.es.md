@@ -1,6 +1,6 @@
 # 0xgen
 
-[![Documentación](https://img.shields.io/badge/docs-material-blue)](https://rowandark.github.io/0xgen/)
+[![Estado de la documentación](https://github.com/RowanDark/0xgen/actions/workflows/docs.yml/badge.svg?branch=main)](https://rowandark.github.io/0xgen/)
 
 0xgen es un conjunto de herramientas de automatización para orquestar flujos de trabajo de red teaming y detección. Coordina complementos como Galdr (proxy de reescritura HTTP), Excavator (rastreador Playwright), Seer (detector de secretos/PII), Ranker y Scribe para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para humanos.
 
