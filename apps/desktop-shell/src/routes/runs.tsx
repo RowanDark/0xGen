@@ -22,7 +22,7 @@ function RunsRoute() {
       .then(setRuns)
       .catch((error) => {
         console.error('Failed to load runs', error);
-        toast.error('Unable to fetch runs from the Glyph API');
+        toast.error('Unable to fetch runs from the 0xgen API');
       });
   }, [offlineMode]);
 

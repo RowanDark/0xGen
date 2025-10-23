@@ -59,7 +59,7 @@ func runConfigMigrate() int {
 		return 1
 	}
 
-	legacyPath := filepath.Join(home, ".glyph", "config.toml")
+	legacyPath := filepath.Join(home, ".0xgen", "config.toml")
 	data, err := os.ReadFile(legacyPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, os.ErrNotExist) {

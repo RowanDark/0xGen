@@ -398,16 +398,16 @@ const htmlAppScript = `(function () {
   };
 
   const aliasMap = [
-    ["oxg-style", "glyph-style"],
-    ["oxg-data", "glyph-data"],
-    ["oxg-app", "glyph-app"],
+    ["oxg-style"],
+    ["oxg-data"],
+    ["oxg-app"],
   ];
 
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     await verifyIntegrity();
-    const dataElement = getElementByIds("oxg-data", "glyph-data");
+    const dataElement = getElementByIds("oxg-data");
     if (!dataElement) {
       console.error("dataset element missing");
       return;
@@ -937,7 +937,7 @@ func RenderHTML(list []findings.Finding, opts ReportOptions) (string, error) {
 	b.WriteString("<section class=\"controls\">\n<div class=\"search\"><input id=\"searchInput\" type=\"search\" placeholder=\"Search findings, assets, or evidence\" aria-label=\"Search\"></div>\n<div class=\"severity-chips\" id=\"severityFilters\"></div>\n<button type=\"button\" id=\"resetFilters\">Reset filters</button>\n</section>\n")
 	b.WriteString("<section class=\"stats-grid\">\n<div class=\"stat-card\"><span class=\"label\">Cases in view</span><span class=\"value\" id=\"filteredCases\">0</span><span class=\"hint\">of <span id=\"totalCases\">0</span> total</span></div>\n<div class=\"stat-card\"><span class=\"label\">Findings analysed</span><span class=\"value\" id=\"totalFindings\">0</span><span class=\"hint\" id=\"sbomInfo\" hidden></span></div>\n<div class=\"stat-card\"><span class=\"label\">Critical / High / Medium</span><span class=\"value\"><span id=\"filtered-crit\">0</span> / <span id=\"filtered-high\">0</span> / <span id=\"filtered-med\">0</span></span><span class=\"hint\">Low <span id=\"filtered-low\">0</span> • Informational <span id=\"filtered-info\">0</span></span></div>\n</section>\n")
 	b.WriteString("<section class=\"panel\">\n<h2>Cases</h2>\n<div class=\"case-list\" id=\"caseList\"></div>\n</section>\n")
-	b.WriteString("<section class=\"panel\">\n<h2>Source Findings</h2>\n<table class=\"findings-table\" id=\"findingsTable\"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>\n</section>\n</main>\n<div id=\"glyph-report-root\" style=\"display:none\"></div>\n")
+	b.WriteString("<section class=\"panel\">\n<h2>Source Findings</h2>\n<table class=\"findings-table\" id=\"findingsTable\"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>\n</section>\n</main>\n<div id=\"oxg-report-root\" style=\"display:none\"></div>\n")
 	b.WriteString(fmt.Sprintf("<script type=\"application/json\" id=\"oxg-data\" data-integrity=\"sha256-%s\">%s</script>\n", dataDigest, datasetEscaped))
 	b.WriteString(fmt.Sprintf("<script id=\"oxg-app\" data-integrity=\"sha256-%s\">\n%s\n</script>\n", scriptDigest, htmlAppScript))
 	b.WriteString("</body>\n</html>\n")

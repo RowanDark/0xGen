@@ -19,7 +19,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/raider"
 )
 
-func TestGlyphctlRaiderRun(t *testing.T) {
+func TestCliRaiderRun(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping raider e2e in short mode")
 	}
@@ -56,10 +56,10 @@ func TestGlyphctlRaiderRun(t *testing.T) {
 		t.Fatalf("write payload file: %v", err)
 	}
 
-        root := repoRoot(t)
-        cliPath := buildGlyphctl(ctx, t, root)
+	root := repoRoot(t)
+	cliPath := buildCli(ctx, t, root)
 
-        cmd := exec.CommandContext(ctx, cliPath, "raider", "run", "--req", reqPath, "--positions", "{{}}", "--payload", payloadPath, "--concurrency", "3", "--rate", "2/s")
+	cmd := exec.CommandContext(ctx, cliPath, "raider", "run", "--req", reqPath, "--positions", "{{}}", "--payload", payloadPath, "--concurrency", "3", "--rate", "2/s")
 	cmd.Dir = root
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

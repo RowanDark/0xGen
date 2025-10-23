@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	terminationFindingType        = "glyph.supervisor.termination"
+	terminationFindingType        = "oxg.supervisor.termination"
 	metaTerminationReasonKey      = "sandbox.termination_reason"
 	metaTerminationDetailKey      = "sandbox.termination_detail"
 	metaTerminationTaskIDKey      = "sandbox.task_id"
@@ -115,18 +115,18 @@ func (s *Supervisor) RunTask(ctx context.Context, task Task) (Result, error) {
 		taskCtx = context.Background()
 	}
 	attrs := map[string]any{
-		"glyph.task.id":       strings.TrimSpace(task.ID),
-		"glyph.plugin.id":     strings.TrimSpace(task.PluginID),
-		"glyph.runner.binary": cfg.Binary,
+		"oxg.task.id":       strings.TrimSpace(task.ID),
+		"oxg.plugin.id":     strings.TrimSpace(task.PluginID),
+		"oxg.runner.binary": cfg.Binary,
 	}
 	if cfg.Limits.CPUSeconds > 0 {
-		attrs["glyph.runner.cpu_seconds"] = cfg.Limits.CPUSeconds
+		attrs["oxg.runner.cpu_seconds"] = cfg.Limits.CPUSeconds
 	}
 	if cfg.Limits.MemoryBytes > 0 {
-		attrs["glyph.runner.memory_bytes"] = cfg.Limits.MemoryBytes
+		attrs["oxg.runner.memory_bytes"] = cfg.Limits.MemoryBytes
 	}
 	if cfg.Limits.WallTime > 0 {
-		attrs["glyph.runner.wall_time"] = cfg.Limits.WallTime.String()
+		attrs["oxg.runner.wall_time"] = cfg.Limits.WallTime.String()
 	}
 	spanCtx, span := tracing.StartSpan(taskCtx, "plugin.supervisor.task", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	status := tracing.StatusOK
@@ -152,9 +152,9 @@ func (s *Supervisor) RunTask(ctx context.Context, task Task) (Result, error) {
 	termination := classifyTermination(err, cfg.Limits)
 	if termination != nil {
 		span.RecordError(err)
-		span.SetAttribute("glyph.task.termination", string(termination.Reason))
+		span.SetAttribute("oxg.task.termination", string(termination.Reason))
 		if detail := strings.TrimSpace(termination.Detail); detail != "" {
-			span.SetAttribute("glyph.task.detail", detail)
+			span.SetAttribute("oxg.task.detail", detail)
 		}
 		status = tracing.StatusError
 		statusMsg = "plugin terminated"

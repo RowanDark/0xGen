@@ -13,7 +13,7 @@ func TestVerifySignaturePublicKey(t *testing.T) {
 	artifact := filepath.Join(dir, "artifact.txt")
 	sig := &plugins.Signature{
 		Signature: "artifact.txt.sig",
-		PublicKey: "glyph-plugin.pub",
+		PublicKey: "0xgen-plugin.pub",
 	}
 	if err := VerifySignature(artifact, dir, dir, sig); err != nil {
 		t.Fatalf("expected signature verification to succeed: %v", err)
@@ -34,7 +34,7 @@ func TestVerifySignatureTamper(t *testing.T) {
 	}
 	sig := &plugins.Signature{
 		Signature: "artifact.txt.sig",
-		PublicKey: "glyph-plugin.pub",
+		PublicKey: "0xgen-plugin.pub",
 	}
 	if err := VerifySignature(tampered, dir, dir, sig); err == nil {
 		t.Fatalf("expected signature verification to fail for tampered artifact")

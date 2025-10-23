@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/RowanDark/0xgen/plugins/findings.schema.json",
-  "title": "Glyph Findings JSONL entry",
+  "title": "0xgen Findings JSONL entry",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "id", "plugin", "type", "message", "severity", "ts"],

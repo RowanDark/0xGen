@@ -331,7 +331,7 @@ impl CrashReporter {
                 .replace('.', "")
         );
 
-        let base_dir = std::env::temp_dir().join("glyph-crashes");
+        let base_dir = std::env::temp_dir().join("0xgen-crashes");
         fs::create_dir_all(&base_dir)?;
         let crash_dir = base_dir.join(&id);
         fs::create_dir_all(&crash_dir)?;

@@ -16,7 +16,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
-func TestGlyphdSmoke(t *testing.T) {
+func TestDaemonSmoke(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping 0xgend smoke test in short mode")
 	}
@@ -26,7 +26,7 @@ func TestGlyphdSmoke(t *testing.T) {
 
 	root := repoRoot(t)
 
-	binaryPath := buildGlyphd(ctx, t, root)
+	binaryPath := buildDaemon(ctx, t, root)
 
 	listenAddr, dialAddr := resolveAddresses(t)
 
@@ -64,7 +64,7 @@ func TestGlyphdSmoke(t *testing.T) {
 	}
 }
 
-func TestGlyphctlSmoke(t *testing.T) {
+func TestCliSmoke(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping 0xgenctl smoke test in short mode")
 	}
@@ -72,19 +72,19 @@ func TestGlyphctlSmoke(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-        root := repoRoot(t)
-        daemonBin := buildGlyphd(ctx, t, root)
-        cliBin := buildGlyphctl(ctx, t, root)
+	root := repoRoot(t)
+	daemonBin := buildDaemon(ctx, t, root)
+	cliBin := buildCli(ctx, t, root)
 
 	outDir := t.TempDir()
 	findingsPath := filepath.Join(outDir, "findings.jsonl")
 	reportPath := filepath.Join(outDir, "report.md")
 
 	listenAddr, dialAddr := resolveAddresses(t)
-        cmdCtx, cmdCancel := context.WithCancel(ctx)
-        daemon := exec.CommandContext(cmdCtx, daemonBin, "--addr", listenAddr, "--token", "test")
-        daemon.Dir = root
-        daemon.Env = append(os.Environ(),
+	cmdCtx, cmdCancel := context.WithCancel(ctx)
+	daemon := exec.CommandContext(cmdCtx, daemonBin, "--addr", listenAddr, "--token", "test")
+	daemon.Dir = root
+	daemon.Env = append(os.Environ(),
 		"0XGEN_ADDR="+listenAddr,
 		"0XGEN_OUT="+outDir,
 		"0XGEN_E2E_SMOKE=1",
@@ -92,19 +92,19 @@ func TestGlyphctlSmoke(t *testing.T) {
 	)
 
 	var stdout, stderr bytes.Buffer
-        daemon.Stdout = &stdout
-        daemon.Stderr = &stderr
+	daemon.Stdout = &stdout
+	daemon.Stderr = &stderr
 
-        if err := daemon.Start(); err != nil {
-                t.Fatalf("failed to start 0xgend: %v", err)
-        }
+	if err := daemon.Start(); err != nil {
+		t.Fatalf("failed to start 0xgend: %v", err)
+	}
 
 	done := make(chan struct{})
-        var daemonErr error
-        go func() {
-                daemonErr = daemon.Wait()
-                close(done)
-        }()
+	var daemonErr error
+	go func() {
+		daemonErr = daemon.Wait()
+		close(done)
+	}()
 
 	t.Cleanup(func() {
 		cmdCancel()
@@ -115,11 +115,11 @@ func TestGlyphctlSmoke(t *testing.T) {
 		}
 	})
 
-        if err := waitForListener(cmdCtx, dialAddr, done, func() error { return daemonErr }); err != nil {
-                t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
-        }
+	if err := waitForListener(cmdCtx, dialAddr, done, func() error { return daemonErr }); err != nil {
+		t.Fatalf("0xgend did not become ready: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+	}
 
-        pluginCmd := exec.CommandContext(ctx, cliBin, "plugin", "run", "--sample", "emit-on-start", "--server", dialAddr, "--token", "test", "--duration", "3s")
+	pluginCmd := exec.CommandContext(ctx, cliBin, "plugin", "run", "--sample", "emit-on-start", "--server", dialAddr, "--token", "test", "--duration", "3s")
 	pluginCmd.Dir = root
 	pluginCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir, "0XGEN_E2E_SMOKE=1")
 	var pluginOut, pluginErr bytes.Buffer
@@ -159,7 +159,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 		t.Fatal("expected at least one finding to be recorded")
 	}
 
-        reportCmd := exec.CommandContext(ctx, cliBin, "report", "--input", findingsPath, "--out", reportPath)
+	reportCmd := exec.CommandContext(ctx, cliBin, "report", "--input", findingsPath, "--out", reportPath)
 	reportCmd.Dir = root
 	reportCmd.Env = append(os.Environ(), "0XGEN_OUT="+outDir)
 	if out, err := reportCmd.CombinedOutput(); err != nil {
@@ -175,7 +175,7 @@ func TestGlyphctlSmoke(t *testing.T) {
 	}
 }
 
-func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
+func buildDaemon(ctx context.Context, t *testing.T, root string) string {
 	t.Helper()
 
 	binaryName := "0xgend"
@@ -200,7 +200,7 @@ func buildGlyphd(ctx context.Context, t *testing.T, root string) string {
 	return binaryPath
 }
 
-func buildGlyphctl(ctx context.Context, t *testing.T, root string) string {
+func buildCli(ctx context.Context, t *testing.T, root string) string {
 	t.Helper()
 
 	binaryName := "0xgenctl"

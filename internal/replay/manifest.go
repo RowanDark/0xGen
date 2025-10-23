@@ -76,11 +76,11 @@ type ResponseRecord struct {
 
 // RunnerInfo records the versions of the primary executables.
 type RunnerInfo struct {
-	GlyphctlVersion string `json:"0xgenctl_version"`
-	GlyphdVersion   string `json:"0xgend_version"`
-	GoVersion       string `json:"go_version,omitempty"`
-	OS              string `json:"os,omitempty"`
-	Arch            string `json:"arch,omitempty"`
+	CtlVersion    string `json:"0xgenctl_version"`
+	DaemonVersion string `json:"0xgend_version"`
+	GoVersion     string `json:"go_version,omitempty"`
+	OS            string `json:"os,omitempty"`
+	Arch          string `json:"arch,omitempty"`
 }
 
 // PluginInfo stores the manifest and signature metadata for a plugin.
@@ -95,11 +95,11 @@ type PluginInfo struct {
 // DefaultRunnerInfo returns a baseline RunnerInfo populated from the runtime.
 func DefaultRunnerInfo() RunnerInfo {
 	return RunnerInfo{
-		GlyphctlVersion: "dev",
-		GlyphdVersion:   "dev",
-		GoVersion:       runtime.Version(),
-		OS:              runtime.GOOS,
-		Arch:            runtime.GOARCH,
+		CtlVersion:    "dev",
+		DaemonVersion: "dev",
+		GoVersion:     runtime.Version(),
+		OS:            runtime.GOOS,
+		Arch:          runtime.GOARCH,
 	}
 }
 
@@ -117,7 +117,7 @@ func (m Manifest) Validate() error {
 	if strings.TrimSpace(m.FlowsFile) != "" && !strings.HasPrefix(m.FlowsFile, filesDir+"/") {
 		return errors.New("flows_file must reside under files/")
 	}
-	if m.Runner.GlyphctlVersion == "" && m.Runner.GlyphdVersion == "" {
+	if m.Runner.CtlVersion == "" && m.Runner.DaemonVersion == "" {
 		return errors.New("runner info must include at least one version")
 	}
 	if err := validateResponses(m.Responses); err != nil {

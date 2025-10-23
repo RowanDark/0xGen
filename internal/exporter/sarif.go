@@ -19,7 +19,7 @@ func EncodeSARIF(casesList []cases.Case) ([]byte, error) {
 	run := sarifRun{
 		Tool: sarifTool{
 			Driver: sarifDriver{
-				Name:           "Glyph",
+				Name:           "0xgen",
 				Version:        "dev",
 				InformationURI: "https://github.com/RowanDark/0xgen",
 				Rules:          make([]sarifReportingDescriptor, 0, len(casesList)),
@@ -55,7 +55,7 @@ func buildSarifRule(c cases.Case) sarifReportingDescriptor {
 	helpText := buildHelpText(c)
 
 	props := map[string]any{
-		"glyph": map[string]any{
+		"oxg": map[string]any{
 			"asset":      c.Asset,
 			"vector":     c.Vector,
 			"risk":       map[string]any{"severity": string(c.Risk.Severity), "score": c.Risk.Score, "rationale": c.Risk.Rationale},
@@ -63,7 +63,7 @@ func buildSarifRule(c cases.Case) sarifReportingDescriptor {
 		},
 	}
 	if len(c.Labels) > 0 {
-		props["glyph"].(map[string]any)["labels"] = c.Labels
+		props["oxg"].(map[string]any)["labels"] = c.Labels
 	}
 
 	return sarifReportingDescriptor{
@@ -84,7 +84,7 @@ func buildSarifRule(c cases.Case) sarifReportingDescriptor {
 func buildSarifResult(c cases.Case, ruleIndex int) sarifResult {
 	level := severityToSARIFLevel(c.Risk.Severity)
 
-	glyphProps := map[string]any{
+	oxgProps := map[string]any{
 		"case_id":    c.ID,
 		"asset":      c.Asset,
 		"vector":     c.Vector,
@@ -94,10 +94,10 @@ func buildSarifResult(c cases.Case, ruleIndex int) sarifResult {
 		"evidence":   c.Evidence,
 	}
 	if len(c.Labels) > 0 {
-		glyphProps["labels"] = c.Labels
+		oxgProps["labels"] = c.Labels
 	}
 
-	props := map[string]any{"glyph": glyphProps}
+	props := map[string]any{"oxg": oxgProps}
 
 	result := sarifResult{
 		RuleID:    c.ID,
@@ -106,8 +106,8 @@ func buildSarifResult(c cases.Case, ruleIndex int) sarifResult {
 		Message:   sarifMessage{Text: strings.TrimSpace(c.Summary)},
 		Locations: []sarifLocation{buildSarifLocation(c)},
 		PartialFingerprints: map[string]string{
-			"glyph.case":  c.ID,
-			"glyph.asset": fingerprintForAsset(c.Asset),
+			"oxg.case":  c.ID,
+			"oxg.asset": fingerprintForAsset(c.Asset),
 		},
 		Properties: props,
 	}

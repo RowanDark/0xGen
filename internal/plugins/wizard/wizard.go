@@ -37,7 +37,7 @@ var capabilityLibrary = map[string]CapabilitySummary{
 	"CAP_EMIT_FINDINGS": {
 		Capability:  "CAP_EMIT_FINDINGS",
 		Title:       "Emit findings",
-		Description: "Allows the plugin to publish findings and annotations back to Glyph.",
+		Description: "Allows the plugin to publish findings and annotations back to 0xgen.",
 		Risks: []string{
 			"Malicious or buggy plugins can flood the case timeline with noise.",
 			"Findings emitted by untrusted publishers could mislead analysts.",
@@ -131,7 +131,7 @@ var capabilityLibrary = map[string]CapabilitySummary{
 		Title:       "Reporting & export",
 		Description: "Provides ability to export findings and generate external reports.",
 		Risks: []string{
-			"Data can leave Glyph-managed storage and be shared externally.",
+			"Data can leave 0xgen-managed storage and be shared externally.",
 		},
 		Mitigations: []string{
 			"Grant only to trusted publishers and rotate reports regularly.",
@@ -142,7 +142,7 @@ var capabilityLibrary = map[string]CapabilitySummary{
 	"CAP_STORAGE": {
 		Capability:  "CAP_STORAGE",
 		Title:       "Managed storage access",
-		Description: "Allows reading and writing artefacts to Glyph-managed buckets.",
+		Description: "Allows reading and writing artefacts to 0xgen-managed buckets.",
 		Risks: []string{
 			"Plugins can exfiltrate artefacts or inject malicious binaries.",
 		},

@@ -15,7 +15,7 @@ import (
 
 	"github.com/RowanDark/0xgen/internal/bus"
 	"github.com/RowanDark/0xgen/internal/findings"
-	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

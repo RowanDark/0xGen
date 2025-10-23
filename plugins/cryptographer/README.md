@@ -6,4 +6,4 @@ Cryptographer is a CyberChef-inspired utility surface for quickly transforming p
 - `CAP_REPORT`
 
 ## Getting started
-Open `ui/index.html` in a browser to explore the placeholder interface. Future tasks can wire the UI into Glyph storage and findings workflows. Consult the [CyberChef documentation](https://gchq.github.io/CyberChef/) for guidance on implementing operations. `tests/sample_fixture.json` can house representative transformation recipes as they are designed.
+Open `ui/index.html` in a browser to explore the placeholder interface. Future tasks can wire the UI into 0xgen storage and findings workflows. Consult the [CyberChef documentation](https://gchq.github.io/CyberChef/) for guidance on implementing operations. `tests/sample_fixture.json` can house representative transformation recipes as they are designed.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Glyph Plugin Manifest",
+  "title": "0xgen Plugin Manifest",
   "type": "object",
   "required": ["name", "version", "entry", "artifact", "capabilities", "signature"],
   "additionalProperties": false,

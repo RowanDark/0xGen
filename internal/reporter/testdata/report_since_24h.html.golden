@@ -403,7 +403,7 @@ main {
 <table class="findings-table" id="findingsTable"><thead><tr><th>Severity</th><th>Plugin</th><th>Target</th><th>Message</th><th>Detected</th></tr></thead><tbody></tbody></table>
 </section>
 </main>
-<div id="glyph-report-root" style="display:none"></div>
+<div id="oxg-report-root" style="display:none"></div>
 <script type="application/json" id="oxg-data" data-integrity="sha256-DsM6sIJ6GrWeE/o1R3oicnxNPB5I88qv1HxvEhmINXQ=">{
   "schema_version": "1.0",
   "generated_at": "2024-02-10T12:00:00Z",
@@ -619,16 +619,16 @@ main {
   };
 
   const aliasMap = [
-    ["oxg-style", "glyph-style"],
-    ["oxg-data", "glyph-data"],
-    ["oxg-app", "glyph-app"],
+    ["oxg-style"],
+    ["oxg-data"],
+    ["oxg-app"],
   ];
 
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     await verifyIntegrity();
-    const dataElement = getElementByIds("oxg-data", "glyph-data");
+    const dataElement = getElementByIds("oxg-data");
     if (!dataElement) {
       console.error("dataset element missing");
       return;

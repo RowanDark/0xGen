@@ -13,7 +13,7 @@ import (
 func TestRenderJSONIncludesSBOM(t *testing.T) {
 	dir := t.TempDir()
 	sbomPath := filepath.Join(dir, "sbom.json")
-	sbomContents := []byte(`{"name":"glyph"}`)
+	sbomContents := []byte(`{"name":"0xgen"}`)
 	if err := os.WriteFile(sbomPath, sbomContents, 0o644); err != nil {
 		t.Fatalf("write sbom: %v", err)
 	}

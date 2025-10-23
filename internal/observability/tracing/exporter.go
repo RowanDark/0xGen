@@ -236,7 +236,7 @@ func (o *otlpExporter) buildPayload(span *SpanSnapshot) map[string]any {
 				},
 				"scopeSpans": []map[string]any{
 					{
-						"scope": map[string]any{"name": "glyph"},
+						"scope": map[string]any{"name": "oxg"},
 						"spans": []map[string]any{
 							{
 								"traceId":           span.TraceID,

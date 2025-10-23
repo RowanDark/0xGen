@@ -22,7 +22,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/reporter"
 )
 
-// uiAssets contains the static files that power the Glyph UI server.
+// uiAssets contains the static files that power the 0xgen UI server.
 var (
 	//go:embed ui_assets/*
 	uiAssets embed.FS
@@ -100,7 +100,7 @@ func runServeUI(args []string) int {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	fmt.Fprintf(os.Stdout, "Glyph UI available at http://%s\n", listener.Addr())
+	fmt.Fprintf(os.Stdout, "0xgen UI available at http://%s\n", listener.Addr())
 	err = server.Serve(listener)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "serve UI: %v\n", err)

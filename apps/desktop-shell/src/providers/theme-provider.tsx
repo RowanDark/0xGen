@@ -7,15 +7,15 @@ import {
   useState
 } from 'react';
 
-const THEME_STORAGE_PREFIX = 'glyph.theme';
+const THEME_STORAGE_PREFIX = '0xgen.theme';
 const THEME_SCOPE_STORAGE_PREFIX = `${THEME_STORAGE_PREFIX}.scope`;
 const PROJECT_THEME_STORAGE_PREFIX = `${THEME_STORAGE_PREFIX}.project`;
 const USER_THEME_STORAGE_KEY = `${THEME_STORAGE_PREFIX}.user`;
-const CONTRAST_STORAGE_PREFIX = 'glyph.high-contrast';
-const MOTION_STORAGE_PREFIX = 'glyph.motion';
-const FONT_SCALE_STORAGE_KEY = 'glyph.font-scale';
-const COLOR_VISION_STORAGE_KEY = 'glyph.vision.mode';
-const BLUE_LIGHT_MODE_STORAGE_KEY = 'glyph.blue-light.mode';
+const CONTRAST_STORAGE_PREFIX = '0xgen.high-contrast';
+const MOTION_STORAGE_PREFIX = '0xgen.motion';
+const FONT_SCALE_STORAGE_KEY = '0xgen.font-scale';
+const COLOR_VISION_STORAGE_KEY = '0xgen.vision.mode';
+const BLUE_LIGHT_MODE_STORAGE_KEY = '0xgen.blue-light.mode';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light', tone: 'light' },
@@ -327,12 +327,12 @@ function ensureColorVisionFilter(mode: Exclude<ColorVisionMode, 'normal'>, root:
     return;
   }
 
-  const filterId = `glyph-vision-${mode}`;
-  let svg = doc.getElementById('glyph-vision-filter-root') as SVGSVGElement | null;
+  const filterId = `0xgen-vision-${mode}`;
+  let svg = doc.getElementById('0xgen-vision-filter-root') as SVGSVGElement | null;
 
   if (!svg) {
     svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('id', 'glyph-vision-filter-root');
+    svg.setAttribute('id', '0xgen-vision-filter-root');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('focusable', 'false');
     svg.style.position = 'absolute';
@@ -385,7 +385,7 @@ function applyColorVisionMode(
   }
 
   ensureColorVisionFilter(mode, root);
-  activeVisionFilter = `url(#glyph-vision-${mode})`;
+  activeVisionFilter = `url(#0xgen-vision-${mode})`;
   updateDocumentFilters(root);
 }
 

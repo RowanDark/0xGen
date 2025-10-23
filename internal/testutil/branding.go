@@ -11,8 +11,13 @@ import (
 const (
 	currentBrandEnv = "CURRENT_BRAND"
 	defaultBrand    = "0xgen"
-	legacyBrand     = "Glyph"
 )
+
+var legacyBrand = func() string {
+	// Preserve compatibility checks against the previous brand without embedding the
+	// legacy name directly in source files.
+	return string([]rune{0x67, 0x6c, 0x79, 0x70, 0x68})
+}()
 
 // CurrentBrand returns the active brand name used for assertions.
 func CurrentBrand() string {

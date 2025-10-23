@@ -184,7 +184,7 @@ func TestGaldrProxyWebSocketPassthrough(t *testing.T) {
 		t.Fatalf("unexpected accept key %q", headers.Get("Sec-WebSocket-Accept"))
 	}
 
-	message := []byte("glyph")
+	message := []byte("0xgen")
 	if err := writeWebSocketFrame(conn, message); err != nil {
 		t.Fatalf("write websocket frame: %v", err)
 	}

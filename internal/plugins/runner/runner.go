@@ -43,17 +43,17 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	spanAttrs := map[string]any{
-		"glyph.runner.binary":  cfg.Binary,
-		"glyph.runner.arg_len": len(cfg.Args),
+		"oxg.runner.binary":  cfg.Binary,
+		"oxg.runner.arg_len": len(cfg.Args),
 	}
 	if cfg.Limits.CPUSeconds > 0 {
-		spanAttrs["glyph.runner.cpu_seconds"] = cfg.Limits.CPUSeconds
+		spanAttrs["oxg.runner.cpu_seconds"] = cfg.Limits.CPUSeconds
 	}
 	if cfg.Limits.MemoryBytes > 0 {
-		spanAttrs["glyph.runner.memory_bytes"] = cfg.Limits.MemoryBytes
+		spanAttrs["oxg.runner.memory_bytes"] = cfg.Limits.MemoryBytes
 	}
 	if cfg.Limits.WallTime > 0 {
-		spanAttrs["glyph.runner.wall_time"] = cfg.Limits.WallTime.String()
+		spanAttrs["oxg.runner.wall_time"] = cfg.Limits.WallTime.String()
 	}
 	spanCtx, span := tracing.StartSpan(ctx, "plugin.runner.exec", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(spanAttrs))
 	status := tracing.StatusOK
@@ -73,7 +73,7 @@ func Run(ctx context.Context, cfg Config) error {
 		defer cancel()
 	}
 
-	tmpDir, err := os.MkdirTemp("", "glyph-plugin-")
+	tmpDir, err := os.MkdirTemp("", "0xgen-plugin-")
 	if err != nil {
 		span.RecordError(err)
 		status = tracing.StatusError

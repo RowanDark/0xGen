@@ -84,7 +84,7 @@ func installRootCertificate(certPEM []byte) error {
 		return errors.New("proxy certificate is not a valid PEM-encoded certificate")
 	}
 
-	temp, err := os.CreateTemp("", "glyph-proxy-ca-*.cer")
+	temp, err := os.CreateTemp("", "0xgen-proxy-ca-*.cer")
 	if err != nil {
 		return fmt.Errorf("create temporary certificate file: %w", err)
 	}

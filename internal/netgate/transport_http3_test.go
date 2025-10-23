@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	glyphhttp3 "github.com/RowanDark/0xgen/internal/netgate/http3"
+	oxghttp3 "github.com/RowanDark/0xgen/internal/netgate/http3"
 )
 
 func TestRoundTripHTTP3Success(t *testing.T) {
@@ -18,7 +18,7 @@ func TestRoundTripHTTP3Success(t *testing.T) {
 		w.Header().Set("X-Test", "ok")
 		_, _ = io.WriteString(w, "world")
 	})
-	addr, shutdown, err := glyphhttp3.StartTestServer(handler)
+	addr, shutdown, err := oxghttp3.StartTestServer(handler)
 	if err != nil {
 		t.Fatalf("start http3 server: %v", err)
 	}
@@ -64,7 +64,7 @@ func BenchmarkLayeredTransportHTTP3(b *testing.B) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, "ok")
 	})
-	addr, shutdown, err := glyphhttp3.StartTestServer(handler)
+	addr, shutdown, err := oxghttp3.StartTestServer(handler)
 	if err != nil {
 		b.Fatalf("start http3 server: %v", err)
 	}

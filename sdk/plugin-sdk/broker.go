@@ -12,7 +12,7 @@ var ErrBrokerUnavailable = errors.New("broker endpoint unavailable")
 // ErrNotFound signals that the requested resource was not found by the broker.
 var ErrNotFound = errors.New("resource not found")
 
-// Broker exposes sandbox-safe helpers implemented by the Glyph broker.
+// Broker exposes sandbox-safe helpers implemented by the 0xgen broker.
 type Broker interface {
 	Filesystem() FilesystemBroker
 	Network() NetworkBroker

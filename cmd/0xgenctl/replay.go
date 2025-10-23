@@ -55,7 +55,7 @@ func runReplay(args []string) int {
 		}
 	}
 
-	tmpDir, err := os.MkdirTemp("", "glyph-replay-")
+	tmpDir, err := os.MkdirTemp("", "0xgen-replay-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "create temp dir: %v\n", err)
 		return 1

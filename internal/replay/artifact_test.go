@@ -10,7 +10,7 @@ import (
 
 func TestCreateAndExtractArtifact(t *testing.T) {
 	dir := t.TempDir()
-	artefactPath := filepath.Join(dir, "glyph.replay.tgz")
+	artefactPath := filepath.Join(dir, "oxg.replay.tgz")
 
 	manifest := Manifest{
 		Version:       ManifestVersion,

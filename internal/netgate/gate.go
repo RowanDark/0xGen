@@ -800,12 +800,12 @@ func (g *Gate) waitOnLimiter(ctx context.Context, pluginID string, limiter *rate
 	}
 	obsmetrics.RecordHTTPThrottle(scope)
 	attrs := map[string]any{
-		"glyph.plugin.id":     pluginID,
-		"glyph.rate.scope":    scope,
-		"glyph.rate.delay_ms": delay.Milliseconds(),
+		"oxg.plugin.id":     pluginID,
+		"oxg.rate.scope":    scope,
+		"oxg.rate.delay_ms": delay.Milliseconds(),
 	}
 	if strings.TrimSpace(key) != "" {
-		attrs["glyph.rate.key"] = strings.TrimSpace(key)
+		attrs["oxg.rate.key"] = strings.TrimSpace(key)
 	}
 	spanCtx, span := tracing.StartSpan(ctx, "netgate.rate_limit_wait", tracing.WithSpanKind(tracing.SpanKindInternal), tracing.WithAttributes(attrs))
 	timer := time.NewTimer(delay)

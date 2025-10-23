@@ -1,11 +1,11 @@
 [
   {
-    "name": "glyph-demo-response",
+    "name": "0xgen-demo-response",
     "match": {"url_contains": "/"},
     "response": {
       "add_headers": {
         "X-0xgen": "on",
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://glyph.dev"
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://0xgen.dev"
       },
       "remove_headers": ["Server"]
     }
