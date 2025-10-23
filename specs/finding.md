@@ -1,6 +1,6 @@
 # Findings Schema
 
-Glyph persists plugin findings as JSON Lines files under `/out`. Each entry in
+0xgen persists plugin findings as JSON Lines files under `/out`. Each entry in
 `findings.jsonl` must comply with the schema below so downstream tooling can
 parse findings deterministically. The canonical JSON Schema lives at
 `plugins/findings.schema.json` and the `0xgenctl findings validate` command can
@@ -52,7 +52,7 @@ check an exported log against it.
   "version": "0.2",
   "id": "01HZXK4QAZ3ZKAB1Y7P5Z9Q4C4",
   "plugin": "demo",
-  "type": "glyph.demo.start",
+  "type": "oxg.demo.start",
   "message": "Sample finding emitted during startup",
   "target": "demo://self-test",
   "severity": "low",

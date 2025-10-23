@@ -1,12 +1,12 @@
-# Contributing to Glyph
+# Contributing to 0xgen
 
-Thanks for helping shape Glyph! To keep the project healthy and reproducible, please follow these guidelines before opening a pull request.
+Thanks for helping shape 0xgen! To keep the project healthy and reproducible, please follow these guidelines before opening a pull request.
 
 ## Development environment
 
 - Install Go 1.21+, Node.js 18+, and the Amass binary if you plan to exercise OSINT Well locally.
 - `go install golang.org/x/tools/cmd/goimports@latest` helps keep imports tidy.
-- Set `0XGEN_OUT` if you want Glyph services to write artefacts outside of `/out`.
+- Set `0XGEN_OUT` if you want 0xgen services to write artefacts outside of `/out`.
 
 ## Working on changes
 

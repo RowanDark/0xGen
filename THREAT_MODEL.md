@@ -1,13 +1,13 @@
-# Glyph Threat Model
+# 0xgen Threat Model
 
 This document summarizes the security assumptions, major attack surfaces, and the
-controls that Glyph relies on today. It is intended to help contributors reason
+controls that 0xgen relies on today. It is intended to help contributors reason
 about changes, plugin authors understand the runtime expectations, and auditors
 navigate the project.
 
 ## High-level assumptions
 
-* Glyph deployments run inside trusted infrastructure managed by the operator.
+* 0xgen deployments run inside trusted infrastructure managed by the operator.
   We assume the host OS, container runtime, and CI pipelines are hardened and
   patched.
 * Secrets such as API tokens, webhook credentials, or private keys are supplied
@@ -16,7 +16,7 @@ navigate the project.
   subprocesses) and should treat any data originating from remote systems as
   hostile until validated.
 * Network egress from plugins is tightly controlled. When external connectivity
-  is required, it should be routed through the Glyph broker APIs or other
+  is required, it should be routed through the 0xgen broker APIs or other
   audited proxies.
 
 ## Threat scenarios
@@ -66,7 +66,7 @@ compromise the orchestrator host.
 
 ### Man-in-the-middle (MITM)
 
-Interception of network traffic between Glyph components could allow tampering
+Interception of network traffic between 0xgen components could allow tampering
 with findings or plugin coordination.
 
 * **Controls**: internal communication uses mutual TLS, and the orchestrator
@@ -90,7 +90,7 @@ requests to internal services or leaking local files.
 * Operators must monitor plugin logs and metrics to detect abuse.
 * Sandboxing relies on container runtime hardening; a kernel exploit can bypass
   isolation until patched.
-* Glyph assumes the network perimeter enforces egress filtering. Lack of
+* 0xgen assumes the network perimeter enforces egress filtering. Lack of
   filtering increases the blast radius of plugin compromise.
 
 ## Reporting

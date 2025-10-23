@@ -4,7 +4,7 @@
 
 - Removed all `GLYPH_*` environment-variable fallbacks across binaries, plugins, and tooling; only `0XGEN_*` configuration is now recognised.
 - Replaced glyph-prefixed observability metrics and desktop shell aliases with `oxg_*` series.
-- Dropped acceptance and emission of legacy `X-Glyph-*` proxy headers in favour of the canonical `X-0xgen-*` family, updating E2E coverage accordingly.
+- Dropped acceptance and emission of proxy headers branded for the legacy name in favour of the canonical `X-0xgen-*` family, updating E2E coverage accordingly.
 - Rotated the plugin signing key and refreshed detached signatures for all bundled plugins to reflect the rebrand.
 
 ## v0.1.0-alpha
