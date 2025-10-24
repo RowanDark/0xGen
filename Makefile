@@ -32,8 +32,8 @@ test:
 lint:
 	go vet ./...
 
-.PHONY: updater:build-manifests
-updater:build-manifests:
+.PHONY: updater\:build-manifests
+updater\:build-manifests:
 	@0XGEN_UPDATER_SIGNING_KEY=$${0XGEN_UPDATER_SIGNING_KEY:-} go run ./hack/updater/build_manifests.go
 
 .PHONY: build
