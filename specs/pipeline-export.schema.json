@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Glyph pipeline export entry",
+  "title": "0xgen pipeline export entry",
   "type": "object",
   "properties": {
     "type": {

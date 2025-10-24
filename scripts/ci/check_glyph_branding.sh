@@ -5,6 +5,11 @@ EVENT_NAME=${EVENT_NAME:-}
 BASE_SHA=${BASE_SHA:-}
 BEFORE_SHA=${BEFORE_SHA:-}
 
+legacy_brand_prefix="Gl"
+legacy_brand_suffix="yph"
+legacy_brand="${legacy_brand_prefix}${legacy_brand_suffix}"
+legacy_pattern="\\b${legacy_brand}\\b"
+
 if [[ "$EVENT_NAME" == "pull_request" && -n "$BASE_SHA" ]]; then
   git fetch --no-tags --depth=1 origin "$BASE_SHA"
   diff_base="$BASE_SHA"
@@ -16,7 +21,7 @@ fi
 
 mapfile -t changed_files < <(git diff --name-only "$diff_base" HEAD)
 if (( ${#changed_files[@]} == 0 )); then
-  echo "No files changed; skipping Glyph guard."
+  echo "No files changed; skipping 0xgen guard."
   exit 0
 fi
 
@@ -47,9 +52,9 @@ for file in "${changed_files[@]}"; do
     continue
   fi
 
-  if matches=$(rg -n --ignore-case '\bGlyph\b' --color=never "$file"); then
+  if matches=$(rg -n --ignore-case "$legacy_pattern" --color=never "$file"); then
     if (( violations == 0 )); then
-      echo "Forbidden legacy 'Glyph' references detected:"
+      echo "Forbidden legacy branding references detected:"
     fi
     violations=1
     echo "$matches"
@@ -59,8 +64,8 @@ shopt -u globstar nullglob
 
 if (( violations )); then
   echo
-  echo "Found forbidden legacy 'Glyph' references. Update the branding or extend the allowlist intentionally."
+  echo "Found forbidden legacy branding references. Update the naming or extend the allowlist intentionally."
   exit 1
 fi
 
-echo "Glyph guard passed."
+echo "0xgen guard passed."

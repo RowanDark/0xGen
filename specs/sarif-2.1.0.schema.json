@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SARIF 2.1.0 (subset for Glyph exports)",
+  "title": "SARIF 2.1.0 (subset for 0xgen exports)",
   "type": "object",
   "required": ["version", "runs"],
   "properties": {
