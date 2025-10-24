@@ -13,16 +13,16 @@
     {% set home_label = 'Return home' %}
     {% set search_label = 'Search the docs' %}
   {% endif %}
-  <section class="glyph-404" aria-labelledby="glyph-404-title">
-    <h1 class="glyph-404__title" id="glyph-404-title">{{ title }}</h1>
-    <p class="glyph-404__summary">{{ summary }}</p>
-    <div class="glyph-404__actions" role="group" aria-label="404 navigation">
-      <a class="glyph-404__link" data-variant="primary" href="{{ nav.homepage.url | url }}">
+  <section class="oxg-404" aria-labelledby="oxg-404-title">
+    <h1 class="oxg-404__title" id="oxg-404-title">{{ title }}</h1>
+    <p class="oxg-404__summary">{{ summary }}</p>
+    <div class="oxg-404__actions" role="group" aria-label="404 navigation">
+      <a class="oxg-404__link" data-variant="primary" href="{{ nav.homepage.url | url }}">
         {% set icon = config.theme.icon.home or 'material/home' %}
         {% include '.icons/' ~ icon ~ '.svg' %}
         <span>{{ home_label }}</span>
       </a>
-      <button class="glyph-404__link" type="button" data-action="open-search">
+      <button class="oxg-404__link" type="button" data-action="open-search">
         {% set icon = config.theme.icon.search or 'material/magnify' %}
         {% include '.icons/' ~ icon ~ '.svg' %}
         <span>{{ search_label }}</span>

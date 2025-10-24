@@ -14,6 +14,6 @@ Create label: `rebrand`
 - [ ] 6 Binary wrapper: `0xgenctl` → `0xgenctl` (alias)
 - [ ] 7 Docs URLs: add redirects from the legacy prefix to `/0xgen`
 - [ ] 8 `go.mod` module comment only (no path change)
-- [ ] 9 Homebrew formula name only (alias keeps glyph)
+- [ ] 9 Homebrew formula name only (alias keeps the legacy name)
 - [ ] 10 CI job names & artifact names (no paths)
 - [ ] 11 Final: repository rename and module path migration

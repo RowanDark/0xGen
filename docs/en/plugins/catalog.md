@@ -78,7 +78,7 @@ renderer.
 
 !!! info "Self-hosting the registry API"
     Launch the lightweight registry server locally with
-    `go run ./cmd/glyph-registry --data docs/en/data/plugin-registry.json`. The
+    `go run ./cmd/oxg-registry --data docs/en/data/plugin-registry.json`. The
     service exposes `/registry.json`, `/plugins`, and `/compatibility` endpoints
     for dashboards or automation workflows that want to consume the curated
     plugin feed directly.

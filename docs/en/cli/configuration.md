@@ -8,13 +8,13 @@ platform easy to tune locally and in production deployments.
 
 1. Built-in defaults.
 2. `~/.0xgen/config.toml` (optional).
-3. `~/.glyph/config.toml` in the user's home directory (optional legacy fallback).
-4. `./glyph.yml` in the current working directory (optional).
+3. `~/.oxg/config.toml` in the user's home directory (optional legacy fallback).
+4. `./oxg.yml` in the current working directory (optional).
 5. Environment variables beginning with `0XGEN_`.
 
 Each subsequent source overrides values defined in the previous ones. Local
 project configuration therefore beats the user-level TOML file, and environment
-variables have the final say. When the loader falls back to `~/.glyph/config.toml`
+variables have the final say. When the loader falls back to `~/.oxg/config.toml`
 it emits a one-time warning and still honours the legacy file so existing
 installations keep working. Run `0xgenctl config migrate` to copy the legacy
 configuration into the new `~/.0xgen` directory.

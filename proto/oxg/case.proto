@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package glyph.casebuilder;
+package oxg.casebuilder;
 
-option go_package = "github.com/RowanDark/0xgen/proto/gen/go/proto/glyph";
+option go_package = "github.com/RowanDark/0xgen/proto/oxg;oxg";
 
-import "glyph/common.proto";
+import "oxg/common.proto";
 
 message Case {
   string version = 1;
@@ -47,7 +47,7 @@ message ProofOfConcept {
 }
 
 message Risk {
-  glyph.common.Severity severity = 1;
+  oxg.common.Severity severity = 1;
   double score = 2;
   string rationale = 3;
 }
@@ -56,7 +56,7 @@ message SourceFinding {
   string id = 1;
   string plugin = 2;
   string type = 3;
-  glyph.common.Severity severity = 4;
+  oxg.common.Severity severity = 4;
   string target = 5;
 }
 

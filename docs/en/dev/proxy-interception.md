@@ -17,7 +17,7 @@ This document outlines the design for enabling 0xgen to operate as an intercepti
 ## Architecture
 
 ### Proxy Listener
-- Add a new `cmd/glyph/proxy` entry point that starts an HTTP proxy listener.
+- Add a new `cmd/oxg/proxy` entry point that starts an HTTP proxy listener.
 - Use Go's `net/http` with `golang.org/x/net/proxy` utilities to handle CONNECT tunneling for HTTPS.
 - Terminate TLS using a 0xgen-managed root certificate issued per installation. Certificates are stored in the 0xgen data directory with restricted permissions.
 - Support dynamic certificate generation per host using `crypto/tls` and `crypto/x509`.
@@ -32,9 +32,9 @@ This document outlines the design for enabling 0xgen to operate as an intercepti
 ### User Interaction
 - Extend the desktop UI with an Interceptor view listing captured flows, similar to popular proxy tools.
 - Provide CLI commands:
-  - `glyph proxy trust` to print or install the root certificate.
-  - `glyph proxy intercept` to start proxy mode with optional upstream proxy configuration.
-  - `glyph proxy approve <flow-id>` and `glyph proxy edit <flow-id>` to manipulate queued requests.
+  - `oxg proxy trust` to print or install the root certificate.
+  - `oxg proxy intercept` to start proxy mode with optional upstream proxy configuration.
+  - `oxg proxy approve <flow-id>` and `oxg proxy edit <flow-id>` to manipulate queued requests.
 - Inline editing uses diff-based editing; UI employs a JSON/HTTP message editor with syntax highlighting.
 
 ### Browser Integration
@@ -66,7 +66,7 @@ This document outlines the design for enabling 0xgen to operate as an intercepti
 ### Logging & Audit
 - Persist intercepted flows (requests/responses, edits, approvals) in a new `intercepts.db` SQLite database.
 - Record timestamps, user identifiers, and plugin execution outcomes.
-- Expose export functionality via `glyph proxy export --format json`.
+- Expose export functionality via `oxg proxy export --format json`.
 
 ## Security Considerations
 - Root certificate generation uses a strong key (RSA 4096 or ECDSA P-256) with 2-year validity, rotated automatically.

@@ -1,5 +1,5 @@
 Metadata-Version: 2.4
-Name: glyph-passive-headers
+Name: oxg-passive-headers
 Version: 0.1.0
 Summary: A hello-world 0xgen plugin that checks for missing security headers.
 Author-email: Jules <jules@example.com>

@@ -9,12 +9,12 @@
 
 {% block skip %}
   <div data-md-component="skip">
-    <a href="#glyph-main-content" class="md-skip skip-to-content">{{ lang.t("action.skip") }}</a>
+    <a href="#oxg-main-content" class="md-skip skip-to-content">{{ lang.t("action.skip") }}</a>
   </div>
 {% endblock %}
 
 {% block container %}
-  <div class="md-content" data-md-component="content" id="glyph-main-content" tabindex="-1">
+  <div class="md-content" data-md-component="content" id="oxg-main-content" tabindex="-1">
     <article class="md-content__inner md-typeset">
       {% block content %}
         {% include "partials/content.html" %}

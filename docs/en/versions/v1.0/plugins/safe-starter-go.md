@@ -1,6 +1,6 @@
 # Go safe starter walkthrough
 
-The `glyph-plugin init --lang go` command scaffolds a plugin that already uses
+The `oxg-plugin init --lang go` command scaffolds a plugin that already uses
 safe defaults: capability macros, broker clients, and CI-friendly tooling. This
 page walks through the generated layout and shows how to adapt it for your own
 integrations.
@@ -8,7 +8,7 @@ integrations.
 ## Generate a project {#generate-a-project}
 
 ```bash
-go run ./cmd/glyph-plugin init \
+go run ./cmd/oxg-plugin init \
   --lang go \
   --name plugin-safe-go \
   --module github.com/RowanDark/0xgen/examples/plugin-safe-go

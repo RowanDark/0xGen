@@ -27,7 +27,7 @@ fixtures to accelerate future development.
 
 ## Getting started {#getting-started}
 
-1. Scaffold a new plugin with `glyph-plugin init`. The CLI generates Node and
+1. Scaffold a new plugin with `oxg-plugin init`. The CLI generates Node and
    Go projects that already depend on the broker helpers, capability macros, and
    lint/test automation used in production. See the
    [safe starter walkthrough](safe-starter-go.md) for a tour of the generated Go

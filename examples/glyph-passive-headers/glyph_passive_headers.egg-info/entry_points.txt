@@ -1,2 +1,0 @@
-[console_scripts]
-glyph-passive-headers = glyph_passive_headers.__main__:main

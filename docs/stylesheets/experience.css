@@ -152,7 +152,7 @@
   }
 }
 
-.glyph-404 {
+.oxg-404 {
   margin: 3rem auto;
   padding: 2.5rem 1.5rem;
   max-width: 640px;
@@ -162,24 +162,24 @@
   box-shadow: 0 20px 45px rgba(31, 111, 235, 0.15);
 }
 
-.glyph-404__title {
+.oxg-404__title {
   font-size: 2.1rem;
   margin-bottom: 0.75rem;
 }
 
-.glyph-404__summary {
+.oxg-404__summary {
   font-size: 1.05rem;
   margin-bottom: 1.5rem;
 }
 
-.glyph-404__actions {
+.oxg-404__actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.75rem;
 }
 
-.glyph-404__link {
+.oxg-404__link {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -192,17 +192,17 @@
   transition: background 0.2s ease, transform 0.2s ease;
 }
 
-.glyph-404__link[data-variant="primary"] {
+.oxg-404__link[data-variant="primary"] {
   background: var(--md-accent-fg-color);
   color: #0d1117;
 }
 
-.glyph-404__link:focus-visible {
+.oxg-404__link:focus-visible {
   outline: 3px solid var(--md-accent-fg-color);
   outline-offset: 2px;
 }
 
-.glyph-404__link:hover {
+.oxg-404__link:hover {
   transform: translateY(-2px);
 }
 

@@ -1,0 +1,10 @@
+pyproject.toml
+oxg_passive_headers/__init__.py
+oxg_passive_headers/__main__.py
+oxg_passive_headers.egg-info/PKG-INFO
+oxg_passive_headers.egg-info/SOURCES.txt
+oxg_passive_headers.egg-info/dependency_links.txt
+oxg_passive_headers.egg-info/entry_points.txt
+oxg_passive_headers.egg-info/requires.txt
+oxg_passive_headers.egg-info/top_level.txt
+oxg_plugin_runtime/__init__.py

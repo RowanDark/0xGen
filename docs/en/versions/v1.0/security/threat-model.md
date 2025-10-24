@@ -21,7 +21,7 @@ assigned a temporary working directory and constrained environment variables so 
 cannot escape the sandbox by default. The supervisor applies CPU, memory, and
 wall-clock limits through POSIX `RLIMIT` values exposed via
 [`runner.Config`]({{ config.repo_url }}/blob/main/internal/plugins/runner/runner.go). Exceeding a limit terminates
-the plugin process group and records a `glyph.supervisor.termination` event so
+the plugin process group and records a `oxg.supervisor.termination` event so
 operators can audit resource abuse.
 
 The supervisor captures termination reasons and emits structured metadata such as the
@@ -32,7 +32,7 @@ plugin stopped and correlate the event with downstream automation.
 
 0xgen starts in a "no network" posture. The built-in configuration keeps
 `proxy.enable` set to `false`, leaving 0xgen without outbound network access unless
-operators explicitly toggle interception through `glyph.yml` or environment overrides.
+operators explicitly toggle interception through `oxg.yml` or environment overrides.
 When the proxy is enabled it must be pointed at explicit rule and history paths,
 reinforcing intentional deployment rather than accidental active scanning.
 

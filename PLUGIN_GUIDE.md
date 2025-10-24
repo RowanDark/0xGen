@@ -32,7 +32,7 @@ patterns to keep new integrations safe.
 ```json
 {
   "$schema": "../manifest.schema.json",
-  "name": "glyph-example-plugin",
+  "name": "oxg-example-plugin",
   "version": "0.1.0",
   "description": "Demonstrates a minimal, sandbox-friendly plugin",
   "entry": "./cmd/start.sh",
@@ -42,7 +42,7 @@ patterns to keep new integrations safe.
     "secrets": { "broker": true }
   },
   "sandbox": {
-    "user": "glyph",
+    "user": "oxg",
     "mounts": ["workspace"],
     "network": "isolated"
   }

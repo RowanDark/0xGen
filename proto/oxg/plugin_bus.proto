@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package glyph.plugin_bus;
+package oxg.plugin_bus;
 
-import "glyph/common.proto";
+import "oxg/common.proto";
 
-option go_package = "github.com/RowanDark/0xgen/proto/glyph;glyph";
+option go_package = "github.com/RowanDark/0xgen/proto/oxg;oxg";
 
 // The PluginBus service provides a bi-directional stream for plugins to
 // receive events from the host and send findings back.
@@ -23,7 +23,7 @@ message PluginEvent {
     // The first message sent by a plugin must be a `hello` message.
     PluginHello hello = 1;
     // After authentication, a plugin can send findings.
-    glyph.common.Finding finding = 2;
+    oxg.common.Finding finding = 2;
   }
 }
 
@@ -67,6 +67,6 @@ message HostEvent {
 
   // For now, the only event is a flow event.
   oneof event {
-    glyph.common.FlowEvent flow_event = 2;
+    oxg.common.FlowEvent flow_event = 2;
   }
 }

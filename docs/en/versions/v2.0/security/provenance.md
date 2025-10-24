@@ -16,7 +16,7 @@ that workflow and was not tampered with after it was built.
 ## Release binaries {#release-binaries}
 
 Every release attaches a provenance file alongside the tarballs and checksum
-files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
+files (for example, `oxg-v1.2.3-binaries.intoto.jsonl`). To verify a release:
 
 1. Download the binary archive, the checksum file, and the provenance file from
    the GitHub release page.
@@ -27,7 +27,7 @@ files (for example, `glyph-v1.2.3-binaries.intoto.jsonl`). To verify a release:
 
    ```bash
    slsa-verifier verify-artifact \
-     --provenance glyph-v1.2.3-binaries.intoto.jsonl \
+     --provenance oxg-v1.2.3-binaries.intoto.jsonl \
     --source-uri github.com/RowanDark/0xgen \
      --builder-id \
        https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
@@ -45,7 +45,7 @@ provenance statement. After pulling the image digest you wish to verify, run:
 
 ```bash
 slsa-verifier verify-image \
-  --provenance glyph-v1.2.3-image.intoto.jsonl \
+  --provenance oxg-v1.2.3-image.intoto.jsonl \
   --source-uri github.com/RowanDark/0xgen \
   --builder-id \
     https://github.com/slsa-framework/slsa-github-generator/.github/workflows/container-post-push-provenance@v1.10.0 \
