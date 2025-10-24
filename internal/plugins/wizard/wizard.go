@@ -34,6 +34,20 @@ type CapabilitySummary struct {
 }
 
 var capabilityLibrary = map[string]CapabilitySummary{
+	"CAP_AI_ANALYSIS": {
+		Capability:  "CAP_AI_ANALYSIS",
+		Title:       "AI-assisted analysis",
+		Description: "Allows plugins to correlate findings using embedded AI evaluators.",
+		Risks: []string{
+			"LLM-driven enrichment may leak prompt context or hallucinate metadata.",
+			"Automated triage can prioritise benign signals over real threats.",
+		},
+		Mitigations: []string{
+			"Review plugin outputs for sensitive prompt content before exporting.",
+			"Pair with tight capability grants and monitor promoted cases.",
+		},
+		RiskLevel: RiskMedium,
+	},
 	"CAP_EMIT_FINDINGS": {
 		Capability:  "CAP_EMIT_FINDINGS",
 		Title:       "Emit findings",

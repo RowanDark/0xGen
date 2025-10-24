@@ -1,0 +1,16 @@
+{
+  "name": "hydra",
+  "version": "0.1.0",
+  "entry": "hydra",
+  "artifact": "plugins/hydra/main.go",
+  "capabilities": [
+    "CAP_EMIT_FINDINGS",
+    "CAP_HTTP_PASSIVE",
+    "CAP_FLOW_INSPECT",
+    "CAP_AI_ANALYSIS"
+  ],
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../keys/0xgen-plugin.pub"
+  }
+}

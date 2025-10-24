@@ -31,6 +31,8 @@ const (
 	CapabilityEmitFindings Capability = "CAP_EMIT_FINDINGS"
 	// CapabilityHTTPPassive allows the plugin to receive passive HTTP events.
 	CapabilityHTTPPassive Capability = "CAP_HTTP_PASSIVE"
+	// CapabilityAIAnalysis allows the plugin to access the AI-assisted analysis surface.
+	CapabilityAIAnalysis Capability = "CAP_AI_ANALYSIS"
 	// CapabilityFlowInspect grants access to sanitized HTTP flow events.
 	CapabilityFlowInspect Capability = "CAP_FLOW_INSPECT"
 	// CapabilityFlowInspectRaw grants access to raw HTTP flow events.

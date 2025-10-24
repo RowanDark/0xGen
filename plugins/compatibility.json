@@ -122,6 +122,27 @@
       }
     },
     {
+      "id": "hydra",
+      "categories": [
+        "Detection",
+        "AI"
+      ],
+      "oxg_compat": {
+        "1.0": {
+          "status": "preview",
+          "notes": "Requires CAP_AI_ANALYSIS"
+        },
+        "1.1": {
+          "status": "compatible",
+          "notes": "1.1.0+"
+        },
+        "2.0": {
+          "status": "compatible",
+          "notes": "2.0.0+"
+        }
+      }
+    },
+    {
       "id": "osint-well",
       "categories": [
         "Intelligence"

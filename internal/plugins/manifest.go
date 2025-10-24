@@ -22,6 +22,7 @@ type Manifest struct {
 
 var allowedCaps = map[string]struct{}{
 	"CAP_EMIT_FINDINGS":    {},
+	"CAP_AI_ANALYSIS":      {},
 	"CAP_HTTP_ACTIVE":      {},
 	"CAP_HTTP_PASSIVE":     {},
 	"CAP_FLOW_INSPECT":     {},

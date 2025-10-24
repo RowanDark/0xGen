@@ -4,6 +4,7 @@ package pluginsdk
 type CapabilitySet struct {
 	EmitFindings   bool
 	HTTPPassive    bool
+	AIAnalysis     bool
 	FlowInspect    bool
 	FlowInspectRaw bool
 	WorkspaceRead  bool
@@ -14,12 +15,15 @@ type CapabilitySet struct {
 
 // List returns the enabled capabilities as a slice suitable for manifests or configs.
 func (s CapabilitySet) List() []Capability {
-	caps := make([]Capability, 0, 6)
+	caps := make([]Capability, 0, 8)
 	if s.EmitFindings {
 		caps = append(caps, CapabilityEmitFindings)
 	}
 	if s.HTTPPassive {
 		caps = append(caps, CapabilityHTTPPassive)
+	}
+	if s.AIAnalysis {
+		caps = append(caps, CapabilityAIAnalysis)
 	}
 	if s.FlowInspect {
 		caps = append(caps, CapabilityFlowInspect)
@@ -49,6 +53,8 @@ func (s CapabilitySet) Enabled(cap Capability) bool {
 		return s.EmitFindings
 	case CapabilityHTTPPassive:
 		return s.HTTPPassive
+	case CapabilityAIAnalysis:
+		return s.AIAnalysis
 	case CapabilityFlowInspect:
 		return s.FlowInspect
 	case CapabilityFlowInspectRaw:
