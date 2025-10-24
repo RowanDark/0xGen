@@ -129,12 +129,12 @@ plugins:
         "docs/security.html": "security/"
         "docs/security/index.html": "security/"
         "docs/index.html": "./"
-        "Glyph.html": "./"
-        "docs/Glyph.html": "./"
+        "0xgen.html": "./"
+        "docs/0xgen.html": "./"
         "docs/docs.html": "./"
-        # Project rename: legacy /Glyph URLs now live under /0xgen
-        "Glyph/index.md": "https://rowandark.github.io/0xgen/"
-        "Glyph/es/index.md": "https://rowandark.github.io/0xgen/es/"
+        # Project rename: maintain explicit redirects for /0xgen URLs
+        "0xgen/index.md": "https://rowandark.github.io/0xgen/"
+        "0xgen/es/index.md": "https://rowandark.github.io/0xgen/es/"
         # Archived documentation snapshots
         "v1.0/": "versions/v1.0/"
         "v1.0/index.html": "versions/v1.0/"

@@ -80,7 +80,7 @@ async def main_async(server_address: str, auth_token: str):
 
 def main():
     """Defines the command-line interface and runs the plugin."""
-    parser = argparse.ArgumentParser(description="Glyph Passive Headers Plugin")
+    parser = argparse.ArgumentParser(description="0xgen Passive Headers Plugin")
     parser.add_argument(
         "-s", "--server", default="localhost:50051", help="gRPC server address"
     )

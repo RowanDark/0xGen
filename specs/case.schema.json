@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/RowanDark/0xgen/specs/case.schema.json",
-  "title": "Glyph Case v1.0",
+  "title": "0xgen Case v1.0",
   "type": "object",
   "additionalProperties": false,
   "required": [

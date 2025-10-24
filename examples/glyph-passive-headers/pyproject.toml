@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "glyph-passive-headers"
 version = "0.1.0"
-description = "A hello-world Glyph plugin that checks for missing security headers."
+description = "A hello-world 0xgen plugin that checks for missing security headers."
 authors = [{ name = "Jules", email = "jules@example.com" }]
 requires-python = ">=3.8"
 dependencies = [
