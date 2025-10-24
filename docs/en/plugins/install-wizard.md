@@ -60,8 +60,8 @@ rejected.
 
 The final screen confirms the selected capability set and creates an immutable audit log
 entry once the operator clicks **Install**. Audit events reuse the structured logging
-already emitted by the gate layer (`glyph.audit.capability_grant` for approvals and
-`glyph.audit.capability_denied` when a plugin later attempts to exceed its grant).【F:internal/logging/audit.go†L20-L21】【F:internal/netgate/gate.go†L448-L468】
+already emitted by the gate layer (`oxg.audit.capability_grant` for approvals and
+`oxg.audit.capability_denied` when a plugin later attempts to exceed its grant).【F:internal/logging/audit.go†L20-L21】【F:internal/netgate/gate.go†L448-L468】
 
 From the summary screen operators can jump directly to the **Manage grants** panel for
 already-installed plugins. The panel lists:

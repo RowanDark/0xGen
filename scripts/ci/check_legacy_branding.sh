@@ -25,7 +25,7 @@ if (( ${#changed_files[@]} == 0 )); then
   exit 0
 fi
 
-allowlist_file=".github/allowlists/glyph-allowlist.txt"
+allowlist_file=".github/allowlists/legacy-brand-allowlist.txt"
 allow_patterns=()
 if [[ -f "$allowlist_file" ]]; then
   while IFS= read -r line || [[ -n "$line" ]]; do

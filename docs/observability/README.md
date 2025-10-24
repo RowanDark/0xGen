@@ -18,7 +18,7 @@ the new CLI flags:
   --trace-endpoint http://otel-collector:4318/v1/traces \
   --trace-service-name 0xgend-prod \
   --trace-sample-ratio 0.5 \
-  --trace-file /var/log/glyph/traces.jsonl
+  --trace-file /var/log/oxg/traces.jsonl
 ```
 
 * `--trace-endpoint` – optional OTLP/HTTP destination for exported spans.

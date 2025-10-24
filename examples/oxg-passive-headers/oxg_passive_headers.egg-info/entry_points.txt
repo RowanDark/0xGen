@@ -1,0 +1,2 @@
+[console_scripts]
+oxg-passive-headers = oxg_passive_headers.__main__:main

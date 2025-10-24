@@ -193,7 +193,7 @@
   "refresh": "30s",
   "schemaVersion": 39,
   "style": "dark",
-  "tags": ["glyph"],
+  "tags": ["oxg"],
   "templating": {
     "list": [
       {

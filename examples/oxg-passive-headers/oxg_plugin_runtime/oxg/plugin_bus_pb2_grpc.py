@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-from . import plugin_bus_pb2 as glyph_dot_plugin__bus__pb2
+from . import plugin_bus_pb2 as oxg_dot_plugin__bus__pb2
 
-GRPC_GENERATED_VERSION = '1.74.0'
+GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in glyph/plugin_bus_pb2_grpc.py depends on'
+        + ' but the generated code in oxg/plugin_bus_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -37,9 +37,14 @@ class PluginBusStub(object):
             channel: A grpc.Channel.
         """
         self.EventStream = channel.stream_stream(
-                '/glyph.plugin_bus.PluginBus/EventStream',
-                request_serializer=glyph_dot_plugin__bus__pb2.PluginEvent.SerializeToString,
-                response_deserializer=glyph_dot_plugin__bus__pb2.HostEvent.FromString,
+                '/oxg.plugin_bus.PluginBus/EventStream',
+                request_serializer=oxg_dot_plugin__bus__pb2.PluginEvent.SerializeToString,
+                response_deserializer=oxg_dot_plugin__bus__pb2.HostEvent.FromString,
+                _registered_method=True)
+        self.GrantCapabilities = channel.unary_unary(
+                '/oxg.plugin_bus.PluginBus/GrantCapabilities',
+                request_serializer=oxg_dot_plugin__bus__pb2.PluginCapabilityRequest.SerializeToString,
+                response_deserializer=oxg_dot_plugin__bus__pb2.PluginCapabilityGrant.FromString,
                 _registered_method=True)
 
 
@@ -56,19 +61,32 @@ class PluginBusServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GrantCapabilities(self, request, context):
+        """GrantCapabilities issues a short-lived token binding a plugin to the
+        capabilities declared in its manifest.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_PluginBusServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'EventStream': grpc.stream_stream_rpc_method_handler(
                     servicer.EventStream,
-                    request_deserializer=glyph_dot_plugin__bus__pb2.PluginEvent.FromString,
-                    response_serializer=glyph_dot_plugin__bus__pb2.HostEvent.SerializeToString,
+                    request_deserializer=oxg_dot_plugin__bus__pb2.PluginEvent.FromString,
+                    response_serializer=oxg_dot_plugin__bus__pb2.HostEvent.SerializeToString,
+            ),
+            'GrantCapabilities': grpc.unary_unary_rpc_method_handler(
+                    servicer.GrantCapabilities,
+                    request_deserializer=oxg_dot_plugin__bus__pb2.PluginCapabilityRequest.FromString,
+                    response_serializer=oxg_dot_plugin__bus__pb2.PluginCapabilityGrant.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'glyph.plugin_bus.PluginBus', rpc_method_handlers)
+            'oxg.plugin_bus.PluginBus', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('glyph.plugin_bus.PluginBus', rpc_method_handlers)
+    server.add_registered_method_handlers('oxg.plugin_bus.PluginBus', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
@@ -91,9 +109,36 @@ class PluginBus(object):
         return grpc.experimental.stream_stream(
             request_iterator,
             target,
-            '/glyph.plugin_bus.PluginBus/EventStream',
-            glyph_dot_plugin__bus__pb2.PluginEvent.SerializeToString,
-            glyph_dot_plugin__bus__pb2.HostEvent.FromString,
+            '/oxg.plugin_bus.PluginBus/EventStream',
+            oxg_dot_plugin__bus__pb2.PluginEvent.SerializeToString,
+            oxg_dot_plugin__bus__pb2.HostEvent.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GrantCapabilities(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/oxg.plugin_bus.PluginBus/GrantCapabilities',
+            oxg_dot_plugin__bus__pb2.PluginCapabilityRequest.SerializeToString,
+            oxg_dot_plugin__bus__pb2.PluginCapabilityGrant.FromString,
             options,
             channel_credentials,
             insecure,

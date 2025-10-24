@@ -1,5 +1,5 @@
 (function () {
-  const STORAGE_KEY = 'glyph.docs.navigationState';
+  const STORAGE_KEY = 'oxg.docs.navigationState';
 
   function loadState() {
     try {

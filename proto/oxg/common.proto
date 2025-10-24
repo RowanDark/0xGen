@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package glyph.common;
+package oxg.common;
 
-option go_package = "github.com/RowanDark/0xgen/proto/glyph;glyph";
+option go_package = "github.com/RowanDark/0xgen/proto/oxg;oxg";
 
 // A Finding is a report from a plugin about something it has observed.
 message Finding {
