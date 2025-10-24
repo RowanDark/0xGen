@@ -46,7 +46,6 @@
     <ComponentGroup Id="ZeroXgenComponents">
       <Component Id="ZeroXgenExecutable" Guid="{2DFEEA0E-4FD0-4F71-83F2-5C2F11C278F7}" Directory="INSTALLFOLDER" Win64="yes">
         <File Id="ZeroXgenExecutableFile" Source="$(var.PayloadDir)/0xgenctl.exe" KeyPath="yes" />
-        <File Id="ZeroXgenAliasFile" Source="$(var.PayloadDir)/0xgenctl.cmd" />
         <File Id="ZeroXgenLicenseFile" Source="$(var.PayloadDir)/LICENSE.txt" />
         <File Id="ZeroXgenReadmeFile" Source="$(var.PayloadDir)/README.txt" />
         <Environment Id="ZeroXgenPath"
