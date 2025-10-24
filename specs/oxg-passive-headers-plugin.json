@@ -1,10 +1,10 @@
 {
-  "name": "glyph-passive-headers",
+  "name": "oxg-passive-headers",
   "version": "0.1.0",
   "description": "A plugin that checks for missing security headers in HTTP responses.",
   "language": "python",
   "entrypoint": {
-    "command": "glyph-passive-headers",
+    "command": "oxg-passive-headers",
     "args": [
       "--server",
       "localhost:50051",

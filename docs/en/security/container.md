@@ -12,7 +12,7 @@ This document captures the default hardening and recommended runtime profile.
 * `0xgenctl` binary compiled with CGO disabled and Go build trimming enabled.
 * `nonroot` user enforced as the entrypoint user; no `root` binaries are
   present.
-* `/home/nonroot/.glyph`, `/home/nonroot/.cache`, and `/out` are declared as
+* `/home/nonroot/.oxg`, `/home/nonroot/.cache`, and `/out` are declared as
   volumes to allow a read-only root filesystem.
 * Release pipelines sign the image with Cosign and scan for vulnerabilities
   using both Trivy and Grype.
@@ -33,8 +33,8 @@ docker run \
   --cpus="1.0" \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
-  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
-  --mount type=volume,source=glyph-output,dst=/out \
+  --mount type=volume,source=oxg-data,dst=/home/nonroot/.oxg \
+  --mount type=volume,source=oxg-output,dst=/out \
   ghcr.io/rowandark/0xgenctl:latest --help
 ```
 
@@ -55,8 +55,8 @@ docker run \
   --cpus="1.0" \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
-  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
-  --mount type=volume,source=glyph-output,dst=/out \
+  --mount type=volume,source=oxg-data,dst=/home/nonroot/.oxg \
+  --mount type=volume,source=oxg-output,dst=/out \
   ghcr.io/rowandark/0xgenctl:latest demo --out /out/demo
 ```
 
@@ -74,8 +74,8 @@ docker run \
   --cpus="1.0" \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
-  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph,ro \
-  --mount type=volume,source=glyph-output,dst=/out,ro \
+  --mount type=volume,source=oxg-data,dst=/home/nonroot/.oxg,ro \
+  --mount type=volume,source=oxg-output,dst=/out,ro \
   ghcr.io/rowandark/0xgenctl:latest findings validate --input /out/demo/findings.jsonl
 ```
 

@@ -26,10 +26,10 @@ environments:
 
 ```powershell
 # Windows PowerShell
-0xgenctl proxy trust --out $env:TEMP\glyph-proxy.cer
+0xgenctl proxy trust --out $env:TEMP\oxg-proxy.cer
 
 # Inside WSL
-0xgenctl proxy trust --out /tmp/glyph-proxy.pem
+0xgenctl proxy trust --out /tmp/oxg-proxy.pem
 ```
 
 Copy the exported file into your browser's trust store or a WSL distribution as

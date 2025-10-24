@@ -1,7 +1,7 @@
 {
   "channel": "stable",
   "version": "1.0.0",
-  "notes_url": "https://glyph.dev/releases/1.0.0",
+  "notes_url": "https://0xgen.dev/releases/1.0.0",
   "builds": [
     {
       "os": "linux",

@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.21.12
-// source: glyph/plugin_bus.proto
+// source: oxg/plugin_bus.proto
 
-package glyph
+package oxg
 
 import (
 	context "context"
@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PluginBus_EventStream_FullMethodName       = "/glyph.plugin_bus.PluginBus/EventStream"
-	PluginBus_GrantCapabilities_FullMethodName = "/glyph.plugin_bus.PluginBus/GrantCapabilities"
+	PluginBus_EventStream_FullMethodName       = "/oxg.plugin_bus.PluginBus/EventStream"
+	PluginBus_GrantCapabilities_FullMethodName = "/oxg.plugin_bus.PluginBus/GrantCapabilities"
 )
 
 // PluginBusClient is the client API for PluginBus service.
@@ -33,7 +33,8 @@ type PluginBusClient interface {
 	// EventStream is a long-lived, bi-directional stream between the host
 	// (`0xgend`) and a single plugin.
 	EventStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[PluginEvent, HostEvent], error)
-	// GrantCapabilities issues a short-lived capability token for a plugin invocation.
+	// GrantCapabilities issues a short-lived token binding a plugin to the
+	// capabilities declared in its manifest.
 	GrantCapabilities(ctx context.Context, in *PluginCapabilityRequest, opts ...grpc.CallOption) (*PluginCapabilityGrant, error)
 }
 
@@ -55,6 +56,9 @@ func (c *pluginBusClient) EventStream(ctx context.Context, opts ...grpc.CallOpti
 	return x, nil
 }
 
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PluginBus_EventStreamClient = grpc.BidiStreamingClient[PluginEvent, HostEvent]
+
 func (c *pluginBusClient) GrantCapabilities(ctx context.Context, in *PluginCapabilityRequest, opts ...grpc.CallOption) (*PluginCapabilityGrant, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PluginCapabilityGrant)
@@ -64,9 +68,6 @@ func (c *pluginBusClient) GrantCapabilities(ctx context.Context, in *PluginCapab
 	}
 	return out, nil
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PluginBus_EventStreamClient = grpc.BidiStreamingClient[PluginEvent, HostEvent]
 
 // PluginBusServer is the server API for PluginBus service.
 // All implementations must embed UnimplementedPluginBusServer
@@ -78,7 +79,8 @@ type PluginBusServer interface {
 	// EventStream is a long-lived, bi-directional stream between the host
 	// (`0xgend`) and a single plugin.
 	EventStream(grpc.BidiStreamingServer[PluginEvent, HostEvent]) error
-	// GrantCapabilities issues a short-lived capability token for a plugin invocation.
+	// GrantCapabilities issues a short-lived token binding a plugin to the
+	// capabilities declared in its manifest.
 	GrantCapabilities(context.Context, *PluginCapabilityRequest) (*PluginCapabilityGrant, error)
 	mustEmbedUnimplementedPluginBusServer()
 }
@@ -146,7 +148,7 @@ func _PluginBus_GrantCapabilities_Handler(srv interface{}, ctx context.Context, 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PluginBus_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "glyph.plugin_bus.PluginBus",
+	ServiceName: "oxg.plugin_bus.PluginBus",
 	HandlerType: (*PluginBusServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -162,5 +164,5 @@ var PluginBus_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "glyph/plugin_bus.proto",
+	Metadata: "oxg/plugin_bus.proto",
 }

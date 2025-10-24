@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "glyph-passive-headers"
+name = "oxg-passive-headers"
 version = "0.1.0"
 description = "A hello-world 0xgen plugin that checks for missing security headers."
 authors = [{ name = "Jules", email = "jules@example.com" }]
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.entry-points."console_scripts"]
-glyph-passive-headers = "glyph_passive_headers.__main__:main"
+oxg-passive-headers = "oxg_passive_headers.__main__:main"
 
 [tool.setuptools]
-packages = ["glyph_passive_headers", "glyph_plugin_runtime"]
+packages = ["oxg_passive_headers", "oxg_plugin_runtime"]

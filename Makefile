@@ -2,10 +2,10 @@
 SHELL := /bin/bash
 
 # The source .proto files.
-PROTO_FILES := $(shell find proto/glyph -name *.proto)
+PROTO_FILES := $(shell find proto/oxg -name *.proto)
 
 # Output directory for Python stubs.
-PYTHON_PLUGIN_RUNTIME_DIR := examples/glyph-passive-headers/glyph_plugin_runtime
+PYTHON_PLUGIN_RUNTIME_DIR := examples/oxg-passive-headers/oxg_plugin_runtime
 
 # Output directory for Go stubs.
 GO_STUBS_DIR := proto/gen/go
@@ -17,8 +17,8 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 OXGENCTL_LDFLAGS ?= -s -w -X main.version=$(VERSION)
 
 $(OXGENCTL):
-        @mkdir -p $(BIN)
-        @go build -ldflags "$(OXGENCTL_LDFLAGS)" -o $(OXGENCTL) ./cmd/0xgenctl
+	@mkdir -p $(BIN)
+	@go build -ldflags "$(OXGENCTL_LDFLAGS)" -o $(OXGENCTL) ./cmd/0xgenctl
 
 # Development defaults for running the Go services.
 0XGEN_ADDR ?= :50051
@@ -30,15 +30,15 @@ test:
 
 .PHONY: lint
 lint:
-        go vet ./...
+	go vet ./...
 
 .PHONY: updater:build-manifests
 updater:build-manifests:
-        @0XGEN_UPDATER_SIGNING_KEY=$${0XGEN_UPDATER_SIGNING_KEY:-} go run ./hack/updater/build_manifests.go
+	@0XGEN_UPDATER_SIGNING_KEY=$${0XGEN_UPDATER_SIGNING_KEY:-} go run ./hack/updater/build_manifests.go
 
 .PHONY: build
 build:
-        go build ./...
+	go build ./...
 
 .PHONY: validate-manifests
 validate-manifests:
@@ -58,7 +58,7 @@ plugins-skeleton: $(OXGENCTL)
 				echo "missing manifest: $$manifest"; \
 				exit 1; \
 			fi; \
-                        $(OXGENCTL) --manifest-validate "$$manifest" >/dev/null; \
+	$(OXGENCTL) --manifest-validate "$$manifest" >/dev/null; \
 			done
 	@echo "Running excavator crawl sanity check..."
 	@npm --prefix plugins/excavator install --no-audit --no-fund >/dev/null
@@ -69,10 +69,10 @@ plugins-skeleton: $(OXGENCTL)
 
 .PHONY: demo-report
 demo-report:
-        @mkdir -p out
-        @cp examples/findings-sample.jsonl out/findings.jsonl
-        @go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl report --input out/findings.jsonl --out out/report.md
-        @echo "Report written to out/report.md"
+	@mkdir -p out
+	@cp examples/findings-sample.jsonl out/findings.jsonl
+	@go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl report --input out/findings.jsonl --out out/report.md
+	@echo "Report written to out/report.md"
 
 
 
@@ -85,7 +85,8 @@ crawl-demo:
 
 .PHONY: demo
 demo:
-@go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl demo --out out/demo
+	@mkdir -p out
+	@go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl demo --out out/demo
 
 .PHONY: verify
 verify: build
@@ -117,9 +118,9 @@ proto-py:
 	  --grpc_python_out=$(PYTHON_PLUGIN_RUNTIME_DIR) \
 	  $(PROTO_FILES)
 	@touch $(PYTHON_PLUGIN_RUNTIME_DIR)/__init__.py
-	@touch $(PYTHON_PLUGIN_RUNTIME_DIR)/glyph/__init__.py
+	@touch $(PYTHON_PLUGIN_RUNTIME_DIR)/oxg/__init__.py
 	@echo "Fixing Python imports in generated stubs..."
-	@find $(PYTHON_PLUGIN_RUNTIME_DIR)/glyph -name "*_pb2*.py" -exec sed -i -E 's/^from glyph import/from . import/' {} \;
+	@find $(PYTHON_PLUGIN_RUNTIME_DIR)/oxg -name "*_pb2*.py" -exec sed -i -E 's/^from oxg import/from . import/' {} \;
 
 # Generates Go stubs.
 .PHONY: proto-go
@@ -137,7 +138,7 @@ proto-go:
 # Smoke test for the Python plugin.
 .PHONY: test-plugin
 test-plugin:
-	cd examples/glyph-passive-headers && python -m glyph_passive_headers -h || true
+	cd examples/oxg-passive-headers && python -m oxg_passive_headers -h || true
 
 # Runs the end-to-end test.
 .PHONY: e2e
@@ -150,12 +151,12 @@ e2e: proto
 	@rm -f 0xgend.log plugin.log
 	@export 0XGEN_AUTH_TOKEN="supersecrettoken" && ./0xgend > 0xgend.log 2>&1 &
 	@sleep 2
-	@python -m glyph_passive_headers > plugin.log 2>&1 &
+	@python -m oxg_passive_headers > plugin.log 2>&1 &
 	@echo "Server and plugin started. Waiting for interaction..."
 	@sleep 4
 	@echo "--- Stopping processes ---"
 	@pkill -f 0xgend || true
-	@pkill -f glyph_passive_headers || true
+	@pkill -f oxg_passive_headers || true
 	@sleep 1
 	@echo
 	@echo "--- Server Log (0xgend.log) ---"

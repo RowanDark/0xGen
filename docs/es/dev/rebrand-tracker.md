@@ -14,6 +14,6 @@ Crear etiqueta: `rebrand`
 - [ ] 6 Wrapper binario: `0xgenctl` → `0xgenctl` (alias)
 - [ ] 7 URLs de la documentación: añadir redirecciones desde el prefijo heredado hacia `/0xgen`
 - [ ] 8 Comentario del módulo en `go.mod` solamente (sin cambiar la ruta)
-- [ ] 9 Nombre de la fórmula de Homebrew solamente (el alias mantiene glyph)
+- [ ] 9 Nombre de la fórmula de Homebrew solamente (el alias mantiene el nombre heredado)
 - [ ] 10 Nombres de trabajos y artefactos en CI (sin cambiar rutas)
 - [ ] 11 Final: renombrar repositorio y migrar la ruta del módulo

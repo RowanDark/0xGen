@@ -1,10 +1,10 @@
+import argparse
 import asyncio
 import logging
-import argparse
 import os
 
 import grpc
-from glyph_plugin_runtime.glyph import common_pb2, plugin_bus_pb2, plugin_bus_pb2_grpc
+from oxg_plugin_runtime.oxg import common_pb2, plugin_bus_pb2, plugin_bus_pb2_grpc
 
 # --- Configuration ---
 logging.basicConfig(
@@ -20,7 +20,7 @@ async def generate_requests(send_queue: asyncio.Queue, auth_token: str):
     # First, send the PluginHello message
     hello = plugin_bus_pb2.PluginHello(
         auth_token=auth_token,
-        plugin_name="glyph-passive-headers",
+        plugin_name="oxg-passive-headers",
         pid=os.getpid(),
         subscriptions=["FLOW_RESPONSE"],
         capabilities=["CAP_EMIT_FINDINGS"],

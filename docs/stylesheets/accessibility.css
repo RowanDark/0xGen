@@ -19,7 +19,7 @@
   transform: translate(-50%, 0);
 }
 
-#glyph-main-content:focus {
+#oxg-main-content:focus {
   outline: 0;
   box-shadow: 0 0 0 3px var(--md-accent-fg-color--lighter);
 }

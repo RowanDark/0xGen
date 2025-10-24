@@ -21,10 +21,10 @@ vulnerability.
 ## SBOM generation {#sbom-generation}
 
 Syft generates SPDX SBOMs for both the repository and the plugin tree on every
-push and pull request. The artifacts are uploaded as `glyph-sboms` and contain:
+push and pull request. The artifacts are uploaded as `oxg-sboms` and contain:
 
-- `glyph-repo.spdx.json` – the top-level Go module and ancillary tooling.
-- `glyph-plugins.spdx.json` – dependencies bundled with the official plugins.
+- `oxg-repo.spdx.json` – the top-level Go module and ancillary tooling.
+- `oxg-plugins.spdx.json` – dependencies bundled with the official plugins.
 
 Download the SBOMs from the workflow run summary to integrate with your own
 inventory or vulnerability scanners.
@@ -51,7 +51,7 @@ curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenct
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt.sig
 curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt.pem
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/glyph-${VERSION}-binaries.intoto.jsonl
+curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg-${VERSION}-binaries.intoto.jsonl
 
 # Verify the signature matches the downloaded archive
 cosign verify-blob \
@@ -61,7 +61,7 @@ cosign verify-blob \
 
 # Validate the SLSA provenance
 slsa-verifier verify-artifact \
-  --provenance glyph-${VERSION}-binaries.intoto.jsonl \
+  --provenance oxg-${VERSION}-binaries.intoto.jsonl \
   --source-uri github.com/RowanDark/0xgen \
   --builder-id \
     https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
@@ -78,14 +78,14 @@ plugin is compiled or executed. Each official plugin ships with:
 
 - `<artifact>.sig` – a base64-encoded ECDSA signature generated via `cosign
   sign-blob`.
-- `plugins/keys/glyph-plugin.pub` – the public key maintained by the 0xgen team.
+- `plugins/keys/oxg-plugin.pub` – the public key maintained by the 0xgen team.
 
 Plugin manifests reference these files and CI ensures they stay in sync with the
 recorded hashes. To verify manually:
 
 ```bash
 cosign verify-blob \
-  --key plugins/keys/glyph-plugin.pub \
+  --key plugins/keys/oxg-plugin.pub \
   --signature plugins/excavator/plugin.js.sig \
   plugins/excavator/plugin.js
 ```

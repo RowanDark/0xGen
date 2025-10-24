@@ -1,2 +1,0 @@
-glyph_passive_headers
-glyph_plugin_runtime

@@ -1,4 +1,4 @@
-# Globs that are allowed to contain the legacy "Glyph" branding.
+# Globs that are allowed to contain the legacy branding.
 #
 # Keep this list intentionally small and document why each entry needs
 # to reference the legacy name. Most code should use the 0xgen branding.

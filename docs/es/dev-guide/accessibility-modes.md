@@ -5,7 +5,7 @@
 ## Simulación de daltonismo
 
 - **Modos disponibles.** Están soportadas las vistas estándar, deuteranopia, protanopia y tritanopia utilizando las mismas transformaciones SVG que las pruebas de regresión.
-- **Persistencia.** La preferencia se guarda en `glyph.vision.mode` y se aplica durante el arranque para evitar parpadeos.
+- **Persistencia.** La preferencia se guarda en `oxg.vision.mode` y se aplica durante el arranque para evitar parpadeos.
 - **Refuerzos visuales.** Cuando una simulación está activa, los gráficos de la página de operaciones muestran trazos punteados y marcadores geométricos para no depender solo del color.
 
 ## Modo de confort nocturno

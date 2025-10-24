@@ -104,8 +104,8 @@ docker run \
   --cpus="1.0" \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m \
-  --mount type=volume,source=glyph-data,dst=/home/nonroot/.glyph \
-  --mount type=volume,source=glyph-output,dst=/out \
+  --mount type=volume,source=oxg-data,dst=/home/nonroot/.oxg \
+  --mount type=volume,source=oxg-output,dst=/out \
   ghcr.io/rowandark/0xgenctl:latest --version
 ```
 
