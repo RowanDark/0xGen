@@ -50,7 +50,7 @@ jobs:
             --no-robots \
             --timeout=10 \
             --threads=8 \
-            --user-agent "GlyphDocsLinkChecker/1.0" \
+            --user-agent "0xgenDocsLinkChecker/1.0" \
             --ignore-url "^mailto:" \
             --ignore-url "^tel:" \
             --ignore-url "^javascript:" \
