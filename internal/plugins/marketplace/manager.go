@@ -163,7 +163,10 @@ func (m *Manager) Install(ctx context.Context, pluginID string, opts InstallOpti
 	if strings.TrimSpace(artifactDest) == "" {
 		return local.Plugin{}, errors.New("manifest missing artifact path")
 	}
-	artifactTarget := filepath.Join(tmpDir, artifactDest)
+	artifactTarget, err := safeJoin(tmpDir, artifactDest)
+	if err != nil {
+		return local.Plugin{}, fmt.Errorf("invalid artifact path: %w", err)
+	}
 	if err := m.downloadFile(ctx, entry.Links["artifact"], artifactTarget); err != nil {
 		return local.Plugin{}, fmt.Errorf("download artifact: %w", err)
 	}
@@ -172,7 +175,10 @@ func (m *Manager) Install(ctx context.Context, pluginID string, opts InstallOpti
 	if strings.TrimSpace(signatureDest) == "" {
 		return local.Plugin{}, errors.New("manifest missing signature reference")
 	}
-	signatureTarget := filepath.Join(tmpDir, signatureDest)
+	signatureTarget, err := safeJoin(tmpDir, signatureDest)
+	if err != nil {
+		return local.Plugin{}, fmt.Errorf("invalid signature path: %w", err)
+	}
 	if err := m.downloadFile(ctx, entry.Links["signature"], signatureTarget); err != nil {
 		return local.Plugin{}, fmt.Errorf("download signature: %w", err)
 	}
@@ -233,8 +239,14 @@ func (m *Manager) Remove(pluginID string) error {
 	if pluginID == "" {
 		return errors.New("plugin id is required")
 	}
+	if strings.Contains(pluginID, "/") || strings.Contains(pluginID, "\\") || strings.Contains(pluginID, "..") {
+		return errors.New("invalid plugin id")
+	}
 
 	pluginDir := filepath.Join(m.pluginsDir, pluginID)
+	if err := ensureWithinBase(m.pluginsDir, pluginDir); err != nil {
+		return fmt.Errorf("invalid plugin path: %w", err)
+	}
 	if err := os.RemoveAll(pluginDir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove plugin directory: %w", err)
 	}
@@ -274,6 +286,39 @@ func (m *Manager) fetchRegistry(ctx context.Context) (registry.Dataset, error) {
 		return registry.Dataset{}, fmt.Errorf("read registry file: %w", err)
 	}
 	return registry.Decode(payload)
+}
+
+func safeJoin(base, rel string) (string, error) {
+	cleaned := filepath.Clean(rel)
+	if cleaned == "" {
+		return "", errors.New("path is empty")
+	}
+	if filepath.IsAbs(cleaned) {
+		return "", errors.New("path must be relative")
+	}
+	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", errors.New("path escapes base directory")
+	}
+
+	target := filepath.Join(base, cleaned)
+	if err := ensureWithinBase(base, target); err != nil {
+		return "", err
+	}
+	return target, nil
+}
+
+func ensureWithinBase(base, target string) error {
+	baseClean := filepath.Clean(base)
+	targetClean := filepath.Clean(target)
+
+	rel, err := filepath.Rel(baseClean, targetClean)
+	if err != nil {
+		return fmt.Errorf("resolve relative path: %w", err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return errors.New("path escapes base directory")
+	}
+	return nil
 }
 
 func (m *Manager) downloadFile(ctx context.Context, source, target string) error {
