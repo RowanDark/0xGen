@@ -17,6 +17,6 @@ jobs:
       - name: Install 0xgenctl from tap
         run: |
           set -euxo pipefail
-          brew tap rowandark/glyph
-          brew install glyph
+          brew tap rowandark/0xgen
+          brew install 0xgen
           0xgenctl --version

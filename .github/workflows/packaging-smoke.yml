@@ -108,11 +108,11 @@ jobs:
           Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
           iwr -useb get.scoop.sh | iex
 
-      - name: Add Glyph bucket and install 0xgenctl
+      - name: Add 0xgen bucket and install 0xgenctl
         if: steps.manifest.outputs.placeholder == 'false'
         shell: pwsh
         run: |
-          scoop bucket add glyph https://github.com/${{ github.repository }}
+          scoop bucket add 0xgen https://github.com/${{ github.repository }}
           scoop install 0xgenctl
           0xgenctl --version
 
@@ -154,7 +154,7 @@ jobs:
         run: |
           $msi = "dist/0xgenctl_${env:TAG}_windows_amd64.msi"
           msiexec /i $msi /qn
-          & 'C:\Program Files\Glyph\0xgenctl.exe' --version
+          & 'C:\Program Files\0xgen\0xgenctl.exe' --version
 
       - name: Uninstall MSI
         if: steps.release.outputs.tag != ''

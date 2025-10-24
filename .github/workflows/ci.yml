@@ -91,7 +91,7 @@ jobs:
 
       - name: Windows plugin smoke test
         if: matrix.os == 'windows-latest'
-        run: go test ./internal/e2e -run TestGlyphctlSmoke -count=1
+        run: go test ./internal/e2e -run TestCliSmoke -count=1
 
       - name: Generate sample HTML report
         if: matrix.os == 'ubuntu-latest'
@@ -101,7 +101,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: 0xgen-glyph-report-html
+          name: 0xgen-report-html
           path: report.html
           if-no-files-found: error
 
@@ -205,8 +205,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          data_volume="$(docker volume create glyph-ci-data)"
-          out_volume="$(docker volume create glyph-ci-out)"
+          data_volume="$(docker volume create 0xgen-ci-data)"
+          out_volume="$(docker volume create 0xgen-ci-out)"
 
           cleanup() {
             docker volume rm -f "$data_volume" "$out_volume" >/dev/null 2>&1 || true
@@ -223,7 +223,7 @@ jobs:
             --cpus="1.0"
             --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m
             --tmpfs /home/nonroot/.cache:rw,noexec,nosuid,nodev,size=64m
-            --mount "type=volume,src=${data_volume},dst=/home/nonroot/.glyph"
+            --mount "type=volume,src=${data_volume},dst=/home/nonroot/.0xgen"
           )
 
           docker run "${common_flags[@]}" \

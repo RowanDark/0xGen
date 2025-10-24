@@ -49,22 +49,22 @@ jobs:
         run: |
           $msi = (Resolve-Path 'dist/0xgenctl_v0.0.0-ci_windows_amd64.msi').Path
           Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
-          $glyph = Join-Path $env:ProgramFiles 'Glyph\0xgenctl.exe'
-          if (-not (Test-Path $glyph -PathType Leaf)) {
+          $installedCli = Join-Path $env:ProgramFiles '0xgen\0xgenctl.exe'
+          if (-not (Test-Path $installedCli -PathType Leaf)) {
             throw "0xgenctl.exe was not installed"
           }
-          & $glyph --version
+          & $installedCli --version
           $artifact = (Resolve-Path 'plugins/samples/passive-header-scan/main.go').Path
           $hash = (Get-FileHash $artifact -Algorithm SHA256).Hash
-          & $glyph plugin verify $artifact --hash $hash
+          & $installedCli plugin verify $artifact --hash $hash
 
       - name: Uninstall MSI
         shell: pwsh
         run: |
           $msi = (Resolve-Path 'dist/0xgenctl_v0.0.0-ci_windows_amd64.msi').Path
           Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /norestart" -Wait
-          $glyphDir = Join-Path $env:ProgramFiles 'Glyph'
-          if (Test-Path $glyphDir) {
+          $installDir = Join-Path $env:ProgramFiles '0xgen'
+          if (Test-Path $installDir) {
             throw "Install directory still present after uninstall"
           }
 
@@ -73,13 +73,13 @@ jobs:
         run: |
           $extract = Join-Path $env:RUNNER_TEMP '0xgenctl-portable'
           Expand-Archive -Path dist/0xgenctl_ci_windows_portable.zip -DestinationPath $extract -Force
-          $glyph = Join-Path $extract '0xgenctl.exe'
-          & $glyph --version
+          $portableCli = Join-Path $extract '0xgenctl.exe'
+          & $portableCli --version
 
       - name: Verify plugin subsystem
         shell: pwsh
         run: |
-          $glyph = Join-Path $env:RUNNER_TEMP '0xgenctl-portable' '0xgenctl.exe'
+          $portableCli = Join-Path $env:RUNNER_TEMP '0xgenctl-portable' '0xgenctl.exe'
           $artifact = Resolve-Path 'plugins/samples/passive-header-scan/main.go'
           $hash = (Get-FileHash $artifact -Algorithm SHA256).Hash
-          & $glyph plugin verify $artifact --hash $hash
+          & $portableCli plugin verify $artifact --hash $hash

@@ -79,7 +79,7 @@ jobs:
             osslsigncode sign \
               -pkcs12 "$cert" \
               "${pass_args[@]}" \
-              -n "Glyph CLI" \
+              -n "0xgen CLI" \
               -i "https://github.com/RowanDark/0xgen" \
               -t "http://timestamp.digicert.com" \
               -in "$workdir/0xgenctl.exe" \

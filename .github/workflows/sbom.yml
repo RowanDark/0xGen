@@ -19,17 +19,17 @@ jobs:
         uses: anchore/syft-action@v0.9.0
         with:
           path: .
-          output: sbom/glyph-repo.spdx.json
+          output: sbom/0xgen-repo.spdx.json
 
       - name: Generate plugin SBOMs
         uses: anchore/syft-action@v0.9.0
         with:
           path: plugins
-          output: sbom/glyph-plugins.spdx.json
+          output: sbom/0xgen-plugins.spdx.json
 
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 0xgen-glyph-sboms
+          name: 0xgen-sboms
           path: sbom/
           if-no-files-found: error
