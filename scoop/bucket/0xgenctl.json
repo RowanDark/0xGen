@@ -14,8 +14,7 @@
     }
   },
   "bin": [
-    "0xgenctl.exe",
-    ["0xgenctl.cmd", "0xgenctl"]
+    "0xgenctl.exe"
   ],
   "checkver": {
     "github": "https://github.com/RowanDark/0xgen"

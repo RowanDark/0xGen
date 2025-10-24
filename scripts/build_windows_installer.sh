@@ -65,7 +65,6 @@ trap 'rm -rf "$stage"' EXIT
 mkdir -p "$output_dir"
 
 cp "$payload_dir/0xgenctl.exe" "$stage/0xgenctl.exe"
-cp "$ROOT_DIR/scripts/0xgenctl.cmd" "$stage/0xgenctl.cmd"
 cp "$ROOT_DIR/README.md" "$stage/README.txt"
 cp "$ROOT_DIR/LICENSE" "$stage/LICENSE.txt"
 
