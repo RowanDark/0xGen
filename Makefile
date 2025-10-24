@@ -85,7 +85,7 @@ crawl-demo:
 
 .PHONY: demo
 demo:
-@go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl demo --out out/demo
+	@go run -ldflags "$(OXGENCTL_LDFLAGS)" ./cmd/0xgenctl demo --out out/demo
 
 .PHONY: verify
 verify: build
@@ -150,12 +150,12 @@ e2e: proto
 	@rm -f 0xgend.log plugin.log
 	@export 0XGEN_AUTH_TOKEN="supersecrettoken" && ./0xgend > 0xgend.log 2>&1 &
 	@sleep 2
-@python -m oxg_passive_headers > plugin.log 2>&1 &
+	@python -m oxg_passive_headers > plugin.log 2>&1 &
 	@echo "Server and plugin started. Waiting for interaction..."
 	@sleep 4
 	@echo "--- Stopping processes ---"
 	@pkill -f 0xgend || true
-@pkill -f oxg_passive_headers || true
+	@pkill -f oxg_passive_headers || true
 	@sleep 1
 	@echo
 	@echo "--- Server Log (0xgend.log) ---"
