@@ -291,6 +291,103 @@ const ResendFlowResponseSchema = z.object({
 export type ResendFlowMetadata = z.infer<typeof ResendFlowMetadataSchema> | null | undefined;
 export type ResendFlowResponse = z.infer<typeof ResendFlowResponseSchema>;
 
+const RegistryCompatibilitySchema = z.object({
+  status: z.string(),
+  notes: z.string().optional()
+});
+
+const RegistryPluginSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    version: z.string(),
+    author: z.string(),
+    language: z.string(),
+    summary: z.string(),
+    capabilities: z.array(z.string()),
+    categories: z.array(z.string()).optional().default([]),
+    last_updated: z.string().optional(),
+    signature_sha256: z.string().optional(),
+    links: z.record(z.string()),
+    oxg_compat: z.record(RegistryCompatibilitySchema).optional().default({})
+  })
+  .transform((value) => ({
+    id: value.id,
+    name: value.name,
+    version: value.version,
+    author: value.author,
+    language: value.language,
+    summary: value.summary,
+    capabilities: value.capabilities,
+    categories: value.categories,
+    lastUpdated: value.last_updated ?? null,
+    signatureSha256: value.signature_sha256 ?? null,
+    links: value.links,
+    compatibility: value.oxg_compat
+  }));
+
+const InstalledPluginSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    version: z.string(),
+    capabilities: z.array(z.string()),
+    path: z.string(),
+    manifest_path: z.string(),
+    artifact_path: z.string(),
+    artifact_sha256: z.string().optional(),
+    updated_at: z.string().optional()
+  })
+  .transform((value) => ({
+    id: value.id,
+    name: value.name,
+    version: value.version,
+    capabilities: value.capabilities,
+    path: value.path,
+    manifestPath: value.manifest_path,
+    artifactPath: value.artifact_path,
+    artifactSha256: value.artifact_sha256 ?? null,
+    updatedAt: value.updated_at ?? null
+  }));
+
+const PluginStatusSchema = z
+  .object({
+    id: z.string(),
+    installed: z.string().optional(),
+    latest: z.string(),
+    compatible: z.boolean().optional(),
+    compatibility: z.string().optional(),
+    update_available: z.boolean().optional()
+  })
+  .transform((value) => ({
+    id: value.id,
+    installed: value.installed ?? null,
+    latest: value.latest,
+    compatible: value.compatible ?? true,
+    compatibility: value.compatibility ?? null,
+    updateAvailable: value.update_available ?? false
+  }));
+
+const PluginRegistrySchema = z
+  .object({
+    schema_version: z.string(),
+    generated_at: z.string(),
+    oxg_versions: z.array(z.string()).optional().default([]),
+    plugins: z.array(RegistryPluginSchema),
+    installed: z.array(InstalledPluginSchema).optional().default([]),
+    status: z.array(PluginStatusSchema).optional().default([]),
+    daemon_version: z.string().optional()
+  })
+  .transform((value) => ({
+    schemaVersion: value.schema_version,
+    generatedAt: value.generated_at,
+    oxgVersions: value.oxg_versions,
+    plugins: value.plugins,
+    installed: value.installed,
+    status: value.status,
+    daemonVersion: value.daemon_version ?? 'dev'
+  }));
+
 const ScopeRuleSchema = z.object({
   type: z.string(),
   value: z.string(),
@@ -433,6 +530,31 @@ export async function fetchArtifactCases(): Promise<CaseRecord[]> {
 export async function fetchMetrics(): Promise<DashboardMetrics> {
   const metrics = await invoke('fetch_metrics');
   return DashboardMetricsSchema.parse(metrics);
+}
+
+export type RegistryPlugin = z.infer<typeof RegistryPluginSchema>;
+export type InstalledPluginSummary = z.infer<typeof InstalledPluginSchema>;
+export type PluginStatus = z.infer<typeof PluginStatusSchema>;
+export type PluginRegistry = z.infer<typeof PluginRegistrySchema>;
+
+export async function fetchPluginRegistryData(): Promise<PluginRegistry> {
+  const payload = await invoke('fetch_plugin_registry');
+  return PluginRegistrySchema.parse(payload);
+}
+
+export async function installMarketplacePlugin(
+  id: string,
+  options: { force?: boolean } = {}
+): Promise<InstalledPluginSummary> {
+  const response = await invoke('install_plugin', {
+    id,
+    force: options.force ?? false
+  });
+  return InstalledPluginSchema.parse(response);
+}
+
+export async function removeMarketplacePlugin(id: string): Promise<void> {
+  await invoke('remove_plugin', { id });
 }
 
 export async function listFlows(payload: {

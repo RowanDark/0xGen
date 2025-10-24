@@ -154,21 +154,16 @@ type Filter struct {
 // Load reads a registry dataset from disk, validates its structure, and
 // normalises the content for efficient querying.
 func Load(path string) (Dataset, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return Dataset{}, fmt.Errorf("read registry dataset: %w", err)
-	}
+raw, err := os.ReadFile(path)
+if err != nil {
+return Dataset{}, fmt.Errorf("read registry dataset: %w", err)
+}
 
-	var dataset Dataset
-	if err := json.Unmarshal(raw, &dataset); err != nil {
-		return Dataset{}, fmt.Errorf("decode registry dataset: %w", err)
-	}
-	if err := dataset.Validate(); err != nil {
-		return Dataset{}, err
-	}
-	dataset.normalise()
-
-	return dataset, nil
+dataset, err := Decode(raw)
+if err != nil {
+return Dataset{}, fmt.Errorf("decode registry dataset: %w", err)
+}
+return dataset, nil
 }
 
 // Validate checks that the dataset is well-formed.

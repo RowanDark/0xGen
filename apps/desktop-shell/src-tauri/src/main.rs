@@ -95,6 +95,23 @@ impl OxgApi {
     }
 }
 
+fn resolve_registry_endpoints() -> Result<(Url, Url, Url), String> {
+    let raw = std::env::var("0XGEN_PLUGIN_REGISTRY_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:9090/plugins/registry".to_string());
+    let registry = Url::parse(&raw).map_err(|err| format!("invalid registry URL: {err}"))?;
+    let mut base = registry.clone();
+    base.set_path("/");
+    base.set_query(None);
+    base.set_fragment(None);
+    let install = base
+        .join("plugins/install")
+        .map_err(|err| format!("build install URL: {err}"))?;
+    let remove = base
+        .join("plugins/remove")
+        .map_err(|err| format!("build remove URL: {err}"))?;
+    Ok((registry, install, remove))
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Run {
@@ -1767,6 +1784,68 @@ fn discard_crash_bundle(reporter: State<'_, CrashReporter>) -> Result<(), String
     reporter.discard_bundle().map_err(|err| err.to_string())
 }
 
+#[tauri::command]
+async fn fetch_plugin_registry(api: State<'_, OxgApi>) -> Result<Value, String> {
+    let (registry_url, _, _) = resolve_registry_endpoints()?;
+    let response = api
+        .client
+        .get(registry_url.clone())
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+    response.json::<Value>().await.map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn install_plugin(
+    api: State<'_, OxgApi>,
+    id: String,
+    force: Option<bool>,
+) -> Result<Value, String> {
+    let (_, install_url, _) = resolve_registry_endpoints()?;
+    let payload = json!({
+        "id": id,
+        "force": force.unwrap_or(false),
+    });
+    let response = api
+        .client
+        .post(install_url.clone())
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+    response.json::<Value>().await.map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn remove_plugin(api: State<'_, OxgApi>, id: String) -> Result<Value, String> {
+    let (_, _, remove_url) = resolve_registry_endpoints()?;
+    let payload = json!({ "id": id });
+    let response = api
+        .client
+        .post(remove_url.clone())
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+    response.json::<Value>().await.map_err(|err| err.to_string())
+}
+
 fn configure_devtools(window: &Window) {
     let allow_devtools =
         std::env::var("0XGEN_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
@@ -1810,6 +1889,9 @@ fn main() {
             stop_flow_stream,
             resend_flow,
             fetch_metrics,
+            fetch_plugin_registry,
+            install_plugin,
+            remove_plugin,
             fetch_scope_policy,
             validate_scope_policy,
             apply_scope_policy,

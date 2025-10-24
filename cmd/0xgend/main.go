@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	obsmetrics "github.com/RowanDark/0xgen/internal/observability/metrics"
 	"github.com/RowanDark/0xgen/internal/observability/tracing"
 	"github.com/RowanDark/0xgen/internal/plugins/hotreload"
+	"github.com/RowanDark/0xgen/internal/plugins/marketplace"
 	"github.com/RowanDark/0xgen/internal/proxy"
 	"github.com/RowanDark/0xgen/internal/reporter"
 	"github.com/RowanDark/0xgen/internal/scope"
@@ -30,6 +32,8 @@ import (
 	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc"
 )
+
+var version = "dev"
 
 type config struct {
 	addr              string
@@ -39,6 +43,7 @@ type config struct {
 	enableProxy       bool
 	fingerprintRotate bool
 	pluginsDir        string
+	registrySource    string
 	http3Mode         string
 	tracing           tracing.Config
 	traceHeaders      string
@@ -66,6 +71,7 @@ func main() {
 	fingerprintRotate := flag.Bool("fingerprint-rotate", false, "enable rotating JA3/JA4 fingerprints per host")
 	pluginDir := flag.String("plugins-dir", "plugins", "path to plugin directory")
 	metricsAddr := flag.String("metrics-addr", ":9090", "address for the Prometheus metrics endpoint (empty to disable)")
+	pluginRegistry := flag.String("plugin-registry", filepath.Join("docs", "en", "data", "plugin-registry.json"), "path or URL for the plugin registry index (empty to disable marketplace API)")
 	http3Mode := flag.String("http3", "auto", "HTTP/3 mode: auto, disable, or require")
 	traceEndpoint := flag.String("trace-endpoint", "", "OTLP/HTTP endpoint for exported spans (http(s)://host:port/v1/traces)")
 	traceInsecure := flag.Bool("trace-insecure-skip-verify", false, "disable TLS verification when exporting spans")
@@ -119,6 +125,7 @@ func main() {
 		enableProxy:       *enableProxy,
 		fingerprintRotate: *fingerprintRotate,
 		pluginsDir:        strings.TrimSpace(*pluginDir),
+		registrySource:    strings.TrimSpace(*pluginRegistry),
 		http3Mode:         strings.TrimSpace(*http3Mode),
 		tracing: tracing.Config{
 			Endpoint:      strings.TrimSpace(*traceEndpoint),
@@ -214,6 +221,30 @@ func run(ctx context.Context, cfg config) error {
 		})
 	}
 
+	pluginLogger := coreLogger.WithComponent("plugin_manager")
+	var pluginMarketplace *marketplace.Manager
+	if strings.TrimSpace(cfg.pluginsDir) != "" {
+		registrySource := cfg.registrySource
+		if override, ok := env.Lookup("0XGEN_PLUGIN_REGISTRY_URL"); ok {
+			trimmed := strings.TrimSpace(override)
+			if trimmed != "" {
+				registrySource = trimmed
+			}
+		}
+		if strings.TrimSpace(registrySource) != "" {
+			marketplaceMgr, err := marketplace.NewManager(cfg.pluginsDir, registrySource, marketplace.WithAuditLogger(pluginLogger))
+			if err != nil {
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventPluginLoad,
+					Decision:  logging.DecisionDeny,
+					Reason:    fmt.Sprintf("initialise marketplace: %v", err),
+				})
+			} else {
+				pluginMarketplace = marketplaceMgr
+			}
+		}
+	}
+
 	var (
 		metricsSrv   *http.Server
 		metricsErrCh chan error
@@ -221,6 +252,10 @@ func run(ctx context.Context, cfg config) error {
 	if cfg.metricsAddr != "" {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", obsmetrics.Handler())
+		pluginAPI := newPluginAPI(pluginMarketplace)
+		mux.HandleFunc("/plugins/registry", pluginAPI.handleRegistry)
+		mux.HandleFunc("/plugins/install", pluginAPI.handleInstall)
+		mux.HandleFunc("/plugins/remove", pluginAPI.handleRemove)
 		metricsSrv = &http.Server{Addr: cfg.metricsAddr, Handler: mux}
 		metricsErrCh = make(chan error, 1)
 		go func() {
@@ -490,7 +525,6 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 			return fmt.Errorf("determine working directory: %w", err)
 		}
 		allowlistPath := filepath.Join(pluginsDir, "ALLOWLIST")
-		pluginLogger := coreLogger.WithComponent("plugin_manager")
 		reloader, err := hotreload.New(pluginsDir, repoRoot, allowlistPath, busServer, hotreload.WithAuditLogger(pluginLogger))
 		if err != nil {
 			return fmt.Errorf("configure plugin reloader: %w", err)
@@ -498,6 +532,7 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 		managerCtx, cancel := context.WithCancel(ctx)
 		pluginManagerCancel = cancel
 		go reloader.Start(managerCtx)
+
 	}
 	defer pluginManagerCancel()
 
@@ -604,5 +639,100 @@ func emitAudit(logger *logging.AuditLogger, event logging.AuditEvent) {
 	}
 	if err := logger.Emit(event); err != nil {
 		fmt.Fprintf(os.Stderr, "audit log error: %v\n", err)
+	}
+}
+
+type pluginAPI struct {
+	manager *marketplace.Manager
+}
+
+func newPluginAPI(manager *marketplace.Manager) *pluginAPI {
+	return &pluginAPI{manager: manager}
+}
+
+func (p *pluginAPI) handleRegistry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if p.manager == nil {
+		http.NotFound(w, r)
+		return
+	}
+	envelope, err := p.manager.Registry(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	response := struct {
+		marketplace.DatasetEnvelope
+		Status        []marketplace.PluginStatus `json:"status"`
+		DaemonVersion string                     `json:"daemon_version"`
+	}{
+		DatasetEnvelope: envelope,
+		Status:          envelope.Status(version),
+		DaemonVersion:   version,
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (p *pluginAPI) handleInstall(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if p.manager == nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer r.Body.Close()
+	var payload struct {
+		ID    string `json:"id"`
+		Force bool   `json:"force"`
+	}
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	installed, err := p.manager.Install(r.Context(), payload.ID, marketplace.InstallOptions{Force: payload.Force})
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, installed)
+}
+
+func (p *pluginAPI) handleRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if p.manager == nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer r.Body.Close()
+	var payload struct {
+		ID string `json:"id"`
+	}
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if err := p.manager.Remove(payload.ID); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		fmt.Fprintf(os.Stderr, "write response: %v\n", err)
 	}
 }

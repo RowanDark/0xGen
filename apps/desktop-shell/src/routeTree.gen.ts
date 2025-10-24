@@ -13,6 +13,7 @@ import { Route as ScopeRouteImport } from './routes/scope'
 import { Route as RunsRouteImport } from './routes/runs'
 import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as CasesRouteImport } from './routes/cases'
+import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsComposerRouteImport } from './routes/runs.composer'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId'
@@ -37,6 +38,11 @@ const CasesRoute = CasesRouteImport.update({
   path: '/cases',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
+  '/plugins': typeof PluginsRoute
   '/runs': typeof RunsRouteWithChildren
   '/scope': typeof ScopeRoute
   '/runs/$runId': typeof RunsRunIdRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
+  '/plugins': typeof PluginsRoute
   '/runs': typeof RunsRouteWithChildren
   '/scope': typeof ScopeRoute
   '/runs/$runId': typeof RunsRunIdRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
   '/flows': typeof FlowsRoute
+  '/plugins': typeof PluginsRoute
   '/runs': typeof RunsRouteWithChildren
   '/scope': typeof ScopeRoute
   '/runs/$runId': typeof RunsRunIdRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cases'
     | '/flows'
+    | '/plugins'
     | '/runs'
     | '/scope'
     | '/runs/$runId'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cases'
     | '/flows'
+    | '/plugins'
     | '/runs'
     | '/scope'
     | '/runs/$runId'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cases'
     | '/flows'
+    | '/plugins'
     | '/runs'
     | '/scope'
     | '/runs/$runId'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CasesRoute: typeof CasesRoute
   FlowsRoute: typeof FlowsRoute
+  PluginsRoute: typeof PluginsRoute
   RunsRoute: typeof RunsRouteWithChildren
   ScopeRoute: typeof ScopeRoute
 }
@@ -147,6 +160,13 @@ declare module '@tanstack/react-router' {
       path: '/cases'
       fullPath: '/cases'
       preLoaderRoute: typeof CasesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
