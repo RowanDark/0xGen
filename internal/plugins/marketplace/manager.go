@@ -505,7 +505,7 @@ func (d DatasetEnvelope) Status(currentVersion string) []PluginStatus {
 	return statuses
 }
 
-func (m *Manager) emit(event logging.AuditEventType, plugin string, metadata map[string]any) {
+func (m *Manager) emit(event logging.EventType, plugin string, metadata map[string]any) {
 	if m.logger == nil {
 		return
 	}
