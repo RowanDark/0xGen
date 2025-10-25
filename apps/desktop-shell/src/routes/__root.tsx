@@ -22,7 +22,8 @@ const navigation = [
   { to: '/flows', label: 'Flows' },
   { to: '/runs', label: 'Runs' },
   { to: '/cases', label: 'Cases' },
-  { to: '/scope', label: 'Scope' }
+  { to: '/scope', label: 'Scope' },
+  { to: '/plugins', label: 'Marketplace' }
 ];
 
 type HealthTone = 'ok' | 'warn' | 'danger' | 'neutral';
