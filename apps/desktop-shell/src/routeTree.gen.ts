@@ -11,9 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScopeRouteImport } from './routes/scope'
 import { Route as RunsRouteImport } from './routes/runs'
-import { Route as FlowsRouteImport } from './routes/flows'
-import { Route as CasesRouteImport } from './routes/cases'
 import { Route as PluginsRouteImport } from './routes/plugins'
+import { Route as FlowsRouteImport } from './routes/flows'
+import { Route as CompareRouteImport } from './routes/compare'
+import { Route as CasesRouteImport } from './routes/cases'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsComposerRouteImport } from './routes/runs.composer'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId'
@@ -28,19 +29,24 @@ const RunsRoute = RunsRouteImport.update({
   path: '/runs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FlowsRoute = FlowsRouteImport.update({
   id: '/flows',
   path: '/flows',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CasesRoute = CasesRouteImport.update({
   id: '/cases',
   path: '/cases',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsRoute = PluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -62,6 +68,7 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
+  '/compare': typeof CompareRoute
   '/flows': typeof FlowsRoute
   '/plugins': typeof PluginsRoute
   '/runs': typeof RunsRouteWithChildren
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
+  '/compare': typeof CompareRoute
   '/flows': typeof FlowsRoute
   '/plugins': typeof PluginsRoute
   '/runs': typeof RunsRouteWithChildren
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cases': typeof CasesRoute
+  '/compare': typeof CompareRoute
   '/flows': typeof FlowsRoute
   '/plugins': typeof PluginsRoute
   '/runs': typeof RunsRouteWithChildren
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/cases'
+    | '/compare'
     | '/flows'
     | '/plugins'
     | '/runs'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/cases'
+    | '/compare'
     | '/flows'
     | '/plugins'
     | '/runs'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/cases'
+    | '/compare'
     | '/flows'
     | '/plugins'
     | '/runs'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CasesRoute: typeof CasesRoute
+  CompareRoute: typeof CompareRoute
   FlowsRoute: typeof FlowsRoute
   PluginsRoute: typeof PluginsRoute
   RunsRoute: typeof RunsRouteWithChildren
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/flows': {
       id: '/flows'
       path: '/flows'
@@ -155,18 +175,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FlowsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cases': {
       id: '/cases'
       path: '/cases'
       fullPath: '/cases'
       preLoaderRoute: typeof CasesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins': {
-      id: '/plugins'
-      path: '/plugins'
-      fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -208,7 +228,9 @@ const RunsRouteWithChildren = RunsRoute._addFileChildren(RunsRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CasesRoute: CasesRoute,
+  CompareRoute: CompareRoute,
   FlowsRoute: FlowsRoute,
+  PluginsRoute: PluginsRoute,
   RunsRoute: RunsRouteWithChildren,
   ScopeRoute: ScopeRoute,
 }

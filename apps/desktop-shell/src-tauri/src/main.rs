@@ -7,7 +7,7 @@ use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
     fs,
-    io::{BufRead, BufReader},
+    io::{self, BufRead, BufReader},
     path::{Component, Path, PathBuf},
     sync::Mutex,
     time::Duration,
@@ -23,6 +23,7 @@ use futures::{
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, json, Value};
+use sha2::{Digest, Sha256};
 use tar::Archive;
 use tauri::{async_runtime, Manager, State, Window};
 use tempfile::TempDir;
@@ -638,6 +639,205 @@ impl ReplayState {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseSnapshot {
+    id: String,
+    hash: String,
+    captured_at: DateTime<Utc>,
+    case_timestamp: DateTime<Utc>,
+    case_count: usize,
+    label: String,
+    cases: Vec<CaseRecord>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CaseSnapshotSummary {
+    id: String,
+    hash: String,
+    captured_at: DateTime<Utc>,
+    case_timestamp: DateTime<Utc>,
+    case_count: usize,
+    label: String,
+}
+
+impl From<&CaseSnapshot> for CaseSnapshotSummary {
+    fn from(value: &CaseSnapshot) -> Self {
+        Self {
+            id: value.id.clone(),
+            hash: value.hash.clone(),
+            captured_at: value.captured_at,
+            case_timestamp: value.case_timestamp,
+            case_count: value.case_count,
+            label: value.label.clone(),
+        }
+    }
+}
+
+struct SnapshotStoreInner {
+    path: Option<PathBuf>,
+    snapshots: Vec<CaseSnapshot>,
+    loaded: bool,
+}
+
+struct SnapshotStore {
+    inner: Mutex<SnapshotStoreInner>,
+}
+
+impl SnapshotStore {
+    fn new() -> Self {
+        Self {
+            inner: Mutex::new(SnapshotStoreInner {
+                path: None,
+                snapshots: Vec::new(),
+                loaded: false,
+            }),
+        }
+    }
+
+    fn initialise(&self, mut directory: PathBuf) -> Result<(), String> {
+        let mut guard = self.inner.lock().map_err(|err| err.to_string())?;
+        if guard.loaded {
+            return Ok(());
+        }
+
+        directory.push("case-snapshots.json");
+        let mut snapshots = Vec::new();
+        if let Some(parent) = directory.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|err| format!("create snapshot directory: {err}"))?;
+        }
+        if directory.exists() {
+            let data = fs::read(&directory).map_err(|err| format!("read snapshots: {err}"))?;
+            if !data.is_empty() {
+                snapshots = serde_json::from_slice(&data)
+                    .map_err(|err| format!("decode snapshots: {err}"))?;
+            }
+        }
+
+        guard.path = Some(directory);
+        guard.snapshots = snapshots;
+        guard.loaded = true;
+        Ok(())
+    }
+
+    fn list(&self) -> Result<Vec<CaseSnapshotSummary>, String> {
+        let guard = self.inner.lock().map_err(|err| err.to_string())?;
+        let mut summaries: Vec<CaseSnapshotSummary> =
+            guard.snapshots.iter().map(Into::into).collect();
+        summaries.sort_by(|a, b| b.captured_at.cmp(&a.captured_at));
+        Ok(summaries)
+    }
+
+    fn get(&self, id: &str) -> Result<CaseSnapshot, String> {
+        let guard = self.inner.lock().map_err(|err| err.to_string())?;
+        guard
+            .snapshots
+            .iter()
+            .find(|snapshot| snapshot.id == id)
+            .cloned()
+            .ok_or_else(|| "snapshot not found".to_string())
+    }
+
+    fn delete(&self, id: &str) -> Result<(), String> {
+        let mut guard = self.inner.lock().map_err(|err| err.to_string())?;
+        let original_len = guard.snapshots.len();
+        guard.snapshots.retain(|snapshot| snapshot.id != id);
+        if guard.snapshots.len() == original_len {
+            return Err("snapshot not found".to_string());
+        }
+        self.persist_locked(&mut guard)
+    }
+
+    fn record_from_cases(
+        &self,
+        manifest: &Manifest,
+        cases: &[CaseRecord],
+    ) -> Result<CaseSnapshotSummary, String> {
+        let hash = compute_case_list_hash(cases)?;
+        let id = format!("{}-{}", manifest.case_timestamp.timestamp(), &hash[..8]);
+        let label = format!("{} • {}", manifest.version, manifest.created_at);
+        let snapshot = CaseSnapshot {
+            id: id.clone(),
+            hash: hash.clone(),
+            captured_at: Utc::now(),
+            case_timestamp: manifest.case_timestamp,
+            case_count: cases.len(),
+            label,
+            cases: cases.to_vec(),
+        };
+        self.insert_snapshot(snapshot)
+    }
+
+    fn insert_snapshot(&self, snapshot: CaseSnapshot) -> Result<CaseSnapshotSummary, String> {
+        let mut guard = self.inner.lock().map_err(|err| err.to_string())?;
+        if guard
+            .snapshots
+            .iter()
+            .any(|existing| existing.hash == snapshot.hash)
+        {
+            let existing = guard
+                .snapshots
+                .iter()
+                .find(|existing| existing.hash == snapshot.hash)
+                .expect("hash match implies snapshot exists");
+            return Ok(existing.into());
+        }
+        let summary: CaseSnapshotSummary = (&snapshot).into();
+        guard.snapshots.push(snapshot);
+        guard
+            .snapshots
+            .sort_by(|a, b| b.captured_at.cmp(&a.captured_at));
+        self.persist_locked(&mut guard)?;
+        Ok(summary)
+    }
+
+    fn persist_locked(&self, guard: &mut SnapshotStoreInner) -> Result<(), String> {
+        if let Some(path) = guard.path.clone() {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|err| format!("create snapshot directory: {err}"))?;
+            }
+            let data = serde_json::to_vec_pretty(&guard.snapshots)
+                .map_err(|err| format!("encode snapshots: {err}"))?;
+            fs::write(&path, data).map_err(|err| format!("write snapshots: {err}"))?;
+        }
+        Ok(())
+    }
+}
+
+fn canonicalise_value(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            let mut entries: Vec<(String, Value)> = map.drain().collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            let mut ordered = serde_json::Map::with_capacity(entries.len());
+            for (key, mut val) in entries {
+                canonicalise_value(&mut val);
+                ordered.insert(key, val);
+            }
+            *map = ordered;
+        }
+        Value::Array(items) => {
+            for item in items.iter_mut() {
+                canonicalise_value(item);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn compute_case_list_hash(cases: &[CaseRecord]) -> Result<String, String> {
+    let mut value = serde_json::to_value(cases).map_err(|err| format!("case to value: {err}"))?;
+    canonicalise_value(&mut value);
+    let canonical =
+        serde_json::to_vec(&value).map_err(|err| format!("encode canonical cases: {err}"))?;
+    let mut hasher = Sha256::new();
+    hasher.update(canonical);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct OpenArtifactResponse {
@@ -934,6 +1134,7 @@ fn build_artifact_metrics(cases: &[CaseRecord]) -> DashboardMetrics {
 #[tauri::command]
 async fn open_artifact(
     replay: State<'_, ReplayState>,
+    snapshots: State<'_, SnapshotStore>,
     path: String,
 ) -> Result<OpenArtifactResponse, String> {
     let trimmed = path.trim();
@@ -954,6 +1155,10 @@ async fn open_artifact(
         case_count: cases.len(),
         flow_count: flows.len(),
     };
+
+    if let Err(err) = snapshots.record_from_cases(&manifest, &cases) {
+        eprintln!("failed to store case snapshot: {err}");
+    }
 
     let dataset = ReplayDataset {
         _temp_dir: temp_dir,
@@ -999,6 +1204,39 @@ fn list_cases(replay: State<'_, ReplayState>) -> Result<Vec<CaseRecord>, String>
     } else {
         Err("no artifact loaded".to_string())
     }
+}
+
+#[tauri::command]
+fn capture_case_snapshot(
+    replay: State<'_, ReplayState>,
+    snapshots: State<'_, SnapshotStore>,
+) -> Result<CaseSnapshotSummary, String> {
+    let guard = replay.current.lock().map_err(|err| err.to_string())?;
+    if let Some(dataset) = guard.as_ref() {
+        snapshots.record_from_cases(&dataset.manifest, &dataset.cases)
+    } else {
+        Err("no artifact loaded".to_string())
+    }
+}
+
+#[tauri::command]
+fn list_case_snapshots(
+    snapshots: State<'_, SnapshotStore>,
+) -> Result<Vec<CaseSnapshotSummary>, String> {
+    snapshots.list()
+}
+
+#[tauri::command]
+fn load_case_snapshot(
+    snapshots: State<'_, SnapshotStore>,
+    id: String,
+) -> Result<CaseSnapshot, String> {
+    snapshots.get(&id)
+}
+
+#[tauri::command]
+fn delete_case_snapshot(snapshots: State<'_, SnapshotStore>, id: String) -> Result<(), String> {
+    snapshots.delete(&id)
 }
 
 #[tauri::command]
@@ -1798,7 +2036,10 @@ async fn fetch_plugin_registry(api: State<'_, OxgApi>) -> Result<Value, String> 
         let body = response.text().await.unwrap_or_default();
         return Err(ApiError::UnexpectedResponse { status, body }.to_string());
     }
-    response.json::<Value>().await.map_err(|err| err.to_string())
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -1824,7 +2065,10 @@ async fn install_plugin(
         let body = response.text().await.unwrap_or_default();
         return Err(ApiError::UnexpectedResponse { status, body }.to_string());
     }
-    response.json::<Value>().await.map_err(|err| err.to_string())
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -1843,7 +2087,10 @@ async fn remove_plugin(api: State<'_, OxgApi>, id: String) -> Result<Value, Stri
         let body = response.text().await.unwrap_or_default();
         return Err(ApiError::UnexpectedResponse { status, body }.to_string());
     }
-    response.json::<Value>().await.map_err(|err| err.to_string())
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
 }
 
 fn configure_devtools(window: &Window) {
@@ -1865,11 +2112,18 @@ fn main() {
     tauri::Builder::default()
         .manage(api)
         .manage(crash_reporter)
+        .manage(SnapshotStore::new())
         .manage(ReplayState::new())
         .setup(|app| {
             {
                 let crash_state: State<'_, CrashReporter> = app.state();
                 crash_state.attach_app(app.handle());
+            }
+            if let Some(dir) = app.path_resolver().app_local_data_dir() {
+                let snapshots: State<'_, SnapshotStore> = app.state();
+                snapshots
+                    .initialise(dir)
+                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
             }
             if let Some(window) = app.get_window("main") {
                 configure_devtools(&window);
@@ -1880,6 +2134,10 @@ fn main() {
             open_artifact,
             artifact_status,
             list_cases,
+            capture_case_snapshot,
+            list_case_snapshots,
+            load_case_snapshot,
+            delete_case_snapshot,
             list_runs,
             start_run,
             list_flows,

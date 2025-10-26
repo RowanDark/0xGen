@@ -235,6 +235,19 @@ const timestampSchema = z.preprocess((value) => {
   return value;
 }, z.string());
 
+const CaseSnapshotSummarySchema = z.object({
+  id: z.string(),
+  hash: z.string(),
+  capturedAt: timestampSchema,
+  caseTimestamp: timestampSchema,
+  caseCount: z.number().int().nonnegative(),
+  label: z.string()
+});
+
+const CaseSnapshotSchema = CaseSnapshotSummarySchema.extend({
+  cases: z.array(CaseSchema)
+});
+
 const FlowEventSchema = z.object({
   id: z.string(),
   sequence: z.number().int(),
@@ -525,6 +538,28 @@ export async function getArtifactStatus(): Promise<ArtifactStatus> {
 export async function fetchArtifactCases(): Promise<CaseRecord[]> {
   const cases = await invoke('list_cases');
   return z.array(CaseSchema).parse(cases);
+}
+
+export type CaseSnapshotSummary = z.infer<typeof CaseSnapshotSummarySchema>;
+export type CaseSnapshot = z.infer<typeof CaseSnapshotSchema>;
+
+export async function captureCaseSnapshot(): Promise<CaseSnapshotSummary> {
+  const snapshot = await invoke('capture_case_snapshot');
+  return CaseSnapshotSummarySchema.parse(snapshot);
+}
+
+export async function listCaseSnapshots(): Promise<CaseSnapshotSummary[]> {
+  const snapshots = await invoke('list_case_snapshots');
+  return z.array(CaseSnapshotSummarySchema).parse(snapshots);
+}
+
+export async function loadCaseSnapshot(id: string): Promise<CaseSnapshot> {
+  const snapshot = await invoke('load_case_snapshot', { id });
+  return CaseSnapshotSchema.parse(snapshot);
+}
+
+export async function deleteCaseSnapshot(id: string): Promise<void> {
+  await invoke('delete_case_snapshot', { id });
 }
 
 export async function fetchMetrics(): Promise<DashboardMetrics> {
