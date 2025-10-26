@@ -21,6 +21,7 @@ const navigation = [
   { to: '/', label: 'Dashboard' },
   { to: '/flows', label: 'Flows' },
   { to: '/runs', label: 'Runs' },
+  { to: '/compare', label: 'Compare Runs' },
   { to: '/cases', label: 'Cases' },
   { to: '/scope', label: 'Scope' },
   { to: '/plugins', label: 'Marketplace' }
