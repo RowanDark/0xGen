@@ -30,6 +30,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/reporter"
 	"github.com/RowanDark/0xgen/internal/scope"
 	"github.com/RowanDark/0xgen/internal/secrets"
+	"github.com/RowanDark/0xgen/internal/team"
 	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 	"google.golang.org/grpc"
 )
@@ -55,6 +56,9 @@ type config struct {
 	apiTokenTTL       time.Duration
 	apiSigningKey     string
 	apiScanTimeout    time.Duration
+	apiOIDCIssuer     string
+	apiOIDCJWKS       string
+	apiOIDCAudiences  []string
 }
 
 func main() {
@@ -92,6 +96,9 @@ func main() {
 	apiTTL := flag.Duration("api-jwt-ttl", time.Hour, "default lifetime for issued API tokens")
 	apiSigningKey := flag.String("api-signing-key", "", "path to a cosign-compatible private key used to sign API results")
 	apiScanTimeout := flag.Duration("api-scan-timeout", 2*time.Minute, "maximum duration for API-triggered scans")
+	apiOIDCIssuer := flag.String("api-oidc-issuer", "", "OIDC issuer for validating API tokens")
+	apiOIDCJWKS := flag.String("api-oidc-jwks", "", "JWKS endpoint for OIDC token validation")
+	apiOIDCAud := flag.String("api-oidc-audiences", "", "comma-separated list of allowed OIDC audiences")
 	flag.Parse()
 
 	visited := make(map[string]bool)
@@ -116,6 +123,18 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	rawAud := strings.TrimSpace(*apiOIDCAud)
+	var oidcAudiences []string
+	if rawAud != "" {
+		for _, part := range strings.Split(rawAud, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			oidcAudiences = append(oidcAudiences, part)
+		}
+	}
 
 	cfg := config{
 		addr:        *addr,
@@ -147,13 +166,16 @@ func main() {
 			SampleRatio:   *traceSample,
 			FilePath:      strings.TrimSpace(*traceFile),
 		},
-		traceHeaders:   *traceHeaders,
-		apiAddr:        strings.TrimSpace(*apiAddr),
-		apiJWTSecret:   strings.TrimSpace(*apiSecret),
-		apiJWTIssuer:   strings.TrimSpace(*apiIssuer),
-		apiTokenTTL:    *apiTTL,
-		apiSigningKey:  strings.TrimSpace(*apiSigningKey),
-		apiScanTimeout: *apiScanTimeout,
+		traceHeaders:     *traceHeaders,
+		apiAddr:          strings.TrimSpace(*apiAddr),
+		apiJWTSecret:     strings.TrimSpace(*apiSecret),
+		apiJWTIssuer:     strings.TrimSpace(*apiIssuer),
+		apiTokenTTL:      *apiTTL,
+		apiSigningKey:    strings.TrimSpace(*apiSigningKey),
+		apiScanTimeout:   *apiScanTimeout,
+		apiOIDCIssuer:    strings.TrimSpace(*apiOIDCIssuer),
+		apiOIDCJWKS:      strings.TrimSpace(*apiOIDCJWKS),
+		apiOIDCAudiences: oidcAudiences,
 	}
 
 	scopePath := strings.TrimSpace(*scopePolicy)
@@ -454,6 +476,8 @@ func run(ctx context.Context, cfg config) error {
 			signingKeyPath = abs
 		}
 
+		workspaceStore := team.NewStore(apiLogger.WithComponent("workspace_store"))
+
 		apiCfg := api.Config{
 			Addr:            cfg.apiAddr,
 			StaticToken:     cfg.token,
@@ -469,6 +493,10 @@ func run(ctx context.Context, cfg config) error {
 			FindingsBus:     findingsBus,
 			Logger:          apiLogger,
 			ScanTimeout:     cfg.apiScanTimeout,
+			OIDCIssuer:      cfg.apiOIDCIssuer,
+			OIDCJWKSURL:     cfg.apiOIDCJWKS,
+			OIDCAudiences:   cfg.apiOIDCAudiences,
+			WorkspaceStore:  workspaceStore,
 		}
 		apiServer, err := api.NewServer(apiCfg)
 		if err != nil {
