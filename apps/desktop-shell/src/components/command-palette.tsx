@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
 import type { Command as CommandType } from '../providers/command-center';
+import { useTheme } from '../providers/theme-provider';
 
 type PaletteCommand = CommandType & { shortcuts: string[] };
 
@@ -41,6 +43,7 @@ export function CommandPalette({ isOpen, onClose, commands, onRun }: CommandPale
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const { prefersReducedMotion } = useTheme();
 
   useEffect(() => {
     if (!isOpen) {
@@ -65,6 +68,9 @@ export function CommandPalette({ isOpen, onClose, commands, onRun }: CommandPale
   }, [isOpen]);
 
   const grouped = useMemo(() => {
+    if (!isOpen) {
+      return [] as Array<[string, PaletteCommand[]]>;
+    }
     const term = query.trim().toLowerCase();
     const list = commands
       .filter((command) => {
@@ -86,7 +92,7 @@ export function CommandPalette({ isOpen, onClose, commands, onRun }: CommandPale
       groups.set(key, bucket);
     }
     return Array.from(groups.entries());
-  }, [commands, query]);
+  }, [commands, isOpen, query]);
 
   useEffect(() => {
     const total = grouped.reduce((sum, [, items]) => sum + items.length, 0);
@@ -97,9 +103,9 @@ export function CommandPalette({ isOpen, onClose, commands, onRun }: CommandPale
     setActiveIndex((previous) => Math.min(previous, total - 1));
   }, [grouped]);
 
-  const flattened = useMemo(() => grouped.flatMap(([, items]) => items), [grouped]);
+  const flattened = useMemo(() => (isOpen ? grouped.flatMap(([, items]) => items) : []), [grouped, isOpen]);
 
-  if (!isOpen || !portalTarget) {
+  if (!portalTarget) {
     return null;
   }
 
@@ -179,45 +185,59 @@ export function CommandPalette({ isOpen, onClose, commands, onRun }: CommandPale
     ));
   };
 
+  const duration = prefersReducedMotion ? 0 : 0.18;
+
   return createPortal(
-    <div
-      ref={containerRef}
-      className="fixed inset-0 z-50 flex items-start justify-center bg-background/70 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === containerRef.current) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="command-palette-title"
-        className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card shadow-xl"
-      >
-        <div className="border-b border-border bg-muted/40 px-4 py-3">
-          <label htmlFor="command-palette-search" className="sr-only">
-            Search commands
-          </label>
-          <input
-            id="command-palette-search"
-            ref={inputRef}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search actions, pages, or shortcuts"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-describedby="command-palette-help"
-          />
-          <p id="command-palette-help" className="mt-2 text-xs text-muted-foreground">
-            Navigate with ↑ ↓, press Enter to run a command, or Esc to close.
-          </p>
-        </div>
-        <div className="max-h-96 overflow-y-auto" role="presentation">
-          {renderList()}
-        </div>
-      </div>
-    </div>,
+    <AnimatePresence>
+      {isOpen ? (
+        <motion.div
+          ref={containerRef}
+          className="fixed inset-0 z-50 flex items-start justify-center bg-background/70 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === containerRef.current) {
+              onClose();
+            }
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration, ease: prefersReducedMotion ? 'linear' : [0.16, 1, 0.3, 1] }}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="command-palette-title"
+            className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+            initial={{ y: prefersReducedMotion ? 0 : -16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: prefersReducedMotion ? 0 : -16, opacity: 0 }}
+            transition={{ duration, ease: prefersReducedMotion ? 'linear' : [0.16, 1, 0.3, 1] }}
+          >
+            <div className="border-b border-border bg-muted/40 px-4 py-3">
+              <label htmlFor="command-palette-search" className="sr-only">
+                Search commands
+              </label>
+              <input
+                id="command-palette-search"
+                ref={inputRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search actions, pages, or shortcuts"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                aria-describedby="command-palette-help"
+              />
+              <p id="command-palette-help" className="mt-2 text-xs text-muted-foreground">
+                Navigate with ↑ ↓, press Enter to run a command, or Esc to close.
+              </p>
+            </div>
+            <div className="max-h-96 overflow-y-auto" role="presentation">
+              {renderList()}
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>,
     portalTarget
   );
 }

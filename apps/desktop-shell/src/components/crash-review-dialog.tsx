@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { motion } from 'framer-motion';
 import { AlertTriangle, Copy, Download, Trash2 } from 'lucide-react';
 
 import { Button } from './ui/button';
 import type { CrashBundleSummary } from '../types/crash';
+import { useTheme } from '../providers/theme-provider';
 
 export type CrashPreviewEntry =
   | { status: 'idle' }
@@ -30,6 +32,7 @@ export function CrashReviewDialog({
   onCopy,
 }: CrashReviewDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { prefersReducedMotion } = useTheme();
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -38,15 +41,27 @@ export function CrashReviewDialog({
   const capturedAt = useMemo(() => new Date(bundle.createdAt), [bundle.createdAt]);
   const formattedCapturedAt = useMemo(() => formatTimestamp(capturedAt), [capturedAt]);
 
+  const duration = prefersReducedMotion ? 0 : 0.2;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration, ease: prefersReducedMotion ? 'linear' : [0.16, 1, 0.3, 1] }}
+    >
+      <motion.div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="crash-review-title"
         tabIndex={-1}
         className="mx-4 w-full max-w-3xl rounded-lg border border-border bg-background p-6 shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        initial={{ scale: prefersReducedMotion ? 1 : 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: prefersReducedMotion ? 1 : 0.96, opacity: 0 }}
+        transition={{ duration, ease: prefersReducedMotion ? 'linear' : [0.16, 1, 0.3, 1] }}
       >
         <div className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-wide text-destructive">Crash detected</p>
@@ -150,8 +165,8 @@ export function CrashReviewDialog({
             {saving ? 'Saving…' : 'Save bundle'}
           </Button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

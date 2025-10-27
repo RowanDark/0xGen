@@ -1545,11 +1545,17 @@ function FlowsRouteComponent() {
     return flowsList.find((flow) => flow.id === selectedFlowId) ?? null;
   }, [flowsList, selectedFlowId]);
 
+  const getTimelineItemKey = useCallback(
+    (index: number) => filteredFlows[index]?.id ?? index,
+    [filteredFlows]
+  );
+
   const timelineVirtualizer = useVirtualizer({
     count: filteredFlows.length,
     getScrollElement: () => listRef.current,
     estimateSize: () => ITEM_HEIGHT,
-    overscan: 12
+    overscan: 12,
+    getItemKey: getTimelineItemKey
   });
   const virtualFlows = timelineVirtualizer.getVirtualItems();
 

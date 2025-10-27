@@ -24,8 +24,8 @@ const THEME_OPTIONS = [
   { value: 'red', label: 'Red', tone: 'dark' },
   { value: 'blue', label: 'Blue', tone: 'dark' },
   { value: 'purple', label: 'Purple', tone: 'dark' },
-  { value: 'amber', label: 'Amber', tone: 'dark' },
-  { value: 'cb-safe', label: 'Colorblind safe', tone: 'dark' }
+  { value: 'colorblind', label: 'Colorblind', tone: 'dark' },
+  { value: 'blue-light', label: 'Blue light friendly', tone: 'dark' }
 ] as const;
 
 const COLOR_VISION_FILTERS = {
@@ -164,6 +164,12 @@ function isThemeScope(value: unknown): value is ThemeScope {
 }
 
 function parseTheme(value: string | null): ThemeName | null {
+  if (value === 'amber') {
+    return 'blue-light';
+  }
+  if (value === 'cb-safe') {
+    return 'colorblind';
+  }
   return isThemeName(value) ? value : null;
 }
 
