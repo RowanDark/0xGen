@@ -232,3 +232,65 @@ func TestRunReportJSONSigning(t *testing.T) {
 		t.Fatalf("signature verification failed")
 	}
 }
+
+func TestRunReportHTMLSigning(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	dir := t.TempDir()
+	input := filepath.Join(dir, "findings.jsonl")
+	output := filepath.Join(dir, "report.html")
+
+	writer := reporter.NewJSONL(input)
+	sample := findings.Finding{
+		Version:    findings.SchemaVersion,
+		ID:         findings.NewID(),
+		Plugin:     "collector",
+		Type:       "exposure",
+		Message:    "demo",
+		Target:     "service",
+		Severity:   findings.SeverityMedium,
+		DetectedAt: findings.NewTimestamp(time.Unix(1710001000, 0).UTC()),
+	}
+	if err := writer.Write(sample); err != nil {
+		t.Fatalf("write finding: %v", err)
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	pkcs8, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8})
+	keyPath := filepath.Join(dir, "sign.key")
+	if err := os.WriteFile(keyPath, pemBytes, 0o600); err != nil {
+		t.Fatalf("write key: %v", err)
+	}
+
+	now := time.Date(2024, 3, 5, 9, 0, 0, 0, time.UTC)
+	args := []string{"--input", input, "--out", output, "--format", "html", "--sign", keyPath}
+	if code := runReportAt(args, now); code != 0 {
+		t.Fatalf("runReport exited with %d", code)
+	}
+
+	sigPath := output + ".sig"
+	if _, err := os.Stat(sigPath); err != nil {
+		t.Fatalf("signature not created: %v", err)
+	}
+
+	pubBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		t.Fatalf("marshal public key: %v", err)
+	}
+	pubPath := filepath.Join(dir, "sign.pub")
+	if err := os.WriteFile(pubPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes}), 0o644); err != nil {
+		t.Fatalf("write public key: %v", err)
+	}
+
+	if err := reporter.VerifyArtifact(output, sigPath, pubPath); err != nil {
+		t.Fatalf("verify artifact: %v", err)
+	}
+}

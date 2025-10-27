@@ -47,6 +47,48 @@ func SignArtifact(artifactPath, keyPath string) (string, error) {
 	return signaturePath, nil
 }
 
+// VerifyArtifact validates a detached cosign-compatible signature for the provided artifact.
+func VerifyArtifact(artifactPath, signaturePath, keyPath string) error {
+	artifactPath = strings.TrimSpace(artifactPath)
+	signaturePath = strings.TrimSpace(signaturePath)
+	keyPath = strings.TrimSpace(keyPath)
+
+	if artifactPath == "" {
+		return errors.New("artifact path is required")
+	}
+	if signaturePath == "" {
+		return errors.New("signature path is required")
+	}
+	if keyPath == "" {
+		return errors.New("verification key path is required")
+	}
+
+	digest, err := computeFileDigest(artifactPath)
+	if err != nil {
+		return fmt.Errorf("hash artifact: %w", err)
+	}
+
+	signatureData, err := os.ReadFile(signaturePath)
+	if err != nil {
+		return fmt.Errorf("read signature: %w", err)
+	}
+
+	signature, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(signatureData)))
+	if err != nil {
+		return fmt.Errorf("decode signature: %w", err)
+	}
+
+	publicKey, err := loadVerificationKey(keyPath)
+	if err != nil {
+		return err
+	}
+
+	if !ecdsa.VerifyASN1(publicKey, digest, signature) {
+		return errors.New("signature verification failed")
+	}
+	return nil
+}
+
 func loadSigningKey(path string) (*ecdsa.PrivateKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -80,6 +122,32 @@ func loadSigningKey(path string) (*ecdsa.PrivateKey, error) {
 	default:
 		return nil, fmt.Errorf("unsupported signing key type %q", block.Type)
 	}
+}
+
+func loadVerificationKey(path string) (*ecdsa.PublicKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read verification key: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, errors.New("decode verification key: missing PEM block")
+	}
+
+	if block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("unsupported verification key type %q", block.Type)
+	}
+
+	parsed, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse public key: %w", err)
+	}
+	key, ok := parsed.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("public key is %T, expected *ecdsa.PublicKey", parsed)
+	}
+	return key, nil
 }
 
 // ComputeBundleDigest calculates the SHA-256 digest for the provided bytes in hex form.

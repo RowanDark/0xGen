@@ -52,11 +52,6 @@ func runReportAt(args []string, now time.Time) int {
 		return 2
 	}
 
-	if strings.TrimSpace(*signingKey) != "" && format != reporter.FormatJSON {
-		fmt.Fprintln(os.Stderr, "--sign is only supported for --format json")
-		return 2
-	}
-
 	outputPath := strings.TrimSpace(*output)
 	if outputPath == "" {
 		switch format {
@@ -69,21 +64,24 @@ func runReportAt(args []string, now time.Time) int {
 		}
 	}
 
+	keyPath := strings.TrimSpace(*signingKey)
+	if keyPath != "" && format == reporter.FormatMarkdown {
+		fmt.Fprintln(os.Stderr, "--sign is not supported for markdown reports")
+		return 2
+	}
+
 	if err := reporter.RenderReport(*input, outputPath, format, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "generate report: %v\n", err)
 		return 1
 	}
 
-	if format == reporter.FormatJSON {
-		keyPath := strings.TrimSpace(*signingKey)
-		if keyPath != "" {
-			signaturePath, err := reporter.SignArtifact(outputPath, keyPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "sign JSON report: %v\n", err)
-				return 1
-			}
-			fmt.Fprintf(os.Stdout, "Signature written to %s\n", signaturePath)
+	if keyPath != "" {
+		signaturePath, err := reporter.SignArtifact(outputPath, keyPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sign report: %v\n", err)
+			return 1
 		}
+		fmt.Fprintf(os.Stdout, "Signature written to %s\n", signaturePath)
 	}
 
 	return 0
