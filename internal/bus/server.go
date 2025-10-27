@@ -138,6 +138,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 	validatedCaps, err := s.caps.Validate(hello.GetCapabilityToken(), hello.GetPluginName(), hello.GetCapabilities())
 	if err != nil {
 		obsmetrics.RecordRPCError("plugin_bus", "EventStream", codes.PermissionDenied.String())
+		obsmetrics.RecordPluginError(pluginID, "capability_validation")
 		code = codes.PermissionDenied.String()
 		s.emit(ctx, logging.AuditEvent{
 			EventType: logging.EventCapabilityDenied,
@@ -183,6 +184,7 @@ func (s *Server) EventStream(stream pb.PluginBus_EventStreamServer) error {
 		required := subscriptionRequiresCapability(normalised)
 		if required != "" {
 			if _, ok := caps[required]; !ok {
+				obsmetrics.RecordPluginError(pluginID, "subscription_capability")
 				s.emit(ctx, logging.AuditEvent{
 					EventType: logging.EventPluginLoad,
 					Decision:  logging.DecisionDeny,
@@ -342,6 +344,8 @@ func (s *Server) sendEvents(ctx context.Context, stream pb.PluginBus_EventStream
 			}))
 			if err := stream.Send(event); err != nil {
 				span.RecordError(err)
+				obsmetrics.RecordPluginEventFailure(pluginID, getEventType(event))
+				obsmetrics.RecordPluginError(pluginID, "grpc_send_failure")
 				span.End()
 				obsmetrics.RecordRPCError("plugin_bus", "EventStreamSend", codes.Internal.String())
 				s.emit(sendCtx, logging.AuditEvent{
@@ -381,6 +385,7 @@ func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStr
 		if err != nil {
 			span.RecordError(err)
 			span.End()
+			obsmetrics.RecordPluginError(pluginID, "grpc_recv_failure")
 			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventRPCDenied,
 				Decision:  logging.DecisionDeny,
@@ -397,6 +402,8 @@ func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStr
 			start := time.Now()
 			if _, ok := p.capabilities[CapEmitFindings]; !ok {
 				obsmetrics.RecordRPCError("plugin_bus", "EventStreamRecv", codes.PermissionDenied.String())
+				obsmetrics.RecordPluginEventFailure(pluginID, "finding")
+				obsmetrics.RecordPluginError(pluginID, "missing_cap_emit_findings")
 				span.RecordError(fmt.Errorf("missing capability %s", CapEmitFindings))
 				span.End()
 				s.emit(recvCtx, logging.AuditEvent{
@@ -424,6 +431,7 @@ func (s *Server) receiveEvents(ctx context.Context, stream pb.PluginBus_EventStr
 			span.EndWithStatus(tracing.StatusOK, "")
 		default:
 			span.SetAttribute("oxg.event.type", "unknown")
+			obsmetrics.RecordPluginEventFailure(pluginID, "unknown")
 			span.EndWithStatus(tracing.StatusOK, "")
 			s.emit(recvCtx, logging.AuditEvent{
 				EventType: logging.EventRPCCall,
@@ -581,6 +589,7 @@ func (s *Server) broadcast(ctx context.Context, event *pb.HostEvent, eventType s
 				delivered++
 				obsmetrics.SetPluginQueueLength(id, len(plugin.eventChan))
 			default:
+				obsmetrics.RecordPluginQueueDrop(id, eventType, 1)
 				obsmetrics.RecordRPCError("plugin_bus", "Broadcast", "channel_full")
 				dropped++
 				hadChannelError = true

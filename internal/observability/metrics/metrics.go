@@ -78,6 +78,9 @@ var (
 	rpcLatency          = newDualHistogramVec("oxg_rpc_duration_seconds", "Latency of RPC handlers broken down by component and method.", []string{"component", "method", "code"})
 	pluginEvent         = newDualHistogramVec("oxg_plugin_event_duration_seconds", "Duration OxG spends processing plugin events.", []string{"plugin", "event"})
 	pluginQueue         = newDualGaugeVec("oxg_plugin_queue_length", "Current length of the outbound queue for a plugin.", []string{"plugin"})
+	pluginQueueDrops    = newDualCounterVec("oxg_plugin_queue_dropped_total", "Number of plugin events dropped because outbound queues were full.", []string{"plugin", "event"})
+	pluginEventFailures = newDualCounterVec("oxg_plugin_event_failures_total", "Number of plugin-originated events that failed validation or delivery.", []string{"plugin", "event"})
+	pluginErrorsTotal   = newDualCounterVec("oxg_plugin_errors_total", "Total plugin-specific errors observed by the bus.", []string{"plugin", "reason"})
 	activePlugs         = newDualGaugeVec("oxg_active_plugins", "Number of active plugin connections registered with the bus.", nil)
 	httpThrottle        = newDualCounterVec("oxg_http_throttle_total", "Number of outbound HTTP requests delayed due to throttling.", []string{"scope"})
 	httpBackoff         = newDualCounterVec("oxg_http_backoff_total", "Number of outbound HTTP retry backoffs triggered by response status codes.", []string{"status"})
@@ -91,7 +94,7 @@ var (
 )
 
 func init() {
-	collectors = []collector{rpcRequests, rpcErrors, rpcLatency, pluginEvent, pluginQueue, activePlugs, httpThrottle, httpBackoff, httpLatency, flowEvents, flowDrops, flowDispatchLatency, flowRedactions}
+	collectors = []collector{rpcRequests, rpcErrors, rpcLatency, pluginEvent, pluginQueue, pluginQueueDrops, pluginEventFailures, pluginErrorsTotal, activePlugs, httpThrottle, httpBackoff, httpLatency, flowEvents, flowDrops, flowDispatchLatency, flowRedactions}
 }
 
 func newCounterVec(name, help string, labels []string) *counterVec {
@@ -500,6 +503,48 @@ func RecordFlowRedaction(kind string) {
 		kind = "unspecified"
 	}
 	flowRedactions.IncWith(kind)
+}
+
+// RecordPluginQueueDrop increments the drop counter for a plugin and event when the outbound queue is full.
+func RecordPluginQueueDrop(pluginID, event string, count int) {
+	if count <= 0 {
+		return
+	}
+	pluginID = strings.TrimSpace(pluginID)
+	if pluginID == "" {
+		pluginID = "unknown"
+	}
+	event = strings.TrimSpace(event)
+	if event == "" {
+		event = "unspecified"
+	}
+	pluginQueueDrops.AddWith(float64(count), pluginID, event)
+}
+
+// RecordPluginEventFailure increments the counter for plugin events that failed validation or delivery.
+func RecordPluginEventFailure(pluginID, event string) {
+	pluginID = strings.TrimSpace(pluginID)
+	if pluginID == "" {
+		pluginID = "unknown"
+	}
+	event = strings.TrimSpace(event)
+	if event == "" {
+		event = "unspecified"
+	}
+	pluginEventFailures.IncWith(pluginID, event)
+}
+
+// RecordPluginError tracks plugin-specific errors with a reason label.
+func RecordPluginError(pluginID, reason string) {
+	pluginID = strings.TrimSpace(pluginID)
+	if pluginID == "" {
+		pluginID = "unknown"
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "unspecified"
+	}
+	pluginErrorsTotal.IncWith(pluginID, reason)
 }
 
 // ObserveHTTPClientDuration records the latency for an outbound HTTP request executed by the gate.

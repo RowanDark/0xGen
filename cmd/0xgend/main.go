@@ -520,6 +520,7 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 
 	pluginManagerCancel := func() {}
 	if strings.TrimSpace(pluginsDir) != "" {
+		pluginLogger := coreLogger.WithComponent("plugin_manager")
 		repoRoot, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("determine working directory: %w", err)

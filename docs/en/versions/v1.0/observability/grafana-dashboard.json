@@ -168,7 +168,79 @@
     },
     {
       "datasource": null,
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "sum(rate(oxg_plugin_queue_dropped_total{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (plugin,event)",
+          "legendFormat": "{{plugin}} :: {{event}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Plugin Queue Drops (per 5m)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "exemplars": { "display": true } },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "editorMode": "code",
+          "expr": "sum(rate(oxg_plugin_errors_total{job=~\"$job\",plugin=~\"$plugin\"}[5m])) by (plugin,reason)",
+          "legendFormat": "{{plugin}} :: {{reason}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Plugin Errors (per 5m)",
+      "type": "timeSeries"
+    },
+    {
+      "datasource": null,
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 24 },
       "id": 5,
       "options": {
         "displayMode": "gradient",
