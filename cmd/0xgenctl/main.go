@@ -41,6 +41,8 @@ func main() {
 	switch args[0] {
 	case "report":
 		os.Exit(runReport(args[1:]))
+	case "verify-report":
+		os.Exit(runVerifyReport(args[1:]))
 	case "demo":
 		os.Exit(runDemo(args[1:]))
 	case "findings":
@@ -51,42 +53,42 @@ func main() {
 		os.Exit(runOSINTWell(args[1:]))
 	case "rank":
 		os.Exit(runRank(args[1:]))
-        case "config":
-                os.Exit(runConfig(args[1:]))
-        case "api-token":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "api-token subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "new":
-                        os.Exit(runAPITokenNew(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown api-token subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
-        case "scope":
-                os.Exit(runScope(args[1:]))
-        case "plugin":
-                if len(args) < 2 {
-                        fmt.Fprintln(os.Stderr, "plugin subcommand required")
-                        os.Exit(2)
-                }
-                switch args[1] {
-                case "run":
-                        os.Exit(runPluginRun(args[2:]))
-                case "verify":
-                        os.Exit(runPluginVerify(args[2:]))
-                case "registry":
-                        os.Exit(runPluginRegistry(args[2:]))
-                case "install":
-                        os.Exit(runPluginInstall(args[2:]))
-                case "remove":
-                        os.Exit(runPluginRemove(args[2:]))
-                default:
-                        fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
-                        os.Exit(2)
-                }
+	case "config":
+		os.Exit(runConfig(args[1:]))
+	case "api-token":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "api-token subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "new":
+			os.Exit(runAPITokenNew(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown api-token subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
+	case "scope":
+		os.Exit(runScope(args[1:]))
+	case "plugin":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "plugin subcommand required")
+			os.Exit(2)
+		}
+		switch args[1] {
+		case "run":
+			os.Exit(runPluginRun(args[2:]))
+		case "verify":
+			os.Exit(runPluginVerify(args[2:]))
+		case "registry":
+			os.Exit(runPluginRegistry(args[2:]))
+		case "install":
+			os.Exit(runPluginInstall(args[2:]))
+		case "remove":
+			os.Exit(runPluginRemove(args[2:]))
+		default:
+			fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[1])
+			os.Exit(2)
+		}
 	case "raider":
 		os.Exit(runRaider(args[1:]))
 	case "history":
