@@ -44,14 +44,18 @@ The collector accepts spans from 0xgen over OTLP/HTTP, batches them, and forward
 * `oxg_plugin_queue_length` – outbound queue depth per plugin.
 * `oxg_http_request_duration_seconds` – latency of proxied HTTP requests.
 * `oxg_plugin_event_duration_seconds` – time spent handling plugin-sent events.
+* `oxg_plugin_queue_dropped_total` – plugin events dropped because outbound queues were saturated.
+* `oxg_plugin_event_failures_total` – plugin-emitted events rejected during validation or delivery.
+* `oxg_plugin_errors_total` – aggregated plugin-specific errors (capability validation, stream failures).
 * `oxg_http_throttle_total` – rate-limiter activations.
 * `oxg_flow_dispatch_seconds` – latency for sanitized/raw flow fan-out to plugins.
 
 Legacy `oxg_*` aliases remain for this release but are deprecated and will be removed in the following cycle.
 
 The Grafana dashboard in [`grafana-dashboard.json`](grafana-dashboard.json) now ships exemplar-aware
-panels for HTTP, flow dispatch, and plugin event latency. Selecting an exemplar opens the associated
-trace in Tempo/Jaeger, letting you pivot from 95th percentile latency straight into a correlated span.
+panels for HTTP, flow dispatch, and plugin event latency alongside backpressure and error visualisations.
+Selecting an exemplar opens the associated trace in Tempo/Jaeger, letting you pivot from 95th percentile
+latency straight into a correlated span or drill into plugins repeatedly hitting queue drops.
 
 ## Alerting
 

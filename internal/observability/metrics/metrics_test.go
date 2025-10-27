@@ -13,10 +13,15 @@ func TestHandlerExportsMetrics(t *testing.T) {
 	Handler().ServeHTTP(rr, req)
 
 	body := rr.Body.String()
-	if !strings.Contains(body, "# HELP oxg_rpc_requests_total") {
-		t.Fatalf("expected oxg metrics to be exported, got %q", body)
+	required := []string{
+		"# HELP oxg_rpc_requests_total",
+		"# HELP oxg_plugin_queue_dropped_total",
+		"# HELP oxg_plugin_event_failures_total",
+		"# HELP oxg_plugin_errors_total",
 	}
-	if strings.Contains(body, "oxg_rpc_requests_total") {
-		t.Fatalf("unexpected legacy metrics exported: %q", body)
+	for _, metric := range required {
+		if !strings.Contains(body, metric) {
+			t.Fatalf("expected metric %q to be exported, got %q", metric, body)
+		}
 	}
 }
