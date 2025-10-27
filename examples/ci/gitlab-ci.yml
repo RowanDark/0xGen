@@ -1,0 +1,70 @@
+stages:
+  - scan
+
+variables:
+  OXGEN_API_ENDPOINT: https://0xgen.example.com
+  OXGEN_STATIC_TOKEN: "$OXGEN_STATIC_TOKEN"
+  OXGEN_RESULTS_PUBKEY: "$OXGEN_RESULTS_PUBKEY"
+
+0xgen_scan:
+  stage: scan
+  image: golang:1.22
+  before_script:
+    - export PATH="$(go env GOPATH)/bin:$PATH"
+    - apt-get update && apt-get install -y jq cosign >/dev/null
+    - go install github.com/RowanDark/0xgen/cmd/0xgenctl@latest
+  script:
+    - |
+      TOKEN=$(0xgenctl api-token new --subject gitlab-ci --audience pipeline --ttl 15m | head -n1)
+      if [ -z "$TOKEN" ]; then
+        echo "failed to mint API token" >&2
+        exit 1
+      fi
+      echo "Issued token for scan"
+    - |
+      RESPONSE=$(curl -sS -X POST "$OXGEN_API_ENDPOINT/api/v1/scans" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H 'Content-Type: application/json' \
+        --data '{"plugin":"samples/passive-header-scan"}')
+      echo "$RESPONSE"
+      SCAN_ID=$(echo "$RESPONSE" | jq -r '.scan_id')
+      if [ -z "$SCAN_ID" ] || [ "$SCAN_ID" = "null" ]; then
+        echo "scan submission failed" >&2
+        exit 1
+      fi
+      export SCAN_ID
+    - |
+      for attempt in $(seq 1 30); do
+        STATUS=$(curl -sS "$OXGEN_API_ENDPOINT/api/v1/scans/$SCAN_ID" -H "Authorization: Bearer $TOKEN")
+        echo "$STATUS"
+        STATE=$(echo "$STATUS" | jq -r '.status')
+        if [ "$STATE" = "succeeded" ]; then
+          break
+        fi
+        if [ "$STATE" = "failed" ]; then
+          echo "scan failed" >&2
+          exit 1
+        fi
+        sleep 10
+      done
+    - |
+      curl -sS "$OXGEN_API_ENDPOINT/api/v1/scans/$SCAN_ID/results" \
+        -H "Authorization: Bearer $TOKEN" > results.json
+      jq '.' results.json
+      jq -r '.signature' results.json > results.sig
+      jq -c '{scan_id, plugin, generated_at, findings}' results.json > payload.json
+      jq -r '.digest' results.json > digest.txt
+    - |
+      if [ -n "$OXGEN_RESULTS_PUBKEY" ]; then
+        echo "$OXGEN_RESULTS_PUBKEY" > results.pub
+        cosign verify-blob --key results.pub --signature results.sig payload.json
+      else
+        echo "Skipping signature verification; provide OXGEN_RESULTS_PUBKEY to enable" >&2
+      fi
+  artifacts:
+    when: always
+    paths:
+      - payload.json
+      - results.sig
+      - digest.txt
+      - results.json

@@ -15,10 +15,11 @@ import (
 // Config captures the 0xgen configuration resolved from defaults, optional files,
 // and environment overrides.
 type Config struct {
-	ServerAddr string      `yaml:"server_addr" toml:"server_addr"`
-	AuthToken  string      `yaml:"auth_token" toml:"auth_token"`
-	OutputDir  string      `yaml:"output_dir" toml:"output_dir"`
-	Proxy      ProxyConfig `yaml:"proxy" toml:"proxy"`
+	ServerAddr  string      `yaml:"server_addr" toml:"server_addr"`
+	AuthToken   string      `yaml:"auth_token" toml:"auth_token"`
+	OutputDir   string      `yaml:"output_dir" toml:"output_dir"`
+	APIEndpoint string      `yaml:"api_endpoint" toml:"api_endpoint"`
+	Proxy       ProxyConfig `yaml:"proxy" toml:"proxy"`
 }
 
 // ProxyConfig controls proxy-related behaviour for 0xgend.
@@ -34,9 +35,10 @@ type ProxyConfig struct {
 // Default returns the built-in 0xgen configuration.
 func Default() Config {
 	return Config{
-		ServerAddr: "127.0.0.1:50051",
-		AuthToken:  "supersecrettoken",
-		OutputDir:  "/out",
+		ServerAddr:  "127.0.0.1:50051",
+		AuthToken:   "supersecrettoken",
+		OutputDir:   "/out",
+		APIEndpoint: "http://127.0.0.1:7600",
 		Proxy: ProxyConfig{
 			Enable:      false,
 			Addr:        "",
@@ -108,17 +110,27 @@ func loadLocalConfig(cfg *Config) error {
 		}
 		return fmt.Errorf("read config %s: %w", path, err)
 	}
+	originalOutputDir := cfg.OutputDir
+	originalAPIEndpoint := cfg.APIEndpoint
 	if err := applyFileConfig(cfg, data, "yaml"); err != nil {
 		return fmt.Errorf("parse config %s: %w", path, err)
+	}
+	defaults := Default()
+	if cfg.OutputDir != originalOutputDir && originalOutputDir != defaults.OutputDir {
+		cfg.OutputDir = originalOutputDir
+	}
+	if cfg.APIEndpoint != originalAPIEndpoint && originalAPIEndpoint != defaults.APIEndpoint {
+		cfg.APIEndpoint = originalAPIEndpoint
 	}
 	return nil
 }
 
 type fileConfig struct {
-	ServerAddr *string          `yaml:"server_addr" toml:"server_addr"`
-	AuthToken  *string          `yaml:"auth_token" toml:"auth_token"`
-	OutputDir  *string          `yaml:"output_dir" toml:"output_dir"`
-	Proxy      *fileProxyConfig `yaml:"proxy" toml:"proxy"`
+	ServerAddr  *string          `yaml:"server_addr" toml:"server_addr"`
+	AuthToken   *string          `yaml:"auth_token" toml:"auth_token"`
+	OutputDir   *string          `yaml:"output_dir" toml:"output_dir"`
+	APIEndpoint *string          `yaml:"api_endpoint" toml:"api_endpoint"`
+	Proxy       *fileProxyConfig `yaml:"proxy" toml:"proxy"`
 }
 
 type fileProxyConfig struct {
@@ -153,6 +165,9 @@ func applyFileConfig(cfg *Config, data []byte, format string) error {
 	}
 	if fc.OutputDir != nil {
 		cfg.OutputDir = strings.TrimSpace(*fc.OutputDir)
+	}
+	if fc.APIEndpoint != nil {
+		cfg.APIEndpoint = strings.TrimSpace(*fc.APIEndpoint)
 	}
 	if fc.Proxy != nil {
 		if fc.Proxy.Enable != nil {
@@ -192,6 +207,11 @@ func applyEnvOverrides(cfg *Config) {
 	if val, ok := env.Lookup("0XGEN_OUT"); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			cfg.OutputDir = trimmed
+		}
+	}
+	if val, ok := env.Lookup("0XGEN_API_ENDPOINT"); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			cfg.APIEndpoint = trimmed
 		}
 	}
 	if val, ok := env.Lookup("0XGEN_PROXY_ENABLE"); ok {

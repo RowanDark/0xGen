@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RowanDark/0xgen/internal/api"
 	"github.com/RowanDark/0xgen/internal/bus"
 	"github.com/RowanDark/0xgen/internal/env"
 	"github.com/RowanDark/0xgen/internal/findings"
@@ -48,6 +49,12 @@ type config struct {
 	tracing           tracing.Config
 	traceHeaders      string
 	scopePolicyPath   string
+	apiAddr           string
+	apiJWTSecret      string
+	apiJWTIssuer      string
+	apiTokenTTL       time.Duration
+	apiSigningKey     string
+	apiScanTimeout    time.Duration
 }
 
 func main() {
@@ -79,6 +86,12 @@ func main() {
 	traceService := flag.String("trace-service-name", "0xgend", "service.name attribute value for traces")
 	traceFile := flag.String("trace-file", "", "optional path to write spans as JSONL")
 	traceHeaders := flag.String("trace-headers", "", "comma-separated list of additional headers for trace export requests (key=value)")
+	apiAddr := flag.String("api-addr", "", "address for the REST API server (host:port)")
+	apiSecret := flag.String("api-jwt-secret", "", "HMAC secret used to sign API tokens")
+	apiIssuer := flag.String("api-jwt-issuer", "0xgen", "issuer claim for API tokens")
+	apiTTL := flag.Duration("api-jwt-ttl", time.Hour, "default lifetime for issued API tokens")
+	apiSigningKey := flag.String("api-signing-key", "", "path to a cosign-compatible private key used to sign API results")
+	apiScanTimeout := flag.Duration("api-scan-timeout", 2*time.Minute, "maximum duration for API-triggered scans")
 	flag.Parse()
 
 	visited := make(map[string]bool)
@@ -134,7 +147,13 @@ func main() {
 			SampleRatio:   *traceSample,
 			FilePath:      strings.TrimSpace(*traceFile),
 		},
-		traceHeaders: *traceHeaders,
+		traceHeaders:   *traceHeaders,
+		apiAddr:        strings.TrimSpace(*apiAddr),
+		apiJWTSecret:   strings.TrimSpace(*apiSecret),
+		apiJWTIssuer:   strings.TrimSpace(*apiIssuer),
+		apiTokenTTL:    *apiTTL,
+		apiSigningKey:  strings.TrimSpace(*apiSigningKey),
+		apiScanTimeout: *apiScanTimeout,
 	}
 
 	scopePath := strings.TrimSpace(*scopePolicy)
@@ -390,10 +409,76 @@ func run(ctx context.Context, cfg config) error {
 	serviceCtx, cancelService := context.WithCancel(ctx)
 	defer cancelService()
 
+	findingsBus := findings.NewBus()
+
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode, flowPublisher)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode, flowPublisher, findingsBus)
 	}()
+
+	var apiErrCh chan error
+	if strings.TrimSpace(cfg.apiAddr) != "" {
+		if strings.TrimSpace(cfg.pluginsDir) == "" {
+			return errors.New("--plugins-dir must be provided when --api-addr is set")
+		}
+		if strings.TrimSpace(cfg.apiJWTSecret) == "" {
+			return errors.New("--api-jwt-secret must be provided when --api-addr is set")
+		}
+		if strings.TrimSpace(cfg.apiSigningKey) == "" {
+			return errors.New("--api-signing-key must be provided when --api-addr is set")
+		}
+		pluginsAbs := cfg.pluginsDir
+		if !filepath.IsAbs(pluginsAbs) {
+			abs, err := filepath.Abs(pluginsAbs)
+			if err != nil {
+				return fmt.Errorf("resolve plugins directory: %w", err)
+			}
+			pluginsAbs = abs
+		}
+		allowlistPath := filepath.Join(pluginsAbs, "ALLOWLIST")
+		if _, err := os.Stat(allowlistPath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				allowlistPath = ""
+			} else {
+				return fmt.Errorf("stat allowlist: %w", err)
+			}
+		}
+		repoRoot := filepath.Dir(pluginsAbs)
+		apiLogger := coreLogger.WithComponent("api_server")
+		signingKeyPath := cfg.apiSigningKey
+		if !filepath.IsAbs(signingKeyPath) {
+			abs, err := filepath.Abs(signingKeyPath)
+			if err != nil {
+				return fmt.Errorf("resolve signing key: %w", err)
+			}
+			signingKeyPath = abs
+		}
+
+		apiCfg := api.Config{
+			Addr:            cfg.apiAddr,
+			StaticToken:     cfg.token,
+			JWTSecret:       []byte(cfg.apiJWTSecret),
+			JWTIssuer:       strings.TrimSpace(cfg.apiJWTIssuer),
+			DefaultTokenTTL: cfg.apiTokenTTL,
+			PluginsDir:      pluginsAbs,
+			AllowlistPath:   allowlistPath,
+			RepoRoot:        repoRoot,
+			ServerAddr:      cfg.addr,
+			AuthToken:       cfg.token,
+			SigningKeyPath:  signingKeyPath,
+			FindingsBus:     findingsBus,
+			Logger:          apiLogger,
+			ScanTimeout:     cfg.apiScanTimeout,
+		}
+		apiServer, err := api.NewServer(apiCfg)
+		if err != nil {
+			return fmt.Errorf("configure api server: %w", err)
+		}
+		apiErrCh = make(chan error, 1)
+		go func() {
+			apiErrCh <- apiServer.Run(serviceCtx)
+		}()
+	}
 
 	select {
 	case err := <-grpcErrCh:
@@ -430,6 +515,25 @@ func run(ctx context.Context, cfg config) error {
 			}
 		}
 		return <-grpcErrCh
+	case err := <-apiErrCh:
+		cancelService()
+		cancelProxy()
+		if err != nil {
+			return fmt.Errorf("api server failed: %w", err)
+		}
+		if proxyErrCh != nil {
+			if pErr := <-proxyErrCh; pErr != nil {
+				emitAudit(coreLogger, logging.AuditEvent{
+					EventType: logging.EventProxyLifecycle,
+					Decision:  logging.DecisionDeny,
+					Reason:    pErr.Error(),
+					Metadata: map[string]any{
+						"phase": "api_shutdown",
+					},
+				})
+			}
+		}
+		return <-grpcErrCh
 	case err := <-proxyErrCh:
 		cancelService()
 		cancelProxy()
@@ -456,12 +560,14 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string, publisher *busFlowPublisher) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string, publisher *busFlowPublisher, findingsBus *findings.Bus) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
 	}
 
-	findingsBus := findings.NewBus()
+	if findingsBus == nil {
+		findingsBus = findings.NewBus()
+	}
 	findingsPath := resolveFindingsPath()
 	emitAudit(coreLogger, logging.AuditEvent{
 		EventType: logging.EventReporter,

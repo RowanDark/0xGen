@@ -51,10 +51,22 @@ func main() {
 		os.Exit(runOSINTWell(args[1:]))
 	case "rank":
 		os.Exit(runRank(args[1:]))
-	case "config":
-		os.Exit(runConfig(args[1:]))
-	case "scope":
-		os.Exit(runScope(args[1:]))
+        case "config":
+                os.Exit(runConfig(args[1:]))
+        case "api-token":
+                if len(args) < 2 {
+                        fmt.Fprintln(os.Stderr, "api-token subcommand required")
+                        os.Exit(2)
+                }
+                switch args[1] {
+                case "new":
+                        os.Exit(runAPITokenNew(args[2:]))
+                default:
+                        fmt.Fprintf(os.Stderr, "unknown api-token subcommand: %s\n", args[1])
+                        os.Exit(2)
+                }
+        case "scope":
+                os.Exit(runScope(args[1:]))
         case "plugin":
                 if len(args) < 2 {
                         fmt.Fprintln(os.Stderr, "plugin subcommand required")

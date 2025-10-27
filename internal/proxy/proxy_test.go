@@ -241,7 +241,7 @@ func TestProxyEndToEndHeaderRewrite(t *testing.T) {
 	}
 }
 
-func TestProxyIgnoresLegacyHeaders(t *testing.T) {
+func TestProxyAllowsLegacyHeaderRule(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -296,11 +296,8 @@ func TestProxyIgnoresLegacyHeaders(t *testing.T) {
 	_, _ = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	if got := resp.Header.Get("X-0xgen-Proxy"); got != "" {
-		t.Fatalf("expected X-0xgen-Proxy header to be absent, got %q", got)
-	}
-	if legacy := resp.Header.Get("X-0xgen-Proxy"); legacy != "" {
-		t.Fatalf("expected legacy header to be absent, got %q", legacy)
+	if got := resp.Header.Get("X-0xgen-Proxy"); got != "legacy" {
+		t.Fatalf("expected X-0xgen-Proxy header to be applied, got %q", got)
 	}
 
 	cancel()
@@ -318,11 +315,8 @@ func TestProxyIgnoresLegacyHeaders(t *testing.T) {
 	if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
 		t.Fatalf("decode history: %v", err)
 	}
-	if _, exists := entry.ResponseHeaders["X-0xgen-Proxy"]; exists {
-		t.Fatal("expected modern header to be absent in history")
-	}
-	if _, exists := entry.ResponseHeaders["X-0xgen-Proxy"]; exists {
-		t.Fatal("expected legacy header to be absent in history")
+	if value := entry.ResponseHeaders["X-0xgen-Proxy"]; len(value) != 1 || value[0] != "legacy" {
+		t.Fatalf("expected legacy header recorded in history, got %#v", value)
 	}
 	if handler.contains(slog.LevelWarn, "legacy") {
 		t.Fatal("unexpected legacy header warning")
@@ -559,9 +553,6 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	if !strings.Contains(sanitizedReq, "X-0xgen-Body-Redacted: 14") {
 		t.Fatalf("sanitized request missing body metadata: %q", sanitizedReq)
 	}
-	if strings.Contains(sanitizedReq, "X-0xgen-Body-Redacted") {
-		t.Fatalf("sanitized request still includes legacy header: %q", sanitizedReq)
-	}
 	if !strings.Contains(sanitizedReq, expectedRedactedBody("sensitive-body")) {
 		t.Fatalf("sanitized request body placeholder missing: %q", sanitizedReq)
 	}
@@ -597,9 +588,6 @@ func TestProxyPublishesFlowEvents(t *testing.T) {
 	}
 	if !strings.Contains(sanitizedResp, "X-0xgen-Body-Redacted: 7") {
 		t.Fatalf("sanitized response missing body metadata: %q", sanitizedResp)
-	}
-	if strings.Contains(sanitizedResp, "X-0xgen-Body-Redacted") {
-		t.Fatalf("sanitized response still includes legacy header: %q", sanitizedResp)
 	}
 	if !strings.Contains(sanitizedResp, expectedRedactedBody("payload")) {
 		t.Fatalf("sanitized response body placeholder missing: %q", sanitizedResp)

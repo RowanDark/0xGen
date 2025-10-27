@@ -23,6 +23,7 @@ func TestLoadPrecedence(t *testing.T) {
 	tomlPath := filepath.Join(configDir, "config.toml")
 	tomlConfig := []byte(`server_addr = "0.0.0.0:1111"
 output_dir = "/custom"
+api_endpoint = "https://api.home"
 [proxy]
 addr = "proxy-home:8080"
 `)
@@ -48,6 +49,7 @@ proxy:
 	// Ensure env overrides beat file configuration.
 	t.Setenv("0XGEN_PROXY_ADDR", "proxy-env:5555")
 	t.Setenv("0XGEN_AUTH_TOKEN", "env-token")
+	t.Setenv("0XGEN_API_ENDPOINT", "https://api.env")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -79,6 +81,9 @@ proxy:
 	}
 	if cfg.AuthToken != "env-token" {
 		t.Fatalf("expected env token override, got %s", cfg.AuthToken)
+	}
+	if cfg.APIEndpoint != "https://api.env" {
+		t.Fatalf("expected API endpoint override, got %s", cfg.APIEndpoint)
 	}
 }
 
