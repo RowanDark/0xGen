@@ -11,13 +11,14 @@ import (
 )
 
 func TestPrintResolvedConfig(t *testing.T) {
-	cfg := config.Config{
-		ServerAddr: "1.2.3.4:1111",
-		AuthToken:  "token",
-		OutputDir:  "/somewhere",
-		Proxy: config.ProxyConfig{
-			Enable:      true,
-			Addr:        "proxy:1234",
+        cfg := config.Config{
+                ServerAddr:  "1.2.3.4:1111",
+                AuthToken:   "token",
+                OutputDir:   "/somewhere",
+                APIEndpoint: "https://api.example",
+                Proxy: config.ProxyConfig{
+                        Enable:      true,
+                        Addr:        "proxy:1234",
 			RulesPath:   "rules.yaml",
 			HistoryPath: "history.jsonl",
 			CACertPath:  "ca.pem",
@@ -33,7 +34,8 @@ func TestPrintResolvedConfig(t *testing.T) {
 		"server_addr: 1.2.3.4:1111",
 		"auth_token: token",
 		"output_dir: /somewhere",
-		"proxy:",
+                "api_endpoint: https://api.example",
+                "proxy:",
 		"  enable: true",
 		"  addr: proxy:1234",
 		"  rules_path: rules.yaml",

@@ -1,0 +1,114 @@
+name: 0xgen API scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+env:
+  OXGEN_API_ENDPOINT: https://0xgen.example.com
+  OXGEN_RESULTS_PUBKEY: ${{ secrets.OXGEN_RESULTS_PUBKEY }}
+  OXGEN_STATIC_TOKEN: ${{ secrets.OXGEN_STATIC_TOKEN }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install 0xgenctl
+        run: go install github.com/RowanDark/0xgen/cmd/0xgenctl@latest
+
+      - name: Issue short-lived API token
+        id: token
+        env:
+          OXGEN_API_ENDPOINT: ${{ env.OXGEN_API_ENDPOINT }}
+          OXGEN_STATIC_TOKEN: ${{ env.OXGEN_STATIC_TOKEN }}
+        run: |
+          TOKEN=$(0xgenctl api-token new --subject github-actions --audience ci --ttl 15m | head -n1)
+          if [ -z "$TOKEN" ]; then
+            echo "failed to mint API token" >&2
+            exit 1
+          fi
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger passive header scan
+        id: scan
+        env:
+          API_ENDPOINT: ${{ env.OXGEN_API_ENDPOINT }}
+          API_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          RESPONSE=$(curl -sS -X POST "$API_ENDPOINT/api/v1/scans" \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data '{"plugin":"samples/passive-header-scan"}')
+          echo "$RESPONSE"
+          SCAN_ID=$(echo "$RESPONSE" | jq -r '.scan_id')
+          if [ -z "$SCAN_ID" ] || [ "$SCAN_ID" = "null" ]; then
+            echo "scan submission failed" >&2
+            exit 1
+          fi
+          echo "id=$SCAN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for scan completion
+        env:
+          API_ENDPOINT: ${{ env.OXGEN_API_ENDPOINT }}
+          API_TOKEN: ${{ steps.token.outputs.token }}
+          SCAN_ID: ${{ steps.scan.outputs.id }}
+        run: |
+          for attempt in $(seq 1 30); do
+            STATUS=$(curl -sS "$API_ENDPOINT/api/v1/scans/$SCAN_ID" -H "Authorization: Bearer $API_TOKEN")
+            echo "$STATUS"
+            STATE=$(echo "$STATUS" | jq -r '.status')
+            if [ "$STATE" = "succeeded" ]; then
+              exit 0
+            fi
+            if [ "$STATE" = "failed" ]; then
+              echo "scan failed" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "scan did not complete in time" >&2
+          exit 1
+
+      - name: Download signed findings
+        id: results
+        env:
+          API_ENDPOINT: ${{ env.OXGEN_API_ENDPOINT }}
+          API_TOKEN: ${{ steps.token.outputs.token }}
+          SCAN_ID: ${{ steps.scan.outputs.id }}
+        run: |
+          curl -sS "$API_ENDPOINT/api/v1/scans/$SCAN_ID/results" \
+            -H "Authorization: Bearer $API_TOKEN" > results.json
+          jq '.' results.json
+          jq -r '.signature' results.json > results.sig
+          jq -c '{scan_id, plugin, generated_at, findings}' results.json > payload.json
+          jq -r '.digest' results.json > digest.txt
+          echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify signed results
+        if: env.OXGEN_RESULTS_PUBKEY != ''
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+          PUBLIC_KEY: ${{ env.OXGEN_RESULTS_PUBKEY }}
+        run: |
+          echo "$PUBLIC_KEY" > results.pub
+          sudo apt-get update && sudo apt-get install -y cosign jq >/dev/null
+          cosign verify-blob --key results.pub --signature results.sig payload.json
+
+      - name: Upload findings artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 0xgen-findings
+          path: |
+            payload.json
+            results.sig
+            digest.txt
+            results.json

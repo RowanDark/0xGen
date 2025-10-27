@@ -601,7 +601,7 @@ main {
   }
 }
 </script>
-<script id="oxg-app" data-integrity="sha256-A87w6+ht78oM0oKinRe0sZlBh1WUX8mJZ9iIHkEXCwE=">
+<script id="oxg-app" data-integrity="sha256-8IseEOZIlgwZ45OdpWHY3gCZR3DgEMM5FS0ECp2l/Bw=">
 (function () {
   const severityOrder = [
     { id: "crit", label: "Critical" },

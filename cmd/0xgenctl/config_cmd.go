@@ -43,6 +43,7 @@ func printResolvedConfig(out io.Writer, cfg config.Config) {
 	fmt.Fprintf(out, "server_addr: %s\n", cfg.ServerAddr)
 	fmt.Fprintf(out, "auth_token: %s\n", cfg.AuthToken)
 	fmt.Fprintf(out, "output_dir: %s\n", cfg.OutputDir)
+	fmt.Fprintf(out, "api_endpoint: %s\n", cfg.APIEndpoint)
 	fmt.Fprintln(out, "proxy:")
 	fmt.Fprintf(out, "  enable: %t\n", cfg.Proxy.Enable)
 	fmt.Fprintf(out, "  addr: %s\n", cfg.Proxy.Addr)
@@ -77,9 +78,15 @@ func runConfigMigrate() int {
 	}
 
 	newPath := filepath.Join(newDir, "config.toml")
-	if _, err := os.Stat(newPath); err == nil {
-		fmt.Fprintf(os.Stderr, "config already exists at %s; refusing to overwrite\n", newPath)
-		return 2
+	if info, err := os.Stat(newPath); err == nil {
+		if legacyPath != newPath {
+			fmt.Fprintf(os.Stderr, "config already exists at %s; refusing to overwrite\n", newPath)
+			return 2
+		}
+		if info.IsDir() {
+			fmt.Fprintf(os.Stderr, "config path %s is a directory\n", newPath)
+			return 2
+		}
 	} else if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "stat config: %v\n", err)
 		return 1

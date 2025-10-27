@@ -1,3 +1,3 @@
 # SHA-256 allowlist for trusted plugin artifacts
-736b71535acd410af8c3f8a874a60f03dc0913d73ff4ed27b9711d73bbb76217 samples/passive-header-scan/main.go
-db335ede770e1dc7af4edae2c60df8d86e77502a1828bc58e87034cdbabf4a3d samples/emit-on-start/main.go
+8cef80cc0839bb3f2f40300f6037ffd70b0582bffbdf659ae4d1f90fa49299ff samples/passive-header-scan/main.go
+95f531a21bcff50e08e246f7f6aebe4121192c99a83566002ab2cfa902e66225 samples/emit-on-start/main.go

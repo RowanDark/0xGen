@@ -1,16 +1,17 @@
 package main
 
 import (
-	"context"
-	"io"
-	"net"
-	"testing"
-	"time"
+        "context"
+        "io"
+        "net"
+        "testing"
+        "time"
 
-	"github.com/RowanDark/0xgen/internal/logging"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
+        "github.com/RowanDark/0xgen/internal/findings"
+        "github.com/RowanDark/0xgen/internal/logging"
+        "google.golang.org/grpc"
+        "google.golang.org/grpc/connectivity"
+        "google.golang.org/grpc/credentials/insecure"
 )
 
 func TestServeBootsAndShutsDown(t *testing.T) {
@@ -31,11 +32,12 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 		t.Fatalf("NewAuditLogger: %v", err)
 	}
 
-	errCh := make(chan error, 1)
-	publisher := newBusFlowPublisher()
-	go func() {
-		errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger, false, "", "auto", publisher)
-	}()
+        errCh := make(chan error, 1)
+        publisher := newBusFlowPublisher()
+        findingsBus := findings.NewBus()
+        go func() {
+                errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger, false, "", "auto", publisher, findingsBus)
+        }()
 
 	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer dialCancel()

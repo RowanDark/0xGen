@@ -1540,10 +1540,6 @@ func normalizeProxyHeaderName(name string) string {
 	if trimmed == "" {
 		return ""
 	}
-	lower := strings.ToLower(trimmed)
-	if strings.HasPrefix(lower, "x-0xgen") {
-		return ""
-	}
 	return textproto.CanonicalMIMEHeaderKey(trimmed)
 }
 
