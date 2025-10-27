@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
@@ -162,17 +163,20 @@ export function CrashReporterProvider({ children }: CrashReporterProviderProps) 
   return (
     <>
       {children}
-      {bundle ? (
-        <CrashReviewDialog
-          bundle={bundle}
-          previews={previewState}
-          onRequestPreview={loadPreview}
-          onSave={handleSave}
-          onDiscard={handleDiscard}
-          onCopy={handleCopy}
-          saving={saving}
-        />
-      ) : null}
+      <AnimatePresence>
+        {bundle ? (
+          <CrashReviewDialog
+            key={bundle.id}
+            bundle={bundle}
+            previews={previewState}
+            onRequestPreview={loadPreview}
+            onSave={handleSave}
+            onDiscard={handleDiscard}
+            onCopy={handleCopy}
+            saving={saving}
+          />
+        ) : null}
+      </AnimatePresence>
     </>
   );
 }

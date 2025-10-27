@@ -207,7 +207,7 @@
   --theme-error: 328.6 85.5% 70.2%;
 }
 
-:root[data-theme='amber'] {
+:root[data-theme='blue-light'] {
   --theme-background: 40 9.7% 6.1%;
   --theme-foreground: 33.5 63% 89.4%;
   --theme-card: 42.9 14.9% 9.2%;
@@ -232,7 +232,7 @@
   --theme-error: 0 84.2% 60.2%;
 }
 
-:root[data-theme='cb-safe'] {
+:root[data-theme='colorblind'] {
   --theme-background: 220 29% 6.1%;
   --theme-foreground: 220 13% 91%;
   --theme-card: 220.9 39.3% 11%;
