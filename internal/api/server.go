@@ -11,6 +11,7 @@ import (
 
 	"github.com/RowanDark/0xgen/internal/findings"
 	"github.com/RowanDark/0xgen/internal/logging"
+	"github.com/RowanDark/0xgen/internal/team"
 )
 
 // Config configures the REST API server.
@@ -29,6 +30,10 @@ type Config struct {
 	FindingsBus     *findings.Bus
 	Logger          *logging.AuditLogger
 	ScanTimeout     time.Duration
+	OIDCIssuer      string
+	OIDCJWKSURL     string
+	OIDCAudiences   []string
+	WorkspaceStore  *team.Store
 }
 
 // Server exposes REST endpoints for triggering scans and retrieving results.
@@ -40,7 +45,12 @@ type Server struct {
 	staticToken   string
 	logger        *logging.AuditLogger
 	managerCancel context.CancelFunc
+	teams         *team.Store
 }
+
+type contextKey string
+
+const claimsContextKey contextKey = "0xgen.api.claims"
 
 // NewServer constructs a REST API server using the provided configuration.
 func NewServer(cfg Config) (*Server, error) {
@@ -58,9 +68,26 @@ func NewServer(cfg Config) (*Server, error) {
 	if strings.TrimSpace(cfg.SigningKeyPath) == "" {
 		return nil, errors.New("signing key path is required")
 	}
-	auth, err := NewAuthenticator(cfg.JWTSecret, cfg.JWTIssuer, cfg.DefaultTokenTTL)
+	var authOpts []AuthOption
+	if strings.TrimSpace(cfg.OIDCIssuer) != "" && strings.TrimSpace(cfg.OIDCJWKSURL) != "" {
+		authOpts = append(authOpts, WithOIDC(OIDCConfig{
+			Issuer:       strings.TrimSpace(cfg.OIDCIssuer),
+			JWKSURL:      strings.TrimSpace(cfg.OIDCJWKSURL),
+			Audiences:    cfg.OIDCAudiences,
+			SyncInterval: time.Minute,
+		}))
+	}
+	auth, err := NewAuthenticator(cfg.JWTSecret, cfg.JWTIssuer, cfg.DefaultTokenTTL, authOpts...)
 	if err != nil {
 		return nil, err
+	}
+	store := cfg.WorkspaceStore
+	if store == nil {
+		var storeLogger *logging.AuditLogger
+		if cfg.Logger != nil {
+			storeLogger = cfg.Logger.WithComponent("workspace_store")
+		}
+		store = team.NewStore(storeLogger)
 	}
 	manager := NewManager(ManagerConfig{
 		PluginsDir:     cfg.PluginsDir,
@@ -77,6 +104,7 @@ func NewServer(cfg Config) (*Server, error) {
 		manager:       manager,
 		staticToken:   staticToken,
 		logger:        cfg.Logger,
+		teams:         store,
 	}, nil
 }
 
@@ -88,9 +116,9 @@ func (s *Server) Run(ctx context.Context) error {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("/api/v1/api-tokens", http.HandlerFunc(s.handleTokenIssue))
-	mux.Handle("/api/v1/plugins", s.requireJWT(http.HandlerFunc(s.handleListPlugins)))
-	mux.Handle("/api/v1/scans", s.requireJWT(http.HandlerFunc(s.handleScans)))
-	mux.Handle("/api/v1/scans/", s.requireJWT(http.HandlerFunc(s.handleScanByID)))
+	mux.Handle("/api/v1/plugins", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleListPlugins)))
+	mux.Handle("/api/v1/scans", s.requireRole(team.RoleAnalyst, http.HandlerFunc(s.handleScans)))
+	mux.Handle("/api/v1/scans/", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleScanByID)))
 
 	s.httpServer = &http.Server{
 		Addr:    s.cfg.Addr,
@@ -143,19 +171,46 @@ func (s *Server) handleTokenIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Subject    string  `json:"subject"`
-		Audience   string  `json:"audience"`
-		TTLSeconds float64 `json:"ttl_seconds"`
+		Subject     string  `json:"subject"`
+		Audience    string  `json:"audience"`
+		TTLSeconds  float64 `json:"ttl_seconds"`
+		WorkspaceID string  `json:"workspace_id"`
+		Role        string  `json:"role"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
 	ttl := time.Duration(req.TTLSeconds * float64(time.Second))
-	token, expires, err := s.authenticator.Mint(req.Subject, req.Audience, ttl)
+	trimmedRole := strings.TrimSpace(req.Role)
+	var (
+		roleClaim  string
+		memberRole team.Role
+	)
+	if trimmedRole != "" {
+		parsedRole, err := team.ParseRole(trimmedRole)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		memberRole = parsedRole
+		roleClaim = string(parsedRole)
+	}
+	token, expires, err := s.authenticator.MintWithOptions(req.Subject, TokenOptions{
+		Audience:    req.Audience,
+		TTL:         ttl,
+		WorkspaceID: req.WorkspaceID,
+		Role:        roleClaim,
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	if strings.TrimSpace(req.WorkspaceID) != "" && roleClaim != "" && s.teams != nil {
+		if _, err := s.teams.UpsertMembership(req.WorkspaceID, req.Subject, memberRole); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	resp := map[string]any{
 		"token":      token,
@@ -269,7 +324,7 @@ func (s *Server) handleScanResults(w http.ResponseWriter, r *http.Request, id st
 	s.writeJSON(w, http.StatusOK, resp)
 }
 
-func (s *Server) requireJWT(next http.Handler) http.Handler {
+func (s *Server) requireRole(minRole team.Role, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
 		if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
@@ -277,11 +332,28 @@ func (s *Server) requireJWT(next http.Handler) http.Handler {
 			return
 		}
 		token := strings.TrimSpace(authHeader[7:])
-		if _, err := s.authenticator.Validate(token); err != nil {
+		claims, err := s.authenticator.Validate(token)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r)
+		if minRole != "" {
+			if s.teams == nil {
+				http.Error(w, "workspace access unavailable", http.StatusForbidden)
+				return
+			}
+			workspaceID := strings.TrimSpace(claims.WorkspaceID)
+			if workspaceID == "" {
+				http.Error(w, "workspace claim required", http.StatusForbidden)
+				return
+			}
+			if !s.teams.Authorize(workspaceID, claims.Subject, minRole) {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+		}
+		ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
