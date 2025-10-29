@@ -109,6 +109,29 @@ func TestInviteFlowsAndCaseSharing(t *testing.T) {
 	}
 }
 
+func TestInviteGenerationCannotExceedActorRole(t *testing.T) {
+	store := NewStore(nil)
+	ws, err := store.CreateWorkspace("Purple", "owner")
+	if err != nil {
+		t.Fatalf("CreateWorkspace failed: %v", err)
+	}
+	if err := store.AddMember(ws.ID, "owner", "analyst", RoleAnalyst); err != nil {
+		t.Fatalf("AddMember failed: %v", err)
+	}
+	if _, err := store.GenerateInvite(ws.ID, "analyst", RoleAdmin, time.Minute); err == nil {
+		t.Fatal("analyst should not be able to mint admin invite")
+	}
+	if _, err := store.GenerateInvite(ws.ID, "analyst", RoleViewer, time.Minute); err != nil {
+		t.Fatalf("analyst should be able to mint viewer invite: %v", err)
+	}
+	if _, err := store.GenerateCaseInvite(ws.ID, "analyst", "case-1", RoleAdmin, time.Minute); err == nil {
+		t.Fatal("analyst should not be able to mint admin case invite")
+	}
+	if _, err := store.GenerateCaseInvite(ws.ID, "analyst", "case-1", RoleViewer, time.Minute); err != nil {
+		t.Fatalf("analyst should be able to mint viewer case invite: %v", err)
+	}
+}
+
 func TestConsumeInviteHonoursExpiry(t *testing.T) {
 	logger, _ := newTestLogger(t)
 	store := NewStore(logger)
@@ -123,6 +146,32 @@ func TestConsumeInviteHonoursExpiry(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 	if _, _, err := store.ConsumeInvite(token, "late"); err == nil {
 		t.Fatal("expected invite to expire")
+	}
+}
+
+func TestUpsertMembershipBootstrap(t *testing.T) {
+	store := NewStore(nil)
+	ws, err := store.UpsertMembership("bootstrap", "alice", RoleAnalyst)
+	if err != nil {
+		t.Fatalf("UpsertMembership failed: %v", err)
+	}
+	if ws.ID != "bootstrap" {
+		t.Fatalf("expected workspace id bootstrap, got %s", ws.ID)
+	}
+	if !store.Authorize("bootstrap", "alice", RoleAnalyst) {
+		t.Fatal("alice should have analyst access after bootstrap")
+	}
+	if _, err := store.UpsertMembership("bootstrap", "alice", RoleViewer); err != nil {
+		t.Fatalf("second upsert failed: %v", err)
+	}
+	if !store.Authorize("bootstrap", "alice", RoleAnalyst) {
+		t.Fatal("role should not downgrade")
+	}
+	if _, err := store.UpsertMembership("bootstrap", "alice", RoleAdmin); err != nil {
+		t.Fatalf("upgrade upsert failed: %v", err)
+	}
+	if !store.Authorize("bootstrap", "alice", RoleAdmin) {
+		t.Fatal("role should upgrade to admin")
 	}
 }
 

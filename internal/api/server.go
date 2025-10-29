@@ -182,24 +182,35 @@ func (s *Server) handleTokenIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ttl := time.Duration(req.TTLSeconds * float64(time.Second))
-	role := strings.TrimSpace(req.Role)
-	if role != "" {
-		parsedRole, err := team.ParseRole(role)
+	trimmedRole := strings.TrimSpace(req.Role)
+	var (
+		roleClaim  string
+		memberRole team.Role
+	)
+	if trimmedRole != "" {
+		parsedRole, err := team.ParseRole(trimmedRole)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		role = string(parsedRole)
+		memberRole = parsedRole
+		roleClaim = string(parsedRole)
 	}
 	token, expires, err := s.authenticator.MintWithOptions(req.Subject, TokenOptions{
 		Audience:    req.Audience,
 		TTL:         ttl,
 		WorkspaceID: req.WorkspaceID,
-		Role:        role,
+		Role:        roleClaim,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	if strings.TrimSpace(req.WorkspaceID) != "" && roleClaim != "" && s.teams != nil {
+		if _, err := s.teams.UpsertMembership(req.WorkspaceID, req.Subject, memberRole); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	resp := map[string]any{
 		"token":      token,

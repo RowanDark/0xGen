@@ -288,6 +288,50 @@ func (s *Store) Authorize(workspaceID, userID string, required Role) bool {
 	return member.Role.allows(required)
 }
 
+// UpsertMembership ensures that the provided user is recorded as a member of the
+// workspace with at least the supplied role, creating the workspace if it does
+// not already exist.
+func (s *Store) UpsertMembership(workspaceID, userID string, role Role) (*Workspace, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	userID = strings.TrimSpace(userID)
+	if workspaceID == "" || userID == "" {
+		return nil, errors.New("workspace id and user id are required")
+	}
+	if roleRank(role) == 0 {
+		return nil, fmt.Errorf("invalid role %q", role)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ws, ok := s.workspace[workspaceID]
+	now := time.Now().UTC()
+	if !ok {
+		ws = &Workspace{
+			ID:        workspaceID,
+			Name:      workspaceID,
+			CreatedAt: now,
+			Members:   map[string]Member{},
+			Cases:     map[string]map[string]Role{},
+		}
+		s.workspace[workspaceID] = ws
+		s.emit(logging.EventWorkspaceLifecycle, logging.DecisionAllow, map[string]any{
+			"workspace_id": workspaceID,
+			"name":         workspaceID,
+			"action":       "bootstrap",
+		})
+	}
+	member := ws.Members[userID]
+	if roleRank(role) > roleRank(member.Role) {
+		ws.Members[userID] = Member{UserID: userID, Role: role, JoinedAt: chooseTime(member.JoinedAt, now)}
+		s.emit(logging.EventWorkspaceMembership, logging.DecisionAllow, map[string]any{
+			"workspace_id": workspaceID,
+			"target_id":    userID,
+			"role":         string(role),
+			"action":       "upsert_member",
+		})
+	}
+	return cloneWorkspace(ws), nil
+}
+
 // GenerateInvite produces a workspace membership invite token.
 func (s *Store) GenerateInvite(workspaceID, actorID string, role Role, ttl time.Duration) (string, error) {
 	workspaceID = strings.TrimSpace(workspaceID)
@@ -310,8 +354,12 @@ func (s *Store) GenerateInvite(workspaceID, actorID string, role Role, ttl time.
 	if !ok {
 		return "", errors.New("workspace not found")
 	}
-	if actor, ok := ws.Members[actorID]; !ok || !actor.Role.allows(RoleAnalyst) {
+	actor, ok := ws.Members[actorID]
+	if !ok || !actor.Role.allows(RoleAnalyst) {
 		return "", errors.New("actor lacks permission")
+	}
+	if roleRank(role) > roleRank(actor.Role) {
+		return "", errors.New("invite role exceeds actor permissions")
 	}
 	s.invites[token] = invite
 	s.emit(logging.EventWorkspaceInvite, logging.DecisionAllow, map[string]any{
@@ -390,6 +438,9 @@ func (s *Store) GenerateCaseInvite(workspaceID, actorID, caseID string, role Rol
 	actor, ok := ws.Members[actorID]
 	if !ok || !actor.Role.allows(RoleAnalyst) {
 		return "", errors.New("actor lacks permission")
+	}
+	if roleRank(role) > roleRank(actor.Role) {
+		return "", errors.New("invite role exceeds actor permissions")
 	}
 	s.caseInv[token] = invite
 	s.emit(logging.EventCaseShare, logging.DecisionAllow, map[string]any{
