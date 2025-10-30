@@ -21,23 +21,23 @@ import (
 // Config captures the parameters required to execute a plugin against a 0xgend
 // instance.
 type Config struct {
-        // ManifestPath points to the plugin manifest describing the executable
-        // artifact.
-        ManifestPath string
-        // AllowlistPath points to the integrity allowlist file for verifying
-        // plugin artifacts.
-        AllowlistPath string
-        // RepoRoot identifies the repository root used to resolve signature
-        // metadata. Optional but recommended when manifests reference relative
-        // paths outside their directory.
-        RepoRoot string
-        // SkipSignatureVerification disables the cosign signature check. This is
-        // intended for development scenarios where sample plugins are unsigned.
-        SkipSignatureVerification bool
-        // ServerAddr is the gRPC endpoint for the 0xgend instance.
-        ServerAddr string
-        // AuthToken is the static authentication token required by 0xgend.
-        AuthToken string
+	// ManifestPath points to the plugin manifest describing the executable
+	// artifact.
+	ManifestPath string
+	// AllowlistPath points to the integrity allowlist file for verifying
+	// plugin artifacts.
+	AllowlistPath string
+	// RepoRoot identifies the repository root used to resolve signature
+	// metadata. Optional but recommended when manifests reference relative
+	// paths outside their directory.
+	RepoRoot string
+	// SkipSignatureVerification disables the cosign signature check. This is
+	// intended for development scenarios where sample plugins are unsigned.
+	SkipSignatureVerification bool
+	// ServerAddr is the gRPC endpoint for the 0xgend instance.
+	ServerAddr string
+	// AuthToken is the static authentication token required by 0xgend.
+	AuthToken string
 	// Duration bounds the wall clock execution time for the plugin. If zero
 	// a conservative default is applied.
 	Duration time.Duration
@@ -74,7 +74,13 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	}
 
 	manifestDir := filepath.Dir(cfg.ManifestPath)
-	artifactPath, err := resolveArtifactPath(manifest.Artifact, manifestDir, cfg.RepoRoot)
+
+	repoRoot, err := determineRepoRoot(manifestDir, cfg.RepoRoot)
+	if err != nil {
+		return Result{}, err
+	}
+
+	artifactPath, err := resolveArtifactPath(manifest.Artifact, manifestDir, repoRoot)
 	if err != nil {
 		return Result{}, err
 	}
@@ -86,30 +92,37 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	if allowlistPath == "" {
 		return Result{}, errors.New("allowlist path could not be determined")
 	}
-        allowlist, err := integrity.LoadAllowlist(allowlistPath)
-        if err != nil {
-                return Result{}, fmt.Errorf("load allowlist: %w", err)
-        }
-        if err := allowlist.Verify(artifactPath); err != nil {
-                return Result{}, fmt.Errorf("artifact verification failed: %w", err)
-        }
+	allowlist, err := integrity.LoadAllowlist(allowlistPath)
+	if err != nil {
+		return Result{}, fmt.Errorf("load allowlist: %w", err)
+	}
+	if err := allowlist.Verify(artifactPath); err != nil {
+		return Result{}, fmt.Errorf("artifact verification failed: %w", err)
+	}
 
-        skipSignature := cfg.SkipSignatureVerification
-        if !skipSignature {
-                if val, ok := env.Lookup("0XGEN_SKIP_SIGNATURE_VERIFY"); ok {
-                        lowered := strings.ToLower(strings.TrimSpace(val))
-                        skipSignature = lowered == "1" || lowered == "true" || lowered == "yes"
-                }
-        }
-        if skipSignature {
-                if cfg.Stderr != nil {
-                        fmt.Fprintln(cfg.Stderr, "warning: skipping signature verification")
-                }
-        } else {
-                if err := integrity.VerifySignature(artifactPath, manifestDir, cfg.RepoRoot, manifest.Signature); err != nil {
-                        return Result{}, fmt.Errorf("artifact signature verification failed: %w", err)
-                }
-        }
+	skipSignature := cfg.SkipSignatureVerification
+	if !skipSignature {
+		if val, ok := env.Lookup("0XGEN_SKIP_SIGNATURE_VERIFY"); ok {
+			lowered := strings.ToLower(strings.TrimSpace(val))
+			skipSignature = lowered == "1" || lowered == "true" || lowered == "yes"
+		}
+	}
+	if skipSignature && !manifest.Trusted {
+		skipSignature = false
+		if cfg.Stderr != nil {
+			fmt.Fprintln(cfg.Stderr, "warning: signature verification enforced for untrusted plugin")
+		}
+	}
+
+	if skipSignature {
+		if cfg.Stderr != nil {
+			fmt.Fprintln(cfg.Stderr, "warning: skipping signature verification")
+		}
+	} else {
+		if err := integrity.VerifySignature(artifactPath, manifestDir, repoRoot, manifest.Signature); err != nil {
+			return Result{}, fmt.Errorf("artifact signature verification failed: %w", err)
+		}
+	}
 
 	binaryDir, err := os.MkdirTemp("", "0xgen-plugin-build-")
 	if err != nil {
@@ -126,6 +139,15 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	build.Stderr = cfg.Stderr
 	if err := build.Run(); err != nil {
 		return Result{}, fmt.Errorf("build plugin: %w", err)
+	}
+
+	sandboxPath := filepath.Join(binaryDir, "sandbox")
+	sandboxBuild := exec.Command("go", "build", "-o", sandboxPath, "./internal/plugins/runner/sandboxcmd")
+	sandboxBuild.Dir = repoRoot
+	sandboxBuild.Stdout = cfg.Stdout
+	sandboxBuild.Stderr = cfg.Stderr
+	if err := sandboxBuild.Run(); err != nil {
+		return Result{}, fmt.Errorf("build sandbox: %w", err)
 	}
 
 	capToken, err := requestCapabilityGrant(ctx, cfg.ServerAddr, cfg.AuthToken, manifest)
@@ -158,12 +180,13 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	envVars["0XGEN_CAPABILITY_TOKEN"] = capToken
 
 	runCfg := runner.Config{
-		Binary: binaryPath,
-		Args:   []string{"--server", cfg.ServerAddr, "--token", cfg.AuthToken},
-		Env:    envVars,
-		Stdout: cfg.Stdout,
-		Stderr: cfg.Stderr,
-		Limits: limits,
+		Binary:        binaryPath,
+		SandboxBinary: sandboxPath,
+		Args:          []string{"--server", cfg.ServerAddr, "--token", cfg.AuthToken},
+		Env:           envVars,
+		Stdout:        cfg.Stdout,
+		Stderr:        cfg.Stderr,
+		Limits:        limits,
 	}
 
 	if err := runner.Run(ctx, runCfg); err != nil {
@@ -221,4 +244,30 @@ func resolveArtifactPath(artifact, manifestDir, repoRoot string) (string, error)
 		}
 	}
 	return "", fmt.Errorf("artifact %q could not be resolved", artifact)
+}
+
+func determineRepoRoot(manifestDir, hint string) (string, error) {
+	trimmed := strings.TrimSpace(hint)
+	if trimmed != "" {
+		info, err := os.Stat(trimmed)
+		if err == nil && info.IsDir() {
+			if _, err := os.Stat(filepath.Join(trimmed, "go.mod")); err == nil {
+				return trimmed, nil
+			}
+		}
+	}
+
+	dir := manifestDir
+	for i := 0; i < 8; i++ {
+		goMod := filepath.Join(dir, "go.mod")
+		if info, err := os.Stat(goMod); err == nil && !info.IsDir() {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", errors.New("repository root could not be determined; set Config.RepoRoot")
 }

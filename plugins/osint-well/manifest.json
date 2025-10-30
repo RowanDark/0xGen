@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "entry": "plugin.js",
   "artifact": "plugin.js",
+  "trusted": true,
   "capabilities": ["CAP_EMIT_FINDINGS", "CAP_STORAGE"],
   "config": {},
   "signature": {

@@ -1,15 +1,13 @@
 package runner
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"runtime"
-	"strings"
-	"time"
+        "context"
+        "errors"
+        "fmt"
+        "io"
+        "runtime"
+        "strings"
+        "time"
 
 	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
@@ -23,12 +21,19 @@ type Limits struct {
 
 // Config describes a plugin invocation.
 type Config struct {
-	Binary string
-	Args   []string
-	Env    map[string]string
-	Stdout io.Writer
-	Stderr io.Writer
-	Limits Limits
+	Binary        string
+	Args          []string
+	Env           map[string]string
+	Stdout        io.Writer
+	Stderr        io.Writer
+	Limits        Limits
+	SandboxBinary string
+}
+
+type sandboxEnv struct {
+	Path string
+	Home string
+	Tmp  string
 }
 
 // Run executes the plugin binary with the provided configuration. The caller
@@ -73,19 +78,15 @@ func Run(ctx context.Context, cfg Config) error {
 		defer cancel()
 	}
 
-	tmpDir, err := os.MkdirTemp("", "0xgen-plugin-")
+	cmd, envCfg, cleanup, err := createSandboxCommand(wallCtx, cfg)
 	if err != nil {
 		span.RecordError(err)
 		status = tracing.StatusError
-		statusMsg = "create temp dir"
-		return fmt.Errorf("create temp dir: %w", err)
+		statusMsg = "prepare sandbox"
+		return err
 	}
-	defer func() {
-		_ = os.RemoveAll(tmpDir)
-	}()
+	defer cleanup()
 
-	cmd := exec.CommandContext(wallCtx, cfg.Binary, cfg.Args...)
-	cmd.Dir = tmpDir
 	configureSysProc(cmd)
 
 	if cfg.Stdout != nil {
@@ -95,7 +96,7 @@ func Run(ctx context.Context, cfg Config) error {
 		cmd.Stderr = cfg.Stderr
 	}
 
-	cmd.Env = buildEnv(tmpDir, cfg.Env)
+	cmd.Env = buildEnv(envCfg, cfg.Env)
 
 	if err := startWithLimits(cmd, cfg.Limits); err != nil {
 		span.RecordError(err)
@@ -130,15 +131,15 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 }
 
-func buildEnv(workDir string, overrides map[string]string) []string {
+func buildEnv(envCfg sandboxEnv, overrides map[string]string) []string {
 	base := map[string]string{
-		"PATH":   os.Getenv("PATH"),
-		"HOME":   workDir,
-		"TMPDIR": workDir,
+		"PATH":   envCfg.Path,
+		"HOME":   envCfg.Home,
+		"TMPDIR": envCfg.Tmp,
 	}
 	if runtime.GOOS == "windows" {
-		base["TEMP"] = workDir
-		base["TMP"] = workDir
+		base["TEMP"] = envCfg.Tmp
+		base["TMP"] = envCfg.Tmp
 	}
 	for k, v := range overrides {
 		base[k] = v

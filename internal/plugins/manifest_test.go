@@ -15,6 +15,7 @@ func validManifest() plugins.Manifest {
 		Version:      "1.0.0",
 		Entry:        "plugin.js",
 		Artifact:     "plugin.js",
+		Trusted:      true,
 		Capabilities: []string{"CAP_HTTP_PASSIVE"},
 		Signature: &plugins.Signature{
 			Signature: "plugin.js.sig",

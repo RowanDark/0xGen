@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "entry": "emit-on-start",
   "artifact": "plugins/samples/emit-on-start/main.go",
+  "trusted": true,
   "capabilities": ["CAP_EMIT_FINDINGS"],
   "signature": {
     "signature": "main.go.sig",

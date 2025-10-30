@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "entry": "passive-header-scan",
   "artifact": "plugins/samples/passive-header-scan/main.go",
+  "trusted": true,
   "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS", "CAP_FLOW_INSPECT"],
   "config": {
     "includeResponseHeaders": true

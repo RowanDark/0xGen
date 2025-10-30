@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "entry": "seer",
   "artifact": "plugins/seer/main.go",
+  "trusted": true,
   "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
   "config": {
     "allowlist_env": "SEER_ALLOWLIST",
