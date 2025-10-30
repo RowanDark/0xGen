@@ -43,8 +43,17 @@ func TestRunReplay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build cases: %v", err)
 	}
-	if err := replay.WriteCases(casesPath, built); err != nil {
+	if err := replay.WriteCases(casesPath, built, replay.WithCaseOrder([]string{built[0].ID})); err != nil {
 		t.Fatalf("write cases: %v", err)
+	}
+
+	caseDigest, err := replay.ComputeCaseDigest(built, []string{built[0].ID}, "sha256")
+	if err != nil {
+		t.Fatalf("hash cases: %v", err)
+	}
+	findingDigest, err := replay.ComputeFindingsDigest([]findings.Finding{finding}, []string{finding.ID}, "sha256")
+	if err != nil {
+		t.Fatalf("hash findings: %v", err)
 	}
 
 	manifest := replay.Manifest{
@@ -53,7 +62,9 @@ func TestRunReplay(t *testing.T) {
 		Seeds:         map[string]int64{"cases": 42},
 		Runner:        replay.DefaultRunnerInfo(),
 		FindingsFile:  "findings.jsonl",
+		FindingOrder:  []string{finding.ID},
 		CasesFile:     "cases.json",
+		CaseOrder:     []string{built[0].ID},
 		FlowsFile:     "flows.jsonl",
 		CaseTimestamp: time.Unix(1700002000, 0).UTC(),
 		Responses: []replay.ResponseRecord{{
@@ -62,6 +73,10 @@ func TestRunReplay(t *testing.T) {
 			Status:     200,
 			BodyFile:   "responses/example.json",
 		}},
+		Provenance: []replay.Provenance{
+			{Scope: "cases", Algorithm: "sha256", Digest: caseDigest},
+			{Scope: "findings", Algorithm: "sha256", Digest: findingDigest},
+		},
 	}
 
 	files := map[string][]byte{
@@ -85,8 +100,16 @@ func TestRunReplay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load replay cases: %v", err)
 	}
-	if !replay.CasesEqual(built, generated) {
+	if !replay.CasesEqualWithOrder(built, generated, manifest.CaseOrder) {
 		t.Fatalf("replayed cases do not match original")
+	}
+
+	findingsData, err := os.ReadFile(filepath.Join(outDir, "findings.replay.jsonl"))
+	if err != nil {
+		t.Fatalf("findings output missing: %v", err)
+	}
+	if len(findingsData) == 0 {
+		t.Fatalf("expected findings output to contain data")
 	}
 
 	// Verify supplemental data copied.
@@ -95,6 +118,56 @@ func TestRunReplay(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outDir, "flows.replay.jsonl")); err != nil {
 		t.Fatalf("flows output missing: %v", err)
+	}
+
+	provPath := filepath.Join(outDir, "provenance.replay.json")
+	provData, err := os.ReadFile(provPath)
+	if err != nil {
+		t.Fatalf("provenance output missing: %v", err)
+	}
+	var report struct {
+		Records []struct {
+			Scope    string `json:"scope"`
+			Verified bool   `json:"verified"`
+		} `json:"records"`
+	}
+	if err := json.Unmarshal(provData, &report); err != nil {
+		t.Fatalf("decode provenance: %v", err)
+	}
+	if len(report.Records) != 2 {
+		t.Fatalf("unexpected provenance records: %v", report.Records)
+	}
+	for _, rec := range report.Records {
+		if !rec.Verified {
+			t.Fatalf("expected provenance for %s to be verified", rec.Scope)
+		}
+	}
+
+	filteredOutDir := filepath.Join(dir, "filtered")
+	if code := runReplay([]string{"--out", filteredOutDir, "--case", built[0].ID, artefact}); code != 0 {
+		t.Fatalf("runReplay with case filter exited with %d", code)
+	}
+
+	filteredProvPath := filepath.Join(filteredOutDir, "provenance.replay.json")
+	filteredProvData, err := os.ReadFile(filteredProvPath)
+	if err != nil {
+		t.Fatalf("filtered provenance output missing: %v", err)
+	}
+	var filteredReport struct {
+		Records []struct {
+			Scope    string `json:"scope"`
+			Verified bool   `json:"verified"`
+		} `json:"records"`
+	}
+	if err := json.Unmarshal(filteredProvData, &filteredReport); err != nil {
+		t.Fatalf("decode filtered provenance: %v", err)
+	}
+	for _, rec := range filteredReport.Records {
+		if rec.Scope == "cases" || rec.Scope == "findings" {
+			if rec.Verified {
+				t.Fatalf("expected provenance for %s to be skipped when filtering cases", rec.Scope)
+			}
+		}
 	}
 }
 

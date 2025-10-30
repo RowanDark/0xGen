@@ -55,3 +55,38 @@ func TestWriteAndLoadCases(t *testing.T) {
 		t.Fatalf("unexpected loaded cases: %+v", loaded)
 	}
 }
+
+func TestOrderCasesWithManifestOrder(t *testing.T) {
+	base := cases.Case{ID: "CASE-1", Risk: cases.Risk{Severity: findings.SeverityLow}}
+	other := cases.Case{ID: "CASE-2", Risk: cases.Risk{Severity: findings.SeverityHigh}}
+
+	ordered := OrderCases([]cases.Case{base, other}, []string{"CASE-2", "CASE-1"})
+	if len(ordered) != 2 {
+		t.Fatalf("unexpected length: %d", len(ordered))
+	}
+	if ordered[0].ID != "CASE-2" || ordered[1].ID != "CASE-1" {
+		t.Fatalf("unexpected order: %v", []string{ordered[0].ID, ordered[1].ID})
+	}
+}
+
+func TestComputeCaseDigest(t *testing.T) {
+	ts := findings.NewTimestamp(time.Unix(1700003000, 0).UTC())
+	first := cases.Case{ID: "CASE-A", GeneratedAt: ts, Risk: cases.Risk{Severity: findings.SeverityMedium}}
+	second := cases.Case{ID: "CASE-B", GeneratedAt: ts, Risk: cases.Risk{Severity: findings.SeverityLow}}
+
+	list := []cases.Case{first, second}
+	digestA, err := ComputeCaseDigest(list, []string{"CASE-B", "CASE-A"}, "sha256")
+	if err != nil {
+		t.Fatalf("ComputeCaseDigest failed: %v", err)
+	}
+	digestB, err := ComputeCaseDigest([]cases.Case{second, first}, []string{"CASE-B", "CASE-A"}, "sha256")
+	if err != nil {
+		t.Fatalf("ComputeCaseDigest failed: %v", err)
+	}
+	if digestA != digestB {
+		t.Fatalf("expected stable digest, got %q vs %q", digestA, digestB)
+	}
+	if _, err := ComputeCaseDigest(list, nil, "unsupported"); err == nil {
+		t.Fatalf("expected error for unsupported algorithm")
+	}
+}

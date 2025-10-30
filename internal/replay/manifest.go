@@ -27,8 +27,11 @@ type Manifest struct {
 	Runner        RunnerInfo        `json:"runner"`
 	Plugins       []PluginInfo      `json:"plugins"`
 	FindingsFile  string            `json:"findings_file"`
+	FindingOrder  []string          `json:"finding_order,omitempty"`
 	CasesFile     string            `json:"cases_file"`
+	CaseOrder     []string          `json:"case_order,omitempty"`
 	CaseTimestamp time.Time         `json:"case_timestamp"`
+	Provenance    []Provenance      `json:"provenance,omitempty"`
 }
 
 // DNSRecord records resolved addresses for a host.
@@ -127,6 +130,24 @@ func (m Manifest) Validate() error {
 		return err
 	}
 	return nil
+}
+
+// Provenance captures pre-computed digests for artefact components.
+type Provenance struct {
+	Scope     string `json:"scope"`
+	Algorithm string `json:"algorithm"`
+	Digest    string `json:"digest"`
+}
+
+// ProvenanceByScope retrieves the provenance record for the provided scope.
+func (m Manifest) ProvenanceByScope(scope string) (Provenance, bool) {
+	scope = strings.TrimSpace(strings.ToLower(scope))
+	for _, record := range m.Provenance {
+		if strings.TrimSpace(strings.ToLower(record.Scope)) == scope {
+			return record, true
+		}
+	}
+	return Provenance{}, false
 }
 
 // Normalize enforces deterministic ordering across manifest collections so
