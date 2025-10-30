@@ -25,7 +25,8 @@ const PREVIEW_LIMIT: usize = 256 * 1024;
 const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
 
 static AUTHORIZATION_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)(authorization\s*[:=]\s*)([^\s,;]+)").expect("invalid authorization regex")
+    Regex::new(r"(?im)(authorization\s*[:=]\s*)([^\r\n]+)")
+        .expect("invalid authorization regex")
 });
 
 static API_KEY_QUOTED_PATTERN: Lazy<Regex> = Lazy::new(|| {
