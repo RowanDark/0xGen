@@ -1,12 +1,35 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, CalendarClock, Check, ChevronLeft, ChevronRight, DownloadCloud, Flame, Plug, ShieldAlert, Zap } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  Bot,
+  CalendarClock,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  DownloadCloud,
+  Flame,
+  Lightbulb,
+  Loader2,
+  Plug,
+  RefreshCw,
+  Send,
+  ShieldAlert,
+  Sparkles,
+  Zap
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
 import { startRun, type StartRunPayload } from '../lib/ipc';
 import { useLocalStorage } from '../lib/use-local-storage';
 import { useCommandCenter } from '../providers/command-center';
+import {
+  buildContextFingerprint,
+  runMimirAgent,
+  type MimirAgentContext,
+  type MimirRecommendation
+} from '../lib/mimir-agent';
 
 type RunComposerStep = {
   id: 'targets' | 'plugins' | 'limits' | 'auth' | 'review';
@@ -352,44 +375,371 @@ function PluginsStep({
   onChange: (next: RunComposerState) => void;
 }) {
   return (
-    <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {pluginCatalog.map((plugin) => {
-          const isEnabled = value.plugins.includes(plugin.id);
-          return (
-            <button
-              key={plugin.id}
-              type="button"
-              onClick={() => {
-                onChange({
-                  ...value,
-                  plugins: isEnabled
-                    ? value.plugins.filter((id) => id !== plugin.id)
-                    : [...value.plugins, plugin.id]
-                });
-              }}
-              className={`flex h-full flex-col rounded-lg border p-4 text-left transition hover:border-primary ${
-                isEnabled ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{plugin.name}</p>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{plugin.category}</p>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="space-y-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {pluginCatalog.map((plugin) => {
+            const isEnabled = value.plugins.includes(plugin.id);
+            return (
+              <button
+                key={plugin.id}
+                type="button"
+                onClick={() => {
+                  onChange({
+                    ...value,
+                    plugins: isEnabled
+                      ? value.plugins.filter((id) => id !== plugin.id)
+                      : [...value.plugins, plugin.id]
+                  });
+                }}
+                className={`flex h-full flex-col rounded-lg border p-4 text-left transition hover:border-primary ${
+                  isEnabled ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{plugin.name}</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{plugin.category}</p>
+                  </div>
+                  {plugin.risk === 'high' ? <Flame className="h-4 w-4 text-destructive" /> : <Plug className="h-4 w-4 text-muted-foreground" />}
                 </div>
-                {plugin.risk === 'high' ? <Flame className="h-4 w-4 text-destructive" /> : <Plug className="h-4 w-4 text-muted-foreground" />}
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">{plugin.description}</p>
-              <div className="mt-auto pt-4 text-xs text-muted-foreground">
-                Risk level: <span className="font-medium capitalize">{plugin.risk}</span>
-              </div>
-            </button>
-          );
-        })}
+                <p className="mt-3 text-sm text-muted-foreground">{plugin.description}</p>
+                <div className="mt-auto pt-4 text-xs text-muted-foreground">
+                  Risk level: <span className="font-medium capitalize">{plugin.risk}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {value.plugins.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Select at least one plugin to continue.</p>
+        ) : null}
       </div>
-      {value.plugins.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Select at least one plugin to continue.</p>
-      ) : null}
+      <MimirAssistant value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+type MimirAssistantMessage =
+  | {
+      id: string;
+      role: 'user';
+      content: string;
+    }
+  | {
+      id: string;
+      role: 'assistant';
+      content: string;
+      recommendations?: MimirRecommendation[];
+      followUps?: string[];
+      kind: 'context' | 'chat';
+    };
+
+function createAgentContext(state: RunComposerState): MimirAgentContext {
+  return {
+    scopePolicy: state.scopePolicy,
+    targets: [...state.targets],
+    targetNotes: state.targetNotes,
+    plugins: [...state.plugins],
+    limits: {
+      concurrency: state.limits.concurrency,
+      maxRps: state.limits.maxRps,
+      maxFindings: state.limits.maxFindings,
+      safeMode: state.limits.safeMode
+    }
+  } satisfies MimirAgentContext;
+}
+
+function createMessageId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2);
+}
+
+function MimirAssistant({
+  value,
+  onChange
+}: {
+  value: RunComposerState;
+  onChange: (next: RunComposerState) => void;
+}) {
+  const [messages, setMessages] = useState<MimirAssistantMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [isThinking, setIsThinking] = useState(false);
+  const [contextSignature, setContextSignature] = useState('');
+  const hasBootstrappedRef = useRef(false);
+  const inputIdRef = useRef(`mimir-input-${createMessageId()}`);
+
+  const context = useMemo(() => createAgentContext(value), [value]);
+  const fingerprint = useMemo(() => buildContextFingerprint(context), [context]);
+
+  const pluginNameLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const plugin of pluginCatalog) {
+      map.set(plugin.id, plugin.name);
+    }
+    return map;
+  }, []);
+
+  const primeAgent = useCallback(async () => {
+    setIsThinking(true);
+    try {
+      const response = await runMimirAgent({ intent: 'context', context, messages: [] });
+      setMessages([
+        {
+          id: createMessageId(),
+          role: 'assistant',
+          content: response.message,
+          recommendations: response.recommendations,
+          followUps: response.followUps,
+          kind: 'context'
+        }
+      ]);
+      setContextSignature(fingerprint);
+    } catch (error) {
+      console.error('Failed to prime Mimir assistant', error);
+      toast.error('Unable to load Mimir recommendations.');
+    } finally {
+      setIsThinking(false);
+    }
+  }, [context, fingerprint]);
+
+  useEffect(() => {
+    if (hasBootstrappedRef.current) {
+      return;
+    }
+    hasBootstrappedRef.current = true;
+    void primeAgent();
+  }, [primeAgent]);
+
+  useEffect(() => {
+    if (!hasBootstrappedRef.current) {
+      return;
+    }
+    if (messages.length !== 1) {
+      return;
+    }
+    const [message] = messages;
+    if (message.role !== 'assistant' || message.kind !== 'context') {
+      return;
+    }
+    if (contextSignature === fingerprint) {
+      return;
+    }
+    if (isThinking) {
+      return;
+    }
+    void primeAgent();
+  }, [contextSignature, fingerprint, isThinking, messages, primeAgent]);
+
+  const contextStale = contextSignature !== '' && fingerprint !== contextSignature;
+
+  const handleSend = useCallback(async () => {
+    const trimmed = input.trim();
+    if (trimmed === '' || isThinking) {
+      return;
+    }
+    const userMessage: MimirAssistantMessage = {
+      id: createMessageId(),
+      role: 'user',
+      content: trimmed
+    };
+    const conversation = [...messages, userMessage];
+    setMessages(conversation);
+    setInput('');
+    setIsThinking(true);
+    try {
+      const response = await runMimirAgent({
+        intent: 'chat',
+        context,
+        messages: conversation.map((message) => ({ role: message.role, content: message.content }))
+      });
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: createMessageId(),
+          role: 'assistant',
+          content: response.message,
+          recommendations: response.recommendations,
+          followUps: response.followUps,
+          kind: 'chat'
+        }
+      ]);
+      setContextSignature(fingerprint);
+    } catch (error) {
+      console.error('Mimir assistant failed to respond', error);
+      toast.error('Mimir was unable to generate a response.');
+    } finally {
+      setIsThinking(false);
+    }
+  }, [context, fingerprint, input, isThinking, messages]);
+
+  const handleApplyRecommendation = useCallback(
+    (recommendation: MimirRecommendation) => {
+      const nextPlugins = new Set(value.plugins);
+      let changed = false;
+      for (const pluginId of recommendation.plugins) {
+        if (!nextPlugins.has(pluginId)) {
+          nextPlugins.add(pluginId);
+          changed = true;
+        }
+      }
+      if (!changed) {
+        toast.info('All recommended plugins are already enabled.');
+        return;
+      }
+      onChange({
+        ...value,
+        plugins: Array.from(nextPlugins)
+      });
+      toast.success(`Enabled ${recommendation.title}`);
+    },
+    [onChange, value]
+  );
+
+  return (
+    <div className="flex h-full min-h-[24rem] flex-col rounded-lg border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Bot className="h-4 w-4 text-primary" aria-hidden />
+            <span>Mimir assistant</span>
+          </div>
+          <p className="text-xs text-muted-foreground">Context-aware plugin strategist powered by embedded LLM heuristics.</p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => void primeAgent()}
+          disabled={isThinking}
+          aria-label="Refresh Mimir suggestions"
+        >
+          {isThinking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
+        </Button>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          {messages.map((message) => {
+            if (message.role === 'assistant') {
+              const assistant = message;
+              return (
+                <div key={message.id} className="space-y-2">
+                  <div className="w-full rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground">
+                    <p className="whitespace-pre-wrap leading-relaxed">{assistant.content}</p>
+                  </div>
+                  {assistant.recommendations && assistant.recommendations.length > 0 ? (
+                    <div className="space-y-3">
+                      {assistant.recommendations.map((recommendation) => (
+                        <div key={recommendation.id} className="rounded-md border border-border bg-background p-3 text-sm">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{recommendation.title}</p>
+                              <p className="text-xs text-muted-foreground">{recommendation.description}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleApplyRecommendation(recommendation)}
+                              disabled={isThinking}
+                            >
+                              Enable
+                            </Button>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {recommendation.plugins.map((pluginId) => {
+                              const label = pluginNameLookup.get(pluginId) ?? pluginId;
+                              const enabled = value.plugins.includes(pluginId);
+                              return (
+                                <span
+                                  key={`${recommendation.id}-${pluginId}`}
+                                  className={`rounded-full border px-2 py-0.5 text-xs ${
+                                    enabled
+                                      ? 'border-primary/60 bg-primary/10 text-primary'
+                                      : 'border-border bg-muted/40 text-muted-foreground'
+                                  }`}
+                                >
+                                  {label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">{recommendation.rationale}</p>
+                          {recommendation.nextScan ? (
+                            <div className="mt-2 flex items-start gap-2 rounded-md border border-dashed border-primary/50 bg-primary/5 p-2 text-xs text-primary">
+                              <Lightbulb className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                              <span>{recommendation.nextScan}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {assistant.followUps && assistant.followUps.length > 0 ? (
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      {assistant.followUps.map((item, index) => (
+                        <div key={`${assistant.id}-followup-${index}`} className="flex items-start gap-2">
+                          <Sparkles className="mt-0.5 h-3 w-3 text-primary" aria-hidden />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            }
+
+            return (
+              <div key={message.id} className="flex justify-end">
+                <div className="max-w-[85%] rounded-lg border border-primary/50 bg-primary/10 px-3 py-2 text-sm text-primary">
+                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                </div>
+              </div>
+            );
+          })}
+          {isThinking ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              <span>Thinking through your scope…</span>
+            </div>
+          ) : null}
+        </div>
+        {contextStale ? (
+          <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            <span>Configuration changed since the last suggestion. Refresh Mimir to sync context.</span>
+          </div>
+        ) : null}
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor={inputIdRef.current}>
+            Ask Mimir
+          </label>
+          <div className="flex flex-col gap-2">
+            <textarea
+              id={inputIdRef.current}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSend();
+                }
+              }}
+              rows={3}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              placeholder="Ask for plugin combos, next scans, or risk trade-offs…"
+            />
+            <div className="flex items-center justify-end">
+              <Button type="button" size="sm" onClick={() => void handleSend()} disabled={isThinking || input.trim() === ''}>
+                <Send className="mr-2 h-4 w-4" aria-hidden />
+                Send
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
