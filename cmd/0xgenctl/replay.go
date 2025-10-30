@@ -130,10 +130,15 @@ func runReplay(args []string) int {
 		return 1
 	}
 	expectedCaseDigest := strings.TrimSpace(caseProv.Digest)
-	caseVerified := haveCaseProv && expectedCaseDigest != "" && strings.EqualFold(caseDigest, expectedCaseDigest)
-	if haveCaseProv && !caseVerified {
-		fmt.Fprintln(os.Stderr, "case provenance digest mismatch")
-		return 1
+	caseVerified := false
+	if haveCaseProv {
+		if filterID == "" {
+			if expectedCaseDigest == "" || !strings.EqualFold(caseDigest, expectedCaseDigest) {
+				fmt.Fprintln(os.Stderr, "case provenance digest mismatch")
+				return 1
+			}
+			caseVerified = true
+		}
 	}
 
 	findingProv, haveFindingProv := manifest.ProvenanceByScope("findings")
@@ -144,10 +149,15 @@ func runReplay(args []string) int {
 		return 1
 	}
 	expectedFindingDigest := strings.TrimSpace(findingProv.Digest)
-	findingVerified := haveFindingProv && expectedFindingDigest != "" && strings.EqualFold(findingDigest, expectedFindingDigest)
-	if haveFindingProv && !findingVerified {
-		fmt.Fprintln(os.Stderr, "finding provenance digest mismatch")
-		return 1
+	findingVerified := false
+	if haveFindingProv {
+		if filterID == "" {
+			if expectedFindingDigest == "" || !strings.EqualFold(findingDigest, expectedFindingDigest) {
+				fmt.Fprintln(os.Stderr, "finding provenance digest mismatch")
+				return 1
+			}
+			findingVerified = true
+		}
 	}
 
 	var flowRecords []replay.FlowRecord

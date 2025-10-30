@@ -142,6 +142,33 @@ func TestRunReplay(t *testing.T) {
 			t.Fatalf("expected provenance for %s to be verified", rec.Scope)
 		}
 	}
+
+	filteredOutDir := filepath.Join(dir, "filtered")
+	if code := runReplay([]string{"--out", filteredOutDir, "--case", built[0].ID, artefact}); code != 0 {
+		t.Fatalf("runReplay with case filter exited with %d", code)
+	}
+
+	filteredProvPath := filepath.Join(filteredOutDir, "provenance.replay.json")
+	filteredProvData, err := os.ReadFile(filteredProvPath)
+	if err != nil {
+		t.Fatalf("filtered provenance output missing: %v", err)
+	}
+	var filteredReport struct {
+		Records []struct {
+			Scope    string `json:"scope"`
+			Verified bool   `json:"verified"`
+		} `json:"records"`
+	}
+	if err := json.Unmarshal(filteredProvData, &filteredReport); err != nil {
+		t.Fatalf("decode filtered provenance: %v", err)
+	}
+	for _, rec := range filteredReport.Records {
+		if rec.Scope == "cases" || rec.Scope == "findings" {
+			if rec.Verified {
+				t.Fatalf("expected provenance for %s to be skipped when filtering cases", rec.Scope)
+			}
+		}
+	}
 }
 
 func mustReadFile(t *testing.T, path string) []byte {
