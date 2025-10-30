@@ -9,6 +9,7 @@ import { Toaster } from './providers/toaster';
 import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
 import { ArtifactProvider } from './providers/artifact-provider';
 import { CommandCenterProvider } from './providers/command-center';
+import { FeedbackProvider } from './providers/feedback-provider';
 import { MetricsProvider } from './providers/metrics-provider';
 import { CrashReporterProvider } from './providers/crash-reporter';
 
@@ -28,8 +29,10 @@ ReactDOM.createRoot(rootElement).render(
           <ArtifactProvider>
             <MetricsProvider>
               <CommandCenterProvider>
-                <Toaster />
-                <RouterProvider router={router} />
+                <FeedbackProvider>
+                  <Toaster />
+                  <RouterProvider router={router} />
+                </FeedbackProvider>
               </CommandCenterProvider>
             </MetricsProvider>
           </ArtifactProvider>

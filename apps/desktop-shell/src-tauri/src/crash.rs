@@ -7,10 +7,12 @@ use std::{
     time::Duration,
 };
 
+use crate::diagnostics::{collect_diagnostics, AnonymizedDiagnostics};
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use once_cell::sync::{Lazy, OnceCell};
 use parking_lot::Mutex;
+use regex::{Captures, Regex};
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use tauri::AppHandle;
@@ -20,6 +22,43 @@ use tracing_subscriber::{fmt::MakeWriter, EnvFilter};
 
 const LOG_CAPACITY: usize = 10_000;
 const PREVIEW_LIMIT: usize = 256 * 1024;
+const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
+
+static AUTHORIZATION_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)(authorization\s*[:=]\s*)([^\s,;]+)").expect("invalid authorization regex")
+});
+
+static API_KEY_QUOTED_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?i)(api[-_]?key"?\s*[:=]\s*")([^"]+)"#).expect("invalid api key regex")
+});
+
+static API_KEY_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)(api[-_]?key\s*[:=]\s*)([^\s,;]+)").expect("invalid api key regex")
+});
+
+static TOKEN_QUOTED_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?i)(token"?\s*[:=]\s*")([^"]+)"#).expect("invalid token regex"));
+
+static TOKEN_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)(token\s*[:=]\s*)([^\s,;]+)").expect("invalid token regex"));
+
+static SECRET_QUOTED_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?i)(secret"?\s*[:=]\s*")([^"]+)"#).expect("invalid secret regex"));
+
+static SECRET_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)(secret\s*[:=]\s*)([^\s,;]+)").expect("invalid secret regex"));
+
+static PASSWORD_QUOTED_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?i)(password"?\s*[:=]\s*")([^"]+)"#).expect("invalid password regex")
+});
+
+static PASSWORD_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)(password\s*[:=]\s*)([^\s,;]+)").expect("invalid password regex")
+});
+
+static BEARER_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)(bearer\s+)([A-Za-z0-9\-\._~\+/]+=*)").expect("invalid bearer regex")
+});
 
 static GLOBAL_REPORTER: OnceCell<CrashReporter> = OnceCell::new();
 
@@ -248,6 +287,19 @@ impl CrashReporter {
         }
     }
 
+    pub fn log_snapshot(&self) -> Vec<String> {
+        self.inner
+            .log_buffer
+            .snapshot()
+            .into_iter()
+            .map(|line| redact_text(&line))
+            .collect()
+    }
+
+    pub fn collect_diagnostics(&self) -> AnonymizedDiagnostics {
+        collect_diagnostics(&self.inner.base_url)
+    }
+
     pub fn record_renderer_crash(
         &self,
         message: String,
@@ -323,6 +375,7 @@ impl CrashReporter {
         }
 
         let created_at = Utc::now();
+        let sanitized_reason = sanitize_reason(reason);
         let id = format!(
             "crash-{}",
             created_at
@@ -347,7 +400,7 @@ impl CrashReporter {
             created_at,
             base_url: self.inner.base_url.clone(),
             process_id: std::process::id(),
-            reason: reason.clone(),
+            reason: sanitized_reason.clone(),
         };
         write_json(&manifest_path, &manifest)?;
         push_file_metadata(
@@ -359,7 +412,7 @@ impl CrashReporter {
 
         // logs
         let logs_path = crash_dir.join("logs.ndjson");
-        let log_lines = self.inner.log_buffer.snapshot();
+        let log_lines = self.log_snapshot();
         if !log_lines.is_empty() {
             let mut file = File::create(&logs_path)?;
             for line in log_lines {
@@ -376,8 +429,9 @@ impl CrashReporter {
 
         // metrics
         if let Some(metrics) = fetch_metrics(&self.inner.base_url) {
+            let sanitized_metrics = redact_text(&metrics);
             let metrics_path = crash_dir.join("metrics.prom");
-            fs::write(&metrics_path, metrics)?;
+            fs::write(&metrics_path, sanitized_metrics)?;
             push_file_metadata(
                 &mut files,
                 "metrics.prom",
@@ -386,15 +440,26 @@ impl CrashReporter {
             )?;
         }
 
+        // diagnostics
+        let diagnostics_path = crash_dir.join("diagnostics.json");
+        let diagnostics = self.collect_diagnostics();
+        write_json(&diagnostics_path, &diagnostics)?;
+        push_file_metadata(
+            &mut files,
+            "diagnostics.json",
+            &diagnostics_path,
+            "Anonymized system diagnostics",
+        )?;
+
         // minidump
         let minidump_path = crash_dir.join("minidump.json");
         let minidump = CrashMinidump {
-            reason: reason.clone(),
+            reason: sanitized_reason.clone(),
             captured_at: created_at,
-            backtrace: reason.stack.clone(),
+            backtrace: sanitized_reason.stack.clone(),
         };
         write_json(&minidump_path, &minidump)?;
-        let minidump_description = match reason.kind.as_str() {
+        let minidump_description = match sanitized_reason.kind.as_str() {
             "rust-panic" => "Rust panic backtrace and thread metadata",
             _ => "Renderer stack trace and error metadata",
         };
@@ -409,7 +474,7 @@ impl CrashReporter {
             id: id.clone(),
             created_at,
             directory: crash_dir.to_string_lossy().to_string(),
-            reason,
+            reason: sanitized_reason,
             files,
         };
 
@@ -532,6 +597,57 @@ pub fn record_renderer_crash(message: String, stack: Option<String>) {
             error!("failed to record renderer crash: {err}");
         }
     }
+}
+
+pub(crate) fn redact_text(input: &str) -> String {
+    let mut text = input.to_string();
+
+    text = AUTHORIZATION_PATTERN
+        .replace_all(&text, |caps: &Captures| {
+            format!("{}{}", &caps[1], REDACTION_PLACEHOLDER)
+        })
+        .into_owned();
+
+    for pattern in [
+        &*API_KEY_QUOTED_PATTERN,
+        &*TOKEN_QUOTED_PATTERN,
+        &*SECRET_QUOTED_PATTERN,
+        &*PASSWORD_QUOTED_PATTERN,
+    ] {
+        text = pattern
+            .replace_all(&text, |caps: &Captures| {
+                format!("{}{}\"", &caps[1], REDACTION_PLACEHOLDER)
+            })
+            .into_owned();
+    }
+
+    for pattern in [
+        &*API_KEY_PATTERN,
+        &*TOKEN_PATTERN,
+        &*SECRET_PATTERN,
+        &*PASSWORD_PATTERN,
+    ] {
+        text = pattern
+            .replace_all(&text, |caps: &Captures| {
+                format!("{}{}", &caps[1], REDACTION_PLACEHOLDER)
+            })
+            .into_owned();
+    }
+
+    text = BEARER_PATTERN
+        .replace_all(&text, |caps: &Captures| {
+            format!("{}{}", &caps[1], REDACTION_PLACEHOLDER)
+        })
+        .into_owned();
+
+    text
+}
+
+fn sanitize_reason(mut reason: CrashReason) -> CrashReason {
+    reason.message = redact_text(&reason.message);
+    reason.stack = reason.stack.map(|stack| redact_text(&stack));
+    reason.location = reason.location.map(|location| redact_text(&location));
+    reason
 }
 
 pub fn current_summary() -> Option<CrashBundleSummary> {

@@ -27,6 +27,8 @@ parking_lot = "0.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 sha2 = "0.10"
+regex = "1.10"
+sysinfo = "0.30"
 
 [features]
 default = ["custom-protocol"]

@@ -1,8 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod crash;
+mod diagnostics;
+mod feedback;
 
 use crate::crash::{self, CrashReporter};
+use crate::feedback;
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
@@ -2023,6 +2026,32 @@ fn discard_crash_bundle(reporter: State<'_, CrashReporter>) -> Result<(), String
 }
 
 #[tauri::command]
+fn submit_feedback(
+    reporter: State<'_, CrashReporter>,
+    category: String,
+    message: String,
+    contact: Option<String>,
+    include_logs: Option<bool>,
+    include_crash: Option<bool>,
+    include_diagnostics: Option<bool>,
+) -> Result<feedback::FeedbackSubmission, String> {
+    if message.trim().is_empty() {
+        return Err("Feedback message cannot be empty".to_string());
+    }
+
+    feedback::create_feedback_bundle(
+        &reporter,
+        category,
+        message,
+        contact,
+        include_logs.unwrap_or(true),
+        include_crash.unwrap_or(true),
+        include_diagnostics.unwrap_or(true),
+    )
+    .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 async fn fetch_plugin_registry(api: State<'_, OxgApi>) -> Result<Value, String> {
     let (registry_url, _, _) = resolve_registry_endpoints()?;
     let response = api
@@ -2159,7 +2188,8 @@ fn main() {
             get_active_crash_bundle,
             preview_crash_file,
             save_crash_bundle,
-            discard_crash_bundle
+            discard_crash_bundle,
+            submit_feedback
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

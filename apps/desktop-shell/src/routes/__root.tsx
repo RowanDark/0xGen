@@ -1,6 +1,6 @@
 import { Link, Outlet, createRootRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Menu, Play, RefreshCw, Archive, Command as CommandIcon } from 'lucide-react';
+import { Activity, Menu, Play, RefreshCw, Archive, Command as CommandIcon, MessageCircle } from 'lucide-react';
 import { open } from '@tauri-apps/api/dialog';
 import { toast } from 'sonner';
 
@@ -12,6 +12,7 @@ import { openArtifact } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
 import { useCommandCenter } from '../providers/command-center';
 import { useMetrics, type MetricSnapshot } from '../providers/metrics-provider';
+import { useFeedback } from '../providers/feedback-provider';
 
 const Devtools = lazy(() => import('../screens/devtools'));
 
@@ -71,6 +72,7 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
   const location = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
   const { registerCommand, openPalette } = useCommandCenter();
+  const { open: openFeedback } = useFeedback();
   const offlineMode = Boolean(status?.loaded);
   const { history: metricsHistory, latest: latestMetrics } = useMetrics();
   const initialIndex = useMemo(() => {
@@ -283,6 +285,16 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
           <CommandIcon className="h-4 w-4" />
           Command menu
           <kbd className="ml-1 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[0.65rem]">⌘K</kbd>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={openFeedback}
+          title="Send feedback"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Open feedback panel</span>
         </Button>
         <ThemeSwitcher />
         <div className="hidden flex-col text-xs text-muted-foreground sm:flex">
