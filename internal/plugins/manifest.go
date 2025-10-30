@@ -15,6 +15,7 @@ type Manifest struct {
 	Version      string         `json:"version"`
 	Entry        string         `json:"entry"`
 	Artifact     string         `json:"artifact"`
+	Trusted      bool           `json:"trusted"`
 	Capabilities []string       `json:"capabilities"`
 	Config       map[string]any `json:"config,omitempty"`
 	Signature    *Signature     `json:"signature"`

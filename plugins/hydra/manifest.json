@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "entry": "hydra",
   "artifact": "plugins/hydra/main.go",
+  "trusted": true,
   "capabilities": [
     "CAP_EMIT_FINDINGS",
     "CAP_HTTP_PASSIVE",

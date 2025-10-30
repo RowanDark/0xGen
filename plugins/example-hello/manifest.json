@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "entry": "example-hello",
   "artifact": "plugins/example-hello/main.go",
+  "trusted": true,
   "capabilities": ["CAP_EMIT_FINDINGS"],
   "signature": {
     "signature": "main.go.sig",

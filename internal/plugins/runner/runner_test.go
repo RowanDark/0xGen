@@ -26,7 +26,14 @@ func TestRunTimeoutKillsProcess(t *testing.T) {
 		t.Fatalf("build binary: %v\noutput: %s", err, out)
 	}
 
-	err := Run(ctx, Config{Binary: binary, Limits: Limits{WallTime: 200 * time.Millisecond}})
+	sandbox := executablePath(dir, "sandbox")
+	sandboxBuild := exec.Command("go", "build", "-o", sandbox, "./sandboxcmd")
+	sandboxBuild.Dir = "."
+	if out, err := sandboxBuild.CombinedOutput(); err != nil {
+		t.Fatalf("build sandbox: %v\noutput: %s", err, out)
+	}
+
+	err := Run(ctx, Config{Binary: binary, SandboxBinary: sandbox, Limits: Limits{WallTime: 200 * time.Millisecond}})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected deadline exceeded, got %v", err)
 	}
@@ -34,8 +41,8 @@ func TestRunTimeoutKillsProcess(t *testing.T) {
 
 func TestBuildEnvStripsHostVariables(t *testing.T) {
 	t.Setenv("0XGEN_SECRET", "classified")
-	workDir := t.TempDir()
-	env := buildEnv(workDir, map[string]string{"EXTRA": "1"})
+	envCfg := sandboxEnv{Path: "/bin", Home: "/home/plugin", Tmp: "/tmp"}
+	env := buildEnv(envCfg, map[string]string{"EXTRA": "1"})
 	for _, entry := range env {
 		if strings.HasPrefix(entry, "0XGEN_SECRET=") {
 			t.Fatalf("host environment leaked into plugin env: %q", entry)
@@ -59,8 +66,8 @@ func TestBuildEnvStripsHostVariables(t *testing.T) {
 }
 
 func TestBuildEnvUsesSandboxDirectories(t *testing.T) {
-	workDir := t.TempDir()
-	env := buildEnv(workDir, map[string]string{"CUSTOM": "value"})
+	envCfg := sandboxEnv{Path: "/bin", Home: "/sandbox/home", Tmp: "/sandbox/tmp"}
+	env := buildEnv(envCfg, map[string]string{"CUSTOM": "value"})
 
 	envMap := make(map[string]string, len(env))
 	for _, entry := range env {
@@ -71,18 +78,18 @@ func TestBuildEnvUsesSandboxDirectories(t *testing.T) {
 		envMap[parts[0]] = parts[1]
 	}
 
-	if got := envMap["HOME"]; got != workDir {
-		t.Fatalf("HOME = %q, want sandbox directory %q", got, workDir)
+	if got := envMap["HOME"]; got != envCfg.Home {
+		t.Fatalf("HOME = %q, want sandbox directory %q", got, envCfg.Home)
 	}
-	if got := envMap["TMPDIR"]; got != workDir {
-		t.Fatalf("TMPDIR = %q, want sandbox directory %q", got, workDir)
+	if got := envMap["TMPDIR"]; got != envCfg.Tmp {
+		t.Fatalf("TMPDIR = %q, want sandbox directory %q", got, envCfg.Tmp)
 	}
 	if runtime.GOOS == "windows" {
-		if got := envMap["TEMP"]; got != workDir {
-			t.Fatalf("TEMP = %q, want sandbox directory %q", got, workDir)
+		if got := envMap["TEMP"]; got != envCfg.Tmp {
+			t.Fatalf("TEMP = %q, want sandbox directory %q", got, envCfg.Tmp)
 		}
-		if got := envMap["TMP"]; got != workDir {
-			t.Fatalf("TMP = %q, want sandbox directory %q", got, workDir)
+		if got := envMap["TMP"]; got != envCfg.Tmp {
+			t.Fatalf("TMP = %q, want sandbox directory %q", got, envCfg.Tmp)
 		}
 	}
 	if got := envMap["CUSTOM"]; got != "value" {

@@ -49,6 +49,18 @@ func buildBinary(t *testing.T, program string) string {
 	return binary
 }
 
+func buildSandbox(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	sandbox := executablePath(dir, "sandbox")
+	cmd := exec.Command("go", "build", "-o", sandbox, "./sandboxcmd")
+	cmd.Dir = "."
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build sandbox: %v\noutput: %s", err, output)
+	}
+	return sandbox
+}
+
 func TestSupervisorTerminatesOnTimeout(t *testing.T) {
 	program := `package main
 import (
@@ -60,6 +72,7 @@ func main() {
         }
 }`
 	binary := buildBinary(t, program)
+	sandbox := buildSandbox(t)
 	emitter := &recordingEmitter{}
 	now := time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
 	supervisor := NewSupervisor(WithEmitter(emitter), WithClock(func() time.Time { return now }))
@@ -68,8 +81,9 @@ func main() {
 		ID:       "timeout-test",
 		PluginID: "sleepy",
 		Config: Config{
-			Binary: binary,
-			Limits: Limits{WallTime: 200 * time.Millisecond},
+			Binary:        binary,
+			SandboxBinary: sandbox,
+			Limits:        Limits{WallTime: 200 * time.Millisecond},
 		},
 	})
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -120,6 +134,7 @@ func main() {
         }
 }`
 	binary := buildBinary(t, program)
+	sandbox := buildSandbox(t)
 	emitter := &recordingEmitter{}
 	supervisor := NewSupervisor(WithEmitter(emitter), WithClock(func() time.Time { return time.Now().UTC() }))
 
@@ -129,8 +144,9 @@ func main() {
 		ID:       "memory-test",
 		PluginID: "hog",
 		Config: Config{
-			Binary: binary,
-			Limits: Limits{MemoryBytes: 768 << 20},
+			Binary:        binary,
+			SandboxBinary: sandbox,
+			Limits:        Limits{MemoryBytes: 768 << 20},
 		},
 	})
 	if err == nil {
@@ -162,13 +178,14 @@ func main() {
         fmt.Println("ok")
 }`
 	binary := buildBinary(t, program)
+	sandbox := buildSandbox(t)
 	emitter := &recordingEmitter{}
 	supervisor := NewSupervisor(WithEmitter(emitter))
 
 	result, err := supervisor.RunTask(context.Background(), Task{
 		ID:       "normal",
 		PluginID: "friendly",
-		Config:   Config{Binary: binary},
+		Config:   Config{Binary: binary, SandboxBinary: sandbox},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -190,6 +207,7 @@ func main() {
         }
 }`
 	binary := buildBinary(t, program)
+	sandbox := buildSandbox(t)
 	emitter := &recordingEmitter{}
 	supervisor := NewSupervisor(WithEmitter(emitter))
 
@@ -197,8 +215,9 @@ func main() {
 		ID:       "rpc-timeout",
 		PluginID: "timeout",
 		Config: Config{
-			Binary: binary,
-			Limits: Limits{WallTime: time.Second},
+			Binary:        binary,
+			SandboxBinary: sandbox,
+			Limits:        Limits{WallTime: time.Second},
 		},
 		Timeout: 100 * time.Millisecond,
 	})
@@ -222,13 +241,14 @@ func main() {
         panic("boom")
 }`
 	binary := buildBinary(t, program)
+	sandbox := buildSandbox(t)
 	emitter := &recordingEmitter{}
 	supervisor := NewSupervisor(WithEmitter(emitter))
 
 	result, err := supervisor.RunTask(context.Background(), Task{
 		ID:       "crash",
 		PluginID: "crashy",
-		Config:   Config{Binary: binary},
+		Config:   Config{Binary: binary, SandboxBinary: sandbox},
 	})
 	if err == nil {
 		t.Fatal("expected crashy plugin to return an error")
