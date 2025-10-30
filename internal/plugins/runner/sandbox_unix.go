@@ -41,16 +41,23 @@ func createSandboxCommand(ctx context.Context, cfg Config) (*exec.Cmd, sandboxEn
 	workDir := filepath.Join(root, "workspace")
 	tmpDir := filepath.Join(root, "tmp")
 	for _, dir := range []struct {
-		path string
-		perm os.FileMode
+		path  string
+		perm  os.FileMode
+		chown bool
 	}{
-		{binDir, 0o755},
-		{homeDir, 0o755},
-		{workDir, 0o755},
+		{binDir, 0o755, false},
+		{homeDir, 0o755, true},
+		{workDir, 0o755, true},
 	} {
 		if err := os.MkdirAll(dir.path, dir.perm); err != nil {
 			cleanup()
 			return nil, sandboxEnv{}, nil, fmt.Errorf("create sandbox dir %q: %w", dir.path, err)
+		}
+		if dir.chown {
+			if err := os.Chown(dir.path, sandboxUserID, sandboxGroupID); err != nil {
+				cleanup()
+				return nil, sandboxEnv{}, nil, fmt.Errorf("set sandbox dir ownership %q: %w", dir.path, err)
+			}
 		}
 	}
 	if err := os.MkdirAll(tmpDir, 0o777); err != nil {
