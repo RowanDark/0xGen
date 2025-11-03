@@ -14,6 +14,8 @@ jobs:
   goreleaser:
     name: 0xgen GoReleaser
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.provenance-subjects.outputs.hashes }}
     env:
       WINDOWS_CODESIGN_PFX: ${{ secrets.WINDOWS_CODESIGN_PFX }}
       WINDOWS_CODESIGN_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
@@ -101,6 +103,20 @@ jobs:
             ./scripts/build_windows_installer.sh "$TAG" "$arch" "dist/windows_${arch}" dist
           done
 
+      - name: Write release metadata
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          printf '%s\n' "$TAG" > dist/RELEASE_TAG
+
+      - name: Generate consolidated SBOM
+        uses: anchore/syft-action@v0.9.0
+        with:
+          path: .
+          output: dist/0xgen-${{ github.ref_name }}-sbom.spdx.json
+
       - name: Upload Windows installers to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,8 +126,22 @@ jobs:
           gh release upload "$TAG" \
             "dist/0xgenctl_${TAG}_windows_amd64.msi" \
             "dist/0xgenctl_${TAG}_windows_arm64.msi" \
+            "dist/0xgen-${TAG}-sbom.spdx.json" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
+
+      - name: Generate provenance subjects
+        id: provenance-subjects
+        run: |
+          set -euo pipefail
+          cd dist
+          mapfile -t artifacts < <(find . -maxdepth 1 -type f -printf '%P\n' | sort)
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No artifacts found in dist" >&2
+            exit 1
+          fi
+          hashes=$(sha256sum "${artifacts[@]}" | base64 -w0)
+          echo "hashes=${hashes}" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -197,3 +227,20 @@ jobs:
           git add README.md
           git commit -m "docs: refresh release badge for ${RELEASE_TAG}"
           git push origin HEAD:main
+  provenance:
+    name: 0xgen Release Provenance
+    needs:
+      - goreleaser
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      attestations: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.goreleaser.outputs.hashes }}
+      upload-assets: ${{ github.ref_type == 'tag' }}
+      upload-tag-name: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+      provenance-name: 0xgen-${{ github.ref_name }}-provenance.intoto.jsonl
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}

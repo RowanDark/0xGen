@@ -41,8 +41,10 @@ func main() {
 	switch args[0] {
 	case "report":
 		os.Exit(runReport(args[1:]))
-	case "verify-report":
-		os.Exit(runVerifyReport(args[1:]))
+        case "verify-report":
+                os.Exit(runVerifyReport(args[1:]))
+        case "verify-build":
+                os.Exit(runVerifyBuild(args[1:]))
 	case "demo":
 		os.Exit(runDemo(args[1:]))
 	case "findings":
