@@ -27,7 +27,9 @@ push and pull request. The artifacts are uploaded as `oxg-sboms` and contain:
 - `oxg-plugins.spdx.json` – dependencies bundled with the official plugins.
 
 Download the SBOMs from the workflow run summary to integrate with your own
-inventory or vulnerability scanners.
+inventory or vulnerability scanners. Tagged releases also publish
+`0xgen-${VERSION}-sbom.spdx.json` alongside the binaries so desktop users can
+open the About dialog and jump straight to the release SBOM.
 
 ## Release signing & provenance {#release-signing-and-provenance}
 
@@ -35,41 +37,28 @@ Tagged releases trigger the `Release` workflow, which now performs the
 following:
 
 1. Build platform archives with GoReleaser.
-2. Sign each archive and checksum file using [Sigstore Cosign] in keyless mode.
-3. Upload the resulting `.sig` and `.pem` files alongside the release assets.
+2. Sign each archive and checksum file using [Sigstore Cosign] in keyless mode
+   and publish the signatures as attached assets.
+3. Generate a single SPDX SBOM (`0xgen-${VERSION}-sbom.spdx.json`) that matches
+   the released binaries.
+4. Emit an in-toto provenance statement via the reusable SLSA Level 3
+   generator covering every uploaded artifact.
 
-The complementary `SLSA Provenance` workflow publishes an in-toto provenance
-statement covering the release artifacts, signatures, and checksum manifests.
-To verify a release:
+The complementary `slsa.yml` workflow runs on each release publication and
+executes the `0xgenctl verify-build` command against the release bundles to
+prove the provenance is valid.
+
+To verify a release locally, download the archive you installed and run:
 
 ```bash
-# Download the archive, signature, certificate, checksum, and provenance files
-VERSION=v1.2.3
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenctl_${VERSION}_linux_amd64.tar.gz
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenctl_${VERSION}_linux_amd64.tar.gz.sig
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/0xgenctl_${VERSION}_linux_amd64.tar.gz.pem
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt.sig
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg_${VERSION}_checksums.txt.pem
-curl -LO https://github.com/RowanDark/0xgen/releases/download/${VERSION}/oxg-${VERSION}-binaries.intoto.jsonl
-
-# Verify the signature matches the downloaded archive
-cosign verify-blob \
-  --certificate 0xgenctl_${VERSION}_linux_amd64.tar.gz.pem \
-  --signature 0xgenctl_${VERSION}_linux_amd64.tar.gz.sig \
-  0xgenctl_${VERSION}_linux_amd64.tar.gz
-
-# Validate the SLSA provenance
-slsa-verifier verify-artifact \
-  --provenance oxg-${VERSION}-binaries.intoto.jsonl \
-  --source-uri github.com/RowanDark/0xgen \
-  --builder-id \
-    https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generic-post-build-provenance@v1.10.0 \
-  0xgenctl_${VERSION}_linux_amd64.tar.gz
+0xgenctl verify-build --tag v1.2.3 --artifact ~/Downloads/0xgenctl_v1.2.3_linux_amd64.tar.gz
 ```
 
-Successful verification proves the archive was produced by the trusted release
-workflow and signed with Sigstore.
+The CLI queries the GitHub release, downloads the attestation, and invokes the
+upstream `slsa-verifier` with the correct builder and source metadata. A
+successful verification proves the archive was produced by the trusted release
+workflow, signed with Sigstore, and covered by a SLSA Level 3 provenance
+statement.
 
 ## Plugin signature verification {#plugin-signature-verification}
 

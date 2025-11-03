@@ -10,6 +10,7 @@ import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
 import { ArtifactProvider } from './providers/artifact-provider';
 import { CommandCenterProvider } from './providers/command-center';
 import { FeedbackProvider } from './providers/feedback-provider';
+import { AboutProvider } from './providers/about-provider';
 import { MetricsProvider } from './providers/metrics-provider';
 import { CrashReporterProvider } from './providers/crash-reporter';
 
@@ -29,10 +30,12 @@ ReactDOM.createRoot(rootElement).render(
           <ArtifactProvider>
             <MetricsProvider>
               <CommandCenterProvider>
-                <FeedbackProvider>
-                  <Toaster />
-                  <RouterProvider router={router} />
-                </FeedbackProvider>
+                <AboutProvider>
+                  <FeedbackProvider>
+                    <Toaster />
+                    <RouterProvider router={router} />
+                  </FeedbackProvider>
+                </AboutProvider>
               </CommandCenterProvider>
             </MetricsProvider>
           </ArtifactProvider>

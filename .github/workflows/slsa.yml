@@ -1,42 +1,62 @@
+name: 0xgen Provenance Verification
+
 on:
-  push:
-    tags: ['v*']
-  workflow_dispatch: {}
+  workflow_run:
+    workflows: ['0xgen Release']
+    types: [completed]
+
+permissions:
+  contents: read
 
 jobs:
-  build-provenance:
-    if: ${{ github.repository_owner == 'RowanDark' && startsWith(github.ref, 'refs/tags/v') }}
+  verify:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Cosign (guarded)
-        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
-        uses: sigstore/cosign-installer@v3
-      - name: Generate SBOM
-        uses: anchore/syft-action@v0.9.0
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          path: .
-          output: sbom.spdx.json
-      - name: Sign artifacts (guarded)
-        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '' }}
+          repository: ${{ github.event.workflow_run.repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: 0xgen-release-dist
+          run-id: ${{ github.event.workflow_run.id }}
+          path: dist
+
+      - name: Read release metadata
+        id: release
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          artifacts=(dist/0xgenctl_*.tar.gz)
-          if [ ${#artifacts[@]} -eq 0 ]; then
-            echo "No dist artifacts found to sign; skipping."
-            exit 0
-          fi
-          for artifact in "${artifacts[@]}"; do
-            cosign sign-blob \
-              --key env://COSIGN_PRIVATE_KEY \
-              --output-signature "${artifact}.sig" \
-              --output-certificate "${artifact}.pem" \
-              "$artifact"
-          done
+          tag=$(cat dist/RELEASE_TAG)
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch provenance asset
         env:
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      - name: Note skipped signing
-        if: ${{ !(secrets.COSIGN_PRIVATE_KEY != '' && secrets.COSIGN_PASSWORD != '') }}
-        run: echo "Signing skipped: missing COSIGN_* secrets."
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" \
+            --pattern "0xgen-${TAG}-provenance.intoto.jsonl" \
+            --repo "${{ github.event.workflow_run.repository.full_name }}" \
+            --dir dist \
+            --clobber
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify provenance for linux/amd64 archive
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          go run ./cmd/0xgenctl verify-build \
+            --artifact "dist/0xgenctl_${TAG}_linux_amd64.tar.gz" \
+            --attestation "dist/0xgen-${TAG}-provenance.intoto.jsonl" \
+            --tag "$TAG" \
+            --repo "${{ github.event.workflow_run.repository.full_name }}"
