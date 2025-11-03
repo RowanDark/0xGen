@@ -8,9 +8,11 @@ use_directory_urls: true
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Learn mode: learn-mode.md
   - Plugins:
       - Overview: plugins/index.md
       - Go Safe Starter: plugins/safe-starter-go.md
+      - SDK tutorial: plugins/sdk-tutorial.md
       - Marketplace: plugins/catalog.md
       - Compatibility Matrix: plugins/compatibility-matrix.md
       - Install wizard: plugins/install-wizard.md
@@ -60,33 +62,20 @@ theme:
 plugins:
   - search
   - i18n:
-      default_language: en
       docs_structure: folder
       languages:
-        en: English
-        es: Español
-      nav_translations:
-        es:
-          Home: Inicio
-          Quickstart: Inicio rápido
-          Plugins: Complementos
-          CLI: CLI
-          Developer Guide: Guía de desarrollo
-          E2E Scenario Suite: Escenarios E2E
-          Updater channels & rollback: Canales de actualización y reversión
-          Running tests locally: Ejecución de pruebas en local
-          Rebrand tracker (meta): Seguimiento de rebranding (meta)
-          Accessibility modes: Modos de accesibilidad
-          Security: Seguridad
-          Versions: Versiones
-          Overview: Descripción general
-          Compare releases: Comparar versiones
+        - locale: en
+          name: English
+          default: true
+          build: true
+        - locale: es
+          name: Español
+          build: true
   - git-revision-date-localized:
       fallback_to_build_date: true
       type: datetime
       timezone: UTC
       locale: en
-      format: "%b %-d, %Y"
   - redirects:
       redirect_maps:
         # Legacy single-page CLI docs
@@ -181,6 +170,7 @@ extra_css:
   - stylesheets/last-updated.css
   - stylesheets/marketplace.css
   - stylesheets/experience.css
+  - stylesheets/learn-mode.css
 extra_javascript:
   - path: javascripts/search-fallback.js
     defer: true
@@ -197,4 +187,6 @@ extra_javascript:
   - path: javascripts/lazy-media.js
     defer: true
   - path: javascripts/quickstart-demo.js
+    defer: true
+  - path: javascripts/learn-mode.js
     defer: true
