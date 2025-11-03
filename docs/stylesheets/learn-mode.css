@@ -1,0 +1,129 @@
+body.learn-mode-active {
+  scroll-padding-bottom: 6rem;
+}
+
+.learn-mode-toggle {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 1000;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #f8fafc;
+  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.learn-mode-toggle:hover,
+.learn-mode-toggle:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(124, 58, 237, 0.35);
+  outline: none;
+}
+
+body:not(.learn-mode-active) .learn-mode-toggle {
+  opacity: 0.65;
+}
+
+.learn-mode-panel {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 5.5rem;
+  width: min(24rem, calc(100% - 3rem));
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(12px);
+  z-index: 995;
+}
+
+.learn-mode-panel h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.learn-mode-panel__body {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.learn-mode-panel__body a {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+.learn-mode-panel__body code {
+  background: rgba(30, 41, 59, 0.85);
+  color: #f9fafb;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.learn-mode-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(56, 189, 248, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.learn-mode-badge:hover,
+.learn-mode-badge.is-active {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.45);
+}
+
+.learn-step {
+  position: relative;
+  border-radius: 1rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.learn-step.is-active {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 18px 45px rgba(15, 23, 42, 0.25);
+  transform: translateY(-2px);
+}
+
+body:not(.learn-mode-active) .learn-step {
+  box-shadow: none;
+}
+
+body:not(.learn-mode-active) .learn-mode-badge {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .learn-mode-toggle {
+    right: 1rem;
+    bottom: 1rem;
+    padding: 0.65rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .learn-mode-panel {
+    right: 1rem;
+    bottom: 4.75rem;
+    width: calc(100% - 2rem);
+    font-size: 0.9rem;
+  }
+}

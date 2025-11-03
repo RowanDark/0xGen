@@ -33,6 +33,8 @@ fixtures to accelerate future development.
    [safe starter walkthrough](safe-starter-go.md) for a tour of the generated Go
    project layout. The legacy `make new-plugin` target remains available for
    existing automation but defers to the same templates.
+   The [Plugin SDK tutorial](sdk-tutorial.md) expands on the generated hooks and
+   shows how to connect Python and Rust clients to the same runtime.
 2. Study [`examples/plugin-safe-go/`]({{ config.repo_url }}/tree/main/examples/plugin-safe-go)
    for a compact end-to-end example produced by the scaffolder. It includes a
    manifest, runnable plugin, tests that exercise the fake broker, and a README

@@ -11,6 +11,8 @@ Use the navigation sidebar to explore:
 
 - **Quickstart** – run the five-minute demo pipeline and inspect the generated
   artifacts.
+- **Learn mode** – overlay step-by-step callouts across tutorials and replay
+  guided walkthroughs as you learn the stack.
 - **Plugins** – understand the plugin runtime model and build new detectors with the
   SDK.
 - **CLI** – drive 0xgen from the `0xgenctl` command-line interface and tailor the
