@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
 import { ThemeSwitcher } from '../components/theme-switcher';
+import { ModeSwitcher } from '../components/mode-switcher';
 import { MetricsPanel } from '../components/metrics-panel';
 import { openArtifact } from '../lib/ipc';
 import { useArtifact } from '../providers/artifact-provider';
@@ -264,7 +265,7 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
         <HealthChip label="DROPS" value={dropDisplay} tone={dropTone} onClick={onOpenMetrics} />
         <HealthChip label="ERRORS" value={errorDisplay} tone={errorTone} onClick={onOpenMetrics} />
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
           variant="ghost"
@@ -296,6 +297,7 @@ function Header({ onOpenMetrics }: { onOpenMetrics: () => void }) {
           <MessageCircle className="h-4 w-4" aria-hidden="true" />
           <span className="sr-only">Open feedback panel</span>
         </Button>
+        <ModeSwitcher />
         <ThemeSwitcher />
         <div className="hidden flex-col text-xs text-muted-foreground sm:flex">
           <span className="font-medium text-foreground">{offlineMode ? 'Offline mode' : 'Live mode'}</span>
