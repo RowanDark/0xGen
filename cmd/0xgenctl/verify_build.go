@@ -20,7 +20,7 @@ import (
 
 const (
 	defaultReleaseRepo   = "RowanDark/0xgen"
-	genericBuilderIDPath = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml"
+	genericBuilderIDPath = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0"
 )
 
 type releaseAsset struct {
