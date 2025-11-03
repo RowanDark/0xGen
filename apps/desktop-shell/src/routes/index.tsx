@@ -8,17 +8,7 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  FileText,
-  History,
-  ListOrdered,
-  Play,
-  Target,
-  Timer,
-  type LucideIcon
-} from 'lucide-react';
+import { Activity, AlertTriangle, ListOrdered, Target, Timer, type LucideIcon } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 
 import { Button } from '../components/ui/button';
@@ -30,6 +20,7 @@ import { useArtifact } from '../providers/artifact-provider';
 import { useMetrics } from '../providers/metrics-provider';
 import { useTheme } from '../providers/theme-provider';
 import { baseTransition, hoverTransition } from '../lib/motion';
+import { useMode } from '../providers/mode-provider';
 
 type SparklinePoint = {
   time: number;
@@ -261,6 +252,8 @@ function DashboardRoute() {
     latest: latestMetrics,
     error: metricsError
   } = useMetrics();
+  const { config: modeConfig } = useMode();
+  const ModeIcon = modeConfig.icon;
 
   const integerFormatter = useMemo(() => new Intl.NumberFormat(), []);
   const decimalFormatter = useMemo(() => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }), []);
@@ -350,35 +343,77 @@ function DashboardRoute() {
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
-          <Button
-            className="gap-2"
-            onClick={() => {
-              navigate({ to: '/runs/composer' });
-            }}
-          >
-            <Play className="h-4 w-4" aria-hidden />
-            New run
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => {
-              navigate({ to: '/runs' });
-            }}
-          >
-            <History className="h-4 w-4" aria-hidden />
-            Open replay
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => {
-              navigate({ to: '/runs' });
-            }}
-          >
-            <FileText className="h-4 w-4" aria-hidden />
-            Open report
-          </Button>
+          {modeConfig.actions.map((action, index) => {
+            const Icon = action.icon;
+            const variant = action.variant ?? (index === 0 ? 'default' : 'outline');
+            return (
+              <Button
+                key={action.id}
+                variant={variant}
+                className={cn('gap-2', action.className)}
+                onClick={() => {
+                  navigate({ to: action.to });
+                }}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                {action.label}
+              </Button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-soft backdrop-blur-sm">
+        <div
+          className={cn(
+            'border-b border-border/70 px-8 py-6 text-white',
+            'bg-gradient-to-r',
+            modeConfig.accentGradient
+          )}
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white/90 backdrop-blur">
+              <ModeIcon className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Highlighted modules</p>
+              <h2 className="text-lg font-semibold tracking-tight">{modeConfig.label}</h2>
+              <p className="mt-1 text-sm text-white/80">{modeConfig.description}</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-4 px-8 py-6 md:grid-cols-3">
+          {modeConfig.modules.map((module) => {
+            const Icon = module.icon;
+            return (
+              <button
+                key={module.id}
+                type="button"
+                onClick={() => {
+                  navigate({ to: module.to });
+                }}
+                className="group flex h-full flex-col gap-4 rounded-xl border border-border/70 bg-background/60 p-5 text-left transition hover:-translate-y-1 hover:border-primary/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <span
+                  className={cn(
+                    'inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide',
+                    module.badgeClass
+                  )}
+                >
+                  {module.focus}
+                </span>
+                <div className="flex items-start gap-4">
+                  <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl', module.iconClass)}>
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">{module.name}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{module.description}</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 

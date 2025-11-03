@@ -7,6 +7,7 @@ import { router } from './router';
 import { AppErrorBoundary } from './providers/error-boundary';
 import { Toaster } from './providers/toaster';
 import { ThemeProvider, bootstrapTheme } from './providers/theme-provider';
+import { ModeProvider } from './providers/mode-provider';
 import { ArtifactProvider } from './providers/artifact-provider';
 import { CommandCenterProvider } from './providers/command-center';
 import { FeedbackProvider } from './providers/feedback-provider';
@@ -25,22 +26,24 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ThemeProvider>
-      <CrashReporterProvider>
-        <AppErrorBoundary>
-          <ArtifactProvider>
-            <MetricsProvider>
-              <CommandCenterProvider>
-                <AboutProvider>
-                  <FeedbackProvider>
-                    <Toaster />
-                    <RouterProvider router={router} />
-                  </FeedbackProvider>
-                </AboutProvider>
-              </CommandCenterProvider>
-            </MetricsProvider>
-          </ArtifactProvider>
-        </AppErrorBoundary>
-      </CrashReporterProvider>
+      <ModeProvider>
+        <CrashReporterProvider>
+          <AppErrorBoundary>
+            <ArtifactProvider>
+              <MetricsProvider>
+                <CommandCenterProvider>
+                  <AboutProvider>
+                    <FeedbackProvider>
+                      <Toaster />
+                      <RouterProvider router={router} />
+                    </FeedbackProvider>
+                  </AboutProvider>
+                </CommandCenterProvider>
+              </MetricsProvider>
+            </ArtifactProvider>
+          </AppErrorBoundary>
+        </CrashReporterProvider>
+      </ModeProvider>
     </ThemeProvider>
   </React.StrictMode>,
 );
