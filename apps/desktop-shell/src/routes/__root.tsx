@@ -26,6 +26,7 @@ const navigation = [
   { to: '/compare', label: 'Compare Runs' },
   { to: '/cases', label: 'Cases' },
   { to: '/scope', label: 'Scope' },
+  { to: '/blitz', label: 'Blitz' },
   { to: '/plugins', label: 'Marketplace' }
 ];
 
