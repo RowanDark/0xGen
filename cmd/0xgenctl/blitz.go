@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/blitz"
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 func runBlitz(args []string) int {
@@ -64,6 +65,13 @@ func runBlitzRun(args []string) int {
 	// Analysis configuration
 	patterns := fs.String("patterns", "", "comma-separated regex patterns to search in responses")
 	enableAnomaly := fs.Bool("anomaly", true, "enable anomaly detection")
+
+	// AI configuration
+	enableAI := fs.Bool("ai", false, "enable all AI features (payloads, classification, findings)")
+	aiPayloads := fs.Bool("ai-payloads", false, "use AI to generate contextually relevant payloads")
+	aiClassify := fs.Bool("ai-classify", false, "use AI to classify responses")
+	aiFindings := fs.Bool("ai-findings", false, "correlate interesting results to 0xGen findings")
+	findingsOutput := fs.String("findings-output", "", "write findings to file (JSON Lines format)")
 
 	// Output configuration
 	output := fs.String("output", "", "output database path (default: blitz_<timestamp>.db)")
@@ -116,35 +124,61 @@ func runBlitzRun(args []string) int {
 		fmt.Println()
 	}
 
+	// Determine if AI features are enabled
+	useAIPayloads := *enableAI || *aiPayloads
+	useAIClassify := *enableAI || *aiClassify
+	useAIFindings := *enableAI || *aiFindings
+
 	// Load payload generators
 	var generators []blitz.PayloadGenerator
 
-	// Determine payload strategy
-	if *payloads != "" {
-		// Single payload set for all positions
-		gen, err := blitz.LoadPayload(*payloads)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading payloads: %v\n", err)
-			return 1
-		}
-		generators = append(generators, gen)
-	} else {
-		// Multiple payload sets (for pitchfork/cluster-bomb)
-		payloadSpecs := []string{*payload1, *payload2, *payload3}
-		for _, spec := range payloadSpecs {
-			if spec != "" {
-				gen, err := blitz.LoadPayload(spec)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error loading payload: %v\n", err)
-					return 1
-				}
-				generators = append(generators, gen)
-			}
+	// AI Payload Generation
+	if useAIPayloads {
+		if !*quiet {
+			fmt.Println("🤖 AI Payload Generation enabled - analyzing target context...")
 		}
 
-		if len(generators) == 0 {
-			fmt.Fprintln(os.Stderr, "Error: no payloads specified (use --payloads or --payload1, --payload2, etc.)")
-			return 2
+		aiConfig := &blitz.AIPayloadConfig{
+			EnableContextAnalysis:  true,
+			MaxPayloadsPerCategory: 15,
+			EnableAdvancedPayloads: true,
+		}
+
+		selector := blitz.NewAIPayloadSelector(aiConfig)
+		generators = blitz.CreateAIPayloadGenerator(selector, request)
+
+		if !*quiet {
+			fmt.Printf("Generated %d AI-powered payload sets\n\n", len(generators))
+		}
+	} else {
+		// Manual payload specification
+		// Determine payload strategy
+		if *payloads != "" {
+			// Single payload set for all positions
+			gen, err := blitz.LoadPayload(*payloads)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading payloads: %v\n", err)
+				return 1
+			}
+			generators = append(generators, gen)
+		} else {
+			// Multiple payload sets (for pitchfork/cluster-bomb)
+			payloadSpecs := []string{*payload1, *payload2, *payload3}
+			for _, spec := range payloadSpecs {
+				if spec != "" {
+					gen, err := blitz.LoadPayload(spec)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error loading payload: %v\n", err)
+						return 1
+					}
+					generators = append(generators, gen)
+				}
+			}
+
+			if len(generators) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: no payloads specified (use --payloads, --payload1, etc., or --ai-payloads)")
+				return 2
+			}
 		}
 	}
 
@@ -186,17 +220,68 @@ func runBlitzRun(args []string) int {
 		fmt.Printf("Results will be stored in: %s\n\n", dbPath)
 	}
 
+	// Setup findings output if enabled
+	var findingsFile *os.File
+	var findingsMu sync.Mutex
+	var findingsCount int
+
+	if useAIFindings && *findingsOutput != "" {
+		findingsFile, err = os.Create(*findingsOutput)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating findings file: %v\n", err)
+			return 1
+		}
+		defer findingsFile.Close()
+
+		if !*quiet {
+			fmt.Printf("Findings will be written to: %s\n", *findingsOutput)
+		}
+	}
+
 	// Create engine config
 	engineConfig := &blitz.EngineConfig{
-		Request:      request,
-		AttackType:   blitz.AttackType(*attackType),
-		Generators:   generators,
-		Concurrency:  *concurrency,
-		RateLimit:    *rateLimit,
-		MaxRetries:   *maxRetries,
-		CaptureLimit: 1024,
-		Analyzer:     analyzerConfig,
-		Storage:      storage,
+		Request:                   request,
+		AttackType:                blitz.AttackType(*attackType),
+		Generators:                generators,
+		Concurrency:               *concurrency,
+		RateLimit:                 *rateLimit,
+		MaxRetries:                *maxRetries,
+		CaptureLimit:              1024,
+		Analyzer:                  analyzerConfig,
+		Storage:                   storage,
+		EnableAIPayloads:          useAIPayloads,
+		EnableAIClassification:    useAIClassify,
+		EnableFindingsCorrelation: useAIFindings,
+	}
+
+	// Add findings callback if enabled
+	if useAIFindings {
+		engineConfig.FindingsCallback = func(finding *findings.Finding) error {
+			findingsMu.Lock()
+			defer findingsMu.Unlock()
+
+			findingsCount++
+
+			// Write to file if configured
+			if findingsFile != nil {
+				encoder := json.NewEncoder(findingsFile)
+				encoder.SetEscapeHTML(false)
+				if err := encoder.Encode(finding); err != nil {
+					return fmt.Errorf("write finding: %w", err)
+				}
+			}
+
+			// Print summary to stderr
+			if !*quiet {
+				severity := finding.Severity
+				fmt.Fprintf(os.Stderr, "\n[🔍 FINDING] %s - %s (%s)\n", severity, finding.Message, finding.Type)
+				if cwe, ok := finding.Metadata["cwe"]; ok {
+					fmt.Fprintf(os.Stderr, "    %s | %s\n", cwe, finding.Metadata["owasp"])
+				}
+			}
+
+			return nil
+		}
 	}
 
 	// Create engine
@@ -286,12 +371,29 @@ func runBlitzRun(args []string) int {
 		fmt.Printf("Failed:            %d\n", stats.FailedReqs)
 		fmt.Printf("Anomalies:         %d\n", stats.AnomalyCount)
 		fmt.Printf("Pattern Matches:   %d\n", stats.PatternMatchCount)
+		if useAIFindings {
+			fmt.Printf("Findings (AI):     %d\n", findingsCount)
+		}
 		fmt.Printf("Avg Duration:      %dms\n", stats.AvgDuration)
 		fmt.Printf("Duration Range:    %dms - %dms\n", stats.MinDuration, stats.MaxDuration)
 
 		fmt.Println("\nStatus Code Distribution:")
 		for code, count := range stats.UniqueStatuses {
 			fmt.Printf("  %d: %d requests\n", code, count)
+		}
+
+		// AI feature summary
+		if useAIPayloads || useAIClassify || useAIFindings {
+			fmt.Println("\n=== AI Features Used ===")
+			if useAIPayloads {
+				fmt.Println("✓ AI Payload Generation")
+			}
+			if useAIClassify {
+				fmt.Println("✓ AI Response Classification")
+			}
+			if useAIFindings {
+				fmt.Println("✓ Findings Correlation")
+			}
 		}
 	}
 

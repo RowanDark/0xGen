@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"regexp"
 	"time"
+
+	"github.com/RowanDark/0xgen/internal/findings"
 )
 
 // AttackType defines the fuzzing strategy for multiple payload positions.
@@ -140,6 +142,19 @@ type EngineConfig struct {
 
 	// Storage backend (optional).
 	Storage Storage
+
+	// AI-powered features
+	// EnableAIPayloads uses AI to generate contextually relevant payloads.
+	EnableAIPayloads bool
+
+	// EnableAIClassification uses AI to classify responses.
+	EnableAIClassification bool
+
+	// EnableFindingsCorrelation converts interesting results to 0xGen findings.
+	EnableFindingsCorrelation bool
+
+	// FindingsCallback is called when findings are detected (optional).
+	FindingsCallback func(*findings.Finding) error
 }
 
 // Storage defines the interface for persisting fuzzing results.

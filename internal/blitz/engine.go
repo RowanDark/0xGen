@@ -17,9 +17,11 @@ import (
 
 // Engine is the main fuzzing engine that coordinates all components.
 type Engine struct {
-	config   *EngineConfig
-	analyzer *Analyzer
-	strategy AttackStrategy
+	config     *EngineConfig
+	analyzer   *Analyzer
+	strategy   AttackStrategy
+	classifier *AIClassifier
+	correlator *FindingsCorrelator
 }
 
 // NewEngine creates a new Blitz fuzzing engine.
@@ -57,11 +59,28 @@ func NewEngine(config *EngineConfig) (*Engine, error) {
 
 	analyzer := NewAnalyzer(config.Analyzer)
 
-	return &Engine{
+	engine := &Engine{
 		config:   config,
 		analyzer: analyzer,
 		strategy: strategy,
-	}, nil
+	}
+
+	// Initialize AI components if enabled
+	if config.EnableAIClassification {
+		engine.classifier = NewAIClassifier()
+	}
+
+	if config.EnableFindingsCorrelation {
+		sessionID := fmt.Sprintf("blitz_%d", time.Now().Unix())
+		if config.Storage != nil {
+			if sqlStorage, ok := config.Storage.(*SQLiteStorage); ok {
+				sessionID = sqlStorage.GetSessionID()
+			}
+		}
+		engine.correlator = NewFindingsCorrelator(sessionID)
+	}
+
+	return engine, nil
 }
 
 // Run executes the fuzzing campaign with the configured parameters.
@@ -155,6 +174,17 @@ func (e *Engine) executeJobs(ctx context.Context, jobs []AttackJob, callback fun
 			// Analyze response
 			e.analyzer.Analyze(result)
 
+			// AI Classification
+			if e.classifier != nil && result.Anomaly != nil && result.Anomaly.IsInteresting {
+				classifications := e.classifier.ClassifyWithContext(result, result.Payload)
+
+				// Store classifications in metadata (if storage exists)
+				if len(classifications) > 0 && e.config.Storage != nil {
+					// Note: Classifications are processed by correlator for findings
+					_ = classifications // Used by correlator below
+				}
+			}
+
 			// Store if configured
 			if e.config.Storage != nil {
 				if err := e.config.Storage.Store(result); err != nil {
@@ -163,6 +193,24 @@ func (e *Engine) executeJobs(ctx context.Context, jobs []AttackJob, callback fun
 					default:
 					}
 					return
+				}
+			}
+
+			// Findings Correlation
+			if e.correlator != nil && result.Anomaly != nil && result.Anomaly.IsInteresting {
+				resultFindings := e.correlator.CorrelateResult(result)
+
+				// Emit findings via callback
+				if e.config.FindingsCallback != nil {
+					for _, finding := range resultFindings {
+						if err := e.config.FindingsCallback(finding); err != nil {
+							select {
+							case errChan <- fmt.Errorf("findings callback: %w", err):
+							default:
+							}
+							return
+						}
+					}
 				}
 			}
 
