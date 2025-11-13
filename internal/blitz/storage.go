@@ -30,11 +30,17 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	}
 
 	storage := &SQLiteStorage{
-		db:        db,
-		sessionID: fmt.Sprintf("session_%d", time.Now().Unix()),
+		db: db,
 	}
 
 	if err := storage.createTables(); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	// Try to use existing session ID if database has data
+	// Otherwise create a new session ID
+	if err := storage.initializeSessionID(); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -100,6 +106,32 @@ func (s *SQLiteStorage) createTables() error {
 		return fmt.Errorf("create tables: %w", err)
 	}
 
+	return nil
+}
+
+// initializeSessionID sets the session ID by either using an existing one
+// from the database or creating a new one if the database is empty.
+func (s *SQLiteStorage) initializeSessionID() error {
+	// Try to find the most recent session ID in the database
+	var existingSessionID sql.NullString
+	err := s.db.QueryRow(`
+		SELECT session_id FROM results
+		ORDER BY created_at DESC
+		LIMIT 1
+	`).Scan(&existingSessionID)
+
+	if err == sql.ErrNoRows || !existingSessionID.Valid {
+		// No existing data, create a new session ID
+		s.sessionID = fmt.Sprintf("session_%d", time.Now().Unix())
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("query existing session: %w", err)
+	}
+
+	// Use the existing session ID
+	s.sessionID = existingSessionID.String
 	return nil
 }
 
