@@ -10,6 +10,24 @@ docs build pipeline.
 
 > Read this page in [Spanish](README.es.md).
 
+## Demo Video
+
+Watch 0xGen in action – HTTP proxy interception, AI-powered vulnerability scanning, and plugin ecosystem (3 minutes):
+
+[![0xGen Demo Video](https://img.youtube.com/vi/VIDEO_ID_PLACEHOLDER/maxresdefault.jpg)](https://www.youtube.com/watch?v=VIDEO_ID_PLACEHOLDER)
+
+> **Note:** Replace `VIDEO_ID_PLACEHOLDER` with the actual YouTube video ID after upload.
+>
+> The demo shows:
+> - Starting the daemon and launching the desktop shell
+> - HTTP proxy configuration and traffic interception
+> - Request/response modification and replay
+> - AI-powered vulnerability scanning with the Hydra plugin
+> - Plugin marketplace and security sandboxing
+> - SLSA Level 3 build provenance
+
+For a text-based walkthrough, see the [Quickstart guide](https://rowandark.github.io/0xgen/quickstart/).
+
 ## Installation
 
 ### macOS (Homebrew)
