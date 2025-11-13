@@ -3,30 +3,64 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cryptographer</title>
+    <title>Cipher - Smart Encoder/Decoder</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header>
-      <h1>Cryptographer</h1>
-      <p class="tagline">CyberChef-inspired operations for 0xgen investigations.</p>
+      <h1>🔐 Cipher</h1>
+      <p class="tagline">Smart encoder/decoder with AI auto-detection and transformation chaining</p>
     </header>
     <main>
-      <section class="panel">
-        <h2>Input</h2>
-        <textarea id="input" placeholder="Paste payloads, encoded blobs, or captured responses..."></textarea>
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>Input</h2>
+          <button id="detect-btn" class="btn-primary" title="Auto-detect encoding">
+            🔍 Auto-Detect
+          </button>
+        </div>
+        <textarea id="input" placeholder="Paste your encoded data here...&#10;&#10;Examples:&#10;• Base64: SGVsbG8gV29ybGQh&#10;• Hex: 48656c6c6f&#10;• URL: hello%20world&#10;• JWT: eyJhbGci..."></textarea>
       </section>
-      <section class="panel">
-        <h2>Recipe</h2>
-        <p class="placeholder">Add operation builders here. Reference CyberChef's <a href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener noreferrer">operation catalogue</a> when implementing.</p>
+
+      <section class="panel recipe-panel">
+        <div class="panel-header">
+          <h2>Recipe Builder</h2>
+          <div class="recipe-controls">
+            <button id="clear-recipe-btn" class="btn-secondary" title="Clear recipe">
+              🗑️ Clear
+            </button>
+            <button id="save-recipe-btn" class="btn-secondary" title="Save recipe">
+              💾 Save
+            </button>
+          </div>
+        </div>
+        <div id="recipe-panel" class="recipe-content">
+          <p class="placeholder">Add operations from the right panel to build your transformation recipe.</p>
+        </div>
       </section>
-      <section class="panel">
-        <h2>Output</h2>
-        <textarea id="output" placeholder="Transformed data will appear here."></textarea>
+
+      <section class="panel operations-panel">
+        <div id="operations-panel">
+          <!-- Operations will be dynamically loaded here -->
+        </div>
+      </section>
+
+      <section class="panel output-panel">
+        <div class="panel-header">
+          <h2>Output</h2>
+          <button id="copy-btn" class="btn-secondary" title="Copy to clipboard">
+            📋 Copy
+          </button>
+        </div>
+        <textarea id="output" placeholder="Transformation results will appear here..." readonly></textarea>
       </section>
     </main>
     <footer>
-      <p>Future work: persist favorite recipes, integrate with 0xgen findings, and expose command palette helpers.</p>
+      <p>
+        <strong>Quick tips:</strong>
+        Click "Auto-Detect" to identify encoding • Build recipes by clicking operations •
+        Save common transformation chains for reuse
+      </p>
     </footer>
     <script src="main.js"></script>
   </body>
