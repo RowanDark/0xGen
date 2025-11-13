@@ -93,6 +93,8 @@ func main() {
 		}
 	case "raider":
 		os.Exit(runRaider(args[1:]))
+	case "blitz":
+		os.Exit(runBlitz(args[1:]))
 	case "history":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "history subcommand required")

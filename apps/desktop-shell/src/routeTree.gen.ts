@@ -15,6 +15,7 @@ import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as CasesRouteImport } from './routes/cases'
+import { Route as BlitzRouteImport } from './routes/blitz'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsComposerRouteImport } from './routes/runs.composer'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId'
@@ -49,6 +50,11 @@ const CasesRoute = CasesRouteImport.update({
   path: '/cases',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlitzRoute = BlitzRouteImport.update({
+  id: '/blitz',
+  path: '/blitz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -67,6 +73,7 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/blitz': typeof BlitzRoute
   '/cases': typeof CasesRoute
   '/compare': typeof CompareRoute
   '/flows': typeof FlowsRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/blitz': typeof BlitzRoute
   '/cases': typeof CasesRoute
   '/compare': typeof CompareRoute
   '/flows': typeof FlowsRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/blitz': typeof BlitzRoute
   '/cases': typeof CasesRoute
   '/compare': typeof CompareRoute
   '/flows': typeof FlowsRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/blitz'
     | '/cases'
     | '/compare'
     | '/flows'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/blitz'
     | '/cases'
     | '/compare'
     | '/flows'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/blitz'
     | '/cases'
     | '/compare'
     | '/flows'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BlitzRoute: typeof BlitzRoute
   CasesRoute: typeof CasesRoute
   CompareRoute: typeof CompareRoute
   FlowsRoute: typeof FlowsRoute
@@ -189,6 +202,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CasesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blitz': {
+      id: '/blitz'
+      path: '/blitz'
+      fullPath: '/blitz'
+      preLoaderRoute: typeof BlitzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -227,6 +247,7 @@ const RunsRouteWithChildren = RunsRoute._addFileChildren(RunsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BlitzRoute: BlitzRoute,
   CasesRoute: CasesRoute,
   CompareRoute: CompareRoute,
   FlowsRoute: FlowsRoute,
