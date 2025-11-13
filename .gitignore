@@ -45,3 +45,8 @@ perf/results/
 
 # Log files
 *.log
+
+# Test coverage
+coverage.out
+*.coverprofile
+coverage.html
