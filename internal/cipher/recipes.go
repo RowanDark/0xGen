@@ -125,7 +125,9 @@ func (rm *RecipeManager) LoadRecipes() error {
 			return fmt.Errorf("failed to parse recipe %s: %w", entry.Name(), err)
 		}
 
-		rm.recipes[recipe.Name] = &recipe
+		// Allocate a new struct per file so each map entry has its own backing storage
+		recipeCopy := recipe
+		rm.recipes[recipe.Name] = &recipeCopy
 	}
 
 	return nil
