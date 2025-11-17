@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RowanDark/0xgen/internal/cipher"
 	"github.com/RowanDark/0xgen/internal/findings"
 	"github.com/RowanDark/0xgen/internal/logging"
 	"github.com/RowanDark/0xgen/internal/team"
@@ -34,6 +35,7 @@ type Config struct {
 	OIDCJWKSURL     string
 	OIDCAudiences   []string
 	WorkspaceStore  *team.Store
+	RecipesDir      string
 }
 
 // Server exposes REST endpoints for triggering scans and retrieving results.
@@ -46,6 +48,7 @@ type Server struct {
 	logger        *logging.AuditLogger
 	managerCancel context.CancelFunc
 	teams         *team.Store
+	recipeManager *cipher.RecipeManager
 }
 
 type contextKey string
@@ -98,6 +101,17 @@ func NewServer(cfg Config) (*Server, error) {
 		SigningKeyPath: cfg.SigningKeyPath,
 		ScanTimeout:    cfg.ScanTimeout,
 	}, cfg.FindingsBus, cfg.Logger)
+
+	// Initialize recipe manager with configured path (defaults to "./recipes")
+	recipesDir := cfg.RecipesDir
+	if recipesDir == "" {
+		recipesDir = "./recipes"
+	}
+	recipeManager := cipher.NewRecipeManager(recipesDir)
+	if err := recipeManager.LoadRecipes(); err != nil {
+		return nil, err
+	}
+
 	return &Server{
 		cfg:           cfg,
 		authenticator: auth,
@@ -105,6 +119,7 @@ func NewServer(cfg Config) (*Server, error) {
 		staticToken:   staticToken,
 		logger:        cfg.Logger,
 		teams:         store,
+		recipeManager: recipeManager,
 	}, nil
 }
 

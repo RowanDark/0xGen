@@ -727,7 +727,7 @@ export async function dryRunScopePolicy(payload: {
 
 const CipherPipelineOpSchema = z.object({
   name: z.string(),
-  config: z.record(z.unknown()).optional()
+  parameters: z.record(z.unknown()).optional()
 });
 
 const CipherOperationResultSchema = z.object({
@@ -741,9 +741,10 @@ const CipherPipelineResultSchema = z.object({
 });
 
 const CipherDetectionSchema = z.object({
-  format: z.string(),
+  encoding: z.string(),
   confidence: z.number(),
-  sample: z.string().optional()
+  reasoning: z.string(),
+  operation: z.string()
 });
 
 const CipherDetectResultSchema = z.object({
