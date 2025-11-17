@@ -292,8 +292,7 @@ func (s *Server) handleRecipeSave(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	manager := cipher.NewRecipeManager("")
-	if err := manager.SaveRecipe(recipe); err != nil {
+	if err := s.recipeManager.SaveRecipe(recipe); err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
 		})
@@ -312,8 +311,7 @@ func (s *Server) handleRecipeList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := cipher.NewRecipeManager("")
-	recipes := manager.ListRecipes()
+	recipes := s.recipeManager.ListRecipes()
 
 	// Convert from []*Recipe to []Recipe for JSON marshaling
 	recipeList := make([]cipher.Recipe, len(recipes))
@@ -339,8 +337,7 @@ func (s *Server) handleRecipeLoad(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := cipher.NewRecipeManager("")
-	recipe, exists := manager.GetRecipe(name)
+	recipe, exists := s.recipeManager.GetRecipe(name)
 	if !exists {
 		http.Error(w, "recipe not found", http.StatusNotFound)
 		return
@@ -364,8 +361,7 @@ func (s *Server) handleRecipeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manager := cipher.NewRecipeManager("")
-	if err := manager.DeleteRecipe(name); err != nil {
+	if err := s.recipeManager.DeleteRecipe(name); err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
 		})
