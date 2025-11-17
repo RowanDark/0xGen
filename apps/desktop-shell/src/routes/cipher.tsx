@@ -134,7 +134,7 @@ function CipherScreen() {
     try {
       const ops: CipherPipelineOp[] = pipeline.map((block) => ({
         name: block.operation,
-        config: block.config
+        parameters: block.config
       }));
 
       const result = await cipherPipeline(input, ops);
@@ -216,7 +216,7 @@ function CipherScreen() {
     try {
       const ops: CipherPipelineOp[] = pipeline.map((block) => ({
         name: block.operation,
-        config: block.config
+        parameters: block.config
       }));
 
       const tags = recipeTags.split(',').map((t) => t.trim()).filter((t) => t);

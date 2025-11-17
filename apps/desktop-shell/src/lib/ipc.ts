@@ -727,7 +727,7 @@ export async function dryRunScopePolicy(payload: {
 
 const CipherPipelineOpSchema = z.object({
   name: z.string(),
-  config: z.record(z.unknown()).optional()
+  parameters: z.record(z.unknown()).optional()
 });
 
 const CipherOperationResultSchema = z.object({
