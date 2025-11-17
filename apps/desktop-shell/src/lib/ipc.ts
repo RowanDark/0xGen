@@ -722,3 +722,129 @@ export async function dryRunScopePolicy(payload: {
   const response = await invoke('dry_run_scope_policy', payload);
   return ScopeDryRunResponseSchema.parse(response);
 }
+
+// Cipher API
+
+const CipherPipelineOpSchema = z.object({
+  name: z.string(),
+  config: z.record(z.unknown()).optional()
+});
+
+const CipherOperationResultSchema = z.object({
+  output: z.string().optional(),
+  error: z.string().optional()
+});
+
+const CipherPipelineResultSchema = z.object({
+  output: z.string().optional(),
+  error: z.string().optional()
+});
+
+const CipherDetectionSchema = z.object({
+  format: z.string(),
+  confidence: z.number(),
+  sample: z.string().optional()
+});
+
+const CipherDetectResultSchema = z.object({
+  detections: z.array(CipherDetectionSchema)
+});
+
+const CipherSmartDecodeResultSchema = z.object({
+  output: z.string().optional(),
+  pipeline: z.array(z.string()),
+  confidence: z.number(),
+  error: z.string().optional()
+});
+
+const CipherOperationInfoSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  description: z.string(),
+  reversible: z.boolean()
+});
+
+const CipherPipelineDataSchema = z.object({
+  operations: z.array(CipherPipelineOpSchema),
+  reversible: z.boolean().optional()
+});
+
+const CipherRecipeSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  tags: z.array(z.string()),
+  pipeline: CipherPipelineDataSchema,
+  created_at: z.string().optional(),
+  updated_at: z.string().optional()
+}).transform((value) => ({
+  name: value.name,
+  description: value.description,
+  tags: value.tags,
+  pipeline: value.pipeline,
+  createdAt: value.created_at ?? null,
+  updatedAt: value.updated_at ?? null
+}));
+
+export type CipherPipelineOp = z.infer<typeof CipherPipelineOpSchema>;
+export type CipherOperationResult = z.infer<typeof CipherOperationResultSchema>;
+export type CipherPipelineResult = z.infer<typeof CipherPipelineResultSchema>;
+export type CipherDetection = z.infer<typeof CipherDetectionSchema>;
+export type CipherDetectResult = z.infer<typeof CipherDetectResultSchema>;
+export type CipherSmartDecodeResult = z.infer<typeof CipherSmartDecodeResultSchema>;
+export type CipherOperationInfo = z.infer<typeof CipherOperationInfoSchema>;
+export type CipherRecipe = z.infer<typeof CipherRecipeSchema>;
+
+export async function cipherExecute(
+  operation: string,
+  input: string,
+  config?: Record<string, unknown>
+): Promise<CipherOperationResult> {
+  const response = await invoke('cipher_execute', { operation, input, config });
+  return CipherOperationResultSchema.parse(response);
+}
+
+export async function cipherPipeline(
+  input: string,
+  operations: CipherPipelineOp[]
+): Promise<CipherPipelineResult> {
+  const response = await invoke('cipher_pipeline', { input, operations });
+  return CipherPipelineResultSchema.parse(response);
+}
+
+export async function cipherDetect(input: string): Promise<CipherDetectResult> {
+  const response = await invoke('cipher_detect', { input });
+  return CipherDetectResultSchema.parse(response);
+}
+
+export async function cipherSmartDecode(input: string): Promise<CipherSmartDecodeResult> {
+  const response = await invoke('cipher_smart_decode', { input });
+  return CipherSmartDecodeResultSchema.parse(response);
+}
+
+export async function cipherListOperations(): Promise<CipherOperationInfo[]> {
+  const response = await invoke('cipher_list_operations');
+  return z.array(CipherOperationInfoSchema).parse(response);
+}
+
+export async function cipherSaveRecipe(
+  name: string,
+  description: string,
+  tags: string[],
+  operations: CipherPipelineOp[]
+): Promise<void> {
+  await invoke('cipher_save_recipe', { name, description, tags, operations });
+}
+
+export async function cipherListRecipes(): Promise<CipherRecipe[]> {
+  const response = await invoke('cipher_list_recipes');
+  return z.array(CipherRecipeSchema).parse(response);
+}
+
+export async function cipherLoadRecipe(name: string): Promise<CipherRecipe> {
+  const response = await invoke('cipher_load_recipe', { name });
+  return CipherRecipeSchema.parse(response);
+}
+
+export async function cipherDeleteRecipe(name: string): Promise<void> {
+  await invoke('cipher_delete_recipe', { name });
+}

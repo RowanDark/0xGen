@@ -120,6 +120,17 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.Handle("/api/v1/scans", s.requireRole(team.RoleAnalyst, http.HandlerFunc(s.handleScans)))
 	mux.Handle("/api/v1/scans/", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleScanByID)))
 
+	// Cipher endpoints
+	mux.HandleFunc("/api/v1/cipher/execute", s.handleCipherExecute)
+	mux.HandleFunc("/api/v1/cipher/pipeline", s.handleCipherPipeline)
+	mux.HandleFunc("/api/v1/cipher/detect", s.handleCipherDetect)
+	mux.HandleFunc("/api/v1/cipher/smart-decode", s.handleCipherSmartDecode)
+	mux.HandleFunc("/api/v1/cipher/operations", s.handleCipherListOperations)
+	mux.HandleFunc("/api/v1/cipher/recipes/save", s.handleRecipeSave)
+	mux.HandleFunc("/api/v1/cipher/recipes/list", s.handleRecipeList)
+	mux.HandleFunc("/api/v1/cipher/recipes/load", s.handleRecipeLoad)
+	mux.HandleFunc("/api/v1/cipher/recipes/delete", s.handleRecipeDelete)
+
 	s.httpServer = &http.Server{
 		Addr:    s.cfg.Addr,
 		Handler: mux,
