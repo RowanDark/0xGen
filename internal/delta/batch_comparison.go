@@ -45,6 +45,10 @@ func (bce *BatchComparisonEngine) CompareBatch(req BatchComparisonRequest) (*Bat
 	// Initialize similarity matrix
 	for i := range result.SimilarityMatrix {
 		result.SimilarityMatrix[i] = make([]float64, n)
+		// Initialize all entries to -1 to indicate uncomputed
+		for j := 0; j < n; j++ {
+			result.SimilarityMatrix[i][j] = -1.0
+		}
 		// Diagonal is always 100% (comparing to self)
 		result.SimilarityMatrix[i][i] = 100.0
 	}
@@ -217,14 +221,19 @@ func (bce *BatchComparisonEngine) findMedianResponse(matrix [][]float64) int {
 	avgSimilarities := make([]float64, n)
 
 	// Calculate average similarity for each response
+	// Only count computed similarities (non-negative values, excluding diagonal)
 	for i := 0; i < n; i++ {
 		sum := 0.0
+		count := 0
 		for j := 0; j < n; j++ {
-			if i != j {
+			if i != j && matrix[i][j] >= 0 {
 				sum += matrix[i][j]
+				count++
 			}
 		}
-		avgSimilarities[i] = sum / float64(n-1)
+		if count > 0 {
+			avgSimilarities[i] = sum / float64(count)
+		}
 	}
 
 	// Find the index with median average similarity
@@ -258,10 +267,11 @@ func (bce *BatchComparisonEngine) detectOutliers(matrix [][]float64, threshold f
 
 	for i := 0; i < n; i++ {
 		// Calculate average similarity to all other responses
+		// Only count computed similarities (non-negative values, excluding diagonal)
 		sum := 0.0
 		count := 0
 		for j := 0; j < n; j++ {
-			if i != j {
+			if i != j && matrix[i][j] >= 0 {
 				sum += matrix[i][j]
 				count++
 			}
@@ -282,11 +292,14 @@ func (bce *BatchComparisonEngine) detectOutliers(matrix [][]float64, threshold f
 func (bce *BatchComparisonEngine) calculateStatistics(req BatchComparisonRequest, result *BatchDiffResult) BatchStatistics {
 	n := len(req.Responses)
 
-	// Collect all similarity scores (excluding diagonal)
+	// Collect all similarity scores (excluding diagonal and uncomputed pairs)
 	similarities := make([]float64, 0, n*(n-1)/2)
 	for i := 0; i < n; i++ {
 		for j := i + 1; j < n; j++ {
-			similarities = append(similarities, result.SimilarityMatrix[i][j])
+			// Only include computed similarities (non-negative values)
+			if result.SimilarityMatrix[i][j] >= 0 {
+				similarities = append(similarities, result.SimilarityMatrix[i][j])
+			}
 		}
 	}
 
@@ -380,12 +393,13 @@ func (bce *BatchComparisonEngine) clusterResponses(matrix [][]float64) []Respons
 		cluster.Size = len(cluster.ResponseIndices)
 
 		// Calculate average similarity within cluster
+		// Only count computed similarities (non-negative values)
 		if cluster.Size > 1 {
 			totalSim := 0.0
 			count := 0
 			for _, idx1 := range cluster.ResponseIndices {
 				for _, idx2 := range cluster.ResponseIndices {
-					if idx1 < idx2 {
+					if idx1 < idx2 && matrix[idx1][idx2] >= 0 {
 						totalSim += matrix[idx1][idx2]
 						count++
 					}
