@@ -89,8 +89,10 @@ func TestBatchComparison_BaselineFirst(t *testing.T) {
 		t.Errorf("Expected 3 total responses, got %d", result.Statistics.TotalResponses)
 	}
 
-	if result.Statistics.TotalComparisons != 3 {
-		t.Errorf("Expected 3 comparisons, got %d", result.Statistics.TotalComparisons)
+	// For baseline strategy with 3 responses, only 2 comparisons are performed
+	// (baseline vs response 1, baseline vs response 2)
+	if result.Statistics.TotalComparisons != 2 {
+		t.Errorf("Expected 2 comparisons, got %d", result.Statistics.TotalComparisons)
 	}
 
 	// Verify validation
