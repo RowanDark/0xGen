@@ -298,3 +298,215 @@ func (sd *StoredDiff) UnmarshalJSON(data []byte) error {
 	sd.ComputeTime = time.Duration(aux.ComputeTime)
 	return nil
 }
+
+// BaselineStrategy defines how to select the baseline response in batch comparison
+type BaselineStrategy string
+
+const (
+	BaselineFirst        BaselineStrategy = "first"         // Use first response as baseline
+	BaselineMedian       BaselineStrategy = "median"        // Use median similarity as baseline
+	BaselineUserSelected BaselineStrategy = "user_selected" // User specifies baseline index
+	BaselineAllPairs     BaselineStrategy = "all_pairs"     // Compare all pairs (N×N matrix)
+)
+
+var (
+	baselineStrategySet = map[BaselineStrategy]struct{}{
+		BaselineFirst:        {},
+		BaselineMedian:       {},
+		BaselineUserSelected: {},
+		BaselineAllPairs:     {},
+	}
+)
+
+// validate checks if the BaselineStrategy is valid
+func (bs BaselineStrategy) validate() error {
+	if _, ok := baselineStrategySet[bs]; !ok {
+		return fmt.Errorf("invalid baseline strategy: %q", bs)
+	}
+	return nil
+}
+
+// ResponseIdentifier uniquely identifies a response in a batch comparison
+type ResponseIdentifier struct {
+	ID          string    `json:"id"`                     // Unique identifier (e.g., request ID)
+	Name        string    `json:"name,omitempty"`         // Human-readable name
+	Content     []byte    `json:"content"`                // Response content
+	StatusCode  int       `json:"status_code,omitempty"`  // HTTP status code
+	ContentType string    `json:"content_type,omitempty"` // Content type
+	ResponseTime time.Duration `json:"response_time_ns,omitempty"` // Response time
+	Metadata    map[string]string `json:"metadata,omitempty"` // Additional metadata
+}
+
+// Validate ensures the response identifier is well-formed
+func (ri ResponseIdentifier) Validate() error {
+	if strings.TrimSpace(ri.ID) == "" {
+		return errors.New("response id is required")
+	}
+	if len(ri.Content) == 0 {
+		return errors.New("response content is empty")
+	}
+	return nil
+}
+
+// BatchComparisonRequest represents a request to compare multiple responses
+type BatchComparisonRequest struct {
+	Responses        []ResponseIdentifier `json:"responses"`
+	DiffType         DiffType             `json:"diff_type"`
+	Granularity      DiffGranularity      `json:"granularity,omitempty"`       // For text diffs
+	BaselineStrategy BaselineStrategy     `json:"baseline_strategy"`
+	BaselineIndex    int                  `json:"baseline_index,omitempty"`    // For user_selected strategy
+	OutlierThreshold float64              `json:"outlier_threshold,omitempty"` // Similarity threshold for outliers (default: 80.0)
+	EnableClustering bool                 `json:"enable_clustering"`
+	EnablePatterns   bool                 `json:"enable_patterns"`
+	EnableAnomalies  bool                 `json:"enable_anomalies"`
+}
+
+// Validate ensures the batch comparison request is well-formed
+func (bcr BatchComparisonRequest) Validate() error {
+	if len(bcr.Responses) < 2 {
+		return errors.New("at least 2 responses required for batch comparison")
+	}
+	if len(bcr.Responses) > 50 {
+		return errors.New("maximum 50 responses allowed for batch comparison")
+	}
+
+	if err := bcr.DiffType.validate(); err != nil {
+		return err
+	}
+
+	if err := bcr.BaselineStrategy.validate(); err != nil {
+		return err
+	}
+
+	if bcr.BaselineStrategy == BaselineUserSelected {
+		if bcr.BaselineIndex < 0 || bcr.BaselineIndex >= len(bcr.Responses) {
+			return fmt.Errorf("baseline_index %d out of range [0, %d)", bcr.BaselineIndex, len(bcr.Responses))
+		}
+	}
+
+	for i, resp := range bcr.Responses {
+		if err := resp.Validate(); err != nil {
+			return fmt.Errorf("invalid response at index %d: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+// ResponseCluster represents a group of similar responses
+type ResponseCluster struct {
+	ClusterID         int      `json:"cluster_id"`
+	ResponseIndices   []int    `json:"response_indices"`          // Indices of responses in this cluster
+	Representative    int      `json:"representative"`            // Index of representative response
+	AvgSimilarity     float64  `json:"avg_similarity"`            // Average similarity within cluster
+	Size              int      `json:"size"`                      // Number of responses in cluster
+}
+
+// BatchStatistics contains statistical analysis across batch responses
+type BatchStatistics struct {
+	TotalResponses      int                `json:"total_responses"`
+	TotalComparisons    int                `json:"total_comparisons"`
+	MeanSimilarity      float64            `json:"mean_similarity"`
+	MedianSimilarity    float64            `json:"median_similarity"`
+	StdDevSimilarity    float64            `json:"std_dev_similarity"`
+	MinSimilarity       float64            `json:"min_similarity"`
+	MaxSimilarity       float64            `json:"max_similarity"`
+	ResponseTimeStats   DistributionStats  `json:"response_time_stats,omitempty"`
+	StatusCodeDist      map[int]int        `json:"status_code_distribution,omitempty"`
+	ContentLengthStats  DistributionStats  `json:"content_length_stats,omitempty"`
+}
+
+// DistributionStats contains statistical distribution metrics
+type DistributionStats struct {
+	Mean   float64 `json:"mean"`
+	Median float64 `json:"median"`
+	StdDev float64 `json:"std_dev"`
+	Min    float64 `json:"min"`
+	Max    float64 `json:"max"`
+}
+
+// PatternAnalysis contains detected patterns across responses
+type PatternAnalysis struct {
+	CommonHeaders      map[string]int            `json:"common_headers,omitempty"`       // Header -> occurrence count
+	CommonJSONKeys     map[string]int            `json:"common_json_keys,omitempty"`     // JSON key -> occurrence count
+	CommonErrorMsgs    map[string]int            `json:"common_error_msgs,omitempty"`    // Error message -> occurrence count
+	UniqueElements     map[int][]string          `json:"unique_elements,omitempty"`      // Response index -> unique elements
+	ConstantFields     []string                  `json:"constant_fields,omitempty"`      // Fields that never change
+	VariableFields     []string                  `json:"variable_fields,omitempty"`      // Fields that change across responses
+	AIInsights         []string                  `json:"ai_insights,omitempty"`          // AI-generated insights
+}
+
+// AnomalyDetection contains detected anomalies in the batch
+type AnomalyDetection struct {
+	UnusualStatusCodes  []int    `json:"unusual_status_codes,omitempty"`  // Response indices with unusual status codes
+	UnusualLengths      []int    `json:"unusual_lengths,omitempty"`       // Response indices with unusual content lengths
+	UniqueErrors        []int    `json:"unique_errors,omitempty"`         // Response indices with unique error messages
+	SlowResponses       []int    `json:"slow_responses,omitempty"`        // Response indices with unusual response times
+	Summary             string   `json:"summary,omitempty"`               // Human-readable summary
+}
+
+// BatchDiffResult represents the complete result of a batch comparison
+type BatchDiffResult struct {
+	Responses           []ResponseIdentifier `json:"responses"`
+	Baseline            *ResponseIdentifier  `json:"baseline,omitempty"`
+	BaselineIndex       int                  `json:"baseline_index,omitempty"`
+	Comparisons         []DiffResult         `json:"comparisons"`              // Results of each comparison
+	ComparisonMatrix    []ComparisonPair     `json:"comparison_matrix"`        // For all-pairs strategy
+	Outliers            []int                `json:"outliers"`                 // Indices of outlier responses
+	SimilarityMatrix    [][]float64          `json:"similarity_matrix"`        // N×N similarity matrix
+	Clusters            []ResponseCluster    `json:"clusters,omitempty"`       // Response clusters
+	Statistics          BatchStatistics      `json:"statistics"`
+	Patterns            *PatternAnalysis     `json:"patterns,omitempty"`
+	Anomalies           *AnomalyDetection    `json:"anomalies,omitempty"`
+	ComputeTime         time.Duration        `json:"compute_time_ns"`
+}
+
+// ComparisonPair represents a single pairwise comparison in all-pairs mode
+type ComparisonPair struct {
+	LeftIndex       int        `json:"left_index"`
+	RightIndex      int        `json:"right_index"`
+	DiffResult      DiffResult `json:"diff_result"`
+}
+
+// Validate ensures the batch diff result is well-formed
+func (bdr BatchDiffResult) Validate() error {
+	if len(bdr.Responses) < 2 {
+		return errors.New("at least 2 responses required")
+	}
+
+	for i, resp := range bdr.Responses {
+		if err := resp.Validate(); err != nil {
+			return fmt.Errorf("invalid response at index %d: %w", i, err)
+		}
+	}
+
+	// Validate similarity matrix dimensions
+	if len(bdr.SimilarityMatrix) != len(bdr.Responses) {
+		return fmt.Errorf("similarity matrix row count %d does not match response count %d",
+			len(bdr.SimilarityMatrix), len(bdr.Responses))
+	}
+	for i, row := range bdr.SimilarityMatrix {
+		if len(row) != len(bdr.Responses) {
+			return fmt.Errorf("similarity matrix row %d has %d columns, expected %d",
+				i, len(row), len(bdr.Responses))
+		}
+	}
+
+	// Validate outlier indices
+	for _, idx := range bdr.Outliers {
+		if idx < 0 || idx >= len(bdr.Responses) {
+			return fmt.Errorf("outlier index %d out of range [0, %d)", idx, len(bdr.Responses))
+		}
+	}
+
+	return nil
+}
+
+// Summary returns a human-readable summary of the batch comparison
+func (bdr BatchDiffResult) Summary() string {
+	return fmt.Sprintf("%d responses compared, %.1f%% avg similarity, %d outliers, %d clusters",
+		len(bdr.Responses),
+		bdr.Statistics.MeanSimilarity,
+		len(bdr.Outliers),
+		len(bdr.Clusters))
+}

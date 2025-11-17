@@ -352,3 +352,237 @@ func BenchmarkDiff_MediumJSON(b *testing.B) {
 		}
 	}
 }
+
+// Batch Comparison Benchmarks
+
+// BenchmarkBatch_10Responses benchmarks batch comparison with 10 responses
+func BenchmarkBatch_10Responses(b *testing.B) {
+	engine := NewBatchComparisonEngine()
+
+	responses := make([]ResponseIdentifier, 10)
+	for i := 0; i < 10; i++ {
+		content := fmt.Sprintf(`{"id": %d, "data": "test content %d"}`, i, i)
+		responses[i] = ResponseIdentifier{
+			ID:      fmt.Sprintf("resp-%d", i),
+			Content: []byte(content),
+		}
+	}
+
+	req := BatchComparisonRequest{
+		Responses:        responses,
+		DiffType:         DiffTypeJSON,
+		BaselineStrategy: BaselineFirst,
+		OutlierThreshold: 80.0,
+		EnableClustering: false,
+		EnablePatterns:   false,
+		EnableAnomalies:  false,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := engine.CompareBatch(req)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkBatch_20Responses benchmarks batch comparison with 20 responses
+func BenchmarkBatch_20Responses(b *testing.B) {
+	engine := NewBatchComparisonEngine()
+
+	responses := make([]ResponseIdentifier, 20)
+	for i := 0; i < 20; i++ {
+		content := fmt.Sprintf(`{"id": %d, "data": "test content %d"}`, i, i)
+		responses[i] = ResponseIdentifier{
+			ID:      fmt.Sprintf("resp-%d", i),
+			Content: []byte(content),
+		}
+	}
+
+	req := BatchComparisonRequest{
+		Responses:        responses,
+		DiffType:         DiffTypeJSON,
+		BaselineStrategy: BaselineFirst,
+		OutlierThreshold: 80.0,
+		EnableClustering: true,
+		EnablePatterns:   true,
+		EnableAnomalies:  true,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := engine.CompareBatch(req)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkBatch_AllPairs_10 benchmarks all-pairs comparison with 10 responses
+func BenchmarkBatch_AllPairs_10(b *testing.B) {
+	engine := NewBatchComparisonEngine()
+
+	responses := make([]ResponseIdentifier, 10)
+	for i := 0; i < 10; i++ {
+		content := fmt.Sprintf(`{"id": %d, "data": "test content %d"}`, i, i)
+		responses[i] = ResponseIdentifier{
+			ID:      fmt.Sprintf("resp-%d", i),
+			Content: []byte(content),
+		}
+	}
+
+	req := BatchComparisonRequest{
+		Responses:        responses,
+		DiffType:         DiffTypeJSON,
+		BaselineStrategy: BaselineAllPairs,
+		OutlierThreshold: 80.0,
+		EnableClustering: true,
+		EnablePatterns:   true,
+		EnableAnomalies:  true,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := engine.CompareBatch(req)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkBatch_AllPairs_20 benchmarks all-pairs comparison with 20 responses
+func BenchmarkBatch_AllPairs_20(b *testing.B) {
+	engine := NewBatchComparisonEngine()
+
+	responses := make([]ResponseIdentifier, 20)
+	for i := 0; i < 20; i++ {
+		content := fmt.Sprintf(`{"id": %d, "data": "test content %d"}`, i, i)
+		responses[i] = ResponseIdentifier{
+			ID:      fmt.Sprintf("resp-%d", i),
+			Content: []byte(content),
+		}
+	}
+
+	req := BatchComparisonRequest{
+		Responses:        responses,
+		DiffType:         DiffTypeJSON,
+		BaselineStrategy: BaselineAllPairs,
+		OutlierThreshold: 80.0,
+		EnableClustering: true,
+		EnablePatterns:   true,
+		EnableAnomalies:  true,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := engine.CompareBatch(req)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Export Benchmarks
+
+// BenchmarkExport_CSV benchmarks CSV export
+func BenchmarkExport_CSV(b *testing.B) {
+	exporter := NewBatchExporter()
+	result := createBenchmarkBatchResult(10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := exporter.ExportCSV(result)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkExport_JSON benchmarks JSON export
+func BenchmarkExport_JSON(b *testing.B) {
+	exporter := NewBatchExporter()
+	result := createBenchmarkBatchResult(10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := exporter.ExportJSON(result)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkExport_HTML benchmarks HTML export
+func BenchmarkExport_HTML(b *testing.B) {
+	exporter := NewBatchExporter()
+	result := createBenchmarkBatchResult(10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := exporter.ExportHTML(result)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Noise Filtering Benchmarks
+
+// BenchmarkFilterDiff benchmarks noise filtering
+func BenchmarkFilterDiff(b *testing.B) {
+	engine := NewEngine()
+
+	// Create a diff with mixed signal/noise changes
+	left := `{"user": "alice", "role": "user", "timestamp": "2024-01-01T10:00:00Z", "session": "abc123"}`
+	right := `{"user": "alice", "role": "admin", "timestamp": "2024-01-01T10:01:00Z", "session": "xyz789"}`
+
+	diffResult, _ := engine.Diff(DiffRequest{
+		Left:  []byte(left),
+		Right: []byte(right),
+		Type:  DiffTypeJSON,
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = FilterDiff(diffResult, DefaultFilterConfig())
+	}
+}
+
+// Helper function for benchmarks
+func createBenchmarkBatchResult(size int) *BatchDiffResult {
+	responses := make([]ResponseIdentifier, size)
+	matrix := make([][]float64, size)
+
+	for i := 0; i < size; i++ {
+		responses[i] = ResponseIdentifier{
+			ID:      fmt.Sprintf("resp-%d", i),
+			Content: []byte(fmt.Sprintf(`{"id": %d}`, i)),
+		}
+
+		matrix[i] = make([]float64, size)
+		for j := 0; j < size; j++ {
+			if i == j {
+				matrix[i][j] = 100.0
+			} else {
+				matrix[i][j] = 85.0 + float64((i+j)%10)
+			}
+		}
+	}
+
+	return &BatchDiffResult{
+		Responses:        responses,
+		SimilarityMatrix: matrix,
+		Outliers:         []int{},
+		Statistics: BatchStatistics{
+			TotalResponses:   size,
+			TotalComparisons: size * (size - 1) / 2,
+			MeanSimilarity:   87.5,
+			MedianSimilarity: 88.0,
+			StdDevSimilarity: 3.2,
+			MinSimilarity:    85.0,
+			MaxSimilarity:    94.0,
+		},
+		ComputeTime: 100 * time.Millisecond,
+	}
+}

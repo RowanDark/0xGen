@@ -24,6 +24,7 @@ const navigation = [
   { to: '/flows', label: 'Flows' },
   { to: '/runs', label: 'Runs' },
   { to: '/compare', label: 'Compare Runs' },
+  { to: '/delta', label: 'Delta' },
   { to: '/cases', label: 'Cases' },
   { to: '/scope', label: 'Scope' },
   { to: '/blitz', label: 'Blitz' },
