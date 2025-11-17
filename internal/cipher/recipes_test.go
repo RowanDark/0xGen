@@ -234,6 +234,82 @@ func TestRecipeManagerDeletePersistent(t *testing.T) {
 	}
 }
 
+func TestRecipeManagerLoadMultipleRecipes(t *testing.T) {
+	// This test verifies that loading multiple recipes from disk
+	// results in distinct recipe objects (regression test for pointer bug)
+	tempDir := t.TempDir()
+	rm := NewRecipeManager(tempDir)
+
+	// Save multiple recipes
+	recipes := []*Recipe{
+		{
+			Name:        "recipe-alpha",
+			Description: "First recipe",
+			Tags:        []string{"alpha"},
+			Pipeline:    Pipeline{Operations: []OperationConfig{{Name: "base64_encode"}}},
+		},
+		{
+			Name:        "recipe-beta",
+			Description: "Second recipe",
+			Tags:        []string{"beta"},
+			Pipeline:    Pipeline{Operations: []OperationConfig{{Name: "url_encode"}}},
+		},
+		{
+			Name:        "recipe-gamma",
+			Description: "Third recipe",
+			Tags:        []string{"gamma"},
+			Pipeline:    Pipeline{Operations: []OperationConfig{{Name: "hex_encode"}}},
+		},
+	}
+
+	for _, recipe := range recipes {
+		if err := rm.SaveRecipe(recipe); err != nil {
+			t.Fatalf("SaveRecipe failed: %v", err)
+		}
+	}
+
+	// Load recipes in a new manager
+	rm2 := NewRecipeManager(tempDir)
+	if err := rm2.LoadRecipes(); err != nil {
+		t.Fatalf("LoadRecipes failed: %v", err)
+	}
+
+	// Verify each recipe is distinct and has correct data
+	for _, expected := range recipes {
+		retrieved, exists := rm2.GetRecipe(expected.Name)
+		if !exists {
+			t.Fatalf("recipe %q should exist after loading", expected.Name)
+		}
+
+		if retrieved.Name != expected.Name {
+			t.Errorf("recipe %q: expected name %q, got %q", expected.Name, expected.Name, retrieved.Name)
+		}
+
+		if retrieved.Description != expected.Description {
+			t.Errorf("recipe %q: expected description %q, got %q", expected.Name, expected.Description, retrieved.Description)
+		}
+
+		if len(retrieved.Tags) != len(expected.Tags) || (len(retrieved.Tags) > 0 && retrieved.Tags[0] != expected.Tags[0]) {
+			t.Errorf("recipe %q: tags mismatch, expected %v, got %v", expected.Name, expected.Tags, retrieved.Tags)
+		}
+
+		if len(retrieved.Pipeline.Operations) != 1 {
+			t.Errorf("recipe %q: expected 1 operation, got %d", expected.Name, len(retrieved.Pipeline.Operations))
+		} else if retrieved.Pipeline.Operations[0].Name != expected.Pipeline.Operations[0].Name {
+			t.Errorf("recipe %q: expected operation %q, got %q",
+				expected.Name,
+				expected.Pipeline.Operations[0].Name,
+				retrieved.Pipeline.Operations[0].Name)
+		}
+	}
+
+	// Verify we loaded exactly 3 recipes
+	allRecipes := rm2.ListRecipes()
+	if len(allRecipes) != 3 {
+		t.Errorf("expected 3 recipes, got %d", len(allRecipes))
+	}
+}
+
 func TestSanitizeFilename(t *testing.T) {
 	tests := []struct {
 		input    string
