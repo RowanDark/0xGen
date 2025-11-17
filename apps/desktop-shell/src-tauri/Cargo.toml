@@ -29,6 +29,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 sha2 = "0.10"
 regex = "1.10"
 sysinfo = "0.30"
+urlencoding = "2.1"
 
 [features]
 default = ["custom-protocol"]

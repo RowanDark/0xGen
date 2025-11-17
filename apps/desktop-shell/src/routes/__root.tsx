@@ -27,6 +27,7 @@ const navigation = [
   { to: '/cases', label: 'Cases' },
   { to: '/scope', label: 'Scope' },
   { to: '/blitz', label: 'Blitz' },
+  { to: '/cipher', label: 'Cipher' },
   { to: '/plugins', label: 'Marketplace' }
 ];
 

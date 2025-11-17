@@ -2122,6 +2122,373 @@ async fn remove_plugin(api: State<'_, OxgApi>, id: String) -> Result<Value, Stri
         .map_err(|err| err.to_string())
 }
 
+// Cipher commands
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherOperation {
+    operation: String,
+    input: String,
+    config: Option<HashMap<String, Value>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherOperationResult {
+    output: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherPipelineOp {
+    name: String,
+    config: Option<HashMap<String, Value>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherPipeline {
+    input: String,
+    operations: Vec<CipherPipelineOp>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherPipelineResult {
+    output: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherDetection {
+    format: String,
+    confidence: f64,
+    sample: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherDetectResult {
+    detections: Vec<CipherDetection>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherSmartDecodeResult {
+    output: Option<String>,
+    pipeline: Vec<String>,
+    confidence: f64,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherOperationInfo {
+    name: String,
+    #[serde(rename = "type")]
+    op_type: String,
+    description: String,
+    reversible: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherRecipe {
+    name: String,
+    description: String,
+    tags: Vec<String>,
+    pipeline: CipherPipelineData,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CipherPipelineData {
+    operations: Vec<CipherPipelineOp>,
+    reversible: Option<bool>,
+}
+
+#[tauri::command]
+async fn cipher_execute(
+    api: State<'_, OxgApi>,
+    operation: String,
+    input: String,
+    config: Option<HashMap<String, Value>>,
+) -> Result<CipherOperationResult, String> {
+    let url = api.endpoint("api/v1/cipher/execute");
+    let payload = json!({
+        "operation": operation,
+        "input": input,
+        "config": config,
+    });
+
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<CipherOperationResult>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_pipeline(
+    api: State<'_, OxgApi>,
+    input: String,
+    operations: Vec<CipherPipelineOp>,
+) -> Result<CipherPipelineResult, String> {
+    let url = api.endpoint("api/v1/cipher/pipeline");
+    let payload = json!({
+        "input": input,
+        "operations": operations,
+    });
+
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<CipherPipelineResult>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_detect(
+    api: State<'_, OxgApi>,
+    input: String,
+) -> Result<CipherDetectResult, String> {
+    let url = api.endpoint("api/v1/cipher/detect");
+    let payload = json!({
+        "input": input,
+    });
+
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<CipherDetectResult>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_smart_decode(
+    api: State<'_, OxgApi>,
+    input: String,
+) -> Result<CipherSmartDecodeResult, String> {
+    let url = api.endpoint("api/v1/cipher/smart-decode");
+    let payload = json!({
+        "input": input,
+    });
+
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<CipherSmartDecodeResult>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_list_operations(
+    api: State<'_, OxgApi>,
+) -> Result<Vec<CipherOperationInfo>, String> {
+    let url = api.endpoint("api/v1/cipher/operations");
+
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    let data: Value = response
+        .json()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let operations = data
+        .get("operations")
+        .and_then(|v| v.as_array())
+        .ok_or("invalid response format")?;
+
+    serde_json::from_value(Value::Array(operations.clone()))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_save_recipe(
+    api: State<'_, OxgApi>,
+    name: String,
+    description: String,
+    tags: Vec<String>,
+    operations: Vec<CipherPipelineOp>,
+) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/cipher/recipes/save");
+    let payload = json!({
+        "name": name,
+        "description": description,
+        "tags": tags,
+        "operations": operations,
+    });
+
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_list_recipes(
+    api: State<'_, OxgApi>,
+) -> Result<Vec<CipherRecipe>, String> {
+    let url = api.endpoint("api/v1/cipher/recipes/list");
+
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    let data: Value = response
+        .json()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let recipes = data
+        .get("recipes")
+        .and_then(|v| v.as_array())
+        .ok_or("invalid response format")?;
+
+    serde_json::from_value(Value::Array(recipes.clone()))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_load_recipe(
+    api: State<'_, OxgApi>,
+    name: String,
+) -> Result<CipherRecipe, String> {
+    let url = api.endpoint(&format!("api/v1/cipher/recipes/load?name={}",
+        urlencoding::encode(&name)));
+
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    let data: Value = response
+        .json()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let recipe = data
+        .get("recipe")
+        .ok_or("invalid response format")?;
+
+    serde_json::from_value(recipe.clone())
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn cipher_delete_recipe(
+    api: State<'_, OxgApi>,
+    name: String,
+) -> Result<Value, String> {
+    let url = api.endpoint(&format!("api/v1/cipher/recipes/delete?name={}",
+        urlencoding::encode(&name)));
+
+    let response = api
+        .client
+        .delete(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
 fn configure_devtools(window: &Window) {
     let allow_devtools =
         std::env::var("0XGEN_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
@@ -2189,7 +2556,16 @@ fn main() {
             preview_crash_file,
             save_crash_bundle,
             discard_crash_bundle,
-            submit_feedback
+            submit_feedback,
+            cipher_execute,
+            cipher_pipeline,
+            cipher_detect,
+            cipher_smart_decode,
+            cipher_list_operations,
+            cipher_save_recipe,
+            cipher_list_recipes,
+            cipher_load_recipe,
+            cipher_delete_recipe
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
