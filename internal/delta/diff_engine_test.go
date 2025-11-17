@@ -534,3 +534,100 @@ func TestCalculateSimilarity(t *testing.T) {
 		})
 	}
 }
+
+func TestEngine_DiffText_LineNumbers(t *testing.T) {
+	engine := NewEngine()
+
+	tests := []struct {
+		name           string
+		left           string
+		right          string
+		wantChanges    []Change
+	}{
+		{
+			name:  "insertion after unchanged line",
+			left:  "line1\nline2",
+			right: "line1\nX\nline2",
+			wantChanges: []Change{
+				{Type: ChangeTypeAdded, NewValue: "X", LineNumber: 2},
+			},
+		},
+		{
+			name:  "deletion after unchanged line",
+			left:  "line1\nX\nline2",
+			right: "line1\nline2",
+			wantChanges: []Change{
+				{Type: ChangeTypeRemoved, OldValue: "X", LineNumber: 2},
+			},
+		},
+		{
+			name:  "multiple changes with unchanged lines",
+			left:  "line1\nline2\nline3\nline4",
+			right: "line1\nX\nline3\nY",
+			wantChanges: []Change{
+				// Myers diff returns removals before additions at the same position
+				{Type: ChangeTypeRemoved, OldValue: "line2", LineNumber: 2},
+				{Type: ChangeTypeAdded, NewValue: "X", LineNumber: 2},
+				{Type: ChangeTypeRemoved, OldValue: "line4", LineNumber: 4},
+				{Type: ChangeTypeAdded, NewValue: "Y", LineNumber: 4},
+			},
+		},
+		{
+			name:  "change at beginning",
+			left:  "X\nline2\nline3",
+			right: "line1\nline2\nline3",
+			wantChanges: []Change{
+				// Myers diff returns removals before additions
+				{Type: ChangeTypeRemoved, OldValue: "X", LineNumber: 1},
+				{Type: ChangeTypeAdded, NewValue: "line1", LineNumber: 1},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := DiffRequest{
+				Left:        []byte(tt.left),
+				Right:       []byte(tt.right),
+				Type:        DiffTypeText,
+				Granularity: GranularityLine,
+			}
+
+			result, err := engine.Diff(req)
+			if err != nil {
+				t.Fatalf("Diff() error = %v", err)
+			}
+
+			if len(result.Changes) != len(tt.wantChanges) {
+				t.Errorf("got %d changes, want %d", len(result.Changes), len(tt.wantChanges))
+				for i, c := range result.Changes {
+					t.Logf("  got change %d: type=%s line=%d old=%q new=%q",
+						i, c.Type, c.LineNumber, c.OldValue, c.NewValue)
+				}
+				return
+			}
+
+			// Check each change
+			for i, wantChange := range tt.wantChanges {
+				gotChange := result.Changes[i]
+
+				if gotChange.Type != wantChange.Type {
+					t.Errorf("change %d: type = %s, want %s", i, gotChange.Type, wantChange.Type)
+				}
+
+				if gotChange.LineNumber != wantChange.LineNumber {
+					t.Errorf("change %d (%s): line number = %d, want %d",
+						i, gotChange.Type, gotChange.LineNumber, wantChange.LineNumber)
+				}
+
+				if gotChange.OldValue != wantChange.OldValue {
+					t.Errorf("change %d: old value = %q, want %q", i, gotChange.OldValue, wantChange.OldValue)
+				}
+
+				if gotChange.NewValue != wantChange.NewValue {
+					t.Errorf("change %d: new value = %q, want %q", i, gotChange.NewValue, wantChange.NewValue)
+				}
+			}
+		})
+	}
+}

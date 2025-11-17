@@ -76,31 +76,60 @@ func (e *Engine) diffLines(left, right []byte) (*DiffResult, error) {
 	changes := myersDiff(leftLines, rightLines)
 
 	// Convert to our Change format with line numbers
+	// Track positions in both input sequences to handle unchanged lines
 	var diffChanges []Change
-	leftLine := 1
-	rightLine := 1
+	leftIdx := 0
+	rightIdx := 0
 
 	for _, change := range changes {
 		switch change.Type {
 		case ChangeTypeAdded:
+			// Find where this addition occurs in the right sequence
+			// Skip unchanged lines that appear in both sequences
+			for rightIdx < len(rightLines) && rightLines[rightIdx] != change.NewValue {
+				// This line is unchanged (appears in both left and right)
+				leftIdx++
+				rightIdx++
+			}
+			// Now rightLines[rightIdx] == change.NewValue
 			diffChanges = append(diffChanges, Change{
 				Type:       ChangeTypeAdded,
 				NewValue:   change.NewValue,
-				LineNumber: rightLine,
+				LineNumber: rightIdx + 1, // +1 for 1-based line numbers
 			})
-			rightLine++
+			rightIdx++ // Move past the added line
+
 		case ChangeTypeRemoved:
+			// Find where this removal occurs in the left sequence
+			// Skip unchanged lines that appear in both sequences
+			for leftIdx < len(leftLines) && leftLines[leftIdx] != change.OldValue {
+				// This line is unchanged (appears in both left and right)
+				leftIdx++
+				rightIdx++
+			}
+			// Now leftLines[leftIdx] == change.OldValue
 			diffChanges = append(diffChanges, Change{
 				Type:       ChangeTypeRemoved,
 				OldValue:   change.OldValue,
-				LineNumber: leftLine,
+				LineNumber: leftIdx + 1, // +1 for 1-based line numbers
 			})
-			leftLine++
+			leftIdx++ // Move past the removed line
+
 		case ChangeTypeModified:
-			// This shouldn't happen in Myers diff, but handle it
-			diffChanges = append(diffChanges, change)
-			leftLine++
-			rightLine++
+			// Find where this modification occurs
+			// Skip unchanged lines that appear in both sequences
+			for leftIdx < len(leftLines) && leftLines[leftIdx] != change.OldValue {
+				leftIdx++
+				rightIdx++
+			}
+			diffChanges = append(diffChanges, Change{
+				Type:       ChangeTypeModified,
+				OldValue:   change.OldValue,
+				NewValue:   change.NewValue,
+				LineNumber: leftIdx + 1, // +1 for 1-based line numbers
+			})
+			leftIdx++
+			rightIdx++
 		}
 	}
 
