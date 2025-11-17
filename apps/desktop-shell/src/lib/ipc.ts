@@ -741,9 +741,10 @@ const CipherPipelineResultSchema = z.object({
 });
 
 const CipherDetectionSchema = z.object({
-  format: z.string(),
+  encoding: z.string(),
   confidence: z.number(),
-  sample: z.string().optional()
+  reasoning: z.string(),
+  operation: z.string()
 });
 
 const CipherDetectResultSchema = z.object({

@@ -345,10 +345,10 @@ function CipherScreen() {
                   <span>Detected:</span>
                   {detections.slice(0, 3).map((d) => (
                     <span
-                      key={d.format}
+                      key={d.encoding}
                       className="px-2 py-0.5 bg-primary/10 text-primary rounded"
                     >
-                      {d.format} ({(d.confidence * 100).toFixed(0)}%)
+                      {d.encoding} ({(d.confidence * 100).toFixed(0)}%)
                     </span>
                   ))}
                 </div>
