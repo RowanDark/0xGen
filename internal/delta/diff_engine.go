@@ -73,42 +73,14 @@ func (e *Engine) diffLines(left, right []byte) (*DiffResult, error) {
 	leftLines := splitLines(string(left))
 	rightLines := splitLines(string(right))
 
+	// Myers diff now includes line numbers in the changes
 	changes := myersDiff(leftLines, rightLines)
 
-	// Convert to our Change format with line numbers
-	var diffChanges []Change
-	leftLine := 1
-	rightLine := 1
-
-	for _, change := range changes {
-		switch change.Type {
-		case ChangeTypeAdded:
-			diffChanges = append(diffChanges, Change{
-				Type:       ChangeTypeAdded,
-				NewValue:   change.NewValue,
-				LineNumber: rightLine,
-			})
-			rightLine++
-		case ChangeTypeRemoved:
-			diffChanges = append(diffChanges, Change{
-				Type:       ChangeTypeRemoved,
-				OldValue:   change.OldValue,
-				LineNumber: leftLine,
-			})
-			leftLine++
-		case ChangeTypeModified:
-			// This shouldn't happen in Myers diff, but handle it
-			diffChanges = append(diffChanges, change)
-			leftLine++
-			rightLine++
-		}
-	}
-
-	similarity := calculateSimilarity(len(leftLines), len(rightLines), len(diffChanges))
+	similarity := calculateSimilarity(len(leftLines), len(rightLines), len(changes))
 
 	return &DiffResult{
 		Type:            DiffTypeText,
-		Changes:         diffChanges,
+		Changes:         changes,
 		SimilarityScore: similarity,
 		LeftSize:        len(left),
 		RightSize:       len(right),
