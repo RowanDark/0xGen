@@ -73,71 +73,14 @@ func (e *Engine) diffLines(left, right []byte) (*DiffResult, error) {
 	leftLines := splitLines(string(left))
 	rightLines := splitLines(string(right))
 
+	// Myers diff now includes line numbers in the changes
 	changes := myersDiff(leftLines, rightLines)
 
-	// Convert to our Change format with line numbers
-	// Track positions in both input sequences to handle unchanged lines
-	var diffChanges []Change
-	leftIdx := 0
-	rightIdx := 0
-
-	for _, change := range changes {
-		switch change.Type {
-		case ChangeTypeAdded:
-			// Find where this addition occurs in the right sequence
-			// Skip unchanged lines that appear in both sequences
-			for rightIdx < len(rightLines) && rightLines[rightIdx] != change.NewValue {
-				// This line is unchanged (appears in both left and right)
-				leftIdx++
-				rightIdx++
-			}
-			// Now rightLines[rightIdx] == change.NewValue
-			diffChanges = append(diffChanges, Change{
-				Type:       ChangeTypeAdded,
-				NewValue:   change.NewValue,
-				LineNumber: rightIdx + 1, // +1 for 1-based line numbers
-			})
-			rightIdx++ // Move past the added line
-
-		case ChangeTypeRemoved:
-			// Find where this removal occurs in the left sequence
-			// Skip unchanged lines that appear in both sequences
-			for leftIdx < len(leftLines) && leftLines[leftIdx] != change.OldValue {
-				// This line is unchanged (appears in both left and right)
-				leftIdx++
-				rightIdx++
-			}
-			// Now leftLines[leftIdx] == change.OldValue
-			diffChanges = append(diffChanges, Change{
-				Type:       ChangeTypeRemoved,
-				OldValue:   change.OldValue,
-				LineNumber: leftIdx + 1, // +1 for 1-based line numbers
-			})
-			leftIdx++ // Move past the removed line
-
-		case ChangeTypeModified:
-			// Find where this modification occurs
-			// Skip unchanged lines that appear in both sequences
-			for leftIdx < len(leftLines) && leftLines[leftIdx] != change.OldValue {
-				leftIdx++
-				rightIdx++
-			}
-			diffChanges = append(diffChanges, Change{
-				Type:       ChangeTypeModified,
-				OldValue:   change.OldValue,
-				NewValue:   change.NewValue,
-				LineNumber: leftIdx + 1, // +1 for 1-based line numbers
-			})
-			leftIdx++
-			rightIdx++
-		}
-	}
-
-	similarity := calculateSimilarity(len(leftLines), len(rightLines), len(diffChanges))
+	similarity := calculateSimilarity(len(leftLines), len(rightLines), len(changes))
 
 	return &DiffResult{
 		Type:            DiffTypeText,
-		Changes:         diffChanges,
+		Changes:         changes,
 		SimilarityScore: similarity,
 		LeftSize:        len(left),
 		RightSize:       len(right),

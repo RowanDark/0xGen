@@ -582,6 +582,30 @@ func TestEngine_DiffText_LineNumbers(t *testing.T) {
 				{Type: ChangeTypeAdded, NewValue: "line1", LineNumber: 1},
 			},
 		},
+		{
+			name:  "duplicate lines - addition at end",
+			left:  "foo\nbar\nbar",
+			right: "foo\nbar\nbar\nbar",
+			wantChanges: []Change{
+				{Type: ChangeTypeAdded, NewValue: "bar", LineNumber: 4},
+			},
+		},
+		{
+			name:  "duplicate lines - removal from middle",
+			left:  "foo\nbar\nbar\nbar",
+			right: "foo\nbar\nbar",
+			wantChanges: []Change{
+				{Type: ChangeTypeRemoved, OldValue: "bar", LineNumber: 4},
+			},
+		},
+		{
+			name:  "duplicate lines - multiple changes",
+			left:  "a\nb\nb\nc",
+			right: "a\nb\nb\nb\nc",
+			wantChanges: []Change{
+				{Type: ChangeTypeAdded, NewValue: "b", LineNumber: 4},
+			},
+		},
 	}
 
 	for _, tt := range tests {

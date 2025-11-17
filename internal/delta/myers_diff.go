@@ -17,8 +17,9 @@ func myersDiff(left, right []string) []Change {
 		changes := make([]Change, m)
 		for i, line := range right {
 			changes[i] = Change{
-				Type:     ChangeTypeAdded,
-				NewValue: line,
+				Type:       ChangeTypeAdded,
+				NewValue:   line,
+				LineNumber: i + 1, // +1 for 1-based line numbers
 			}
 		}
 		return changes
@@ -27,8 +28,9 @@ func myersDiff(left, right []string) []Change {
 		changes := make([]Change, n)
 		for i, line := range left {
 			changes[i] = Change{
-				Type:     ChangeTypeRemoved,
-				OldValue: line,
+				Type:       ChangeTypeRemoved,
+				OldValue:   line,
+				LineNumber: i + 1, // +1 for 1-based line numbers
 			}
 		}
 		return changes
@@ -78,16 +80,18 @@ func myersDiff(left, right []string) []Change {
 
 	// Shouldn't reach here, but return all as changed if we do
 	changes := make([]Change, 0, n+m)
-	for _, line := range left {
+	for i, line := range left {
 		changes = append(changes, Change{
-			Type:     ChangeTypeRemoved,
-			OldValue: line,
+			Type:       ChangeTypeRemoved,
+			OldValue:   line,
+			LineNumber: i + 1, // +1 for 1-based line numbers
 		})
 	}
-	for _, line := range right {
+	for i, line := range right {
 		changes = append(changes, Change{
-			Type:     ChangeTypeAdded,
-			NewValue: line,
+			Type:       ChangeTypeAdded,
+			NewValue:   line,
+			LineNumber: i + 1, // +1 for 1-based line numbers
 		})
 	}
 	return changes
@@ -125,15 +129,17 @@ func backtrack(left, right []string, trace []map[int]int, n, m int) []Change {
 				// Insertion
 				y--
 				changes = append([]Change{{
-					Type:     ChangeTypeAdded,
-					NewValue: right[y],
+					Type:       ChangeTypeAdded,
+					NewValue:   right[y],
+					LineNumber: y + 1, // +1 for 1-based line numbers
 				}}, changes...)
 			} else {
 				// Deletion
 				x--
 				changes = append([]Change{{
-					Type:     ChangeTypeRemoved,
-					OldValue: left[x],
+					Type:       ChangeTypeRemoved,
+					OldValue:   left[x],
+					LineNumber: x + 1, // +1 for 1-based line numbers
 				}}, changes...)
 			}
 		}
