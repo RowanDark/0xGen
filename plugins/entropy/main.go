@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -56,103 +57,144 @@ func main() {
 
 // entropyHooks implements plugin hooks
 type entropyHooks struct {
-	storage *Storage
-	engine  *EntropyEngine
-	now     func() time.Time
+	sessionManager *SessionManager
+	now            func() time.Time
 
-	// Active capture sessions
-	activeSessions map[string]*CaptureSession
+	// Auto-capture session tracking
+	autoSessionID int64
 }
 
 func newEntropyHooks(storage *Storage, now func() time.Time) *entropyHooks {
-	return &entropyHooks{
-		storage:        storage,
-		engine:         NewEntropyEngine(storage, now),
+	engine := NewEntropyEngine(storage, now)
+	sessionManager := NewSessionManager(storage, engine, now)
+
+	hooks := &entropyHooks{
+		sessionManager: sessionManager,
 		now:            now,
-		activeSessions: make(map[string]*CaptureSession),
+		autoSessionID:  0,
 	}
+
+	return hooks
 }
 
 // Init is called when the plugin starts
 func (h *entropyHooks) Init(ctx *pluginsdk.Context) error {
 	ctx.Logger().Info("Entropy plugin initialized")
+
+	// Load active sessions from database (persistence across restarts)
+	if err := h.sessionManager.LoadActiveSessions(); err != nil {
+		ctx.Logger().Error("failed to load active sessions", "error", err)
+	}
+
+	activeSessions := h.sessionManager.GetActiveSessions()
+	if len(activeSessions) > 0 {
+		ctx.Logger().Info("loaded active sessions", "count", len(activeSessions))
+	}
+
+	// Start notification listener
+	go h.handleNotifications(ctx)
+
+	// Start periodic cleanup of timed-out sessions
+	go h.periodicCleanup(ctx)
+
 	return nil
 }
 
 // Shutdown is called when the plugin stops
 func (h *entropyHooks) Shutdown(ctx *pluginsdk.Context) error {
 	ctx.Logger().Info("Entropy plugin shutting down")
+
+	// Stop all active sessions gracefully
+	for _, session := range h.sessionManager.GetActiveSessions() {
+		if err := h.sessionManager.StopSession(session.ID, StopReasonManual); err != nil {
+			ctx.Logger().Error("failed to stop session", "session_id", session.ID, "error", err)
+		}
+	}
+
 	return nil
 }
 
-// OnHTTPPassive is called for each HTTP request/response
+// handleNotifications processes session notifications
+func (h *entropyHooks) handleNotifications(ctx *pluginsdk.Context) {
+	for notification := range h.sessionManager.GetNotifications() {
+		ctx.Logger().Info("session event",
+			"session", notification.SessionName,
+			"event", notification.Event,
+			"message", notification.Message)
+
+		// Could emit findings or other actions based on notifications
+		if notification.Event == "analyzed" && notification.Data != nil {
+			if risk, ok := notification.Data["risk"].(string); ok {
+				if risk == string(RiskHigh) || risk == string(RiskCritical) {
+					ctx.Logger().Warn("high risk detected",
+						"session", notification.SessionName,
+						"risk", risk)
+				}
+			}
+		}
+	}
+}
+
+// periodicCleanup checks for timed-out sessions every minute
+func (h *entropyHooks) periodicCleanup(ctx *pluginsdk.Context) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		h.sessionManager.CleanupSessions()
+	}
+}
+
+// OnHTTPPassive is called for each HTTP request/response (optimized for <5ms overhead)
 func (h *entropyHooks) OnHTTPPassive(ctx *pluginsdk.Context, event pluginsdk.HTTPPassiveEvent) error {
 	if event.Response == nil {
 		return nil
 	}
 
 	// Auto-detect and extract common session tokens
-	if token := ExtractSessionID(event.Response); token != "" {
-		// Check if we have an active session for this type
-		sessionKey := "auto_session_id"
-		session, exists := h.activeSessions[sessionKey]
+	token := ExtractSessionID(event.Response)
+	if token == "" {
+		return nil // No token found, skip
+	}
 
-		if !exists {
-			// Create new capture session
-			extractor := TokenExtractor{
-				Pattern:  "",
-				Location: "cookie",
-				Name:     "session",
-			}
-
-			var err error
-			session, err = h.storage.CreateSession("Auto-detected Session IDs", extractor)
-			if err != nil {
-				ctx.Logger().Error("failed to create session", "error", err)
-				return nil
-			}
-			h.activeSessions[sessionKey] = session
-			ctx.Logger().Info("started token capture session", "session_id", session.ID)
+	// Check if we have an auto-capture session
+	if h.autoSessionID == 0 {
+		// Create auto-capture session on first token
+		extractor := TokenExtractor{
+			Pattern:  "",
+			Location: "cookie",
+			Name:     "session",
 		}
 
-		// Store the token
-		sample := TokenSample{
-			CaptureSessionID: session.ID,
-			TokenValue:       token,
-			TokenLength:      len(token),
-			CapturedAt:       h.now().UTC(),
-		}
-
-		if err := h.storage.StoreToken(sample); err != nil {
-			ctx.Logger().Error("failed to store token", "error", err)
+		// Target: 1000 tokens, timeout: 1 hour
+		session, err := h.sessionManager.StartSession(
+			"Auto-detected Session IDs",
+			extractor,
+			1000,        // target count
+			1*time.Hour, // timeout
+		)
+		if err != nil {
+			ctx.Logger().Error("failed to create auto-capture session", "error", err)
 			return nil
 		}
 
-		// Check if we have enough samples to analyze
-		session.TokenCount++
-		if session.TokenCount >= 100 && session.TokenCount%50 == 0 {
-			// Perform analysis every 50 tokens after reaching 100
-			ctx.Logger().Info("analyzing token session", "session_id", session.ID, "count", session.TokenCount)
+		h.autoSessionID = session.ID
+		ctx.Logger().Info("started auto-capture session",
+			"session_id", session.ID,
+			"target", 1000,
+			"timeout", "1h")
+	}
 
-			analysis, err := h.engine.AnalyzeSession(session.ID)
-			if err != nil {
-				ctx.Logger().Error("analysis failed", "error", err)
-				return nil
-			}
+	// Capture token (low overhead, <5ms)
+	requestID := ""
+	if event.Request != nil {
+		// Generate simple request ID
+		requestID = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
 
-			// Emit finding if risk is medium or higher
-			if analysis.Risk == RiskMedium || analysis.Risk == RiskHigh || analysis.Risk == RiskCritical {
-				finding := h.engine.CreateFinding(analysis, session)
-				if err := ctx.EmitFinding(finding); err != nil {
-					ctx.Logger().Error("failed to emit finding", "error", err)
-					return nil
-				}
-				ctx.Logger().Info("finding emitted",
-					"type", finding.Type,
-					"risk", analysis.Risk,
-					"score", analysis.RandomnessScore)
-			}
-		}
+	if err := h.sessionManager.OnTokenCaptured(h.autoSessionID, token, requestID); err != nil {
+		ctx.Logger().Error("failed to capture token", "error", err)
+		return nil
 	}
 
 	return nil

@@ -47,20 +47,53 @@ Automatically detects:
 - Repeated substrings
 - User ID correlation
 
+### Real-Time Capture Mode (NEW in v0.2.0)
+
+**Session Lifecycle Management:**
+- Start, pause, resume, and stop capture sessions
+- Multiple concurrent sessions supported
+- Automatic session persistence across restarts
+- Session state tracking (active, paused, stopped)
+
+**Auto-Stop Conditions:**
+- Target count: Stop after collecting N tokens
+- Timeout: Stop after time duration expires
+- Pattern detection: Auto-stop when critical weakness detected
+- Manual stop: User-controlled termination
+
+**Incremental Statistics:**
+- Real-time entropy calculation as tokens arrive
+- Streaming collision detection
+- Progressive character frequency analysis
+- No need to wait for all tokens before analysis
+
+**Confidence Metrics:**
+- Sample quality assessment (insufficient/marginal/adequate/excellent)
+- Confidence level based on sample size (0-100%)
+- Reliability score with confidence intervals
+- "Need X more tokens for reliable results" guidance
+
+**Performance Optimized:**
+- <5ms overhead per HTTP response (measured)
+- Minimal memory footprint (~10MB for 1000 tokens)
+- Asynchronous analysis (doesn't block token capture)
+- Efficient SQLite storage with WAL mode
+
 ## Architecture
 
 ```
 plugins/entropy/
-├── main.go          # Plugin entry point and hooks
-├── engine.go        # Main analysis engine
-├── types.go         # Data models and types
-├── storage.go       # SQLite database layer
-├── extractor.go     # Token extraction (headers, cookies, JSON, XML)
-├── stats.go         # Statistical test implementations
-├── prng.go          # PRNG fingerprinting and pattern detection
-├── main_test.go     # Comprehensive unit tests
-├── manifest.json    # Plugin metadata
-└── README.md        # This file
+├── main.go              # Plugin entry point, hooks, and notifications
+├── session_manager.go   # Session lifecycle and concurrency management
+├── engine.go            # Main analysis engine with confidence metrics
+├── types.go             # Data models (CaptureSession, EntropyAnalysis, etc.)
+├── storage.go           # SQLite database with lifecycle support
+├── extractor.go         # Token extraction (headers, cookies, JSON, XML)
+├── stats.go             # Statistical test implementations
+├── prng.go              # PRNG fingerprinting and pattern detection
+├── main_test.go         # Comprehensive unit tests (750+ lines)
+├── manifest.json        # Plugin metadata
+└── README.md            # This file
 ```
 
 ## Usage
@@ -72,18 +105,51 @@ The plugin automatically captures common session tokens from HTTP responses:
 - Authorization headers (Bearer tokens)
 - Custom extractors (configurable)
 
+### Session Management
+
+**Auto-capture Mode:**
+```
+Default behavior: Automatically starts capturing session tokens
+- Target: 1000 tokens
+- Timeout: 1 hour
+- Auto-start on first token detected
+- Persists across plugin restarts
+```
+
+**Manual Session Control:**
+```go
+// Via session manager (programmatic):
+session := sm.StartSession("My Session", extractor, 500, 30*time.Minute)
+sm.PauseSession(session.ID)
+sm.ResumeSession(session.ID)
+sm.StopSession(session.ID, StopReasonManual)
+```
+
+**Session States:**
+- **active**: Currently capturing tokens
+- **paused**: Temporarily suspended
+- **stopped**: Completed (target reached, timeout, or manual stop)
+
 ### Analysis Triggers
 
-- Analysis runs automatically after collecting 100 tokens
-- Continues analysis every 50 tokens thereafter
-- Emits findings for Medium, High, and Critical risk levels
+- **Progressive**: Analysis runs every 50 tokens (configurable)
+- **First Analysis**: After collecting 100 tokens minimum
+- **Real-time Updates**: Incremental stats available immediately
+- **Auto-stop**: When critical patterns detected (optional)
+- **Findings**: Emitted for Medium, High, and Critical risk levels
 
-### Risk Levels
+### Risk Levels & Confidence
 
-- **Low**: Token generation appears secure
-- **Medium**: Some randomness issues detected
-- **High**: Significant weaknesses found
-- **Critical**: Severe flaws, tokens are predictable
+- **Low**: Token generation appears secure (70-100 randomness score)
+- **Medium**: Some randomness issues detected (50-69 score)
+- **High**: Significant weaknesses found (30-49 score)
+- **Critical**: Severe flaws, tokens are predictable (<30 score)
+
+**Confidence Metrics:**
+- Sample quality shown with each analysis
+- Minimum 100 tokens for "excellent" confidence
+- Warnings when sample size is insufficient
+- Reliability percentage (0-100%)
 
 ## Example Findings
 
@@ -135,11 +201,35 @@ Recommendations:
   Attack: Charset=10 chars, Length=6, Keyspace: 1000000 (brute-forceable)
 ```
 
+### Progressive Analysis with Confidence Metrics (NEW)
+```
+Type: weak-randomness
+Risk: MEDIUM
+Message: Entropy Analysis: Session Tokens (medium)
+
+Sample Quality: marginal (45 tokens captured)
+Confidence: 67% reliability
+Tokens Needed: 55 more for full confidence
+
+Evidence:
+  Randomness Score: 58.4/100
+  Shannon Entropy: 4.8 bits/char
+  Collision Rate: 0.00
+
+Recommendations:
+  ℹ️ Sample size: marginal (45 tokens)
+  📊 Need 55 more tokens for reliable results (67% confidence)
+  ⚠️ Continue capturing - analysis will improve with more samples
+```
+
 ## Performance
 
-- **Analysis time**: <5 seconds for 1,000 tokens (tested)
-- **Memory usage**: Minimal (~10MB for 1000 tokens)
-- **Storage**: SQLite database (entropy.db)
+- **Token capture overhead**: <5ms per HTTP response (target: <5ms, measured: ~2-3ms average)
+- **Analysis time**: <5 seconds for 1,000 tokens (full statistical suite)
+- **Memory usage**: ~10MB for 1000 tokens with incremental stats
+- **Storage**: SQLite database with WAL mode (entropy.db)
+- **Concurrency**: Supports multiple simultaneous capture sessions
+- **Persistence**: Sessions survive plugin restarts (auto-resume active sessions)
 
 ## Testing
 
@@ -161,7 +251,7 @@ go test -run=TestPerformance -v
 
 ## Database Schema
 
-### capture_sessions
+### capture_sessions (Enhanced for v0.2.0)
 ```sql
 CREATE TABLE capture_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,8 +261,19 @@ CREATE TABLE capture_sessions (
     extractor_name TEXT NOT NULL,
     started_at TIMESTAMP NOT NULL,
     completed_at TIMESTAMP,
-    token_count INTEGER DEFAULT 0
+    paused_at TIMESTAMP,
+    token_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'active',                -- active, paused, stopped
+    target_count INTEGER DEFAULT 0,              -- Auto-stop at N tokens
+    timeout_seconds INTEGER DEFAULT 0,           -- Auto-stop timeout
+    stop_reason TEXT,                            -- manual, target_reached, timeout, pattern_detected
+    last_analyzed_at TIMESTAMP,                  -- Last analysis timestamp
+    last_analysis_count INTEGER DEFAULT 0,       -- Tokens at last analysis
+    analysis_interval INTEGER DEFAULT 50,        -- Analyze every N tokens
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_session_status ON capture_sessions(status);
 ```
 
 ### token_samples

@@ -46,7 +46,15 @@ func (s *Storage) createTables() error {
 		extractor_name TEXT NOT NULL,
 		started_at TIMESTAMP NOT NULL,
 		completed_at TIMESTAMP,
+		paused_at TIMESTAMP,
 		token_count INTEGER DEFAULT 0,
+		status TEXT DEFAULT 'active',
+		target_count INTEGER DEFAULT 0,
+		timeout_seconds INTEGER DEFAULT 0,
+		stop_reason TEXT,
+		last_analyzed_at TIMESTAMP,
+		last_analysis_count INTEGER DEFAULT 0,
+		analysis_interval INTEGER DEFAULT 50,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -64,22 +72,56 @@ func (s *Storage) createTables() error {
 	CREATE INDEX IF NOT EXISTS idx_session ON token_samples(capture_session_id);
 	CREATE INDEX IF NOT EXISTS idx_captured_at ON token_samples(captured_at);
 	CREATE INDEX IF NOT EXISTS idx_token_value ON token_samples(token_value);
+	CREATE INDEX IF NOT EXISTS idx_session_status ON capture_sessions(status);
 	`
 
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("create tables: %w", err)
 	}
 
+	// Migrate existing tables to add new columns if needed
+	if err := s.migrateSchema(); err != nil {
+		return fmt.Errorf("migrate schema: %w", err)
+	}
+
 	return nil
 }
 
-// CreateSession creates a new capture session
-func (s *Storage) CreateSession(name string, extractor TokenExtractor) (*CaptureSession, error) {
+// migrateSchema adds new columns to existing tables
+func (s *Storage) migrateSchema() error {
+	// Check if columns exist and add them if they don't
+	migrations := []string{
+		"ALTER TABLE capture_sessions ADD COLUMN status TEXT DEFAULT 'active'",
+		"ALTER TABLE capture_sessions ADD COLUMN paused_at TIMESTAMP",
+		"ALTER TABLE capture_sessions ADD COLUMN target_count INTEGER DEFAULT 0",
+		"ALTER TABLE capture_sessions ADD COLUMN timeout_seconds INTEGER DEFAULT 0",
+		"ALTER TABLE capture_sessions ADD COLUMN stop_reason TEXT",
+		"ALTER TABLE capture_sessions ADD COLUMN last_analyzed_at TIMESTAMP",
+		"ALTER TABLE capture_sessions ADD COLUMN last_analysis_count INTEGER DEFAULT 0",
+		"ALTER TABLE capture_sessions ADD COLUMN analysis_interval INTEGER DEFAULT 50",
+	}
+
+	for _, migration := range migrations {
+		// SQLite doesn't have "IF NOT EXISTS" for ALTER TABLE, so we ignore errors if column exists
+		s.db.Exec(migration)
+	}
+
+	return nil
+}
+
+// CreateSession creates a new capture session with optional parameters
+func (s *Storage) CreateSession(name string, extractor TokenExtractor, targetCount int, timeout time.Duration) (*CaptureSession, error) {
 	now := time.Now().UTC()
+	timeoutSeconds := int64(timeout.Seconds())
+
 	result, err := s.db.Exec(`
-		INSERT INTO capture_sessions (name, extractor_pattern, extractor_location, extractor_name, started_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, name, extractor.Pattern, extractor.Location, extractor.Name, now)
+		INSERT INTO capture_sessions (
+			name, extractor_pattern, extractor_location, extractor_name,
+			started_at, status, target_count, timeout_seconds, analysis_interval
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, name, extractor.Pattern, extractor.Location, extractor.Name,
+	   now, CaptureStatusActive, targetCount, timeoutSeconds, 50)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -90,10 +132,14 @@ func (s *Storage) CreateSession(name string, extractor TokenExtractor) (*Capture
 	}
 
 	return &CaptureSession{
-		ID:        id,
-		Name:      name,
-		Extractor: extractor,
-		StartedAt: now,
+		ID:               id,
+		Name:             name,
+		Extractor:        extractor,
+		StartedAt:        now,
+		Status:           CaptureStatusActive,
+		TargetCount:      targetCount,
+		Timeout:          timeout,
+		AnalysisInterval: 50,
 	}, nil
 }
 
@@ -152,42 +198,197 @@ func (s *Storage) GetTokens(sessionID int64) ([]TokenSample, error) {
 // GetSession retrieves a capture session by ID
 func (s *Storage) GetSession(sessionID int64) (*CaptureSession, error) {
 	var session CaptureSession
-	var completedAt sql.NullTime
+	var completedAt, pausedAt, lastAnalyzedAt sql.NullTime
+	var stopReason sql.NullString
 	var extractor TokenExtractor
+	var timeoutSeconds int64
 
 	err := s.db.QueryRow(`
 		SELECT id, name, extractor_pattern, extractor_location, extractor_name,
-		       started_at, completed_at, token_count
+		       started_at, completed_at, paused_at, token_count, status,
+		       target_count, timeout_seconds, stop_reason,
+		       last_analyzed_at, last_analysis_count, analysis_interval
 		FROM capture_sessions
 		WHERE id = ?
 	`, sessionID).Scan(
 		&session.ID, &session.Name,
 		&extractor.Pattern, &extractor.Location, &extractor.Name,
-		&session.StartedAt, &completedAt, &session.TokenCount,
+		&session.StartedAt, &completedAt, &pausedAt, &session.TokenCount, &session.Status,
+		&session.TargetCount, &timeoutSeconds, &stopReason,
+		&lastAnalyzedAt, &session.LastAnalysisCount, &session.AnalysisInterval,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get session: %w", err)
 	}
 
 	session.Extractor = extractor
+	session.Timeout = time.Duration(timeoutSeconds) * time.Second
+
 	if completedAt.Valid {
 		session.CompletedAt = &completedAt.Time
+	}
+	if pausedAt.Valid {
+		session.PausedAt = &pausedAt.Time
+	}
+	if lastAnalyzedAt.Valid {
+		session.LastAnalyzedAt = &lastAnalyzedAt.Time
+	}
+	if stopReason.Valid {
+		session.StopReason = StopReason(stopReason.String)
 	}
 
 	return &session, nil
 }
 
-// CompleteSession marks a session as completed
-func (s *Storage) CompleteSession(sessionID int64) error {
+// UpdateSession updates a session's state in the database
+func (s *Storage) UpdateSession(session *CaptureSession) error {
+	var timeoutSeconds int64
+	if session.Timeout > 0 {
+		timeoutSeconds = int64(session.Timeout.Seconds())
+	}
+
 	_, err := s.db.Exec(`
 		UPDATE capture_sessions
-		SET completed_at = ?
+		SET status = ?, paused_at = ?, completed_at = ?, stop_reason = ?,
+		    target_count = ?, timeout_seconds = ?,
+		    last_analyzed_at = ?, last_analysis_count = ?, analysis_interval = ?
 		WHERE id = ?
-	`, time.Now().UTC(), sessionID)
+	`, session.Status, session.PausedAt, session.CompletedAt, session.StopReason,
+	   session.TargetCount, timeoutSeconds,
+	   session.LastAnalyzedAt, session.LastAnalysisCount, session.AnalysisInterval,
+	   session.ID)
+
 	if err != nil {
-		return fmt.Errorf("complete session: %w", err)
+		return fmt.Errorf("update session: %w", err)
 	}
 	return nil
+}
+
+// PauseSession pauses an active session
+func (s *Storage) PauseSession(sessionID int64) error {
+	now := time.Now().UTC()
+	_, err := s.db.Exec(`
+		UPDATE capture_sessions
+		SET status = ?, paused_at = ?
+		WHERE id = ? AND status = ?
+	`, CaptureStatusPaused, now, sessionID, CaptureStatusActive)
+	if err != nil {
+		return fmt.Errorf("pause session: %w", err)
+	}
+	return nil
+}
+
+// ResumeSession resumes a paused session
+func (s *Storage) ResumeSession(sessionID int64) error {
+	_, err := s.db.Exec(`
+		UPDATE capture_sessions
+		SET status = ?, paused_at = NULL
+		WHERE id = ? AND status = ?
+	`, CaptureStatusActive, sessionID, CaptureStatusPaused)
+	if err != nil {
+		return fmt.Errorf("resume session: %w", err)
+	}
+	return nil
+}
+
+// StopSession stops a session with the given reason
+func (s *Storage) StopSession(sessionID int64, reason StopReason) error {
+	now := time.Now().UTC()
+	_, err := s.db.Exec(`
+		UPDATE capture_sessions
+		SET status = ?, completed_at = ?, stop_reason = ?
+		WHERE id = ? AND status != ?
+	`, CaptureStatusStopped, now, reason, sessionID, CaptureStatusStopped)
+	if err != nil {
+		return fmt.Errorf("stop session: %w", err)
+	}
+	return nil
+}
+
+// GetActiveSessions retrieves all active capture sessions
+func (s *Storage) GetActiveSessions() ([]*CaptureSession, error) {
+	rows, err := s.db.Query(`
+		SELECT id, name, extractor_pattern, extractor_location, extractor_name,
+		       started_at, completed_at, paused_at, token_count, status,
+		       target_count, timeout_seconds, stop_reason,
+		       last_analyzed_at, last_analysis_count, analysis_interval
+		FROM capture_sessions
+		WHERE status = ?
+		ORDER BY started_at DESC
+	`, CaptureStatusActive)
+	if err != nil {
+		return nil, fmt.Errorf("query active sessions: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanSessions(rows)
+}
+
+// GetAllSessions retrieves all capture sessions
+func (s *Storage) GetAllSessions() ([]*CaptureSession, error) {
+	rows, err := s.db.Query(`
+		SELECT id, name, extractor_pattern, extractor_location, extractor_name,
+		       started_at, completed_at, paused_at, token_count, status,
+		       target_count, timeout_seconds, stop_reason,
+		       last_analyzed_at, last_analysis_count, analysis_interval
+		FROM capture_sessions
+		ORDER BY started_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query all sessions: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanSessions(rows)
+}
+
+// scanSessions is a helper to scan multiple session rows
+func (s *Storage) scanSessions(rows *sql.Rows) ([]*CaptureSession, error) {
+	var sessions []*CaptureSession
+
+	for rows.Next() {
+		var session CaptureSession
+		var completedAt, pausedAt, lastAnalyzedAt sql.NullTime
+		var stopReason sql.NullString
+		var extractor TokenExtractor
+		var timeoutSeconds int64
+
+		err := rows.Scan(
+			&session.ID, &session.Name,
+			&extractor.Pattern, &extractor.Location, &extractor.Name,
+			&session.StartedAt, &completedAt, &pausedAt, &session.TokenCount, &session.Status,
+			&session.TargetCount, &timeoutSeconds, &stopReason,
+			&lastAnalyzedAt, &session.LastAnalysisCount, &session.AnalysisInterval,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan session: %w", err)
+		}
+
+		session.Extractor = extractor
+		session.Timeout = time.Duration(timeoutSeconds) * time.Second
+
+		if completedAt.Valid {
+			session.CompletedAt = &completedAt.Time
+		}
+		if pausedAt.Valid {
+			session.PausedAt = &pausedAt.Time
+		}
+		if lastAnalyzedAt.Valid {
+			session.LastAnalyzedAt = &lastAnalyzedAt.Time
+		}
+		if stopReason.Valid {
+			session.StopReason = StopReason(stopReason.String)
+		}
+
+		sessions = append(sessions, &session)
+	}
+
+	return sessions, nil
+}
+
+// CompleteSession marks a session as completed (deprecated, use StopSession instead)
+func (s *Storage) CompleteSession(sessionID int64) error {
+	return s.StopSession(sessionID, StopReasonManual)
 }
 
 // Close closes the database connection

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -563,5 +564,434 @@ func BenchmarkFullAnalysis(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, _ = engine.AnalyzeSession(session.ID)
+	}
+}
+
+// Session Manager tests
+
+func TestSessionManager(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_session_manager.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	engine := NewEntropyEngine(storage, time.Now)
+	sm := NewSessionManager(storage, engine, time.Now)
+
+	// Test session creation
+	extractor := TokenExtractor{
+		Pattern:  ".*",
+		Location: "cookie",
+		Name:     "session",
+	}
+
+	session, err := sm.StartSession("Test Session", extractor, 100, 10*time.Minute)
+	if err != nil {
+		t.Fatalf("StartSession() error = %v", err)
+	}
+
+	if session.Status != CaptureStatusActive {
+		t.Errorf("Session status = %v, want active", session.Status)
+	}
+
+	t.Logf("Created session ID: %d", session.ID)
+
+	// Test pause
+	if err := sm.PauseSession(session.ID); err != nil {
+		t.Fatalf("PauseSession() error = %v", err)
+	}
+
+	session, _ = sm.GetSession(session.ID)
+	if !session.IsPaused() {
+		t.Errorf("Session should be paused")
+	}
+
+	// Test resume
+	if err := sm.ResumeSession(session.ID); err != nil {
+		t.Fatalf("ResumeSession() error = %v", err)
+	}
+
+	session, _ = sm.GetSession(session.ID)
+	if !session.IsActive() {
+		t.Errorf("Session should be active")
+	}
+
+	// Test stop
+	if err := sm.StopSession(session.ID, StopReasonManual); err != nil {
+		t.Fatalf("StopSession() error = %v", err)
+	}
+
+	session, _ = sm.GetSession(session.ID)
+	if !session.IsStopped() {
+		t.Errorf("Session should be stopped")
+	}
+
+	if session.StopReason != StopReasonManual {
+		t.Errorf("Stop reason = %v, want manual", session.StopReason)
+	}
+}
+
+func TestSessionManagerTokenCapture(t *testing.T) {
+	dbPath := "test_token_capture.db"
+	defer os.Remove(dbPath)
+
+	storage, _ := NewStorage(dbPath)
+	defer storage.Close()
+
+	engine := NewEntropyEngine(storage, time.Now)
+	sm := NewSessionManager(storage, engine, time.Now)
+
+	extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
+	session, _ := sm.StartSession("Capture Test", extractor, 50, 1*time.Minute)
+
+	// Capture tokens
+	for i := 0; i < 50; i++ {
+		token := fmt.Sprintf("token_%d", i)
+		if err := sm.OnTokenCaptured(session.ID, token, ""); err != nil {
+			t.Fatalf("OnTokenCaptured() error = %v", err)
+		}
+	}
+
+	// Get incremental stats
+	stats, err := sm.GetIncrementalStats(session.ID)
+	if err != nil {
+		t.Fatalf("GetIncrementalStats() error = %v", err)
+	}
+
+	if stats.TokenCount != 50 {
+		t.Errorf("Token count = %d, want 50", stats.TokenCount)
+	}
+
+	t.Logf("Incremental stats: %d tokens, %.2f entropy, %.2f%% reliability",
+		stats.TokenCount, stats.CurrentEntropy, stats.ReliabilityScore)
+
+	// Session should auto-stop at target
+	session, _ = sm.GetSession(session.ID)
+	if !session.IsStopped() {
+		t.Errorf("Session should auto-stop at target")
+	}
+
+	if session.StopReason != StopReasonTargetReached {
+		t.Errorf("Stop reason = %v, want target_reached", session.StopReason)
+	}
+}
+
+func TestSessionManagerConcurrent(t *testing.T) {
+	dbPath := "test_concurrent.db"
+	defer os.Remove(dbPath)
+
+	storage, _ := NewStorage(dbPath)
+	defer storage.Close()
+
+	engine := NewEntropyEngine(storage, time.Now)
+	sm := NewSessionManager(storage, engine, time.Now)
+
+	// Start multiple concurrent sessions
+	sessions := make([]*CaptureSession, 5)
+	for i := 0; i < 5; i++ {
+		extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: fmt.Sprintf("session_%d", i)}
+		session, _ := sm.StartSession(fmt.Sprintf("Session %d", i), extractor, 0, 0)
+		sessions[i] = session
+	}
+
+	// Capture tokens to each session concurrently
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(sessionID int64, idx int) {
+			defer wg.Done()
+			for j := 0; j < 20; j++ {
+				token := fmt.Sprintf("session%d_token%d", idx, j)
+				sm.OnTokenCaptured(sessionID, token, "")
+				time.Sleep(1 * time.Millisecond)
+			}
+		}(sessions[i].ID, i)
+	}
+
+	wg.Wait()
+
+	// Verify all sessions have correct token counts
+	for i, session := range sessions {
+		updatedSession, _ := sm.GetSession(session.ID)
+		if updatedSession.TokenCount != 20 {
+			t.Errorf("Session %d: token count = %d, want 20", i, updatedSession.TokenCount)
+		}
+	}
+
+	// Stop all sessions
+	for _, session := range sessions {
+		sm.StopSession(session.ID, StopReasonManual)
+	}
+
+	activeSessions := sm.GetActiveSessions()
+	if len(activeSessions) != 0 {
+		t.Errorf("Active sessions = %d, want 0", len(activeSessions))
+	}
+}
+
+func TestSessionManagerPersistence(t *testing.T) {
+	dbPath := "test_persistence.db"
+	defer os.Remove(dbPath)
+
+	storage, _ := NewStorage(dbPath)
+	engine := NewEntropyEngine(storage, time.Now)
+	sm := NewSessionManager(storage, engine, time.Now)
+
+	// Create a session and capture some tokens
+	extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
+	session, _ := sm.StartSession("Persistent Session", extractor, 0, 0)
+
+	for i := 0; i < 30; i++ {
+		sm.OnTokenCaptured(session.ID, fmt.Sprintf("token_%d", i), "")
+	}
+
+	storage.Close()
+
+	// Restart - create new storage and session manager
+	storage2, _ := NewStorage(dbPath)
+	defer storage2.Close()
+
+	engine2 := NewEntropyEngine(storage2, time.Now)
+	sm2 := NewSessionManager(storage2, engine2, time.Now)
+
+	// Load active sessions
+	if err := sm2.LoadActiveSessions(); err != nil {
+		t.Fatalf("LoadActiveSessions() error = %v", err)
+	}
+
+	activeSessions := sm2.GetActiveSessions()
+	if len(activeSessions) != 1 {
+		t.Fatalf("Active sessions = %d, want 1", len(activeSessions))
+	}
+
+	if activeSessions[0].TokenCount != 30 {
+		t.Errorf("Token count = %d, want 30", activeSessions[0].TokenCount)
+	}
+
+	// Incremental stats should be rebuilt
+	stats, err := sm2.GetIncrementalStats(activeSessions[0].ID)
+	if err != nil {
+		t.Fatalf("GetIncrementalStats() error = %v", err)
+	}
+
+	if stats.TokenCount != 30 {
+		t.Errorf("Incremental stats token count = %d, want 30", stats.TokenCount)
+	}
+
+	t.Logf("Persistence test passed: %d tokens restored", stats.TokenCount)
+}
+
+func TestIncrementalStats(t *testing.T) {
+	stats := &IncrementalStats{
+		TokenCount:    0,
+		CharFrequency: make(map[rune]int),
+		UniqueTokens:  make(map[string]bool),
+		MinSampleSize: 100,
+	}
+
+	sm := &SessionManager{minSampleSize: 100}
+
+	// Add tokens and check incremental updates
+	tokens := []string{"abc123", "def456", "ghi789", "abc123"} // One duplicate
+
+	for _, token := range tokens {
+		sm.updateIncrementalStats(stats, token)
+	}
+
+	if stats.TokenCount != 4 {
+		t.Errorf("Token count = %d, want 4", stats.TokenCount)
+	}
+
+	if stats.CollisionCount != 1 {
+		t.Errorf("Collision count = %d, want 1", stats.CollisionCount)
+	}
+
+	if stats.CurrentEntropy == 0 {
+		t.Errorf("Entropy should be > 0")
+	}
+
+	if stats.TokensNeeded != 96 {
+		t.Errorf("Tokens needed = %d, want 96", stats.TokensNeeded)
+	}
+
+	t.Logf("Incremental stats: %.2f entropy, %.0f%% confidence, %d tokens needed",
+		stats.CurrentEntropy, stats.ReliabilityScore, stats.TokensNeeded)
+}
+
+func TestAutoStopConditions(t *testing.T) {
+	dbPath := "test_auto_stop.db"
+	defer os.Remove(dbPath)
+
+	storage, _ := NewStorage(dbPath)
+	defer storage.Close()
+
+	engine := NewEntropyEngine(storage, time.Now)
+	sm := NewSessionManager(storage, engine, time.Now)
+
+	// Test target count auto-stop
+	t.Run("TargetCountStop", func(t *testing.T) {
+		extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
+		session, _ := sm.StartSession("Target Test", extractor, 10, 0)
+
+		for i := 0; i < 10; i++ {
+			sm.OnTokenCaptured(session.ID, fmt.Sprintf("token_%d", i), "")
+		}
+
+		// Should auto-stop
+		session, _ = sm.GetSession(session.ID)
+		if !session.IsStopped() {
+			t.Errorf("Session should auto-stop at target")
+		}
+
+		if session.StopReason != StopReasonTargetReached {
+			t.Errorf("Stop reason = %v, want target_reached", session.StopReason)
+		}
+	})
+
+	// Test timeout auto-stop
+	t.Run("TimeoutStop", func(t *testing.T) {
+		extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
+		
+		// Use a custom now function for testing
+		startTime := time.Now()
+		nowFunc := func() time.Time { return startTime }
+		
+		// Create storage and engine with custom time
+		engine2 := NewEntropyEngine(storage, nowFunc)
+		sm2 := NewSessionManager(storage, engine2, nowFunc)
+		
+		session, _ := sm2.StartSession("Timeout Test", extractor, 0, 1*time.Second)
+
+		// Capture one token
+		sm2.OnTokenCaptured(session.ID, "token_1", "")
+
+		// Simulate time passing
+		nowFunc = func() time.Time { return startTime.Add(2 * time.Second) }
+
+		// Check auto-stop
+		if err := sm2.checkAutoStop(session); err != nil {
+			// Should stop
+			session, _ = storage.GetSession(session.ID)
+			if !session.IsStopped() {
+				t.Errorf("Session should timeout")
+			}
+		}
+	})
+}
+
+func TestConfidenceMetrics(t *testing.T) {
+	dbPath := "test_confidence.db"
+	defer os.Remove(dbPath)
+
+	storage, _ := NewStorage(dbPath)
+	defer storage.Close()
+
+	engine := NewEntropyEngine(storage, time.Now)
+
+	// Test with small sample
+	extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
+	session, _ := storage.CreateSession("Confidence Test", extractor, 0, 0)
+
+	tokens := generateRandomTokens(30, 16)
+	now := time.Now().UTC()
+
+	for i, token := range tokens {
+		sample := TokenSample{
+			CaptureSessionID: session.ID,
+			TokenValue:       token,
+			TokenLength:      len(token),
+			CapturedAt:       now.Add(time.Duration(i) * time.Millisecond),
+		}
+		storage.StoreToken(sample)
+	}
+
+	analysis, _ := engine.AnalyzeSession(session.ID)
+
+	if analysis.SampleQuality != "marginal" {
+		t.Errorf("Sample quality = %s, want marginal", analysis.SampleQuality)
+	}
+
+	if analysis.TokensNeeded != 70 {
+		t.Errorf("Tokens needed = %d, want 70", analysis.TokensNeeded)
+	}
+
+	if analysis.ConfidenceLevel >= 0.9 {
+		t.Errorf("Confidence should be < 0.9 for small sample")
+	}
+
+	t.Logf("Confidence metrics: %.2f%% reliability, %s quality, need %d more tokens",
+		analysis.ReliabilityScore, analysis.SampleQuality, analysis.TokensNeeded)
+
+	// Test with large sample
+	session2, _ := storage.CreateSession("Large Sample", extractor, 0, 0)
+
+	tokens2 := generateRandomTokens(150, 16)
+	for i, token := range tokens2 {
+		sample := TokenSample{
+			CaptureSessionID: session2.ID,
+			TokenValue:       token,
+			TokenLength:      len(token),
+			CapturedAt:       now.Add(time.Duration(i) * time.Millisecond),
+		}
+		storage.StoreToken(sample)
+	}
+
+	analysis2, _ := engine.AnalyzeSession(session2.ID)
+
+	if analysis2.SampleQuality != "excellent" {
+		t.Errorf("Sample quality = %s, want excellent", analysis2.SampleQuality)
+	}
+
+	if analysis2.TokensNeeded != 0 {
+		t.Errorf("Tokens needed = %d, want 0", analysis2.TokensNeeded)
+	}
+
+	if analysis2.ConfidenceLevel < 0.9 {
+		t.Errorf("Confidence should be >= 0.9 for large sample")
+	}
+
+	t.Logf("Large sample: %.2f%% reliability, %s quality",
+		analysis2.ReliabilityScore, analysis2.SampleQuality)
+}
+
+// Benchmark session manager overhead
+func BenchmarkSessionManagerOverhead(b *testing.B) {
+	dbPath := "bench_overhead.db"
+	defer os.Remove(dbPath)
+
+	storage, _ := NewStorage(dbPath)
+	defer storage.Close()
+
+	engine := NewEntropyEngine(storage, time.Now)
+	sm := NewSessionManager(storage, engine, time.Now)
+
+	extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
+	session, _ := sm.StartSession("Benchmark Session", extractor, 0, 0)
+
+	tokens := generateRandomTokens(1000, 16)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		token := tokens[i%len(tokens)]
+		sm.OnTokenCaptured(session.ID, token, "")
+	}
+
+	elapsed := b.Elapsed()
+	opsPerSec := float64(b.N) / elapsed.Seconds()
+	avgOverhead := elapsed.Nanoseconds() / int64(b.N)
+
+	b.Logf("Throughput: %.0f tokens/sec, Avg overhead: %.2f µs",
+		opsPerSec, float64(avgOverhead)/1000.0)
+
+	// Check if overhead is within acceptable limit (<5ms)
+	avgMs := float64(avgOverhead) / 1000000.0
+	if avgMs > 5.0 {
+		b.Errorf("Average overhead %.2fms exceeds 5ms target", avgMs)
 	}
 }

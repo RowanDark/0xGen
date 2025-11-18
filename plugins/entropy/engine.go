@@ -91,6 +91,9 @@ func (e *EntropyEngine) AnalyzeSession(sessionID int64) (*EntropyAnalysis, error
 	// Assess risk level
 	analysis.Risk = e.assessRisk(analysis)
 
+	// Calculate confidence metrics
+	e.calculateConfidenceMetrics(analysis)
+
 	// Generate recommendations
 	analysis.Recommendations = e.generateRecommendations(analysis)
 
@@ -213,9 +216,57 @@ func (e *EntropyEngine) assessRisk(analysis *EntropyAnalysis) RiskLevel {
 	}
 }
 
+// calculateConfidenceMetrics determines confidence based on sample size
+func (e *EntropyEngine) calculateConfidenceMetrics(analysis *EntropyAnalysis) {
+	minSampleSize := 100 // Minimum tokens for reliable results
+	tokenCount := analysis.TokenCount
+
+	// Calculate confidence level using sigmoid function
+	// Reaches 90% at minSampleSize, approaches 100% asymptotically
+	x := float64(tokenCount) / float64(minSampleSize)
+	analysis.ConfidenceLevel = 1.0 / (1.0 + math.Exp(-5*(x-0.5)))
+
+	// Calculate reliability score (0-100)
+	analysis.ReliabilityScore = analysis.ConfidenceLevel * 100
+
+	// Tokens needed for full confidence
+	if tokenCount < minSampleSize {
+		analysis.TokensNeeded = minSampleSize - tokenCount
+	} else {
+		analysis.TokensNeeded = 0
+	}
+
+	// Determine sample quality
+	if tokenCount < 20 {
+		analysis.SampleQuality = "insufficient"
+	} else if tokenCount < 50 {
+		analysis.SampleQuality = "marginal"
+	} else if tokenCount < minSampleSize {
+		analysis.SampleQuality = "adequate"
+	} else {
+		analysis.SampleQuality = "excellent"
+	}
+
+	// Add warning to recommendations if sample size is small
+	if tokenCount < minSampleSize {
+		// Will be prepended to recommendations
+	}
+}
+
 // generateRecommendations creates actionable recommendations
 func (e *EntropyEngine) generateRecommendations(analysis *EntropyAnalysis) []string {
 	var recommendations []string
+
+	// Sample size warnings
+	if analysis.TokenCount < 100 {
+		if analysis.TokensNeeded > 0 {
+			recommendations = append(recommendations,
+				fmt.Sprintf("ℹ️ Sample size: %s (%d tokens)", analysis.SampleQuality, analysis.TokenCount),
+				fmt.Sprintf("📊 Need %d more tokens for reliable results (%.0f%% confidence)",
+					analysis.TokensNeeded, analysis.ReliabilityScore),
+			)
+		}
+	}
 
 	// PRNG-specific recommendations
 	if analysis.DetectedPRNG != nil {
