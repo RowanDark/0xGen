@@ -12,12 +12,21 @@ import (
 	"github.com/RowanDark/0xgen/internal/rewrite"
 )
 
+// AuthMiddleware is a function that wraps an HTTP handler with authentication
+type AuthMiddleware func(http.Handler) http.Handler
+
 // RewriteAPI handles HTTP endpoints for the Rewrite engine
 type RewriteAPI struct {
-	engine *rewrite.Engine
-	sandbox *rewrite.Sandbox
+	engine          *rewrite.Engine
+	sandbox         *rewrite.Sandbox
 	testCaseManager *rewrite.TestCaseManager
-	logger *slog.Logger
+	logger          *slog.Logger
+	authMiddleware  AuthMiddleware
+}
+
+// SetAuthMiddleware sets the authentication middleware for the API
+func (api *RewriteAPI) SetAuthMiddleware(middleware AuthMiddleware) {
+	api.authMiddleware = middleware
 }
 
 // NewRewriteAPI creates a new Rewrite API handler
@@ -26,33 +35,41 @@ func NewRewriteAPI(engine *rewrite.Engine, logger *slog.Logger) *RewriteAPI {
 	testCaseManager := rewrite.NewTestCaseManager(engine.GetStorage(), sandbox, logger)
 
 	return &RewriteAPI{
-		engine: engine,
-		sandbox: sandbox,
+		engine:          engine,
+		sandbox:         sandbox,
 		testCaseManager: testCaseManager,
-		logger: logger,
+		logger:          logger,
 	}
 }
 
 // RegisterRoutes registers all Rewrite API routes with the provided mux
 func (api *RewriteAPI) RegisterRoutes(mux *http.ServeMux) {
+	// Helper to wrap handlers with authentication if middleware is set
+	wrap := func(handler http.HandlerFunc) http.Handler {
+		if api.authMiddleware != nil {
+			return api.authMiddleware(handler)
+		}
+		return handler
+	}
+
 	// Rule management
-	mux.HandleFunc("/api/v1/rewrite/rules", api.handleRules)
-	mux.HandleFunc("/api/v1/rewrite/rules/", api.handleRuleByID)
-	mux.HandleFunc("/api/v1/rewrite/rules/import", api.handleImportRules)
-	mux.HandleFunc("/api/v1/rewrite/rules/export", api.handleExportRules)
+	mux.Handle("/api/v1/rewrite/rules", wrap(api.handleRules))
+	mux.Handle("/api/v1/rewrite/rules/", wrap(api.handleRuleByID))
+	mux.Handle("/api/v1/rewrite/rules/import", wrap(api.handleImportRules))
+	mux.Handle("/api/v1/rewrite/rules/export", wrap(api.handleExportRules))
 
 	// Sandbox testing
-	mux.HandleFunc("/api/v1/rewrite/sandbox/test-request", api.handleTestRequest)
-	mux.HandleFunc("/api/v1/rewrite/sandbox/test-response", api.handleTestResponse)
+	mux.Handle("/api/v1/rewrite/sandbox/test-request", wrap(api.handleTestRequest))
+	mux.Handle("/api/v1/rewrite/sandbox/test-response", wrap(api.handleTestResponse))
 
 	// Test cases
-	mux.HandleFunc("/api/v1/rewrite/test-cases", api.handleTestCases)
-	mux.HandleFunc("/api/v1/rewrite/test-cases/", api.handleTestCaseByID)
-	mux.HandleFunc("/api/v1/rewrite/test-cases/run", api.handleRunTestCase)
-	mux.HandleFunc("/api/v1/rewrite/test-cases/run-all", api.handleRunAllTestCases)
+	mux.Handle("/api/v1/rewrite/test-cases", wrap(api.handleTestCases))
+	mux.Handle("/api/v1/rewrite/test-cases/", wrap(api.handleTestCaseByID))
+	mux.Handle("/api/v1/rewrite/test-cases/run", wrap(api.handleRunTestCase))
+	mux.Handle("/api/v1/rewrite/test-cases/run-all", wrap(api.handleRunAllTestCases))
 
 	// Metrics
-	mux.HandleFunc("/api/v1/rewrite/metrics", api.handleMetrics)
+	mux.Handle("/api/v1/rewrite/metrics", wrap(api.handleMetrics))
 }
 
 // handleRules handles GET (list) and POST (create) for rules
