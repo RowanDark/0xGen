@@ -44,6 +44,11 @@ func NewStorage(dbPath string, logger *slog.Logger) (*Storage, error) {
 		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 
+	// Create test case tables
+	if err := storage.InitTestCaseTables(); err != nil {
+		return nil, fmt.Errorf("failed to create test case tables: %w", err)
+	}
+
 	return storage, nil
 }
 

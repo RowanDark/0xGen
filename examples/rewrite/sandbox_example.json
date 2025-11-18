@@ -1,0 +1,115 @@
+[
+  {
+    "name": "test-case-auth-injection",
+    "description": "Test that authentication token is correctly injected into API requests",
+    "type": "request",
+    "input": {
+      "method": "GET",
+      "url": "https://api.example.com/users",
+      "headers": {
+        "User-Agent": "TestClient/1.0"
+      },
+      "body": ""
+    },
+    "expected_output": {
+      "method": "GET",
+      "url": "https://api.example.com/users",
+      "headers": {
+        "User-Agent": "TestClient/1.0",
+        "Authorization": "Bearer ${auth_token}"
+      },
+      "body": ""
+    },
+    "rule_ids": [1, 2],
+    "tags": ["auth", "api", "critical"]
+  },
+  {
+    "name": "test-case-remove-tracking",
+    "description": "Test that tracking cookies are removed from requests",
+    "type": "request",
+    "input": {
+      "method": "GET",
+      "url": "https://example.com/page",
+      "headers": {
+        "Cookie": "session=abc123; tracking_id=xyz789; analytics=true"
+      },
+      "body": ""
+    },
+    "expected_output": {
+      "method": "GET",
+      "url": "https://example.com/page",
+      "headers": {
+        "Cookie": "session=abc123"
+      },
+      "body": ""
+    },
+    "rule_ids": [3],
+    "tags": ["privacy", "cookies"]
+  },
+  {
+    "name": "test-case-body-transformation",
+    "description": "Test JSON body transformation with variable substitution",
+    "type": "request",
+    "input": {
+      "method": "POST",
+      "url": "https://api.example.com/data",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"user_id\":\"<PLACEHOLDER>\",\"action\":\"login\"}"
+    },
+    "expected_output": {
+      "method": "POST",
+      "url": "https://api.example.com/data",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"user_id\":\"12345\",\"action\":\"login\"}"
+    },
+    "rule_ids": [4],
+    "tags": ["body", "json", "variables"]
+  },
+  {
+    "name": "test-case-response-security-headers",
+    "description": "Test that security headers are added to responses",
+    "type": "response",
+    "input": {
+      "status_code": 200,
+      "headers": {
+        "Content-Type": "text/html"
+      },
+      "body": "<html><body>Hello World</body></html>"
+    },
+    "expected_output": {
+      "status_code": 200,
+      "headers": {
+        "Content-Type": "text/html",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "X-XSS-Protection": "1; mode=block"
+      },
+      "body": "<html><body>Hello World</body></html>"
+    },
+    "rule_ids": [5, 6, 7],
+    "tags": ["security", "headers", "response"]
+  },
+  {
+    "name": "test-case-url-rewrite",
+    "description": "Test URL path rewriting for API versioning",
+    "type": "request",
+    "input": {
+      "method": "GET",
+      "url": "https://api.example.com/v1/users",
+      "headers": {},
+      "body": ""
+    },
+    "expected_output": {
+      "method": "GET",
+      "url": "https://api.example.com/v2/users",
+      "headers": {},
+      "body": ""
+    },
+    "rule_ids": [8],
+    "tags": ["url", "versioning"]
+  }
+]
