@@ -16,14 +16,14 @@ type SessionManager struct {
 	now     func() time.Time
 
 	// Session management
-	mu                sync.RWMutex
-	sessions          map[int64]*CaptureSession
-	incrementalStats  map[int64]*IncrementalStats
-	notifications     chan SessionNotification
+	mu               sync.RWMutex
+	sessions         map[int64]*CaptureSession
+	incrementalStats map[int64]*IncrementalStats
+	notifications    chan SessionNotification
 
 	// Configuration
-	minSampleSize     int     // Minimum tokens for reliable analysis (default: 100)
-	maxOverheadMs     float64 // Maximum overhead per response in milliseconds (default: 5ms)
+	minSampleSize int     // Minimum tokens for reliable analysis (default: 100)
+	maxOverheadMs float64 // Maximum overhead per response in milliseconds (default: 5ms)
 }
 
 // NewSessionManager creates a new session manager
@@ -458,13 +458,20 @@ func (sm *SessionManager) GetNotifications() <-chan SessionNotification {
 
 // CleanupSessions stops timed-out sessions
 func (sm *SessionManager) CleanupSessions() {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
+	// Collect timed-out session IDs while holding the lock
+	sm.mu.RLock()
 	now := sm.now()
+	var timedOutIDs []int64
 	for id, session := range sm.sessions {
 		if session.IsTimedOut(now) {
-			sm.StopSession(id, StopReasonTimeout)
+			timedOutIDs = append(timedOutIDs, id)
 		}
+	}
+	sm.mu.RUnlock()
+
+	// Stop sessions outside the lock to avoid deadlock
+	// (StopSession acquires the mutex itself)
+	for _, id := range timedOutIDs {
+		sm.StopSession(id, StopReasonTimeout)
 	}
 }

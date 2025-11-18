@@ -166,6 +166,10 @@ func (s *Server) Run(ctx context.Context) error {
 
 	// Rewrite endpoints
 	if s.rewriteAPI != nil {
+		// Set authentication middleware requiring Analyst role for rewrite operations
+		s.rewriteAPI.SetAuthMiddleware(func(next http.Handler) http.Handler {
+			return s.requireRole(team.RoleAnalyst, next)
+		})
 		s.rewriteAPI.RegisterRoutes(mux)
 	}
 
