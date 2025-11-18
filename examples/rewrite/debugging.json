@@ -1,0 +1,158 @@
+{
+  "name": "Debugging and Development Rules",
+  "description": "Helpful rules for debugging and development workflows",
+  "version": "1.0",
+  "rules": [
+    {
+      "name": "Add Request Tracing Headers",
+      "description": "Adds unique ID and timestamp to all requests for tracing",
+      "enabled": true,
+      "priority": 100,
+      "scope": {
+        "direction": "request",
+        "url_pattern": ".*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Request-ID",
+          "value": "${uuid}"
+        },
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Request-Timestamp",
+          "value": "${timestamp}"
+        },
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Request-Method",
+          "value": "${request.method}"
+        }
+      ]
+    },
+    {
+      "name": "Add Response Debug Info",
+      "description": "Adds debugging headers to responses",
+      "enabled": true,
+      "priority": 90,
+      "scope": {
+        "direction": "response",
+        "url_pattern": ".*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Debug-Timestamp",
+          "value": "${timestamp}"
+        }
+      ]
+    },
+    {
+      "name": "Log API Key Usage",
+      "description": "Extracts and logs API keys for debugging",
+      "enabled": true,
+      "priority": 80,
+      "scope": {
+        "direction": "request",
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "exists",
+          "location": "header",
+          "name": "X-API-Key"
+        }
+      ],
+      "actions": [
+        {
+          "type": "set_variable",
+          "name": "last_api_key",
+          "value": "${request.header.X-API-Key}"
+        }
+      ]
+    },
+    {
+      "name": "Force JSON Content-Type",
+      "description": "Ensures all POST requests have JSON content type",
+      "enabled": false,
+      "priority": 70,
+      "scope": {
+        "direction": "request",
+        "methods": ["POST", "PUT", "PATCH"],
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "not_match",
+          "location": "header",
+          "name": "Content-Type",
+          "pattern": "application/json"
+        }
+      ],
+      "actions": [
+        {
+          "type": "replace",
+          "location": "header",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "name": "Mock Error Response",
+      "description": "Injects error markers into responses for error handling testing",
+      "enabled": false,
+      "priority": 60,
+      "scope": {
+        "direction": "response",
+        "url_pattern": ".*test.*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Mock-Error",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "Add CORS Headers",
+      "description": "Adds permissive CORS headers for local development",
+      "enabled": false,
+      "priority": 50,
+      "scope": {
+        "direction": "response",
+        "url_pattern": ".*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "type": "add",
+          "location": "header",
+          "name": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "type": "add",
+          "location": "header",
+          "name": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "extract-auth-token",
+    "description": "Extract authentication token from login response",
+    "enabled": true,
+    "priority": 100,
+    "scope": {
+      "direction": "response",
+      "methods": null,
+      "url_pattern": ".*/auth/login$",
+      "content_type": ""
+    },
+    "conditions": [
+      {
+        "type": "contains",
+        "location": "body",
+        "pattern": "token"
+      }
+    ],
+    "actions": [
+      {
+        "type": "extract",
+        "location": "body",
+        "pattern": "\"token\":\"(?P<auth_token>[^\"]+)\"",
+        "extract_to": "auth_token"
+      }
+    ],
+    "tags": ["api", "auth", "extraction"]
+  },
+  {
+    "name": "inject-auth-token",
+    "description": "Inject extracted token into API requests",
+    "enabled": true,
+    "priority": 90,
+    "scope": {
+      "direction": "request",
+      "methods": null,
+      "url_pattern": "^https://api\\.example\\.com/.*",
+      "content_type": ""
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "add",
+        "location": "header",
+        "name": "Authorization",
+        "value": "Bearer ${auth_token}"
+      }
+    ],
+    "tags": ["api", "auth", "injection"]
+  },
+  {
+    "name": "add-api-key",
+    "description": "Add API key to all API requests",
+    "enabled": true,
+    "priority": 80,
+    "scope": {
+      "direction": "request",
+      "methods": null,
+      "url_pattern": "^https://api\\.example\\.com/.*",
+      "content_type": ""
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "add",
+        "location": "header",
+        "name": "X-API-Key",
+        "value": "your-api-key-here"
+      }
+    ],
+    "tags": ["api", "auth"]
+  },
+  {
+    "name": "extract-user-id",
+    "description": "Extract user ID from response for subsequent requests",
+    "enabled": true,
+    "priority": 85,
+    "scope": {
+      "direction": "response",
+      "methods": null,
+      "url_pattern": ".*/users/create$",
+      "content_type": ""
+    },
+    "conditions": [
+      {
+        "type": "jsonpath",
+        "location": "body",
+        "pattern": "user.id"
+      }
+    ],
+    "actions": [
+      {
+        "type": "extract",
+        "location": "body",
+        "pattern": "\"id\":\"?(?P<user_id>\\d+)\"?",
+        "extract_to": "user_id"
+      }
+    ],
+    "tags": ["api", "extraction"]
+  }
+]
