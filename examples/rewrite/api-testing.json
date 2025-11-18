@@ -1,0 +1,210 @@
+{
+  "name": "API Testing Rules",
+  "description": "Rules for API testing and automation",
+  "version": "1.0",
+  "rules": [
+    {
+      "name": "Add API Authentication",
+      "description": "Automatically adds API key to all API requests",
+      "enabled": true,
+      "priority": 100,
+      "scope": {
+        "direction": "request",
+        "url_pattern": "^https://api\\..*"
+      },
+      "conditions": [
+        {
+          "type": "not_match",
+          "location": "header",
+          "name": "X-API-Key",
+          "pattern": ".+"
+        }
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-API-Key",
+          "value": "your-api-key-here"
+        }
+      ]
+    },
+    {
+      "name": "Add OAuth Bearer Token",
+      "description": "Adds OAuth bearer token to requests",
+      "enabled": true,
+      "priority": 95,
+      "scope": {
+        "direction": "request",
+        "url_pattern": "^https://api\\..*"
+      },
+      "conditions": [
+        {
+          "type": "not_match",
+          "location": "header",
+          "name": "Authorization",
+          "pattern": ".+"
+        }
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "Authorization",
+          "value": "Bearer ${oauth_token:default-token}"
+        }
+      ]
+    },
+    {
+      "name": "Version Header Injection",
+      "description": "Adds API version header",
+      "enabled": true,
+      "priority": 90,
+      "scope": {
+        "direction": "request",
+        "url_pattern": "^https://api\\..*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "Accept-Version",
+          "value": "v2"
+        }
+      ]
+    },
+    {
+      "name": "Rate Limit Detection",
+      "description": "Marks rate-limited responses for analysis",
+      "enabled": true,
+      "priority": 85,
+      "scope": {
+        "direction": "response",
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "match",
+          "location": "status",
+          "pattern": "429"
+        }
+      ],
+      "actions": [
+        {
+          "type": "set_variable",
+          "name": "rate_limited",
+          "value": "true"
+        },
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Rate-Limited",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "Extract Pagination Token",
+      "description": "Extracts next page token from responses",
+      "enabled": true,
+      "priority": 80,
+      "scope": {
+        "direction": "response",
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "jsonpath",
+          "location": "body",
+          "pattern": "pagination.next_token"
+        }
+      ],
+      "actions": [
+        {
+          "type": "extract",
+          "location": "body",
+          "name": "next_token",
+          "value": "\"next_token\":\\s*\"([^\"]+)\""
+        },
+        {
+          "type": "set_variable",
+          "name": "pagination_token",
+          "value": "${extracted_1}"
+        }
+      ]
+    },
+    {
+      "name": "GraphQL Query Rewriter",
+      "description": "Modifies GraphQL queries for testing",
+      "enabled": false,
+      "priority": 75,
+      "scope": {
+        "direction": "request",
+        "methods": ["POST"],
+        "url_pattern": ".*/graphql.*"
+      },
+      "conditions": [
+        {
+          "type": "contains",
+          "location": "body",
+          "pattern": "query"
+        }
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-GraphQL-Request",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "name": "Timeout Header",
+      "description": "Adds custom timeout header for testing",
+      "enabled": false,
+      "priority": 70,
+      "scope": {
+        "direction": "request",
+        "url_pattern": ".*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-Request-Timeout",
+          "value": "30"
+        }
+      ]
+    },
+    {
+      "name": "Idempotency Key Generator",
+      "description": "Adds unique idempotency key for payment/financial APIs",
+      "enabled": true,
+      "priority": 65,
+      "scope": {
+        "direction": "request",
+        "methods": ["POST"],
+        "url_pattern": ".*/payments.*|.*/transactions.*"
+      },
+      "conditions": [
+        {
+          "type": "not_match",
+          "location": "header",
+          "name": "Idempotency-Key",
+          "pattern": ".+"
+        }
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "Idempotency-Key",
+          "value": "${uuid}"
+        }
+      ]
+    }
+  ]
+}

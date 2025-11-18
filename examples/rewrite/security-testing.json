@@ -1,0 +1,181 @@
+{
+  "name": "Security Testing Rules",
+  "description": "Common rules for penetration testing and security assessments",
+  "version": "1.0",
+  "rules": [
+    {
+      "name": "CSRF Token Injection",
+      "description": "Automatically adds CSRF tokens to state-changing requests",
+      "enabled": true,
+      "priority": 100,
+      "scope": {
+        "direction": "request",
+        "methods": ["POST", "PUT", "DELETE", "PATCH"],
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "not_match",
+          "location": "header",
+          "name": "X-CSRF-Token",
+          "pattern": ".+",
+          "negate": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "location": "header",
+          "name": "X-CSRF-Token",
+          "value": "valid-csrf-token-placeholder"
+        }
+      ]
+    },
+    {
+      "name": "Remove Security Headers",
+      "description": "Strips fingerprinting headers from responses for cleaner analysis",
+      "enabled": true,
+      "priority": 90,
+      "scope": {
+        "direction": "response",
+        "url_pattern": ".*"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "remove",
+          "location": "header",
+          "name": "X-Powered-By"
+        },
+        {
+          "type": "remove",
+          "location": "header",
+          "name": "Server"
+        },
+        {
+          "type": "remove",
+          "location": "header",
+          "name": "X-AspNet-Version"
+        },
+        {
+          "type": "remove",
+          "location": "header",
+          "name": "X-AspNetMvc-Version"
+        }
+      ]
+    },
+    {
+      "name": "JWT Token Extractor",
+      "description": "Extracts and stores JWT tokens for reuse",
+      "enabled": true,
+      "priority": 80,
+      "scope": {
+        "direction": "request",
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "regex",
+          "location": "header",
+          "name": "Authorization",
+          "pattern": "^Bearer .+$"
+        }
+      ],
+      "actions": [
+        {
+          "type": "extract",
+          "location": "header",
+          "name": "Authorization",
+          "value": "Bearer (.+)"
+        },
+        {
+          "type": "set_variable",
+          "name": "current_jwt",
+          "value": "${extracted_1}"
+        }
+      ]
+    },
+    {
+      "name": "Session Fixation Test",
+      "description": "Replaces session cookie with attacker-controlled value",
+      "enabled": false,
+      "priority": 70,
+      "scope": {
+        "direction": "request",
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "exists",
+          "location": "cookie",
+          "name": "session"
+        }
+      ],
+      "actions": [
+        {
+          "type": "replace",
+          "location": "cookie",
+          "name": "session",
+          "value": "attacker-controlled-session-id"
+        }
+      ]
+    },
+    {
+      "name": "Privilege Escalation - Admin Role",
+      "description": "Modifies user role in JSON requests to test authorization",
+      "enabled": false,
+      "priority": 60,
+      "scope": {
+        "direction": "request",
+        "methods": ["POST", "PUT"],
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "contains",
+          "location": "body",
+          "pattern": "\"role\":"
+        }
+      ],
+      "actions": [
+        {
+          "type": "replace",
+          "location": "body",
+          "name": "\"role\":\"user\"",
+          "value": "\"role\":\"admin\""
+        },
+        {
+          "type": "replace",
+          "location": "body",
+          "name": "\"role\":\"viewer\"",
+          "value": "\"role\":\"admin\""
+        }
+      ]
+    },
+    {
+      "name": "Parameter Tampering - ID Modification",
+      "description": "Modifies user ID to test IDOR vulnerabilities",
+      "enabled": false,
+      "priority": 50,
+      "scope": {
+        "direction": "request",
+        "url_pattern": ".*"
+      },
+      "conditions": [
+        {
+          "type": "regex",
+          "location": "body",
+          "pattern": "\"user_id\":\\s*\\d+"
+        }
+      ],
+      "actions": [
+        {
+          "type": "replace",
+          "location": "body",
+          "name": "\"user_id\": ${request.user_id}",
+          "value": "\"user_id\": 1"
+        }
+      ]
+    }
+  ]
+}
