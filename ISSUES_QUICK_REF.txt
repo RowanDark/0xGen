@@ -1,0 +1,176 @@
+===============================================================================
+                    CRITICAL ISSUES QUICK REFERENCE
+===============================================================================
+
+ISSUE #1: MISSING TRANSACTIONS IN MULTI-STEP OPERATIONS
+-------------------------------------------------------
+Severity: CRITICAL
+File: /home/user/0xGen/plugins/entropy/storage.go
+Lines: 147-167 (StoreToken method)
+
+Problem: Two database operations without transaction:
+  1. INSERT INTO token_samples
+  2. UPDATE capture_sessions SET token_count = token_count + 1
+  
+If process crashes between steps, token_count becomes out of sync.
+
+Related issue in: /home/user/0xGen/internal/blitz/storage.go (not using transaction)
+
+---
+
+ISSUE #2: SILENTLY IGNORED JSON UNMARSHAL ERRORS
+--------------------------------------------------
+Severity: CRITICAL
+File: /home/user/0xGen/internal/rewrite/storage.go
+Lines: 511-522 (SearchRules method)
+
+Problem: json.Unmarshal errors ignored without checking:
+  json.Unmarshal([]byte(scopeMethods.String), &rule.Scope.Methods)
+  // ^ Error not checked, silently fails
+  
+Similar issues in ListRules (lines 407-431) - errors logged but continue
+
+Result: Corrupted JSON in database silently creates empty objects
+
+---
+
+ISSUE #3: LASTINSERTID ERROR IGNORED
+-------------------------------------
+Severity: HIGH
+File: /home/user/0xGen/internal/blitz/storage.go
+Lines: 191-192
+
+Problem: 
+  id, _ := sqlResult.LastInsertId()  // ERROR IGNORED
+  result.ID = id                     // Assigns 0 if error occurred
+
+---
+
+ISSUE #4: FOREIGN KEYS NOT ENFORCED
+------------------------------------
+Severity: HIGH
+File: /home/user/0xGen/plugins/entropy/storage.go
+Lines: 18-29 (NewStorage method)
+
+Problem: FK constraint defined but SQLite FK enforcement disabled by default
+  FOREIGN KEY (capture_session_id) REFERENCES capture_sessions(id)
+  
+Missing: PRAGMA foreign_keys=ON
+
+Result: Orphaned records possible if sessions deleted
+
+---
+
+ISSUE #5: LIMIT/OFFSET NOT PARAMETERIZED
+------------------------------------------
+Severity: MEDIUM
+File: /home/user/0xGen/internal/blitz/storage.go
+Lines: 238-244
+
+Problem:
+  query += fmt.Sprintf(" LIMIT %d", filters.Limit)
+  query += fmt.Sprintf(" OFFSET %d", filters.Offset)
+  
+Should use:
+  query += " LIMIT ? OFFSET ?"
+  args = append(args, filters.Limit, filters.Offset)
+
+---
+
+ISSUE #6: MIGRATION ERROR HANDLING
+-----------------------------------
+Severity: MEDIUM
+File: /home/user/0xGen/plugins/entropy/storage.go
+Lines: 104-106 (migrateSchema method)
+
+Problem: All migration errors ignored:
+  for _, migration := range migrations {
+    s.db.Exec(migration)  // ERRORS IGNORED
+  }
+
+Result: Failed migrations undetected, database in inconsistent state
+
+---
+
+ISSUE #7: SQL LOGIC ERROR IN QUERY
+-----------------------------------
+Severity: MEDIUM
+File: /home/user/0xGen/internal/blitz/storage.go
+Line: 392 (GetStats method)
+
+Problem:
+  WHERE session_id = ? AND error IS NULL OR error = ''
+  
+Should be:
+  WHERE session_id = ? AND (error IS NULL OR error = '')
+  
+Missing parentheses changes query logic
+
+---
+
+ISSUE #8: UNBOUNDED QUERY RESULTS
+----------------------------------
+Severity: LOW
+File: /home/user/0xGen/internal/rewrite/storage.go
+Lines: 351-449 (ListRules method)
+
+Problem: Returns ALL rules without pagination
+  SELECT ... FROM rules ORDER BY priority DESC, created_at ASC
+  
+No LIMIT clause. Thousands of rules = memory issue
+
+Comparison: Blitz storage properly implements pagination (lines 238-244)
+
+---
+
+ISSUE #9: INSUFFICIENT VALIDATION
+----------------------------------
+Severity: LOW
+File: /home/user/0xGen/internal/rewrite/storage.go
+Line: 65 (CreateRule method)
+
+Problem: UNIQUE constraint on rule name but no pre-validation
+- Database throws integrity error instead of predictable error message
+- Should validate before insert for better user experience
+
+---
+
+ISSUE #10: NO CONNECTION POOL CONFIGURATION
+--------------------------------------------
+Severity: LOW
+Files: All storage files
+
+Problem: No SetMaxOpenConns/SetMaxIdleConns/SetConnMaxLifetime
+- Using SQLite defaults which may not be optimal
+- WAL mode helps but explicit pool config recommended
+
+===============================================================================
+                            POSITIVE FINDINGS
+===============================================================================
+
+GOOD: Prepared Statements
+  All INSERT/UPDATE/DELETE use parameterized queries with ? placeholders
+  SQL injection risk is minimal
+
+GOOD: WAL Mode Enabled
+  All databases enable PRAGMA journal_mode=WAL for concurrency
+  Better concurrent read access than default mode
+
+GOOD: Resource Cleanup
+  Proper defer rows.Close() patterns throughout
+  No connection leaks detected
+
+GOOD: Schema Indexes
+  Well-designed indexes aligned with query patterns
+  Blitz: session_id, status_code, is_interesting, timestamp, error
+  Rewrite: enabled, priority DESC, scope_direction, created_at
+  Entropy: session_id, captured_at, token_value, session_status
+
+GOOD: RowsAffected Validation
+  Create/Update/Delete properly check RowsAffected for errors
+  Good error handling for "not found" cases
+
+GOOD: Repository Pattern
+  Clean separation of concerns
+  Consistent CRUD interfaces across storage implementations
+
