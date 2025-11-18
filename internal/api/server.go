@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/RowanDark/0xgen/internal/cipher"
 	"github.com/RowanDark/0xgen/internal/findings"
 	"github.com/RowanDark/0xgen/internal/logging"
+	"github.com/RowanDark/0xgen/internal/rewrite"
 	"github.com/RowanDark/0xgen/internal/team"
 )
 
@@ -36,6 +38,7 @@ type Config struct {
 	OIDCAudiences   []string
 	WorkspaceStore  *team.Store
 	RecipesDir      string
+	RewriteEngine   *rewrite.Engine
 }
 
 // Server exposes REST endpoints for triggering scans and retrieving results.
@@ -49,6 +52,7 @@ type Server struct {
 	managerCancel context.CancelFunc
 	teams         *team.Store
 	recipeManager *cipher.RecipeManager
+	rewriteAPI    *RewriteAPI
 }
 
 type contextKey string
@@ -112,6 +116,19 @@ func NewServer(cfg Config) (*Server, error) {
 		return nil, err
 	}
 
+	// Initialize Rewrite API if engine is provided
+	var rewriteAPI *RewriteAPI
+	if cfg.RewriteEngine != nil {
+		var rewriteLogger *slog.Logger
+		if cfg.Logger != nil {
+			// Convert AuditLogger to slog.Logger
+			rewriteLogger = slog.Default()
+		} else {
+			rewriteLogger = slog.Default()
+		}
+		rewriteAPI = NewRewriteAPI(cfg.RewriteEngine, rewriteLogger)
+	}
+
 	return &Server{
 		cfg:           cfg,
 		authenticator: auth,
@@ -120,6 +137,7 @@ func NewServer(cfg Config) (*Server, error) {
 		logger:        cfg.Logger,
 		teams:         store,
 		recipeManager: recipeManager,
+		rewriteAPI:    rewriteAPI,
 	}, nil
 }
 
@@ -145,6 +163,11 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("/api/v1/cipher/recipes/list", s.handleRecipeList)
 	mux.HandleFunc("/api/v1/cipher/recipes/load", s.handleRecipeLoad)
 	mux.HandleFunc("/api/v1/cipher/recipes/delete", s.handleRecipeDelete)
+
+	// Rewrite endpoints
+	if s.rewriteAPI != nil {
+		s.rewriteAPI.RegisterRoutes(mux)
+	}
 
 	s.httpServer = &http.Server{
 		Addr:    s.cfg.Addr,
