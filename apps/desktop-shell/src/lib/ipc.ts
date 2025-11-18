@@ -849,3 +849,204 @@ export async function cipherLoadRecipe(name: string): Promise<CipherRecipe> {
 export async function cipherDeleteRecipe(name: string): Promise<void> {
   await invoke('cipher_delete_recipe', { name });
 }
+
+// Entropy API
+
+const TokenExtractorSchema = z.object({
+  pattern: z.string(),
+  location: z.string(),
+  name: z.string()
+});
+
+const CaptureStatusSchema = z.enum(['active', 'paused', 'stopped']);
+
+const StopReasonSchema = z.enum(['manual', 'target_reached', 'timeout', 'pattern_detected', 'error']);
+
+const CaptureSessionSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  extractor: TokenExtractorSchema,
+  startedAt: timestampSchema,
+  completedAt: timestampSchema.optional().nullable(),
+  pausedAt: timestampSchema.optional().nullable(),
+  tokenCount: z.number().int(),
+  status: CaptureStatusSchema,
+  targetCount: z.number().int().optional(),
+  timeout: z.number().optional(),
+  stopReason: StopReasonSchema.optional().nullable(),
+  lastAnalyzedAt: timestampSchema.optional().nullable(),
+  lastAnalysisCount: z.number().int(),
+  analysisInterval: z.number().int()
+});
+
+const TestResultSchema = z.object({
+  pValue: z.number(),
+  passed: z.boolean(),
+  confidence: z.number(),
+  description: z.string()
+});
+
+const PatternSchema = z.object({
+  type: z.string(),
+  confidence: z.number(),
+  description: z.string(),
+  evidence: z.string()
+});
+
+const PRNGSignatureSchema = z.object({
+  name: z.string(),
+  weakness: z.string(),
+  exploitHint: z.string(),
+  confidence: z.number()
+});
+
+const RiskLevelSchema = z.enum(['low', 'medium', 'high', 'critical']);
+
+const EntropyAnalysisSchema = z.object({
+  captureSessionId: z.number().int(),
+  tokenCount: z.number().int(),
+  tokenLength: z.number().int(),
+  characterSet: z.array(z.string()),
+  chiSquared: TestResultSchema,
+  runs: TestResultSchema,
+  serialCorrelation: TestResultSchema,
+  spectral: TestResultSchema,
+  shannonEntropy: z.number(),
+  collisionRate: z.number(),
+  bitDistribution: z.array(z.number()),
+  detectedPRNG: PRNGSignatureSchema.optional().nullable(),
+  detectedPatterns: z.array(PatternSchema),
+  recommendations: z.array(z.string()),
+  randomnessScore: z.number(),
+  risk: RiskLevelSchema,
+  confidenceLevel: z.number(),
+  reliabilityScore: z.number(),
+  tokensNeeded: z.number().int(),
+  sampleQuality: z.string()
+});
+
+const IncrementalStatsSchema = z.object({
+  tokenCount: z.number().int(),
+  charFrequency: z.record(z.number()),
+  totalChars: z.number().int(),
+  collisionCount: z.number().int(),
+  currentEntropy: z.number(),
+  minSampleSize: z.number().int(),
+  confidenceLevel: z.number(),
+  tokensNeeded: z.number().int(),
+  reliabilityScore: z.number(),
+  lastUpdated: timestampSchema
+});
+
+export type TokenExtractor = z.infer<typeof TokenExtractorSchema>;
+export type CaptureStatus = z.infer<typeof CaptureStatusSchema>;
+export type StopReason = z.infer<typeof StopReasonSchema>;
+export type CaptureSession = z.infer<typeof CaptureSessionSchema>;
+export type TestResult = z.infer<typeof TestResultSchema>;
+export type Pattern = z.infer<typeof PatternSchema>;
+export type PRNGSignature = z.infer<typeof PRNGSignatureSchema>;
+export type RiskLevel = z.infer<typeof RiskLevelSchema>;
+export type EntropyAnalysis = z.infer<typeof EntropyAnalysisSchema>;
+export type IncrementalStats = z.infer<typeof IncrementalStatsSchema>;
+
+export type StartEntropySessionPayload = {
+  name: string;
+  extractor: TokenExtractor;
+  targetCount?: number;
+  timeoutSeconds?: number;
+};
+
+export async function listEntropySessions(): Promise<CaptureSession[]> {
+  const sessions = await invoke('list_entropy_sessions');
+  return z.array(CaptureSessionSchema).parse(sessions);
+}
+
+export async function getEntropySession(id: number): Promise<CaptureSession> {
+  const session = await invoke('get_entropy_session', { id });
+  return CaptureSessionSchema.parse(session);
+}
+
+export async function startEntropySession(payload: StartEntropySessionPayload): Promise<CaptureSession> {
+  const session = await invoke('start_entropy_session', { payload });
+  return CaptureSessionSchema.parse(session);
+}
+
+export async function pauseEntropySession(id: number): Promise<void> {
+  await invoke('pause_entropy_session', { id });
+}
+
+export async function resumeEntropySession(id: number): Promise<void> {
+  await invoke('resume_entropy_session', { id });
+}
+
+export async function stopEntropySession(id: number): Promise<void> {
+  await invoke('stop_entropy_session', { id });
+}
+
+export async function getEntropyAnalysis(sessionId: number): Promise<EntropyAnalysis | null> {
+  const analysis = await invoke('get_entropy_analysis', { sessionId });
+  if (!analysis) return null;
+  return EntropyAnalysisSchema.parse(analysis);
+}
+
+export async function getIncrementalStats(sessionId: number): Promise<IncrementalStats | null> {
+  const stats = await invoke('get_incremental_stats', { sessionId });
+  if (!stats) return null;
+  return IncrementalStatsSchema.parse(stats);
+}
+
+export async function exportEntropySession(sessionId: number, format: 'csv' | 'json'): Promise<string> {
+  const result = await invoke('export_entropy_session', { sessionId, format });
+  return z.string().parse(result);
+}
+
+const TokenSampleSchema = z.object({
+  id: z.number().int(),
+  captureSessionId: z.number().int(),
+  tokenValue: z.string(),
+  tokenLength: z.number().int(),
+  capturedAt: timestampSchema,
+  sourceRequestId: z.string().optional()
+});
+
+export type TokenSample = z.infer<typeof TokenSampleSchema>;
+
+export async function getTokenSamples(sessionId: number, limit?: number): Promise<TokenSample[]> {
+  const samples = await invoke('get_token_samples', { sessionId, limit });
+  return z.array(TokenSampleSchema).parse(samples);
+}
+
+export type CompareSessionsPayload = {
+  sessionIds: number[];
+  baselineId?: number;
+};
+
+const SessionComparisonSchema = z.object({
+  sessionId: z.number().int(),
+  sessionName: z.string(),
+  analysis: EntropyAnalysisSchema.nullable(),
+  stats: IncrementalStatsSchema.nullable(),
+  deltaFromBaseline: z
+    .object({
+      randomnessScoreDelta: z.number(),
+      entropyDelta: z.number(),
+      collisionRateDelta: z.number()
+    })
+    .nullable()
+    .optional()
+});
+
+export type SessionComparison = z.infer<typeof SessionComparisonSchema>;
+
+export async function compareSessions(sessionIds: number[]): Promise<SessionComparison[]> {
+  const comparisons = await invoke('compare_entropy_sessions', { sessionIds });
+  return z.array(SessionComparisonSchema).parse(comparisons);
+}
+
+export async function exportEntropyReport(
+  sessionId: number,
+  format: 'html' | 'markdown' | 'pdf'
+): Promise<string> {
+  const result = await invoke('export_entropy_report', { sessionId, format });
+  return z.string().parse(result);
+}

@@ -1,0 +1,15 @@
+{
+  "name": "entropy",
+  "version": "0.1.0",
+  "entry": "entropy",
+  "artifact": "plugins/entropy/main.go",
+  "trusted": true,
+  "capabilities": [
+    "CAP_EMIT_FINDINGS",
+    "CAP_HTTP_PASSIVE"
+  ],
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../keys/0xgen-plugin.pub"
+  }
+}
