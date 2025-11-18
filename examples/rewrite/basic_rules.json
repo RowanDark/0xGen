@@ -1,0 +1,90 @@
+[
+  {
+    "name": "add-custom-header",
+    "description": "Add a custom header to all requests",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "direction": "request",
+      "methods": null,
+      "url_pattern": "",
+      "content_type": ""
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "add",
+        "location": "header",
+        "name": "X-Custom-Header",
+        "value": "CustomValue"
+      }
+    ],
+    "tags": ["example", "basic"]
+  },
+  {
+    "name": "remove-cookie",
+    "description": "Remove tracking cookie from requests",
+    "enabled": true,
+    "priority": 20,
+    "scope": {
+      "direction": "request",
+      "methods": null,
+      "url_pattern": "",
+      "content_type": ""
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "remove",
+        "location": "cookie",
+        "name": "tracking_id"
+      }
+    ],
+    "tags": ["example", "privacy"]
+  },
+  {
+    "name": "add-timestamp",
+    "description": "Add current timestamp to requests",
+    "enabled": true,
+    "priority": 15,
+    "scope": {
+      "direction": "request",
+      "methods": ["POST", "PUT"],
+      "url_pattern": "",
+      "content_type": ""
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "add",
+        "location": "header",
+        "name": "X-Timestamp",
+        "value": "${timestamp}"
+      }
+    ],
+    "tags": ["example", "timestamp"]
+  },
+  {
+    "name": "replace-user-agent",
+    "description": "Replace User-Agent header",
+    "enabled": true,
+    "priority": 25,
+    "scope": {
+      "direction": "request",
+      "methods": null,
+      "url_pattern": "",
+      "content_type": ""
+    },
+    "conditions": [],
+    "actions": [
+      {
+        "type": "replace",
+        "location": "header",
+        "name": "User-Agent",
+        "pattern": ".*",
+        "value": "CustomBot/1.0"
+      }
+    ],
+    "tags": ["example", "user-agent"]
+  }
+]
