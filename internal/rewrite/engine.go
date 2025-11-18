@@ -387,3 +387,8 @@ func (e *Engine) ImportRules(ctx context.Context, rules []*Rule) error {
 func (e *Engine) ExportRules(ctx context.Context) ([]*Rule, error) {
 	return e.storage.ListRules()
 }
+
+// GetStorage returns the storage instance (for API access).
+func (e *Engine) GetStorage() *Storage {
+	return e.storage
+}
