@@ -2122,6 +2122,473 @@ async fn remove_plugin(api: State<'_, OxgApi>, id: String) -> Result<Value, Stri
         .map_err(|err| err.to_string())
 }
 
+// Rewrite commands
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteRule {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<i32>,
+    name: String,
+    description: String,
+    enabled: bool,
+    priority: i32,
+    scope: RewriteScope,
+    #[serde(default)]
+    conditions: Vec<RewriteCondition>,
+    #[serde(default)]
+    actions: Vec<RewriteAction>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteScope {
+    direction: String,
+    #[serde(default)]
+    methods: Vec<String>,
+    url_pattern: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteCondition {
+    #[serde(rename = "type")]
+    condition_type: String,
+    location: String,
+    name: String,
+    operator: String,
+    value: String,
+    case_sensitive: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteAction {
+    #[serde(rename = "type")]
+    action_type: String,
+    location: String,
+    name: String,
+    value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteTestRequestInput {
+    method: String,
+    url: String,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteTestResponseInput {
+    status_code: i32,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RewriteTestCase {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<i32>,
+    name: String,
+    description: String,
+    #[serde(rename = "type")]
+    test_type: String,
+    input: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expected_output: Option<Value>,
+    rule_ids: Vec<i32>,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+#[tauri::command]
+async fn list_rewrite_rules(api: State<'_, OxgApi>) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/rules");
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn create_rewrite_rule(
+    api: State<'_, OxgApi>,
+    rule: RewriteRule,
+) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/rules");
+    let response = api
+        .client
+        .post(url)
+        .json(&rule)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn get_rewrite_rule(api: State<'_, OxgApi>, id: i32) -> Result<Value, String> {
+    let url = api.endpoint(&format!("api/v1/rewrite/rules/{}", id));
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn update_rewrite_rule(
+    api: State<'_, OxgApi>,
+    id: i32,
+    rule: RewriteRule,
+) -> Result<Value, String> {
+    let url = api.endpoint(&format!("api/v1/rewrite/rules/{}", id));
+    let response = api
+        .client
+        .put(url)
+        .json(&rule)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn delete_rewrite_rule(api: State<'_, OxgApi>, id: i32) -> Result<(), String> {
+    let url = api.endpoint(&format!("api/v1/rewrite/rules/{}", id));
+    let response = api
+        .client
+        .delete(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn import_rewrite_rules(
+    api: State<'_, OxgApi>,
+    rules: Vec<RewriteRule>,
+) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/rules/import");
+    let payload = json!({ "rules": rules });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn export_rewrite_rules(api: State<'_, OxgApi>) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/rules/export");
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn test_rewrite_request(
+    api: State<'_, OxgApi>,
+    input: RewriteTestRequestInput,
+    rule_ids: Vec<i32>,
+) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/sandbox/test-request");
+    let payload = json!({
+        "input": input,
+        "rule_ids": rule_ids,
+    });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn test_rewrite_response(
+    api: State<'_, OxgApi>,
+    input: RewriteTestResponseInput,
+    rule_ids: Vec<i32>,
+) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/sandbox/test-response");
+    let payload = json!({
+        "input": input,
+        "rule_ids": rule_ids,
+    });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn list_rewrite_test_cases(api: State<'_, OxgApi>) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/test-cases");
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn create_rewrite_test_case(
+    api: State<'_, OxgApi>,
+    test_case: RewriteTestCase,
+) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/test-cases");
+    let response = api
+        .client
+        .post(url)
+        .json(&test_case)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn get_rewrite_test_case(api: State<'_, OxgApi>, id: i32) -> Result<Value, String> {
+    let url = api.endpoint(&format!("api/v1/rewrite/test-cases/{}", id));
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn delete_rewrite_test_case(api: State<'_, OxgApi>, id: i32) -> Result<(), String> {
+    let url = api.endpoint(&format!("api/v1/rewrite/test-cases/{}", id));
+    let response = api
+        .client
+        .delete(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn run_rewrite_test_case(api: State<'_, OxgApi>, id: i32) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/test-cases/run");
+    let payload = json!({ "id": id });
+    let response = api
+        .client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn run_all_rewrite_test_cases(api: State<'_, OxgApi>) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/test-cases/run-all");
+    let response = api
+        .client
+        .post(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn fetch_rewrite_metrics(api: State<'_, OxgApi>) -> Result<Value, String> {
+    let url = api.endpoint("api/v1/rewrite/metrics");
+    let response = api
+        .client
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(ApiError::UnexpectedResponse { status, body }.to_string());
+    }
+
+    response
+        .json::<Value>()
+        .await
+        .map_err(|err| err.to_string())
+}
+
 // Cipher commands
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2557,6 +3024,22 @@ fn main() {
             save_crash_bundle,
             discard_crash_bundle,
             submit_feedback,
+            list_rewrite_rules,
+            create_rewrite_rule,
+            get_rewrite_rule,
+            update_rewrite_rule,
+            delete_rewrite_rule,
+            import_rewrite_rules,
+            export_rewrite_rules,
+            test_rewrite_request,
+            test_rewrite_response,
+            list_rewrite_test_cases,
+            create_rewrite_test_case,
+            get_rewrite_test_case,
+            delete_rewrite_test_case,
+            run_rewrite_test_case,
+            run_all_rewrite_test_cases,
+            fetch_rewrite_metrics,
             cipher_execute,
             cipher_pipeline,
             cipher_detect,

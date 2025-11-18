@@ -1050,3 +1050,265 @@ export async function exportEntropyReport(
   const result = await invoke('export_entropy_report', { sessionId, format });
   return z.string().parse(result);
 }
+
+// Rewrite API
+
+const RewriteScopeSchema = z.object({
+  direction: z.string(),
+  methods: z.array(z.string()).optional().default([]),
+  urlPattern: z.string()
+});
+
+const RewriteConditionSchema = z.object({
+  type: z.string(),
+  location: z.string(),
+  name: z.string(),
+  operator: z.string(),
+  value: z.string(),
+  caseSensitive: z.boolean()
+});
+
+const RewriteActionSchema = z.object({
+  type: z.string(),
+  location: z.string(),
+  name: z.string(),
+  value: z.string()
+});
+
+const RewriteRuleSchema = z.object({
+  id: z.number().int().optional(),
+  name: z.string(),
+  description: z.string(),
+  enabled: z.boolean(),
+  priority: z.number().int(),
+  scope: RewriteScopeSchema,
+  conditions: z.array(RewriteConditionSchema).optional().default([]),
+  actions: z.array(RewriteActionSchema).optional().default([]),
+  createdAt: timestampSchema.optional(),
+  modifiedAt: timestampSchema.optional(),
+  version: z.number().int().optional()
+});
+
+const RewriteTestRequestInputSchema = z.object({
+  method: z.string(),
+  url: z.string(),
+  headers: z.record(z.string()),
+  body: z.string()
+});
+
+const RewriteTestResponseInputSchema = z.object({
+  statusCode: z.number().int(),
+  headers: z.record(z.string()),
+  body: z.string()
+});
+
+const RewriteHeaderDiffSchema = z.object({
+  name: z.string(),
+  oldValue: z.string(),
+  newValue: z.string(),
+  action: z.string()
+});
+
+const RewriteDiffResultSchema = z.object({
+  headerChanges: z.array(RewriteHeaderDiffSchema),
+  bodyChanged: z.boolean(),
+  bodyDiff: z.string(),
+  urlChanged: z.boolean(),
+  urlDiff: z.string(),
+  statusChanged: z.boolean(),
+  oldStatus: z.number().int(),
+  newStatus: z.number().int()
+});
+
+const RewriteActionResultSchema = z.object({
+  actionType: z.string(),
+  location: z.string(),
+  name: z.string(),
+  oldValue: z.string(),
+  newValue: z.string(),
+  success: z.boolean(),
+  error: z.string().optional()
+});
+
+const RewriteExecutionStepSchema = z.object({
+  ruleId: z.number().int(),
+  ruleName: z.string(),
+  priority: z.number().int(),
+  matched: z.boolean(),
+  matchReason: z.string(),
+  actionsApplied: z.array(RewriteActionResultSchema),
+  variables: z.record(z.string()),
+  duration: z.number(),
+  errors: z.array(z.string())
+});
+
+const RewriteExecutionLogSchema = z.object({
+  steps: z.array(RewriteExecutionStepSchema),
+  totalDuration: z.number(),
+  rulesExecuted: z.number().int(),
+  rulesMatched: z.number().int(),
+  actionsApplied: z.number().int(),
+  variables: z.record(z.string()),
+  errors: z.array(z.string())
+});
+
+const RewriteValidationErrorSchema = z.object({
+  ruleId: z.number().int(),
+  ruleName: z.string(),
+  severity: z.string(),
+  type: z.string(),
+  message: z.string(),
+  suggestion: z.string(),
+  location: z.string()
+});
+
+const RewriteSandboxResultSchema = z.object({
+  success: z.boolean(),
+  originalInput: z.unknown(),
+  modifiedInput: z.unknown(),
+  executionLog: RewriteExecutionLogSchema,
+  diff: RewriteDiffResultSchema,
+  warnings: z.array(RewriteValidationErrorSchema),
+  duration: z.number()
+});
+
+const RewriteTestCaseSchema = z.object({
+  id: z.number().int().optional(),
+  name: z.string(),
+  description: z.string(),
+  type: z.string(),
+  input: z.unknown(),
+  expectedOutput: z.unknown().optional(),
+  ruleIds: z.array(z.number().int()),
+  tags: z.array(z.string()).optional().default([]),
+  createdAt: timestampSchema.optional(),
+  modifiedAt: timestampSchema.optional()
+});
+
+const RewriteTestResultSchema = z.object({
+  testCaseId: z.number().int(),
+  testCaseName: z.string(),
+  passed: z.boolean(),
+  failures: z.array(z.string()),
+  sandboxResult: RewriteSandboxResultSchema.nullable(),
+  duration: z.number()
+});
+
+const RewriteMetricsSchema = z.object({
+  totalRequests: z.number().int(),
+  totalResponses: z.number().int(),
+  rulesApplied: z.number().int(),
+  averageLatency: z.number(),
+  slowRules: z.record(z.number())
+});
+
+export type RewriteScope = z.infer<typeof RewriteScopeSchema>;
+export type RewriteCondition = z.infer<typeof RewriteConditionSchema>;
+export type RewriteAction = z.infer<typeof RewriteActionSchema>;
+export type RewriteRule = z.infer<typeof RewriteRuleSchema>;
+export type RewriteTestRequestInput = z.infer<typeof RewriteTestRequestInputSchema>;
+export type RewriteTestResponseInput = z.infer<typeof RewriteTestResponseInputSchema>;
+export type RewriteHeaderDiff = z.infer<typeof RewriteHeaderDiffSchema>;
+export type RewriteDiffResult = z.infer<typeof RewriteDiffResultSchema>;
+export type RewriteActionResult = z.infer<typeof RewriteActionResultSchema>;
+export type RewriteExecutionStep = z.infer<typeof RewriteExecutionStepSchema>;
+export type RewriteExecutionLog = z.infer<typeof RewriteExecutionLogSchema>;
+export type RewriteValidationError = z.infer<typeof RewriteValidationErrorSchema>;
+export type RewriteSandboxResult = z.infer<typeof RewriteSandboxResultSchema>;
+export type RewriteTestCase = z.infer<typeof RewriteTestCaseSchema>;
+export type RewriteTestResult = z.infer<typeof RewriteTestResultSchema>;
+export type RewriteMetrics = z.infer<typeof RewriteMetricsSchema>;
+
+export async function listRewriteRules(): Promise<RewriteRule[]> {
+  const response = await invoke('list_rewrite_rules');
+  const data = z.object({ rules: z.array(RewriteRuleSchema) }).parse(response);
+  return data.rules;
+}
+
+export async function createRewriteRule(rule: Omit<RewriteRule, 'id'>): Promise<RewriteRule> {
+  const response = await invoke('create_rewrite_rule', { rule });
+  const data = z.object({ rule: RewriteRuleSchema }).parse(response);
+  return data.rule;
+}
+
+export async function getRewriteRule(id: number): Promise<RewriteRule> {
+  const response = await invoke('get_rewrite_rule', { id });
+  const data = z.object({ rule: RewriteRuleSchema }).parse(response);
+  return data.rule;
+}
+
+export async function updateRewriteRule(id: number, rule: Omit<RewriteRule, 'id'>): Promise<RewriteRule> {
+  const response = await invoke('update_rewrite_rule', { id, rule });
+  const data = z.object({ rule: RewriteRuleSchema }).parse(response);
+  return data.rule;
+}
+
+export async function deleteRewriteRule(id: number): Promise<void> {
+  await invoke('delete_rewrite_rule', { id });
+}
+
+export async function importRewriteRules(rules: RewriteRule[]): Promise<number> {
+  const response = await invoke('import_rewrite_rules', { rules });
+  const data = z.object({ imported: z.number().int() }).parse(response);
+  return data.imported;
+}
+
+export async function exportRewriteRules(): Promise<RewriteRule[]> {
+  const response = await invoke('export_rewrite_rules');
+  const data = z.object({ rules: z.array(RewriteRuleSchema) }).parse(response);
+  return data.rules;
+}
+
+export async function testRewriteRequest(
+  input: RewriteTestRequestInput,
+  ruleIds: number[]
+): Promise<RewriteSandboxResult> {
+  const response = await invoke('test_rewrite_request', { input, ruleIds });
+  return RewriteSandboxResultSchema.parse(response);
+}
+
+export async function testRewriteResponse(
+  input: RewriteTestResponseInput,
+  ruleIds: number[]
+): Promise<RewriteSandboxResult> {
+  const response = await invoke('test_rewrite_response', { input, ruleIds });
+  return RewriteSandboxResultSchema.parse(response);
+}
+
+export async function listRewriteTestCases(): Promise<RewriteTestCase[]> {
+  const response = await invoke('list_rewrite_test_cases');
+  const data = z.object({ test_cases: z.array(RewriteTestCaseSchema) }).parse(response);
+  return data.test_cases;
+}
+
+export async function createRewriteTestCase(testCase: Omit<RewriteTestCase, 'id'>): Promise<RewriteTestCase> {
+  const response = await invoke('create_rewrite_test_case', { testCase });
+  const data = z.object({ test_case: RewriteTestCaseSchema }).parse(response);
+  return data.test_case;
+}
+
+export async function getRewriteTestCase(id: number): Promise<RewriteTestCase> {
+  const response = await invoke('get_rewrite_test_case', { id });
+  const data = z.object({ test_case: RewriteTestCaseSchema }).parse(response);
+  return data.test_case;
+}
+
+export async function deleteRewriteTestCase(id: number): Promise<void> {
+  await invoke('delete_rewrite_test_case', { id });
+}
+
+export async function runRewriteTestCase(id: number): Promise<RewriteTestResult> {
+  const response = await invoke('run_rewrite_test_case', { id });
+  return RewriteTestResultSchema.parse(response);
+}
+
+export async function runAllRewriteTestCases(): Promise<RewriteTestResult[]> {
+  const response = await invoke('run_all_rewrite_test_cases');
+  const data = z.object({ results: z.array(RewriteTestResultSchema) }).parse(response);
+  return data.results;
+}
+
+export async function fetchRewriteMetrics(): Promise<RewriteMetrics> {
+  const response = await invoke('fetch_rewrite_metrics');
+  return RewriteMetricsSchema.parse(response);
+}
