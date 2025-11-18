@@ -29,6 +29,7 @@ const navigation = [
   { to: '/scope', label: 'Scope' },
   { to: '/blitz', label: 'Blitz' },
   { to: '/cipher', label: 'Cipher' },
+  { to: '/rewrite', label: 'Rewrite' },
   { to: '/entropy', label: 'Entropy' },
   { to: '/plugins', label: 'Marketplace' }
 ];
