@@ -955,3 +955,467 @@ func TestServer_ResponseBody(t *testing.T) {
 		t.Errorf("expected Content-Type text/plain, got %s", ct)
 	}
 }
+
+// Tests for enhanced storage features (Issue #44.2)
+
+func TestStorage_Cleanup(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorageWithTTL(1 * time.Second)
+	defer storage.Close()
+
+	// Store old interaction
+	old := &Interaction{
+		ID:        "old",
+		Type:      "http",
+		Timestamp: time.Now().Add(-2 * time.Second),
+	}
+	storage.Store(old)
+
+	// Store new interaction
+	new := &Interaction{
+		ID:        "new",
+		Type:      "http",
+		Timestamp: time.Now(),
+	}
+	storage.Store(new)
+
+	if storage.GetCount() != 2 {
+		t.Errorf("expected count 2, got %d", storage.GetCount())
+	}
+
+	// Run cleanup
+	storage.Cleanup()
+
+	// Old should be removed
+	if storage.GetCount() != 1 {
+		t.Errorf("expected count 1 after cleanup, got %d", storage.GetCount())
+	}
+
+	if len(storage.GetByID("old")) != 0 {
+		t.Error("expected 'old' to be removed")
+	}
+
+	if len(storage.GetByID("new")) != 1 {
+		t.Error("expected 'new' to still exist")
+	}
+}
+
+func TestStorage_CleanupAll(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorageWithTTL(1 * time.Second)
+	defer storage.Close()
+
+	// Store only old interactions
+	for i := 0; i < 5; i++ {
+		storage.Store(&Interaction{
+			ID:        fmt.Sprintf("old-%d", i),
+			Type:      "http",
+			Timestamp: time.Now().Add(-2 * time.Second),
+		})
+	}
+
+	if storage.GetCount() != 5 {
+		t.Errorf("expected count 5, got %d", storage.GetCount())
+	}
+
+	storage.Cleanup()
+
+	if storage.GetCount() != 0 {
+		t.Errorf("expected count 0 after cleanup, got %d", storage.GetCount())
+	}
+}
+
+func TestStorage_GetByTestID(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	// Store interactions with same test ID
+	storage.Store(&Interaction{ID: "a", TestID: "test1", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "b", TestID: "test1", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "c", TestID: "test2", Type: "http", Timestamp: time.Now()})
+
+	// Query by test ID
+	test1Interactions := storage.GetByTestID("test1")
+	if len(test1Interactions) != 2 {
+		t.Errorf("expected 2 interactions for test1, got %d", len(test1Interactions))
+	}
+
+	test2Interactions := storage.GetByTestID("test2")
+	if len(test2Interactions) != 1 {
+		t.Errorf("expected 1 interaction for test2, got %d", len(test2Interactions))
+	}
+
+	// Non-existent test ID
+	empty := storage.GetByTestID("nonexistent")
+	if len(empty) != 0 {
+		t.Errorf("expected 0 interactions for nonexistent, got %d", len(empty))
+	}
+}
+
+func TestStorage_List_ByID(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	storage.Store(&Interaction{ID: "a", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "b", Type: "http", Timestamp: time.Now()})
+
+	result := storage.List(InteractionFilter{ID: "a"})
+	if len(result) != 1 {
+		t.Errorf("expected 1 interaction, got %d", len(result))
+	}
+
+	if result[0].ID != "a" {
+		t.Errorf("expected ID 'a', got %s", result[0].ID)
+	}
+}
+
+func TestStorage_List_ByTestID(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	storage.Store(&Interaction{ID: "a", TestID: "test1", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "b", TestID: "test1", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "c", TestID: "test2", Type: "http", Timestamp: time.Now()})
+
+	result := storage.List(InteractionFilter{TestID: "test1"})
+	if len(result) != 2 {
+		t.Errorf("expected 2 interactions, got %d", len(result))
+	}
+}
+
+func TestStorage_List_ByType(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	storage.Store(&Interaction{ID: "a", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "b", Type: "dns", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "c", Type: "http", Timestamp: time.Now()})
+
+	result := storage.List(InteractionFilter{Type: "http"})
+	if len(result) != 2 {
+		t.Errorf("expected 2 http interactions, got %d", len(result))
+	}
+
+	for _, i := range result {
+		if i.Type != "http" {
+			t.Errorf("expected type 'http', got %s", i.Type)
+		}
+	}
+}
+
+func TestStorage_List_Since(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	now := time.Now()
+	storage.Store(&Interaction{ID: "old", Type: "http", Timestamp: now.Add(-time.Hour)})
+	storage.Store(&Interaction{ID: "new", Type: "http", Timestamp: now.Add(time.Hour)})
+
+	result := storage.List(InteractionFilter{Since: now})
+	if len(result) != 1 {
+		t.Errorf("expected 1 interaction since now, got %d", len(result))
+	}
+
+	if result[0].ID != "new" {
+		t.Errorf("expected ID 'new', got %s", result[0].ID)
+	}
+}
+
+func TestStorage_List_ByRequestID(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	storage.Store(&Interaction{ID: "a", RequestID: "req1", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "b", RequestID: "req2", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "c", RequestID: "req1", Type: "http", Timestamp: time.Now()})
+
+	result := storage.List(InteractionFilter{RequestID: "req1"})
+	if len(result) != 2 {
+		t.Errorf("expected 2 interactions with req1, got %d", len(result))
+	}
+}
+
+func TestStorage_List_WithLimit(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	for i := 0; i < 10; i++ {
+		storage.Store(&Interaction{
+			ID:        fmt.Sprintf("id-%d", i),
+			Type:      "http",
+			Timestamp: time.Now().Add(time.Duration(i) * time.Second),
+		})
+	}
+
+	result := storage.List(InteractionFilter{Limit: 3})
+	if len(result) != 3 {
+		t.Errorf("expected 3 interactions, got %d", len(result))
+	}
+}
+
+func TestStorage_List_SortedByTimestamp(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	now := time.Now()
+	storage.Store(&Interaction{ID: "first", Type: "http", Timestamp: now.Add(-2 * time.Hour)})
+	storage.Store(&Interaction{ID: "second", Type: "http", Timestamp: now.Add(-time.Hour)})
+	storage.Store(&Interaction{ID: "third", Type: "http", Timestamp: now})
+
+	result := storage.List(InteractionFilter{})
+
+	// Should be sorted newest first
+	if len(result) != 3 {
+		t.Fatalf("expected 3 interactions, got %d", len(result))
+	}
+
+	if result[0].ID != "third" {
+		t.Errorf("expected first result to be 'third', got %s", result[0].ID)
+	}
+
+	if result[2].ID != "first" {
+		t.Errorf("expected last result to be 'first', got %s", result[2].ID)
+	}
+}
+
+func TestStorage_GetStats(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	now := time.Now()
+	storage.Store(&Interaction{ID: "a", Type: "http", Timestamp: now.Add(-time.Hour)})
+	storage.Store(&Interaction{ID: "b", Type: "http", Timestamp: now})
+	storage.Store(&Interaction{ID: "c", Type: "dns", Timestamp: now.Add(-30 * time.Minute)})
+
+	stats := storage.GetStats()
+
+	if stats.TotalInteractions != 3 {
+		t.Errorf("expected total 3, got %d", stats.TotalInteractions)
+	}
+
+	if stats.UniqueIDs != 3 {
+		t.Errorf("expected 3 unique IDs, got %d", stats.UniqueIDs)
+	}
+
+	if stats.ByType["http"] != 2 {
+		t.Errorf("expected 2 http, got %d", stats.ByType["http"])
+	}
+
+	if stats.ByType["dns"] != 1 {
+		t.Errorf("expected 1 dns, got %d", stats.ByType["dns"])
+	}
+
+	if !stats.OldestTimestamp.Equal(now.Add(-time.Hour)) {
+		t.Errorf("oldest timestamp mismatch")
+	}
+
+	if !stats.NewestTimestamp.Equal(now) {
+		t.Errorf("newest timestamp mismatch")
+	}
+}
+
+func TestStorage_GetStats_Empty(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	stats := storage.GetStats()
+
+	if stats.TotalInteractions != 0 {
+		t.Errorf("expected total 0, got %d", stats.TotalInteractions)
+	}
+
+	if stats.UniqueIDs != 0 {
+		t.Errorf("expected 0 unique IDs, got %d", stats.UniqueIDs)
+	}
+}
+
+func TestStorage_SetTTL(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	// Default TTL should be 24 hours
+	if storage.GetTTL() != 24*time.Hour {
+		t.Errorf("expected default TTL 24h, got %v", storage.GetTTL())
+	}
+
+	storage.SetTTL(1 * time.Hour)
+
+	if storage.GetTTL() != 1*time.Hour {
+		t.Errorf("expected TTL 1h, got %v", storage.GetTTL())
+	}
+}
+
+func TestStorage_DeleteByID_WithTestIndex(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	storage.Store(&Interaction{ID: "a", TestID: "test1", Type: "http", Timestamp: time.Now()})
+	storage.Store(&Interaction{ID: "b", TestID: "test1", Type: "http", Timestamp: time.Now()})
+
+	// Verify test index before delete
+	if len(storage.GetByTestID("test1")) != 2 {
+		t.Errorf("expected 2 interactions for test1")
+	}
+
+	// Delete one
+	storage.DeleteByID("a")
+
+	// Test index should be updated
+	remaining := storage.GetByTestID("test1")
+	if len(remaining) != 1 {
+		t.Errorf("expected 1 interaction for test1 after delete, got %d", len(remaining))
+	}
+
+	if remaining[0].ID != "b" {
+		t.Errorf("expected remaining ID 'b', got %s", remaining[0].ID)
+	}
+}
+
+func TestStorage_Cleanup_WithTestIndex(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorageWithTTL(1 * time.Second)
+	defer storage.Close()
+
+	// Store old interaction with test ID
+	storage.Store(&Interaction{
+		ID:        "old",
+		TestID:    "test1",
+		Type:      "http",
+		Timestamp: time.Now().Add(-2 * time.Second),
+	})
+
+	// Store new interaction with same test ID
+	storage.Store(&Interaction{
+		ID:        "new",
+		TestID:    "test1",
+		Type:      "http",
+		Timestamp: time.Now(),
+	})
+
+	// Verify test index before cleanup
+	if len(storage.GetByTestID("test1")) != 2 {
+		t.Errorf("expected 2 interactions for test1")
+	}
+
+	storage.Cleanup()
+
+	// Test index should be updated after cleanup
+	remaining := storage.GetByTestID("test1")
+	if len(remaining) != 1 {
+		t.Errorf("expected 1 interaction for test1 after cleanup, got %d", len(remaining))
+	}
+
+	if remaining[0].ID != "new" {
+		t.Errorf("expected remaining ID 'new', got %s", remaining[0].ID)
+	}
+}
+
+func TestStorage_Close(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+
+	// Should not panic
+	storage.Close()
+
+	// Calling Close again should not panic
+	storage.Close()
+}
+
+func TestStorage_NewStorageWithTTL(t *testing.T) {
+	t.Parallel()
+
+	ttl := 12 * time.Hour
+	storage := NewStorageWithTTL(ttl)
+	defer storage.Close()
+
+	if storage.GetTTL() != ttl {
+		t.Errorf("expected TTL %v, got %v", ttl, storage.GetTTL())
+	}
+}
+
+func TestStorage_List_Empty(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+
+	result := storage.List(InteractionFilter{ID: "nonexistent"})
+	if len(result) != 0 {
+		t.Errorf("expected 0 interactions, got %d", len(result))
+	}
+
+	result = storage.List(InteractionFilter{TestID: "nonexistent"})
+	if len(result) != 0 {
+		t.Errorf("expected 0 interactions, got %d", len(result))
+	}
+}
+
+func TestStorage_Concurrency_Enhanced(t *testing.T) {
+	t.Parallel()
+
+	storage := NewStorage()
+	defer storage.Close()
+	var wg sync.WaitGroup
+
+	// Concurrent writes with test IDs
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			storage.Store(&Interaction{
+				ID:        fmt.Sprintf("id-%d", idx%10),
+				TestID:    fmt.Sprintf("test-%d", idx%5),
+				Type:      "http",
+				Timestamp: time.Now(),
+			})
+		}(i)
+	}
+
+	// Concurrent reads including new methods
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			storage.GetByID(fmt.Sprintf("id-%d", idx%10))
+			storage.GetByTestID(fmt.Sprintf("test-%d", idx%5))
+			storage.List(InteractionFilter{Type: "http"})
+			storage.GetStats()
+			storage.GetAll()
+			storage.GetCount()
+		}(i)
+	}
+
+	wg.Wait()
+
+	if storage.GetCount() != 100 {
+		t.Errorf("expected count 100, got %d", storage.GetCount())
+	}
+}

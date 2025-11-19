@@ -22,13 +22,34 @@ type Interaction struct {
 	ID        string              `json:"id"`
 	Type      string              `json:"type"`
 	Timestamp time.Time           `json:"timestamp"`
-	Method    string              `json:"method"`
-	Path      string              `json:"path"`
+	Method    string              `json:"method,omitempty"`
+	Path      string              `json:"path,omitempty"`
 	Query     string              `json:"query,omitempty"`
-	Headers   map[string][]string `json:"headers"`
+	Headers   map[string][]string `json:"headers,omitempty"`
 	Body      string              `json:"body,omitempty"`
 	ClientIP  string              `json:"client_ip"`
 	UserAgent string              `json:"user_agent,omitempty"`
+	TestID    string              `json:"test_id,omitempty"`
+	RequestID string              `json:"request_id,omitempty"`
+}
+
+// InteractionFilter defines criteria for filtering interactions.
+type InteractionFilter struct {
+	ID        string
+	Type      string
+	Since     time.Time
+	TestID    string
+	RequestID string
+	Limit     int
+}
+
+// Stats contains statistics about stored interactions.
+type Stats struct {
+	TotalInteractions int            `json:"total_interactions"`
+	ByType            map[string]int `json:"by_type"`
+	UniqueIDs         int            `json:"unique_ids"`
+	OldestTimestamp   time.Time      `json:"oldest_timestamp,omitempty"`
+	NewestTimestamp   time.Time      `json:"newest_timestamp,omitempty"`
 }
 
 // EventBus defines the interface for publishing OAST events.
