@@ -87,6 +87,12 @@ func (s *Server) handleCipherExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if req.Operation == "" {
+		http.Error(w, "operation field is required", http.StatusBadRequest)
+		return
+	}
+
 	// Get the operation from the registry
 	op, exists := cipher.GetOperation(req.Operation)
 	if !exists {
@@ -105,7 +111,7 @@ func (s *Server) handleCipherExecute(w http.ResponseWriter, r *http.Request) {
 
 	result, err := op.Execute(ctx, []byte(req.Input), params)
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherOperationResponse{
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherOperationResponse{
 			Error: err.Error(),
 		})
 		return
@@ -129,6 +135,12 @@ func (s *Server) handleCipherPipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if len(req.Operations) == 0 {
+		http.Error(w, "operations field is required and must not be empty", http.StatusBadRequest)
+		return
+	}
+
 	// Create the pipeline
 	pipeline := &cipher.Pipeline{
 		Operations: req.Operations,
@@ -138,7 +150,7 @@ func (s *Server) handleCipherPipeline(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	result, err := pipeline.Execute(ctx, []byte(req.Input))
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherPipelineResponse{
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherPipelineResponse{
 			Error: err.Error(),
 		})
 		return
@@ -162,13 +174,20 @@ func (s *Server) handleCipherDetect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if req.Input == "" {
+		http.Error(w, "input field is required", http.StatusBadRequest)
+		return
+	}
+
 	// Use the smart detector
 	detector := cipher.NewSmartDetector()
 	ctx := context.Background()
 	detections, err := detector.Detect(ctx, []byte(req.Input))
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherDetectResponse{
-			Detections: []cipher.DetectionResult{},
+		s.writeJSON(w, http.StatusUnprocessableEntity, map[string]interface{}{
+			"error":      err.Error(),
+			"detections": []cipher.DetectionResult{},
 		})
 		return
 	}
@@ -191,13 +210,19 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Validate required fields
+	if req.Input == "" {
+		http.Error(w, "input field is required", http.StatusBadRequest)
+		return
+	}
+
 	// Use the smart detector to detect encoding
 	detector := cipher.NewSmartDetector()
 	ctx := context.Background()
 
 	detections, err := detector.Detect(ctx, []byte(req.Input))
 	if err != nil || len(detections) == 0 {
-		s.writeJSON(w, http.StatusOK, CipherSmartDecodeResponse{
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherSmartDecodeResponse{
 			Error: "could not detect encoding",
 		})
 		return
@@ -209,7 +234,7 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 	// Apply the suggested operation
 	op, exists := cipher.GetOperation(topDetection.Operation)
 	if !exists {
-		s.writeJSON(w, http.StatusOK, CipherSmartDecodeResponse{
+		s.writeJSON(w, http.StatusInternalServerError, CipherSmartDecodeResponse{
 			Error: "operation not found: " + topDetection.Operation,
 		})
 		return
@@ -217,7 +242,7 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 
 	result, err := op.Execute(ctx, []byte(req.Input), nil)
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherSmartDecodeResponse{
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherSmartDecodeResponse{
 			Error: err.Error(),
 		})
 		return
