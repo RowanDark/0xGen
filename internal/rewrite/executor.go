@@ -7,11 +7,56 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+// crlfPattern matches CR, LF, and null bytes that could enable header injection
+var crlfPattern = regexp.MustCompile(`[\r\n\x00]`)
+
+// sanitizeHeaderValue validates and sanitizes a header value to prevent CRLF injection.
+// Returns an error if the value contains invalid characters.
+func sanitizeHeaderValue(value string) (string, error) {
+	// Check for CRLF and null bytes
+	if crlfPattern.MatchString(value) {
+		return "", fmt.Errorf("header value contains invalid characters (CRLF or null)")
+	}
+
+	// Trim whitespace
+	value = strings.TrimSpace(value)
+
+	// Additional validation: printable ASCII only (32-126)
+	for _, r := range value {
+		if r < 32 || r > 126 {
+			return "", fmt.Errorf("header value contains non-printable character: %U", r)
+		}
+	}
+
+	return value, nil
+}
+
+// sanitizeHeaderName validates and sanitizes a header name to prevent injection.
+func sanitizeHeaderName(name string) (string, error) {
+	// Check for CRLF and null bytes
+	if crlfPattern.MatchString(name) {
+		return "", fmt.Errorf("header name contains invalid characters (CRLF or null)")
+	}
+
+	// Trim whitespace
+	name = strings.TrimSpace(name)
+
+	// Header names must be tokens (no spaces, no special chars except hyphen)
+	for _, r := range name {
+		if r < 33 || r > 126 || r == ':' {
+			return "", fmt.Errorf("header name contains invalid character: %U", r)
+		}
+	}
+
+	return name, nil
+}
 
 // Executor handles rule action execution.
 type Executor struct {
@@ -187,18 +232,42 @@ func (e *Executor) executeReplace(action Action, req *http.Request, resp *http.R
 	case LocationHeader:
 		if isResponse && resp != nil {
 			current := resp.Header.Get(action.Name)
+			var newValue string
 			if action.compiledRegex != nil {
-				resp.Header.Set(action.Name, action.compiledRegex.ReplaceAllString(current, value))
+				newValue = action.compiledRegex.ReplaceAllString(current, value)
 			} else {
-				resp.Header.Set(action.Name, strings.ReplaceAll(current, action.Pattern, value))
+				newValue = strings.ReplaceAll(current, action.Pattern, value)
 			}
+			// Sanitize the new header value to prevent CRLF injection
+			sanitizedValue, err := sanitizeHeaderValue(newValue)
+			if err != nil {
+				e.logger.Warn("invalid header value in replace action",
+					"name", action.Name,
+					"value", newValue,
+					"error", err,
+				)
+				return fmt.Errorf("invalid header value: %w", err)
+			}
+			resp.Header.Set(action.Name, sanitizedValue)
 		} else if !isResponse && req != nil {
 			current := req.Header.Get(action.Name)
+			var newValue string
 			if action.compiledRegex != nil {
-				req.Header.Set(action.Name, action.compiledRegex.ReplaceAllString(current, value))
+				newValue = action.compiledRegex.ReplaceAllString(current, value)
 			} else {
-				req.Header.Set(action.Name, strings.ReplaceAll(current, action.Pattern, value))
+				newValue = strings.ReplaceAll(current, action.Pattern, value)
 			}
+			// Sanitize the new header value to prevent CRLF injection
+			sanitizedValue, err := sanitizeHeaderValue(newValue)
+			if err != nil {
+				e.logger.Warn("invalid header value in replace action",
+					"name", action.Name,
+					"value", newValue,
+					"error", err,
+				)
+				return fmt.Errorf("invalid header value: %w", err)
+			}
+			req.Header.Set(action.Name, sanitizedValue)
 		}
 
 	case LocationCookie:
@@ -305,10 +374,30 @@ func (e *Executor) executeRemove(action Action, req *http.Request, resp *http.Re
 func (e *Executor) executeAdd(action Action, req *http.Request, resp *http.Response, value string, isResponse bool) error {
 	switch action.Location {
 	case LocationHeader:
+		// Sanitize header name and value to prevent CRLF injection
+		sanitizedName, err := sanitizeHeaderName(action.Name)
+		if err != nil {
+			e.logger.Warn("invalid header name in add action",
+				"name", action.Name,
+				"error", err,
+			)
+			return fmt.Errorf("invalid header name: %w", err)
+		}
+
+		sanitizedValue, err := sanitizeHeaderValue(value)
+		if err != nil {
+			e.logger.Warn("invalid header value in add action",
+				"name", action.Name,
+				"value", value,
+				"error", err,
+			)
+			return fmt.Errorf("invalid header value: %w", err)
+		}
+
 		if isResponse && resp != nil {
-			resp.Header.Add(action.Name, value)
+			resp.Header.Add(sanitizedName, sanitizedValue)
 		} else if !isResponse && req != nil {
-			req.Header.Add(action.Name, value)
+			req.Header.Add(sanitizedName, sanitizedValue)
 		}
 
 	case LocationCookie:
