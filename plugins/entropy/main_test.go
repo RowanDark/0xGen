@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -56,18 +57,18 @@ func generateLowEntropyTokens(count, length int) []string {
 
 func TestChiSquaredTest(t *testing.T) {
 	tests := []struct {
-		name    string
-		tokens  []string
+		name     string
+		tokens   []string
 		wantPass bool
 	}{
 		{
-			name:    "random tokens should pass",
-			tokens:  generateRandomTokens(100, 16),
+			name:     "random tokens should pass",
+			tokens:   generateRandomTokens(100, 16),
 			wantPass: true,
 		},
 		{
-			name:    "non-uniform tokens should fail",
-			tokens:  []string{"aaaaaaa", "aaaaaaa", "aaaaaaa", "b"},
+			name:     "non-uniform tokens should fail",
+			tokens:   []string{"aaaaaaa", "aaaaaaa", "aaaaaaa", "b"},
 			wantPass: false,
 		},
 	}
@@ -85,18 +86,18 @@ func TestChiSquaredTest(t *testing.T) {
 
 func TestRunsTest(t *testing.T) {
 	tests := []struct {
-		name    string
-		tokens  []string
+		name     string
+		tokens   []string
 		wantPass bool
 	}{
 		{
-			name:    "random tokens should pass",
-			tokens:  generateRandomTokens(50, 16),
+			name:     "random tokens should pass",
+			tokens:   generateRandomTokens(50, 16),
 			wantPass: true,
 		},
 		{
-			name:    "all same bits should fail",
-			tokens:  []string{"aaaaaaa", "aaaaaaa", "aaaaaaa"},
+			name:     "all same bits should fail",
+			tokens:   []string{"aaaaaaa", "aaaaaaa", "aaaaaaa"},
 			wantPass: false,
 		},
 	}
@@ -114,18 +115,18 @@ func TestRunsTest(t *testing.T) {
 
 func TestSerialCorrelationTest(t *testing.T) {
 	tests := []struct {
-		name    string
-		tokens  []string
+		name     string
+		tokens   []string
 		wantPass bool
 	}{
 		{
-			name:    "random tokens should pass",
-			tokens:  generateRandomTokens(50, 16),
+			name:     "random tokens should pass",
+			tokens:   generateRandomTokens(50, 16),
 			wantPass: true,
 		},
 		{
-			name:    "sequential tokens should fail",
-			tokens:  generateSequentialTokens(20),
+			name:     "sequential tokens should fail",
+			tokens:   generateSequentialTokens(20),
 			wantPass: false,
 		},
 	}
@@ -142,9 +143,9 @@ func TestSerialCorrelationTest(t *testing.T) {
 
 func TestCalculateEntropy(t *testing.T) {
 	tests := []struct {
-		name         string
-		tokens       []string
-		minEntropy   float64
+		name       string
+		tokens     []string
+		minEntropy float64
 	}{
 		{
 			name:       "random tokens should have high entropy",
@@ -228,9 +229,9 @@ func TestAnalyzeBitDistribution(t *testing.T) {
 
 func TestDetectSequentialPattern(t *testing.T) {
 	tests := []struct {
-		name          string
-		tokens        []string
-		shouldDetect  bool
+		name         string
+		tokens       []string
+		shouldDetect bool
 	}{
 		{
 			name:         "sequential tokens should be detected",
@@ -303,8 +304,8 @@ func TestFingerprintPRNG(t *testing.T) {
 	// Create analysis for sequential tokens
 	tokens := generateSequentialTokens(50)
 	analysis := &EntropyAnalysis{
-		TokenCount:   len(tokens),
-		CharacterSet: GetCharacterSet(tokens),
+		TokenCount:     len(tokens),
+		CharacterSet:   GetCharacterSet(tokens),
 		ShannonEntropy: CalculateEntropy(tokens),
 		DetectedPatterns: []Pattern{
 			{
@@ -391,6 +392,324 @@ func TestStorage(t *testing.T) {
 	if err := storage.CompleteSession(session.ID); err != nil {
 		t.Fatalf("CompleteSession() error = %v", err)
 	}
+}
+
+// TestForeignKeysEnabled verifies that foreign key constraints are enabled
+func TestForeignKeysEnabled(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_fk_enabled.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Verify foreign keys are enabled
+	var fkEnabled int
+	err = storage.db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled)
+	if err != nil {
+		t.Fatalf("Failed to query foreign_keys pragma: %v", err)
+	}
+
+	if fkEnabled != 1 {
+		t.Errorf("Foreign keys pragma = %d, want 1 (enabled)", fkEnabled)
+	}
+
+	t.Logf("Foreign keys enabled: %v", fkEnabled == 1)
+}
+
+// TestForeignKeyEnforcement verifies that FK constraints are enforced
+func TestForeignKeyEnforcement(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_fk_enforcement.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Create session
+	extractor := TokenExtractor{
+		Pattern:  ".*",
+		Location: "cookie",
+		Name:     "session",
+	}
+
+	session, err := storage.CreateSession("FK Test Session", extractor, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	// Create token referencing the session
+	now := time.Now().UTC()
+	sample := TokenSample{
+		CaptureSessionID: session.ID,
+		TokenValue:       "test-token",
+		TokenLength:      10,
+		CapturedAt:       now,
+	}
+
+	err = storage.StoreToken(sample)
+	if err != nil {
+		t.Fatalf("StoreToken() error = %v", err)
+	}
+
+	// Try to delete session (should fail due to FK constraint)
+	_, err = storage.db.Exec("DELETE FROM capture_sessions WHERE id = ?", session.ID)
+	if err == nil {
+		t.Error("DELETE should fail due to foreign key constraint")
+	} else {
+		// Verify it's a foreign key constraint error
+		if !strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+			t.Errorf("Expected FOREIGN KEY constraint error, got: %v", err)
+		} else {
+			t.Logf("FK constraint correctly enforced: %v", err)
+		}
+	}
+
+	// Delete the token first, then the session should succeed
+	_, err = storage.db.Exec("DELETE FROM token_samples WHERE capture_session_id = ?", session.ID)
+	if err != nil {
+		t.Fatalf("Failed to delete tokens: %v", err)
+	}
+
+	// Now deleting session should succeed
+	_, err = storage.db.Exec("DELETE FROM capture_sessions WHERE id = ?", session.ID)
+	if err != nil {
+		t.Errorf("DELETE should succeed after removing tokens: %v", err)
+	}
+}
+
+// TestForeignKeyEnforcement_InvalidSessionID verifies that inserting tokens with invalid session ID fails
+func TestForeignKeyEnforcement_InvalidSessionID(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_fk_invalid.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Try to insert token with non-existent session ID
+	now := time.Now().UTC()
+	sample := TokenSample{
+		CaptureSessionID: 99999, // Non-existent session
+		TokenValue:       "orphan-token",
+		TokenLength:      12,
+		CapturedAt:       now,
+	}
+
+	err = storage.StoreToken(sample)
+	if err == nil {
+		t.Error("StoreToken should fail with invalid session ID due to FK constraint")
+	} else {
+		// Verify it's a foreign key constraint error
+		if !strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+			t.Errorf("Expected FOREIGN KEY constraint error, got: %v", err)
+		} else {
+			t.Logf("FK constraint correctly enforced for invalid session ID: %v", err)
+		}
+	}
+}
+
+// TestStoreToken_AtomicOperations verifies that StoreToken performs both
+// insert and count update atomically within a transaction
+func TestStoreToken_AtomicOperations(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_atomic_store.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Create session
+	extractor := TokenExtractor{
+		Pattern:  ".*",
+		Location: "cookie",
+		Name:     "session",
+	}
+
+	session, err := storage.CreateSession("Atomic Test Session", extractor, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	// Store a token
+	now := time.Now().UTC()
+	sample := TokenSample{
+		CaptureSessionID: session.ID,
+		TokenValue:       "test-token-value",
+		TokenLength:      16,
+		CapturedAt:       now,
+		SourceRequestID:  "req-001",
+	}
+
+	err = storage.StoreToken(sample)
+	if err != nil {
+		t.Fatalf("StoreToken() error = %v", err)
+	}
+
+	// Verify token was inserted
+	var storedToken string
+	var tokenLength int
+	err = storage.db.QueryRow(`
+		SELECT token_value, token_length FROM token_samples
+		WHERE capture_session_id = ?
+		ORDER BY id DESC LIMIT 1
+	`, session.ID).Scan(&storedToken, &tokenLength)
+	if err != nil {
+		t.Fatalf("Failed to query stored token: %v", err)
+	}
+	if storedToken != "test-token-value" {
+		t.Errorf("Stored token = %s, want test-token-value", storedToken)
+	}
+	if tokenLength != 16 {
+		t.Errorf("Token length = %d, want 16", tokenLength)
+	}
+
+	// Verify session token count was updated atomically
+	var count int
+	err = storage.db.QueryRow(`
+		SELECT token_count FROM capture_sessions WHERE id = ?
+	`, session.ID).Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query token count: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Token count = %d, want 1", count)
+	}
+
+	// Store multiple tokens and verify count increments correctly
+	for i := 2; i <= 5; i++ {
+		sample := TokenSample{
+			CaptureSessionID: session.ID,
+			TokenValue:       fmt.Sprintf("test-token-%d", i),
+			TokenLength:      len(fmt.Sprintf("test-token-%d", i)),
+			CapturedAt:       now.Add(time.Duration(i) * time.Second),
+		}
+		if err := storage.StoreToken(sample); err != nil {
+			t.Fatalf("StoreToken() for token %d error = %v", i, err)
+		}
+	}
+
+	// Verify final count
+	err = storage.db.QueryRow(`
+		SELECT token_count FROM capture_sessions WHERE id = ?
+	`, session.ID).Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query final token count: %v", err)
+	}
+	if count != 5 {
+		t.Errorf("Final token count = %d, want 5", count)
+	}
+
+	// Verify total stored tokens
+	var tokenCount int
+	err = storage.db.QueryRow(`
+		SELECT COUNT(*) FROM token_samples WHERE capture_session_id = ?
+	`, session.ID).Scan(&tokenCount)
+	if err != nil {
+		t.Fatalf("Failed to count tokens: %v", err)
+	}
+	if tokenCount != 5 {
+		t.Errorf("Stored tokens count = %d, want 5", tokenCount)
+	}
+
+	t.Logf("Atomic operations test passed: %d tokens stored, session count = %d", tokenCount, count)
+}
+
+// TestStoreToken_ConcurrentAtomicity tests that concurrent StoreToken calls
+// maintain data integrity
+func TestStoreToken_ConcurrentAtomicity(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_concurrent_atomic.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Create session
+	extractor := TokenExtractor{
+		Pattern:  ".*",
+		Location: "cookie",
+		Name:     "session",
+	}
+
+	session, err := storage.CreateSession("Concurrent Atomic Test", extractor, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	// Store tokens concurrently
+	numGoroutines := 10
+	tokensPerGoroutine := 10
+	expectedTotal := numGoroutines * tokensPerGoroutine
+
+	var wg sync.WaitGroup
+	now := time.Now().UTC()
+
+	for g := 0; g < numGoroutines; g++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+			for i := 0; i < tokensPerGoroutine; i++ {
+				sample := TokenSample{
+					CaptureSessionID: session.ID,
+					TokenValue:       fmt.Sprintf("token-g%d-i%d", goroutineID, i),
+					TokenLength:      len(fmt.Sprintf("token-g%d-i%d", goroutineID, i)),
+					CapturedAt:       now.Add(time.Duration(goroutineID*tokensPerGoroutine+i) * time.Millisecond),
+				}
+				if err := storage.StoreToken(sample); err != nil {
+					t.Errorf("StoreToken() goroutine %d, token %d error = %v", goroutineID, i, err)
+				}
+			}
+		}(g)
+	}
+
+	wg.Wait()
+
+	// Verify token count matches actual stored tokens
+	var sessionCount int
+	err = storage.db.QueryRow(`
+		SELECT token_count FROM capture_sessions WHERE id = ?
+	`, session.ID).Scan(&sessionCount)
+	if err != nil {
+		t.Fatalf("Failed to query session count: %v", err)
+	}
+
+	var actualCount int
+	err = storage.db.QueryRow(`
+		SELECT COUNT(*) FROM token_samples WHERE capture_session_id = ?
+	`, session.ID).Scan(&actualCount)
+	if err != nil {
+		t.Fatalf("Failed to count tokens: %v", err)
+	}
+
+	if sessionCount != expectedTotal {
+		t.Errorf("Session token_count = %d, want %d", sessionCount, expectedTotal)
+	}
+
+	if actualCount != expectedTotal {
+		t.Errorf("Actual stored tokens = %d, want %d", actualCount, expectedTotal)
+	}
+
+	if sessionCount != actualCount {
+		t.Errorf("Data inconsistency: session count (%d) != actual tokens (%d)", sessionCount, actualCount)
+	}
+
+	t.Logf("Concurrent atomicity test passed: %d tokens stored, session count = %d", actualCount, sessionCount)
 }
 
 // Engine tests
@@ -856,15 +1175,15 @@ func TestAutoStopConditions(t *testing.T) {
 	// Test timeout auto-stop
 	t.Run("TimeoutStop", func(t *testing.T) {
 		extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
-		
+
 		// Use a custom now function for testing
 		startTime := time.Now()
 		nowFunc := func() time.Time { return startTime }
-		
+
 		// Create storage and engine with custom time
 		engine2 := NewEntropyEngine(storage, nowFunc)
 		sm2 := NewSessionManager(storage, engine2, nowFunc)
-		
+
 		session, _ := sm2.StartSession("Timeout Test", extractor, 0, 1*time.Second)
 
 		// Capture one token

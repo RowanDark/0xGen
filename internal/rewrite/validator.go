@@ -1,10 +1,12 @@
 package rewrite
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Validator checks rules for common mistakes and potential issues.
@@ -97,7 +99,7 @@ func (v *Validator) checkRegexPatterns(rule *Rule) []ValidationError {
 
 	// Check scope URL pattern
 	if rule.Scope.URLPattern != "" {
-		if _, err := regexp.Compile(rule.Scope.URLPattern); err != nil {
+		if err := v.validateRegexPattern(rule.Scope.URLPattern); err != nil {
 			errors = append(errors, ValidationError{
 				RuleID:     rule.ID,
 				RuleName:   rule.Name,
@@ -105,7 +107,7 @@ func (v *Validator) checkRegexPatterns(rule *Rule) []ValidationError {
 				Type:       ErrorTypeRegex,
 				Message:    fmt.Sprintf("Invalid URL pattern regex: %v", err),
 				Location:   "scope.url_pattern",
-				Suggestion: "Check your regex syntax. Common issues: unescaped characters, unclosed groups.",
+				Suggestion: "Check your regex syntax. Common issues: unescaped characters, unclosed groups, or ReDoS patterns.",
 			})
 		}
 	}
@@ -113,7 +115,7 @@ func (v *Validator) checkRegexPatterns(rule *Rule) []ValidationError {
 	// Check condition patterns
 	for i, cond := range rule.Conditions {
 		if cond.Type == ConditionRegex && cond.Pattern != "" {
-			if _, err := regexp.Compile(cond.Pattern); err != nil {
+			if err := v.validateRegexPattern(cond.Pattern); err != nil {
 				errors = append(errors, ValidationError{
 					RuleID:     rule.ID,
 					RuleName:   rule.Name,
@@ -121,7 +123,7 @@ func (v *Validator) checkRegexPatterns(rule *Rule) []ValidationError {
 					Type:       ErrorTypeRegex,
 					Message:    fmt.Sprintf("Invalid regex in condition %d: %v", i, err),
 					Location:   fmt.Sprintf("conditions[%d].pattern", i),
-					Suggestion: "Verify your regex pattern is valid.",
+					Suggestion: "Verify your regex pattern is valid and not vulnerable to ReDoS.",
 				})
 			}
 		}
@@ -130,7 +132,7 @@ func (v *Validator) checkRegexPatterns(rule *Rule) []ValidationError {
 	// Check action patterns
 	for i, action := range rule.Actions {
 		if action.Type == ActionReplace && action.Pattern != "" {
-			if _, err := regexp.Compile(action.Pattern); err != nil {
+			if err := v.validateRegexPattern(action.Pattern); err != nil {
 				errors = append(errors, ValidationError{
 					RuleID:     rule.ID,
 					RuleName:   rule.Name,
@@ -138,13 +140,61 @@ func (v *Validator) checkRegexPatterns(rule *Rule) []ValidationError {
 					Type:       ErrorTypeRegex,
 					Message:    fmt.Sprintf("Invalid regex in action %d: %v", i, err),
 					Location:   fmt.Sprintf("actions[%d].pattern", i),
-					Suggestion: "Check your replacement pattern syntax.",
+					Suggestion: "Check your replacement pattern syntax and ensure it's not vulnerable to ReDoS.",
 				})
 			}
 		}
 	}
 
 	return errors
+}
+
+// validateRegexPattern validates a regex pattern for correctness and ReDoS vulnerabilities.
+func (v *Validator) validateRegexPattern(pattern string) error {
+	// 1. Compile check
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return fmt.Errorf("invalid regex: %w", err)
+	}
+
+	// 2. Check for known dangerous patterns (catastrophic backtracking)
+	dangerousPatterns := []struct {
+		pattern     string
+		description string
+	}{
+		{`\(\.\+\)\+`, "nested quantifier (.+)+"},
+		{`\(\.\*\)\+`, "nested quantifier (.*)+"},
+		{`\(\.\+\)\*`, "nested quantifier (.+)*"},
+		{`\(\.\*\)\*`, "nested quantifier (.*)*"},
+		{`\([^)]+\|[^)]+\)\*`, "alternation with quantifier (a|b)*"},
+		{`\([^)]+\)\+\$`, "quantified group at end (a+)+$"},
+	}
+
+	for _, dp := range dangerousPatterns {
+		if matched, _ := regexp.MatchString(dp.pattern, pattern); matched {
+			return fmt.Errorf("potentially catastrophic regex pattern detected: %s", dp.description)
+		}
+	}
+
+	// 3. Test with timeout to detect ReDoS
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// Test with a long string that could trigger backtracking
+	testString := strings.Repeat("a", 1000)
+	done := make(chan bool, 1)
+
+	go func() {
+		_ = re.MatchString(testString)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("regex execution timeout - possible ReDoS vulnerability")
+	}
 }
 
 // checkBroadPatterns checks for overly broad regex patterns.

@@ -331,3 +331,166 @@ func TestValidatorRegexErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatorReDoSProtection(t *testing.T) {
+	validator := NewValidator(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+
+	tests := []struct {
+		name        string
+		pattern     string
+		shouldError bool
+		errorType   ErrorType
+		description string
+	}{
+		{
+			name:        "nested quantifier (.+)+",
+			pattern:     "(.+)+",
+			shouldError: true,
+			errorType:   ErrorTypeRegex,
+			description: "classic ReDoS pattern with nested quantifiers",
+		},
+		{
+			name:        "nested quantifier (.*)+",
+			pattern:     "(.*)+",
+			shouldError: true,
+			errorType:   ErrorTypePerformance,
+			description: "catastrophic backtracking pattern",
+		},
+		{
+			name:        "nested quantifier (.+)*",
+			pattern:     "(.+)*",
+			shouldError: true,
+			errorType:   ErrorTypeRegex,
+			description: "nested quantifier variation",
+		},
+		{
+			name:        "overlapping alternation (a|a)+",
+			pattern:     "(a|a)+",
+			shouldError: true,
+			errorType:   ErrorTypeRegex,
+			description: "overlapping alternation causes exponential backtracking",
+		},
+		{
+			name:        "nested groups with quantifiers",
+			pattern:     "((a+)+)+",
+			shouldError: true,
+			errorType:   ErrorTypeRegex,
+			description: "deeply nested quantifiers",
+		},
+		{
+			name:        "safe pattern - simple match",
+			pattern:     "^[a-z]+$",
+			shouldError: false,
+			description: "simple character class is safe",
+		},
+		{
+			name:        "safe pattern - email-like",
+			pattern:     `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`,
+			shouldError: false,
+			description: "common email pattern is safe",
+		},
+		{
+			name:        "safe pattern - word boundaries",
+			pattern:     `\bword\b`,
+			shouldError: false,
+			description: "word boundary pattern is safe",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := &Rule{
+				Name:    "redos-test",
+				Enabled: true,
+				Scope:   RuleScope{Direction: DirectionRequest},
+				Conditions: []Condition{
+					{Type: ConditionRegex, Location: LocationBody, Pattern: tt.pattern},
+				},
+				Actions: []Action{{Type: ActionAdd, Location: LocationHeader, Name: "X-Test", Value: "test"}},
+			}
+
+			errors := validator.ValidateRule(rule)
+
+			if tt.shouldError {
+				if len(errors) == 0 {
+					t.Errorf("Expected error for pattern %q (%s), got none", tt.pattern, tt.description)
+				} else {
+					// Check that at least one error is of expected type
+					found := false
+					for _, err := range errors {
+						if err.Type == tt.errorType || err.Type == ErrorTypePerformance || err.Type == ErrorTypeRegex {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected error type %s or performance/regex for pattern %q, got %v", tt.errorType, tt.pattern, errors)
+					}
+				}
+			} else {
+				// Should not have regex or performance errors
+				for _, err := range errors {
+					if err.Type == ErrorTypeRegex || (err.Type == ErrorTypePerformance && err.Severity == SeverityError) {
+						t.Errorf("Unexpected error for safe pattern %q: %s - %s", tt.pattern, err.Type, err.Message)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorReDoSInActionPatterns(t *testing.T) {
+	validator := NewValidator(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+
+	// Test that ReDoS patterns in action patterns are also caught
+	rule := &Rule{
+		Name:    "redos-action",
+		Enabled: true,
+		Scope:   RuleScope{Direction: DirectionRequest},
+		Actions: []Action{
+			{Type: ActionReplace, Location: LocationBody, Pattern: "(.+)+", Value: "safe"},
+		},
+	}
+
+	errors := validator.ValidateRule(rule)
+
+	// Should detect the dangerous pattern
+	found := false
+	for _, err := range errors {
+		if err.Type == ErrorTypeRegex || err.Type == ErrorTypePerformance {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Should detect ReDoS pattern in action regex")
+	}
+}
+
+func TestValidatorReDoSInURLPattern(t *testing.T) {
+	validator := NewValidator(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+
+	// Test that ReDoS patterns in URL scope patterns are also caught
+	rule := &Rule{
+		Name:    "redos-url",
+		Enabled: true,
+		Scope:   RuleScope{Direction: DirectionRequest, URLPattern: "(.+)+"},
+		Actions: []Action{{Type: ActionAdd, Location: LocationHeader, Name: "X-Test", Value: "test"}},
+	}
+
+	errors := validator.ValidateRule(rule)
+
+	// Should detect the dangerous pattern
+	found := false
+	for _, err := range errors {
+		if err.Type == ErrorTypeRegex || err.Type == ErrorTypePerformance {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Should detect ReDoS pattern in URL pattern scope")
+	}
+}

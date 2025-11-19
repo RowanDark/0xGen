@@ -31,7 +31,25 @@ func NewStorage(dbPath string, logger *slog.Logger) (*Storage, error) {
 
 	// Enable WAL mode for better concurrency
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+
+	// Enable foreign key constraints
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	// Verify foreign keys are enabled
+	var fkEnabled int
+	if err := db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to verify foreign keys: %w", err)
+	}
+	if fkEnabled != 1 {
+		db.Close()
+		return nil, fmt.Errorf("foreign keys could not be enabled")
 	}
 
 	storage := &Storage{
@@ -41,11 +59,13 @@ func NewStorage(dbPath string, logger *slog.Logger) (*Storage, error) {
 
 	// Create tables
 	if err := storage.createTables(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 
 	// Create test case tables
 	if err := storage.InitTestCaseTables(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to create test case tables: %w", err)
 	}
 
@@ -407,25 +427,49 @@ func (s *Storage) ListRules() ([]*Rule, error) {
 		// Parse JSON fields
 		if scopeMethods.Valid && scopeMethods.String != "" {
 			if err := json.Unmarshal([]byte(scopeMethods.String), &rule.Scope.Methods); err != nil {
-				s.logger.Warn("failed to unmarshal scope methods", "id", rule.ID, "error", err)
+				s.logger.Warn("corrupted rule scope methods",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", scopeMethods.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d scope methods: %w", rule.ID, err)
 			}
 		}
 
 		if conditions.Valid && conditions.String != "" {
 			if err := json.Unmarshal([]byte(conditions.String), &rule.Conditions); err != nil {
-				s.logger.Warn("failed to unmarshal conditions", "id", rule.ID, "error", err)
+				s.logger.Warn("corrupted rule conditions",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", conditions.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d conditions: %w", rule.ID, err)
 			}
 		}
 
 		if actions.Valid && actions.String != "" {
 			if err := json.Unmarshal([]byte(actions.String), &rule.Actions); err != nil {
-				s.logger.Warn("failed to unmarshal actions", "id", rule.ID, "error", err)
+				s.logger.Warn("corrupted rule actions",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", actions.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d actions: %w", rule.ID, err)
 			}
 		}
 
 		if tags.Valid && tags.String != "" {
 			if err := json.Unmarshal([]byte(tags.String), &rule.Tags); err != nil {
-				s.logger.Warn("failed to unmarshal tags", "id", rule.ID, "error", err)
+				s.logger.Warn("corrupted rule tags",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", tags.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d tags: %w", rule.ID, err)
 			}
 		}
 
@@ -507,18 +551,50 @@ func (s *Storage) SearchRules(ctx context.Context, query string) ([]*Rule, error
 			rule.Scope.Direction = DirectionBoth
 		}
 
-		// Parse JSON fields (same as ListRules)
+		// Parse JSON fields
 		if scopeMethods.Valid && scopeMethods.String != "" {
-			json.Unmarshal([]byte(scopeMethods.String), &rule.Scope.Methods)
+			if err := json.Unmarshal([]byte(scopeMethods.String), &rule.Scope.Methods); err != nil {
+				s.logger.Warn("corrupted rule scope methods",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", scopeMethods.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d scope methods: %w", rule.ID, err)
+			}
 		}
 		if conditions.Valid && conditions.String != "" {
-			json.Unmarshal([]byte(conditions.String), &rule.Conditions)
+			if err := json.Unmarshal([]byte(conditions.String), &rule.Conditions); err != nil {
+				s.logger.Warn("corrupted rule conditions",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", conditions.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d conditions: %w", rule.ID, err)
+			}
 		}
 		if actions.Valid && actions.String != "" {
-			json.Unmarshal([]byte(actions.String), &rule.Actions)
+			if err := json.Unmarshal([]byte(actions.String), &rule.Actions); err != nil {
+				s.logger.Warn("corrupted rule actions",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", actions.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d actions: %w", rule.ID, err)
+			}
 		}
 		if tags.Valid && tags.String != "" {
-			json.Unmarshal([]byte(tags.String), &rule.Tags)
+			if err := json.Unmarshal([]byte(tags.String), &rule.Tags); err != nil {
+				s.logger.Warn("corrupted rule tags",
+					"rule_id", rule.ID,
+					"rule_name", rule.Name,
+					"json", tags.String,
+					"error", err,
+				)
+				return nil, fmt.Errorf("unmarshal rule %d tags: %w", rule.ID, err)
+			}
 		}
 
 		rule.CreatedAt = time.Unix(createdAt, 0)

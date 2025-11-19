@@ -1,6 +1,7 @@
 package blitz
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -27,6 +28,23 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("enable WAL: %w", err)
+	}
+
+	// Enable foreign key constraints
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("enable foreign keys: %w", err)
+	}
+
+	// Verify foreign keys are enabled
+	var fkEnabled int
+	if err := db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("verify foreign keys: %w", err)
+	}
+	if fkEnabled != 1 {
+		db.Close()
+		return nil, fmt.Errorf("foreign keys could not be enabled")
 	}
 
 	storage := &SQLiteStorage{
@@ -135,8 +153,15 @@ func (s *SQLiteStorage) initializeSessionID() error {
 	return nil
 }
 
-// Store saves a fuzzing result to the database.
+// Store saves a fuzzing result to the database atomically.
 func (s *SQLiteStorage) Store(result *FuzzResult) error {
+	ctx := context.Background()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Rollback if not committed
+
 	// Serialize complex fields to JSON
 	payloadSetJSON, _ := json.Marshal(result.PayloadSet)
 	requestHeadersJSON, _ := json.Marshal(result.Request.Headers)
@@ -158,7 +183,9 @@ func (s *SQLiteStorage) Store(result *FuzzResult) error {
 		isInteresting = sql.NullBool{Bool: result.Anomaly.IsInteresting, Valid: true}
 	}
 
-	sqlResult, err := s.insertStmt.Exec(
+	// Use transaction-bound prepared statement
+	txStmt := tx.Stmt(s.insertStmt)
+	sqlResult, err := txStmt.Exec(
 		s.sessionID,
 		result.RequestID,
 		result.Position,
@@ -187,9 +214,17 @@ func (s *SQLiteStorage) Store(result *FuzzResult) error {
 		return fmt.Errorf("insert result: %w", err)
 	}
 
-	// Update the result ID
-	id, _ := sqlResult.LastInsertId()
+	// Get the inserted ID
+	id, err := sqlResult.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("get last insert id: %w", err)
+	}
 	result.ID = id
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
 
 	return nil
 }

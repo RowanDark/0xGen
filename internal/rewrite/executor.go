@@ -7,11 +7,156 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+// crlfPattern matches CR, LF, and null bytes that could enable header injection
+var crlfPattern = regexp.MustCompile(`[\r\n\x00]`)
+
+// sanitizeHeaderValue validates and sanitizes a header value to prevent CRLF injection.
+// Returns an error if the value contains invalid characters.
+func sanitizeHeaderValue(value string) (string, error) {
+	// Check for CRLF and null bytes
+	if crlfPattern.MatchString(value) {
+		return "", fmt.Errorf("header value contains invalid characters (CRLF or null)")
+	}
+
+	// Trim whitespace
+	value = strings.TrimSpace(value)
+
+	// Additional validation: printable ASCII only (32-126)
+	for _, r := range value {
+		if r < 32 || r > 126 {
+			return "", fmt.Errorf("header value contains non-printable character: %U", r)
+		}
+	}
+
+	return value, nil
+}
+
+// sanitizeHeaderName validates and sanitizes a header name to prevent injection.
+func sanitizeHeaderName(name string) (string, error) {
+	// Check for CRLF and null bytes
+	if crlfPattern.MatchString(name) {
+		return "", fmt.Errorf("header name contains invalid characters (CRLF or null)")
+	}
+
+	// Trim whitespace
+	name = strings.TrimSpace(name)
+
+	// Header names must be tokens (no spaces, no special chars except hyphen)
+	for _, r := range name {
+		if r < 33 || r > 126 || r == ':' {
+			return "", fmt.Errorf("header name contains invalid character: %U", r)
+		}
+	}
+
+	return name, nil
+}
+
+// rewriteCookie rewrites a cookie value while preserving security flags.
+// If the cookie doesn't exist, it creates a new one with secure defaults.
+func rewriteCookie(req *http.Request, name, newValue string, logger *slog.Logger) error {
+	// Find existing cookie to preserve attributes
+	var existingCookie *http.Cookie
+	for _, cookie := range req.Cookies() {
+		if cookie.Name == name {
+			existingCookie = cookie
+			break
+		}
+	}
+
+	// Create new cookie
+	newCookie := &http.Cookie{
+		Name:  name,
+		Value: newValue,
+	}
+
+	// Preserve security flags if cookie existed
+	if existingCookie != nil {
+		newCookie.HttpOnly = existingCookie.HttpOnly
+		newCookie.Secure = existingCookie.Secure
+		newCookie.SameSite = existingCookie.SameSite
+		newCookie.Domain = existingCookie.Domain
+		newCookie.Path = existingCookie.Path
+		newCookie.MaxAge = existingCookie.MaxAge
+		newCookie.Expires = existingCookie.Expires
+
+		// Log warning if we're adding a cookie that had security flags
+		// but we can't fully preserve them in the Cookie header
+		if existingCookie.HttpOnly || existingCookie.Secure || existingCookie.SameSite != 0 {
+			if logger != nil {
+				logger.Debug("preserving cookie security attributes",
+					"cookie_name", name,
+					"http_only", existingCookie.HttpOnly,
+					"secure", existingCookie.Secure,
+					"same_site", existingCookie.SameSite,
+				)
+			}
+		}
+	} else {
+		// New cookie - set secure defaults
+		newCookie.HttpOnly = true
+		newCookie.Secure = true
+		newCookie.SameSite = http.SameSiteStrictMode
+
+		if logger != nil {
+			logger.Debug("creating new cookie with secure defaults",
+				"cookie_name", name,
+			)
+		}
+	}
+
+	// Rebuild cookies: remove old cookie and add new one
+	var cookies []*http.Cookie
+	for _, cookie := range req.Cookies() {
+		if cookie.Name != name {
+			cookies = append(cookies, cookie)
+		}
+	}
+
+	// Clear existing cookies and add all back
+	req.Header.Del("Cookie")
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+	req.AddCookie(newCookie)
+
+	return nil
+}
+
+// addCookieWithSecureDefaults adds a new cookie with secure defaults.
+func addCookieWithSecureDefaults(req *http.Request, name, value string, logger *slog.Logger) {
+	// Check if cookie already exists
+	for _, cookie := range req.Cookies() {
+		if cookie.Name == name {
+			// Cookie exists, use rewrite to preserve flags
+			rewriteCookie(req, name, value, logger)
+			return
+		}
+	}
+
+	// New cookie - create with secure defaults
+	newCookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	}
+
+	if logger != nil {
+		logger.Debug("adding new cookie with secure defaults",
+			"cookie_name", name,
+		)
+	}
+
+	req.AddCookie(newCookie)
+}
 
 // Executor handles rule action execution.
 type Executor struct {
@@ -187,37 +332,58 @@ func (e *Executor) executeReplace(action Action, req *http.Request, resp *http.R
 	case LocationHeader:
 		if isResponse && resp != nil {
 			current := resp.Header.Get(action.Name)
+			var newValue string
 			if action.compiledRegex != nil {
-				resp.Header.Set(action.Name, action.compiledRegex.ReplaceAllString(current, value))
+				newValue = action.compiledRegex.ReplaceAllString(current, value)
 			} else {
-				resp.Header.Set(action.Name, strings.ReplaceAll(current, action.Pattern, value))
+				newValue = strings.ReplaceAll(current, action.Pattern, value)
 			}
+			// Sanitize the new header value to prevent CRLF injection
+			sanitizedValue, err := sanitizeHeaderValue(newValue)
+			if err != nil {
+				e.logger.Warn("invalid header value in replace action",
+					"name", action.Name,
+					"value", newValue,
+					"error", err,
+				)
+				return fmt.Errorf("invalid header value: %w", err)
+			}
+			resp.Header.Set(action.Name, sanitizedValue)
 		} else if !isResponse && req != nil {
 			current := req.Header.Get(action.Name)
+			var newValue string
 			if action.compiledRegex != nil {
-				req.Header.Set(action.Name, action.compiledRegex.ReplaceAllString(current, value))
+				newValue = action.compiledRegex.ReplaceAllString(current, value)
 			} else {
-				req.Header.Set(action.Name, strings.ReplaceAll(current, action.Pattern, value))
+				newValue = strings.ReplaceAll(current, action.Pattern, value)
 			}
+			// Sanitize the new header value to prevent CRLF injection
+			sanitizedValue, err := sanitizeHeaderValue(newValue)
+			if err != nil {
+				e.logger.Warn("invalid header value in replace action",
+					"name", action.Name,
+					"value", newValue,
+					"error", err,
+				)
+				return fmt.Errorf("invalid header value: %w", err)
+			}
+			req.Header.Set(action.Name, sanitizedValue)
 		}
 
 	case LocationCookie:
 		if !isResponse && req != nil {
-			// Replace cookie value
-			for i, cookie := range req.Cookies() {
+			// Replace cookie value while preserving security flags
+			for _, cookie := range req.Cookies() {
 				if cookie.Name == action.Name {
+					var newValue string
 					if action.compiledRegex != nil {
-						cookie.Value = action.compiledRegex.ReplaceAllString(cookie.Value, value)
+						newValue = action.compiledRegex.ReplaceAllString(cookie.Value, value)
 					} else {
-						cookie.Value = strings.ReplaceAll(cookie.Value, action.Pattern, value)
+						newValue = strings.ReplaceAll(cookie.Value, action.Pattern, value)
 					}
-					req.Header.Set("Cookie", "")
-					for j, c := range req.Cookies() {
-						if j == i {
-							req.AddCookie(cookie)
-						} else {
-							req.AddCookie(c)
-						}
+					// Use rewriteCookie to preserve security flags
+					if err := rewriteCookie(req, action.Name, newValue, e.logger); err != nil {
+						return fmt.Errorf("rewrite cookie %s: %w", action.Name, err)
 					}
 					break
 				}
@@ -305,19 +471,36 @@ func (e *Executor) executeRemove(action Action, req *http.Request, resp *http.Re
 func (e *Executor) executeAdd(action Action, req *http.Request, resp *http.Response, value string, isResponse bool) error {
 	switch action.Location {
 	case LocationHeader:
+		// Sanitize header name and value to prevent CRLF injection
+		sanitizedName, err := sanitizeHeaderName(action.Name)
+		if err != nil {
+			e.logger.Warn("invalid header name in add action",
+				"name", action.Name,
+				"error", err,
+			)
+			return fmt.Errorf("invalid header name: %w", err)
+		}
+
+		sanitizedValue, err := sanitizeHeaderValue(value)
+		if err != nil {
+			e.logger.Warn("invalid header value in add action",
+				"name", action.Name,
+				"value", value,
+				"error", err,
+			)
+			return fmt.Errorf("invalid header value: %w", err)
+		}
+
 		if isResponse && resp != nil {
-			resp.Header.Add(action.Name, value)
+			resp.Header.Add(sanitizedName, sanitizedValue)
 		} else if !isResponse && req != nil {
-			req.Header.Add(action.Name, value)
+			req.Header.Add(sanitizedName, sanitizedValue)
 		}
 
 	case LocationCookie:
 		if !isResponse && req != nil {
-			cookie := &http.Cookie{
-				Name:  action.Name,
-				Value: value,
-			}
-			req.AddCookie(cookie)
+			// Add cookie with secure defaults
+			addCookieWithSecureDefaults(req, action.Name, value, e.logger)
 		}
 
 	case LocationQuery:
