@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -121,7 +122,7 @@ func (s *Storage) CreateSession(name string, extractor TokenExtractor, targetCou
 		)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, name, extractor.Pattern, extractor.Location, extractor.Name,
-	   now, CaptureStatusActive, targetCount, timeoutSeconds, 50)
+		now, CaptureStatusActive, targetCount, timeoutSeconds, 50)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -143,24 +144,43 @@ func (s *Storage) CreateSession(name string, extractor TokenExtractor, targetCou
 	}, nil
 }
 
-// StoreToken stores a captured token sample
+// StoreToken stores a captured token sample atomically with token count update
 func (s *Storage) StoreToken(sample TokenSample) error {
-	_, err := s.db.Exec(`
+	ctx := context.Background()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Rollback if not committed
+
+	// Insert token
+	result, err := tx.ExecContext(ctx, `
 		INSERT INTO token_samples (capture_session_id, token_value, token_length, captured_at, source_request_id)
 		VALUES (?, ?, ?, ?, ?)
 	`, sample.CaptureSessionID, sample.TokenValue, sample.TokenLength, sample.CapturedAt, sample.SourceRequestID)
 	if err != nil {
-		return fmt.Errorf("store token: %w", err)
+		return fmt.Errorf("insert token: %w", err)
+	}
+
+	// Get the inserted ID
+	sample.ID, err = result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("get last insert id: %w", err)
 	}
 
 	// Update session token count
-	_, err = s.db.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		UPDATE capture_sessions
 		SET token_count = token_count + 1
 		WHERE id = ?
 	`, sample.CaptureSessionID)
 	if err != nil {
-		return fmt.Errorf("update session count: %w", err)
+		return fmt.Errorf("update token count: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
 	}
 
 	return nil
@@ -254,9 +274,9 @@ func (s *Storage) UpdateSession(session *CaptureSession) error {
 		    last_analyzed_at = ?, last_analysis_count = ?, analysis_interval = ?
 		WHERE id = ?
 	`, session.Status, session.PausedAt, session.CompletedAt, session.StopReason,
-	   session.TargetCount, timeoutSeconds,
-	   session.LastAnalyzedAt, session.LastAnalysisCount, session.AnalysisInterval,
-	   session.ID)
+		session.TargetCount, timeoutSeconds,
+		session.LastAnalyzedAt, session.LastAnalysisCount, session.AnalysisInterval,
+		session.ID)
 
 	if err != nil {
 		return fmt.Errorf("update session: %w", err)
