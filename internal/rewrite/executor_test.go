@@ -417,3 +417,352 @@ func TestExecutorResponseActions_HeaderInjection(t *testing.T) {
 		t.Error("ExecuteResponseActions() should not set header with CRLF injection")
 	}
 }
+
+// Cookie Security Flag Preservation Tests (Issue #42)
+
+func TestRewriteCookie_PreservesSecurityFlags(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	req := httptest.NewRequest("GET", "/", nil)
+
+	// Add cookie with security flags
+	req.AddCookie(&http.Cookie{
+		Name:     "session",
+		Value:    "old-value",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Domain:   "example.com",
+		Path:     "/app",
+		MaxAge:   3600,
+	})
+
+	// Rewrite cookie value
+	err := rewriteCookie(req, "session", "new-value", logger)
+	if err != nil {
+		t.Fatalf("rewriteCookie() error: %v", err)
+	}
+
+	// Verify flags preserved
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Value != "new-value" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "new-value")
+	}
+	if !cookie.HttpOnly {
+		t.Error("HttpOnly flag should be preserved")
+	}
+	if !cookie.Secure {
+		t.Error("Secure flag should be preserved")
+	}
+	if cookie.SameSite != http.SameSiteStrictMode {
+		t.Errorf("SameSite = %v, want %v", cookie.SameSite, http.SameSiteStrictMode)
+	}
+	if cookie.Domain != "example.com" {
+		t.Errorf("Domain = %q, want %q", cookie.Domain, "example.com")
+	}
+	if cookie.Path != "/app" {
+		t.Errorf("Path = %q, want %q", cookie.Path, "/app")
+	}
+	if cookie.MaxAge != 3600 {
+		t.Errorf("MaxAge = %d, want %d", cookie.MaxAge, 3600)
+	}
+}
+
+func TestRewriteCookie_NewCookieGetsSecureDefaults(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	req := httptest.NewRequest("GET", "/", nil)
+
+	// Rewrite non-existent cookie (creates new one)
+	err := rewriteCookie(req, "new-session", "value123", logger)
+	if err != nil {
+		t.Fatalf("rewriteCookie() error: %v", err)
+	}
+
+	// Verify secure defaults
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Value != "value123" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "value123")
+	}
+	if !cookie.HttpOnly {
+		t.Error("New cookie should have HttpOnly=true by default")
+	}
+	if !cookie.Secure {
+		t.Error("New cookie should have Secure=true by default")
+	}
+	if cookie.SameSite != http.SameSiteStrictMode {
+		t.Errorf("New cookie SameSite = %v, want %v", cookie.SameSite, http.SameSiteStrictMode)
+	}
+}
+
+func TestAddCookieWithSecureDefaults(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	req := httptest.NewRequest("GET", "/", nil)
+
+	// Add new cookie
+	addCookieWithSecureDefaults(req, "auth", "token123", logger)
+
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Name != "auth" {
+		t.Errorf("Cookie name = %q, want %q", cookie.Name, "auth")
+	}
+	if cookie.Value != "token123" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "token123")
+	}
+	if !cookie.HttpOnly {
+		t.Error("Cookie should have HttpOnly=true")
+	}
+	if !cookie.Secure {
+		t.Error("Cookie should have Secure=true")
+	}
+	if cookie.SameSite != http.SameSiteStrictMode {
+		t.Errorf("Cookie SameSite = %v, want %v", cookie.SameSite, http.SameSiteStrictMode)
+	}
+}
+
+func TestAddCookieWithSecureDefaults_ExistingCookie(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	req := httptest.NewRequest("GET", "/", nil)
+
+	// Add existing cookie with security flags
+	req.AddCookie(&http.Cookie{
+		Name:     "session",
+		Value:    "old-value",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// Try to add cookie with same name - should preserve flags
+	addCookieWithSecureDefaults(req, "session", "new-value", logger)
+
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Value != "new-value" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "new-value")
+	}
+	if !cookie.HttpOnly {
+		t.Error("HttpOnly should be preserved")
+	}
+	if !cookie.Secure {
+		t.Error("Secure should be preserved")
+	}
+	if cookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("SameSite = %v, want %v (preserved)", cookie.SameSite, http.SameSiteLaxMode)
+	}
+}
+
+func TestExecutorReplaceCookie_PreservesFlags(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	variables := NewVariableStore()
+	executor := NewExecutor(variables, logger)
+
+	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req.AddCookie(&http.Cookie{
+		Name:     "session",
+		Value:    "old-secret",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	action := Action{
+		Type:     ActionReplace,
+		Location: LocationCookie,
+		Name:     "session",
+		Pattern:  "old",
+		Value:    "new",
+	}
+
+	err := executor.executeReplace(action, req, nil, nil, "new", "test-id", false)
+	if err != nil {
+		t.Fatalf("executeReplace() error: %v", err)
+	}
+
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Value != "new-secret" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "new-secret")
+	}
+	if !cookie.HttpOnly {
+		t.Error("HttpOnly flag should be preserved after replace")
+	}
+	if !cookie.Secure {
+		t.Error("Secure flag should be preserved after replace")
+	}
+}
+
+func TestExecutorAddCookie_GetsSecureDefaults(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	variables := NewVariableStore()
+	executor := NewExecutor(variables, logger)
+
+	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+
+	action := Action{
+		Type:     ActionAdd,
+		Location: LocationCookie,
+		Name:     "tracking",
+		Value:    "abc123",
+	}
+
+	err := executor.executeAdd(action, req, nil, "abc123", false)
+	if err != nil {
+		t.Fatalf("executeAdd() error: %v", err)
+	}
+
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Value != "abc123" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "abc123")
+	}
+	if !cookie.HttpOnly {
+		t.Error("New cookie should have HttpOnly=true")
+	}
+	if !cookie.Secure {
+		t.Error("New cookie should have Secure=true")
+	}
+	if cookie.SameSite != http.SameSiteStrictMode {
+		t.Errorf("Cookie SameSite = %v, want %v", cookie.SameSite, http.SameSiteStrictMode)
+	}
+}
+
+func TestRewriteCookie_PreservesMultipleCookies(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	req := httptest.NewRequest("GET", "/", nil)
+
+	// Add multiple cookies
+	req.AddCookie(&http.Cookie{
+		Name:     "session",
+		Value:    "session-value",
+		HttpOnly: true,
+		Secure:   true,
+	})
+	req.AddCookie(&http.Cookie{
+		Name:     "preference",
+		Value:    "dark-mode",
+		HttpOnly: false,
+		Secure:   false,
+	})
+	req.AddCookie(&http.Cookie{
+		Name:     "tracking",
+		Value:    "old-tracking",
+		HttpOnly: true,
+		Secure:   true,
+	})
+
+	// Rewrite middle cookie
+	err := rewriteCookie(req, "preference", "light-mode", logger)
+	if err != nil {
+		t.Fatalf("rewriteCookie() error: %v", err)
+	}
+
+	// All three cookies should still exist
+	cookies := req.Cookies()
+	if len(cookies) != 3 {
+		t.Fatalf("Expected 3 cookies, got %d", len(cookies))
+	}
+
+	// Find and verify each cookie
+	cookieMap := make(map[string]*http.Cookie)
+	for _, c := range cookies {
+		cookieMap[c.Name] = c
+	}
+
+	// Session cookie unchanged
+	if session := cookieMap["session"]; session == nil || session.Value != "session-value" {
+		t.Error("Session cookie should be unchanged")
+	}
+
+	// Preference cookie updated with preserved flags
+	pref := cookieMap["preference"]
+	if pref == nil {
+		t.Fatal("Preference cookie not found")
+	}
+	if pref.Value != "light-mode" {
+		t.Errorf("Preference value = %q, want %q", pref.Value, "light-mode")
+	}
+	if pref.HttpOnly != false {
+		t.Error("Preference HttpOnly should be preserved as false")
+	}
+
+	// Tracking cookie unchanged
+	if tracking := cookieMap["tracking"]; tracking == nil || tracking.Value != "old-tracking" {
+		t.Error("Tracking cookie should be unchanged")
+	}
+}
+
+func TestExecutorRequestActions_CookieSecurityFlags(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	variables := NewVariableStore()
+	executor := NewExecutor(variables, logger)
+
+	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	req.AddCookie(&http.Cookie{
+		Name:     "session",
+		Value:    "old-value",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	rule := &Rule{
+		Name:    "cookie-rewrite",
+		Enabled: true,
+		Actions: []Action{
+			{
+				Type:     ActionReplace,
+				Location: LocationCookie,
+				Name:     "session",
+				Pattern:  "old",
+				Value:    "new",
+			},
+		},
+	}
+
+	err := executor.ExecuteRequestActions(rule, req, "test-id")
+	if err != nil {
+		t.Fatalf("ExecuteRequestActions() error: %v", err)
+	}
+
+	cookies := req.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("Expected 1 cookie, got %d", len(cookies))
+	}
+
+	cookie := cookies[0]
+	if cookie.Value != "new-value" {
+		t.Errorf("Cookie value = %q, want %q", cookie.Value, "new-value")
+	}
+	if !cookie.HttpOnly {
+		t.Error("HttpOnly should be preserved through ExecuteRequestActions")
+	}
+	if !cookie.Secure {
+		t.Error("Secure should be preserved through ExecuteRequestActions")
+	}
+}

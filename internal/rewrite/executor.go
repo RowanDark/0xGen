@@ -58,6 +58,106 @@ func sanitizeHeaderName(name string) (string, error) {
 	return name, nil
 }
 
+// rewriteCookie rewrites a cookie value while preserving security flags.
+// If the cookie doesn't exist, it creates a new one with secure defaults.
+func rewriteCookie(req *http.Request, name, newValue string, logger *slog.Logger) error {
+	// Find existing cookie to preserve attributes
+	var existingCookie *http.Cookie
+	for _, cookie := range req.Cookies() {
+		if cookie.Name == name {
+			existingCookie = cookie
+			break
+		}
+	}
+
+	// Create new cookie
+	newCookie := &http.Cookie{
+		Name:  name,
+		Value: newValue,
+	}
+
+	// Preserve security flags if cookie existed
+	if existingCookie != nil {
+		newCookie.HttpOnly = existingCookie.HttpOnly
+		newCookie.Secure = existingCookie.Secure
+		newCookie.SameSite = existingCookie.SameSite
+		newCookie.Domain = existingCookie.Domain
+		newCookie.Path = existingCookie.Path
+		newCookie.MaxAge = existingCookie.MaxAge
+		newCookie.Expires = existingCookie.Expires
+
+		// Log warning if we're adding a cookie that had security flags
+		// but we can't fully preserve them in the Cookie header
+		if existingCookie.HttpOnly || existingCookie.Secure || existingCookie.SameSite != 0 {
+			if logger != nil {
+				logger.Debug("preserving cookie security attributes",
+					"cookie_name", name,
+					"http_only", existingCookie.HttpOnly,
+					"secure", existingCookie.Secure,
+					"same_site", existingCookie.SameSite,
+				)
+			}
+		}
+	} else {
+		// New cookie - set secure defaults
+		newCookie.HttpOnly = true
+		newCookie.Secure = true
+		newCookie.SameSite = http.SameSiteStrictMode
+
+		if logger != nil {
+			logger.Debug("creating new cookie with secure defaults",
+				"cookie_name", name,
+			)
+		}
+	}
+
+	// Rebuild cookies: remove old cookie and add new one
+	var cookies []*http.Cookie
+	for _, cookie := range req.Cookies() {
+		if cookie.Name != name {
+			cookies = append(cookies, cookie)
+		}
+	}
+
+	// Clear existing cookies and add all back
+	req.Header.Del("Cookie")
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+	req.AddCookie(newCookie)
+
+	return nil
+}
+
+// addCookieWithSecureDefaults adds a new cookie with secure defaults.
+func addCookieWithSecureDefaults(req *http.Request, name, value string, logger *slog.Logger) {
+	// Check if cookie already exists
+	for _, cookie := range req.Cookies() {
+		if cookie.Name == name {
+			// Cookie exists, use rewrite to preserve flags
+			rewriteCookie(req, name, value, logger)
+			return
+		}
+	}
+
+	// New cookie - create with secure defaults
+	newCookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	}
+
+	if logger != nil {
+		logger.Debug("adding new cookie with secure defaults",
+			"cookie_name", name,
+		)
+	}
+
+	req.AddCookie(newCookie)
+}
+
 // Executor handles rule action execution.
 type Executor struct {
 	variables *VariableStore
@@ -272,21 +372,18 @@ func (e *Executor) executeReplace(action Action, req *http.Request, resp *http.R
 
 	case LocationCookie:
 		if !isResponse && req != nil {
-			// Replace cookie value
-			for i, cookie := range req.Cookies() {
+			// Replace cookie value while preserving security flags
+			for _, cookie := range req.Cookies() {
 				if cookie.Name == action.Name {
+					var newValue string
 					if action.compiledRegex != nil {
-						cookie.Value = action.compiledRegex.ReplaceAllString(cookie.Value, value)
+						newValue = action.compiledRegex.ReplaceAllString(cookie.Value, value)
 					} else {
-						cookie.Value = strings.ReplaceAll(cookie.Value, action.Pattern, value)
+						newValue = strings.ReplaceAll(cookie.Value, action.Pattern, value)
 					}
-					req.Header.Set("Cookie", "")
-					for j, c := range req.Cookies() {
-						if j == i {
-							req.AddCookie(cookie)
-						} else {
-							req.AddCookie(c)
-						}
+					// Use rewriteCookie to preserve security flags
+					if err := rewriteCookie(req, action.Name, newValue, e.logger); err != nil {
+						return fmt.Errorf("rewrite cookie %s: %w", action.Name, err)
 					}
 					break
 				}
@@ -402,11 +499,8 @@ func (e *Executor) executeAdd(action Action, req *http.Request, resp *http.Respo
 
 	case LocationCookie:
 		if !isResponse && req != nil {
-			cookie := &http.Cookie{
-				Name:  action.Name,
-				Value: value,
-			}
-			req.AddCookie(cookie)
+			// Add cookie with secure defaults
+			addCookieWithSecureDefaults(req, action.Name, value, e.logger)
 		}
 
 	case LocationQuery:
