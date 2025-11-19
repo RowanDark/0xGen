@@ -31,7 +31,25 @@ func NewStorage(dbPath string, logger *slog.Logger) (*Storage, error) {
 
 	// Enable WAL mode for better concurrency
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+
+	// Enable foreign key constraints
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	// Verify foreign keys are enabled
+	var fkEnabled int
+	if err := db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to verify foreign keys: %w", err)
+	}
+	if fkEnabled != 1 {
+		db.Close()
+		return nil, fmt.Errorf("foreign keys could not be enabled")
 	}
 
 	storage := &Storage{
@@ -41,11 +59,13 @@ func NewStorage(dbPath string, logger *slog.Logger) (*Storage, error) {
 
 	// Create tables
 	if err := storage.createTables(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 
 	// Create test case tables
 	if err := storage.InitTestCaseTables(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to create test case tables: %w", err)
 	}
 

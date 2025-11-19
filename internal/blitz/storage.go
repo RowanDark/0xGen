@@ -30,6 +30,23 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
 
+	// Enable foreign key constraints
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("enable foreign keys: %w", err)
+	}
+
+	// Verify foreign keys are enabled
+	var fkEnabled int
+	if err := db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("verify foreign keys: %w", err)
+	}
+	if fkEnabled != 1 {
+		db.Close()
+		return nil, fmt.Errorf("foreign keys could not be enabled")
+	}
+
 	storage := &SQLiteStorage{
 		db: db,
 	}

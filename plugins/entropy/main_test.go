@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -390,6 +391,130 @@ func TestStorage(t *testing.T) {
 	// Complete session
 	if err := storage.CompleteSession(session.ID); err != nil {
 		t.Fatalf("CompleteSession() error = %v", err)
+	}
+}
+
+// TestForeignKeysEnabled verifies that foreign key constraints are enabled
+func TestForeignKeysEnabled(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_fk_enabled.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Verify foreign keys are enabled
+	var fkEnabled int
+	err = storage.db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled)
+	if err != nil {
+		t.Fatalf("Failed to query foreign_keys pragma: %v", err)
+	}
+
+	if fkEnabled != 1 {
+		t.Errorf("Foreign keys pragma = %d, want 1 (enabled)", fkEnabled)
+	}
+
+	t.Logf("Foreign keys enabled: %v", fkEnabled == 1)
+}
+
+// TestForeignKeyEnforcement verifies that FK constraints are enforced
+func TestForeignKeyEnforcement(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_fk_enforcement.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Create session
+	extractor := TokenExtractor{
+		Pattern:  ".*",
+		Location: "cookie",
+		Name:     "session",
+	}
+
+	session, err := storage.CreateSession("FK Test Session", extractor, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	// Create token referencing the session
+	now := time.Now().UTC()
+	sample := TokenSample{
+		CaptureSessionID: session.ID,
+		TokenValue:       "test-token",
+		TokenLength:      10,
+		CapturedAt:       now,
+	}
+
+	err = storage.StoreToken(sample)
+	if err != nil {
+		t.Fatalf("StoreToken() error = %v", err)
+	}
+
+	// Try to delete session (should fail due to FK constraint)
+	_, err = storage.db.Exec("DELETE FROM capture_sessions WHERE id = ?", session.ID)
+	if err == nil {
+		t.Error("DELETE should fail due to foreign key constraint")
+	} else {
+		// Verify it's a foreign key constraint error
+		if !strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+			t.Errorf("Expected FOREIGN KEY constraint error, got: %v", err)
+		} else {
+			t.Logf("FK constraint correctly enforced: %v", err)
+		}
+	}
+
+	// Delete the token first, then the session should succeed
+	_, err = storage.db.Exec("DELETE FROM token_samples WHERE capture_session_id = ?", session.ID)
+	if err != nil {
+		t.Fatalf("Failed to delete tokens: %v", err)
+	}
+
+	// Now deleting session should succeed
+	_, err = storage.db.Exec("DELETE FROM capture_sessions WHERE id = ?", session.ID)
+	if err != nil {
+		t.Errorf("DELETE should succeed after removing tokens: %v", err)
+	}
+}
+
+// TestForeignKeyEnforcement_InvalidSessionID verifies that inserting tokens with invalid session ID fails
+func TestForeignKeyEnforcement_InvalidSessionID(t *testing.T) {
+	// Create temporary database
+	dbPath := "test_fk_invalid.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Try to insert token with non-existent session ID
+	now := time.Now().UTC()
+	sample := TokenSample{
+		CaptureSessionID: 99999, // Non-existent session
+		TokenValue:       "orphan-token",
+		TokenLength:      12,
+		CapturedAt:       now,
+	}
+
+	err = storage.StoreToken(sample)
+	if err == nil {
+		t.Error("StoreToken should fail with invalid session ID due to FK constraint")
+	} else {
+		// Verify it's a foreign key constraint error
+		if !strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+			t.Errorf("Expected FOREIGN KEY constraint error, got: %v", err)
+		} else {
+			t.Logf("FK constraint correctly enforced for invalid session ID: %v", err)
+		}
 	}
 }
 
