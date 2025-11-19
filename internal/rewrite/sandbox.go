@@ -8,14 +8,20 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"strconv"
 	"time"
 )
 
+// DefaultMaxBodySize is the default maximum size for request/response bodies (10MB).
+const DefaultMaxBodySize int64 = 10 * 1024 * 1024
+
 // Sandbox provides an isolated environment for testing rules without affecting live traffic.
 type Sandbox struct {
-	engine    *Engine
-	logger    *slog.Logger
-	validator *Validator
+	engine      *Engine
+	logger      *slog.Logger
+	validator   *Validator
+	maxBodySize int64
 }
 
 // NewSandbox creates a new sandbox instance.
@@ -24,11 +30,43 @@ func NewSandbox(engine *Engine, logger *slog.Logger) *Sandbox {
 		logger = slog.Default()
 	}
 
-	return &Sandbox{
-		engine:    engine,
-		logger:    logger,
-		validator: NewValidator(logger),
+	maxBodySize := DefaultMaxBodySize
+
+	// Check environment variable for override
+	if envVal := os.Getenv("0XGEN_MAX_BODY_SIZE"); envVal != "" {
+		if parsed, err := strconv.ParseInt(envVal, 10, 64); err == nil && parsed > 0 {
+			maxBodySize = parsed
+		}
 	}
+
+	return &Sandbox{
+		engine:      engine,
+		logger:      logger,
+		validator:   NewValidator(logger),
+		maxBodySize: maxBodySize,
+	}
+}
+
+// readBody reads from a reader with a size limit to prevent DoS attacks.
+// Returns an error if the body exceeds the maximum allowed size.
+func (s *Sandbox) readBody(r io.Reader) ([]byte, error) {
+	maxSize := s.maxBodySize
+	if maxSize <= 0 {
+		maxSize = DefaultMaxBodySize
+	}
+
+	// Use LimitReader with +1 to detect overflow
+	limitedReader := io.LimitReader(r, maxSize+1)
+	body, err := io.ReadAll(limitedReader)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %w", err)
+	}
+
+	if int64(len(body)) > maxSize {
+		return nil, fmt.Errorf("body size %d bytes exceeds maximum allowed size of %d bytes", len(body), maxSize)
+	}
+
+	return body, nil
 }
 
 // TestRequestInput represents a request to test in the sandbox.
@@ -123,8 +161,14 @@ func (s *Sandbox) TestRequest(ctx context.Context, input *TestRequestInput, rule
 	}
 
 	// Clone the request for modification
-	originalReq := s.cloneRequest(req)
-	modifiedReq := s.cloneRequest(req)
+	originalReq, err := s.cloneRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone original request: %w", err)
+	}
+	modifiedReq, err := s.cloneRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone modified request: %w", err)
+	}
 
 	// Initialize execution log
 	log := &ExecutionLog{
@@ -211,8 +255,14 @@ func (s *Sandbox) TestRequest(ctx context.Context, input *TestRequestInput, rule
 	warnings := s.validator.ValidateRules(rules)
 
 	// Convert requests to serializable format
-	originalInput := s.requestToOutput(originalReq)
-	modifiedInput := s.requestToOutput(modifiedReq)
+	originalInput, err := s.requestToOutput(originalReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert original request to output: %w", err)
+	}
+	modifiedInput, err := s.requestToOutput(modifiedReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert modified request to output: %w", err)
+	}
 
 	result := &SandboxResult{
 		Success:       len(log.Errors) == 0,
@@ -235,8 +285,14 @@ func (s *Sandbox) TestResponse(ctx context.Context, input *TestResponseInput, ru
 	resp := s.inputToResponse(input)
 
 	// Clone the response for modification
-	originalResp := s.cloneResponse(resp)
-	modifiedResp := s.cloneResponse(resp)
+	originalResp, err := s.cloneResponse(resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone original response: %w", err)
+	}
+	modifiedResp, err := s.cloneResponse(resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone modified response: %w", err)
+	}
 
 	// Initialize execution log
 	log := &ExecutionLog{
@@ -328,8 +384,14 @@ func (s *Sandbox) TestResponse(ctx context.Context, input *TestResponseInput, ru
 	warnings := s.validator.ValidateRules(rules)
 
 	// Convert responses to serializable format
-	originalOutput := s.responseToOutput(originalResp)
-	modifiedOutput := s.responseToOutput(modifiedResp)
+	originalOutput, err := s.responseToOutput(originalResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert original response to output: %w", err)
+	}
+	modifiedOutput, err := s.responseToOutput(modifiedResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert modified response to output: %w", err)
+	}
 
 	result := &SandboxResult{
 		Success:       len(log.Errors) == 0,
@@ -378,26 +440,37 @@ func (s *Sandbox) inputToResponse(input *TestResponseInput) *http.Response {
 	return resp
 }
 
-func (s *Sandbox) cloneRequest(req *http.Request) *http.Request {
-	// Read body
+func (s *Sandbox) cloneRequest(req *http.Request) (*http.Request, error) {
+	// Read body with size limit
 	var bodyBytes []byte
 	if req.Body != nil {
-		bodyBytes, _ = io.ReadAll(req.Body)
+		var err error
+		bodyBytes, err = s.readBody(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("clone request body: %w", err)
+		}
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
 
 	// Clone request
-	clone, _ := http.NewRequest(req.Method, req.URL.String(), bytes.NewReader(bodyBytes))
+	clone, err := http.NewRequest(req.Method, req.URL.String(), bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create request clone: %w", err)
+	}
 	clone.Header = req.Header.Clone()
 
-	return clone
+	return clone, nil
 }
 
-func (s *Sandbox) cloneResponse(resp *http.Response) *http.Response {
-	// Read body
+func (s *Sandbox) cloneResponse(resp *http.Response) (*http.Response, error) {
+	// Read body with size limit
 	var bodyBytes []byte
 	if resp.Body != nil {
-		bodyBytes, _ = io.ReadAll(resp.Body)
+		var err error
+		bodyBytes, err = s.readBody(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("clone response body: %w", err)
+		}
 		resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
 
@@ -408,11 +481,14 @@ func (s *Sandbox) cloneResponse(resp *http.Response) *http.Response {
 		Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
 	}
 
-	return clone
+	return clone, nil
 }
 
-func (s *Sandbox) requestToOutput(req *http.Request) map[string]interface{} {
-	bodyBytes, _ := io.ReadAll(req.Body)
+func (s *Sandbox) requestToOutput(req *http.Request) (map[string]interface{}, error) {
+	bodyBytes, err := s.readBody(req.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read request body for output: %w", err)
+	}
 	req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 	// Convert to dump for readability
@@ -424,11 +500,14 @@ func (s *Sandbox) requestToOutput(req *http.Request) map[string]interface{} {
 		"headers": req.Header,
 		"body":    string(bodyBytes),
 		"dump":    string(dump),
-	}
+	}, nil
 }
 
-func (s *Sandbox) responseToOutput(resp *http.Response) map[string]interface{} {
-	bodyBytes, _ := io.ReadAll(resp.Body)
+func (s *Sandbox) responseToOutput(resp *http.Response) (map[string]interface{}, error) {
+	bodyBytes, err := s.readBody(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body for output: %w", err)
+	}
 	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 	// Convert to dump for readability
@@ -439,7 +518,7 @@ func (s *Sandbox) responseToOutput(resp *http.Response) map[string]interface{} {
 		"headers":     resp.Header,
 		"body":        string(bodyBytes),
 		"dump":        string(dump),
-	}
+	}, nil
 }
 
 func (s *Sandbox) executeRequestActionWithTracking(action Action, req *http.Request, body []byte, requestID string) ActionResult {

@@ -1,9 +1,12 @@
 package rewrite
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -492,4 +495,331 @@ func TestSandboxPerformance(t *testing.T) {
 	}
 
 	t.Logf("Sandbox execution time: %v", result.Duration)
+}
+
+func TestSandboxBodySizeLimit(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_bodysize.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Create sandbox with small body size limit for testing
+	sandbox := NewSandbox(engine, config.Logger)
+	sandbox.maxBodySize = 1024 // 1KB limit for testing
+
+	// Test within limit
+	smallBody := strings.Repeat("a", 512)
+	bodyBytes, err := sandbox.readBody(strings.NewReader(smallBody))
+	if err != nil {
+		t.Errorf("readBody should succeed for body within limit: %v", err)
+	}
+	if len(bodyBytes) != 512 {
+		t.Errorf("body length = %d, want 512", len(bodyBytes))
+	}
+
+	// Test at exactly the limit
+	exactBody := strings.Repeat("b", 1024)
+	bodyBytes, err = sandbox.readBody(strings.NewReader(exactBody))
+	if err != nil {
+		t.Errorf("readBody should succeed for body at exactly the limit: %v", err)
+	}
+	if len(bodyBytes) != 1024 {
+		t.Errorf("body length = %d, want 1024", len(bodyBytes))
+	}
+
+	// Test over limit
+	largeBody := strings.Repeat("c", 2048)
+	_, err = sandbox.readBody(strings.NewReader(largeBody))
+	if err == nil {
+		t.Fatal("readBody should fail for body over limit")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum allowed size") {
+		t.Errorf("error message should mention exceeds max size, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "1025") {
+		t.Errorf("error message should include actual size (1025), got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "1024") {
+		t.Errorf("error message should include max size (1024), got: %v", err)
+	}
+}
+
+func TestSandboxBodySizeLimitWithEnvVar(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_bodysize_env.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Set environment variable to override default
+	os.Setenv("0XGEN_MAX_BODY_SIZE", "2048")
+	defer os.Unsetenv("0XGEN_MAX_BODY_SIZE")
+
+	// Create sandbox - should pick up env var
+	sandbox := NewSandbox(engine, config.Logger)
+
+	if sandbox.maxBodySize != 2048 {
+		t.Errorf("maxBodySize = %d, want 2048 (from env var)", sandbox.maxBodySize)
+	}
+
+	// Test within new limit
+	body := strings.Repeat("a", 2048)
+	_, err = sandbox.readBody(strings.NewReader(body))
+	if err != nil {
+		t.Errorf("readBody should succeed for body within env var limit: %v", err)
+	}
+
+	// Test over new limit
+	largeBody := strings.Repeat("b", 3000)
+	_, err = sandbox.readBody(strings.NewReader(largeBody))
+	if err == nil {
+		t.Fatal("readBody should fail for body over env var limit")
+	}
+}
+
+func TestSandboxDefaultBodySizeLimit(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_default_limit.db"
+	defer os.Remove(dbPath)
+
+	// Ensure env var is not set
+	os.Unsetenv("0XGEN_MAX_BODY_SIZE")
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Create sandbox - should use default
+	sandbox := NewSandbox(engine, config.Logger)
+
+	// Default should be 10MB
+	if sandbox.maxBodySize != DefaultMaxBodySize {
+		t.Errorf("maxBodySize = %d, want %d (default)", sandbox.maxBodySize, DefaultMaxBodySize)
+	}
+
+	// Verify default is 10MB
+	if DefaultMaxBodySize != 10*1024*1024 {
+		t.Errorf("DefaultMaxBodySize = %d, want %d", DefaultMaxBodySize, 10*1024*1024)
+	}
+}
+
+func TestSandboxRequestBodySizeLimit(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_req_bodysize.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Create sandbox with small limit
+	sandbox := NewSandbox(engine, config.Logger)
+	sandbox.maxBodySize = 100 // Very small limit for testing
+
+	ctx := context.Background()
+
+	// Test with large body - should fail
+	input := &TestRequestInput{
+		Method:  "POST",
+		URL:     "https://example.com",
+		Headers: map[string]string{},
+		Body:    strings.Repeat("x", 200), // Over limit
+	}
+
+	_, err = sandbox.TestRequest(ctx, input, nil)
+	if err == nil {
+		t.Fatal("TestRequest should fail for body over limit")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum allowed size") {
+		t.Errorf("error should mention size limit exceeded, got: %v", err)
+	}
+}
+
+func TestSandboxResponseBodySizeLimit(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_resp_bodysize.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Create sandbox with small limit
+	sandbox := NewSandbox(engine, config.Logger)
+	sandbox.maxBodySize = 100 // Very small limit for testing
+
+	ctx := context.Background()
+
+	// Test with large body - should fail
+	input := &TestResponseInput{
+		StatusCode: 200,
+		Headers:    map[string]string{},
+		Body:       strings.Repeat("y", 200), // Over limit
+	}
+
+	_, err = sandbox.TestResponse(ctx, input, nil)
+	if err == nil {
+		t.Fatal("TestResponse should fail for body over limit")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum allowed size") {
+		t.Errorf("error should mention size limit exceeded, got: %v", err)
+	}
+}
+
+func TestSandboxCloneRequestBodyLimit(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_clone_req.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Create sandbox with small limit
+	sandbox := NewSandbox(engine, config.Logger)
+	sandbox.maxBodySize = 50
+
+	// Create request with body over limit
+	largeBody := strings.Repeat("z", 100)
+	req, _ := sandbox.inputToRequest(&TestRequestInput{
+		Method:  "POST",
+		URL:     "https://example.com",
+		Headers: map[string]string{},
+		Body:    largeBody,
+	})
+
+	// cloneRequest should fail due to body size
+	_, err = sandbox.cloneRequest(req)
+	if err == nil {
+		t.Fatal("cloneRequest should fail for body over limit")
+	}
+}
+
+func TestSandboxCloneResponseBodyLimit(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_clone_resp.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	// Create sandbox with small limit
+	sandbox := NewSandbox(engine, config.Logger)
+	sandbox.maxBodySize = 50
+
+	// Create response with body over limit
+	largeBody := strings.Repeat("w", 100)
+	resp := sandbox.inputToResponse(&TestResponseInput{
+		StatusCode: 200,
+		Headers:    map[string]string{},
+		Body:       largeBody,
+	})
+
+	// cloneResponse should fail due to body size
+	_, err = sandbox.cloneResponse(resp)
+	if err == nil {
+		t.Fatal("cloneResponse should fail for body over limit")
+	}
+}
+
+func TestSandboxReadBodyNilReader(t *testing.T) {
+	// Create temp database
+	dbPath := "/tmp/sandbox_test_nil_reader.db"
+	defer os.Remove(dbPath)
+
+	// Create engine
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	sandbox := NewSandbox(engine, config.Logger)
+
+	// Empty reader should work
+	emptyReader := bytes.NewReader([]byte{})
+	body, err := sandbox.readBody(emptyReader)
+	if err != nil {
+		t.Errorf("readBody should succeed for empty reader: %v", err)
+	}
+	if len(body) != 0 {
+		t.Errorf("body length = %d, want 0", len(body))
+	}
+
+	// io.NopCloser with empty should work
+	nopReader := io.NopCloser(bytes.NewReader([]byte{}))
+	body, err = sandbox.readBody(nopReader)
+	if err != nil {
+		t.Errorf("readBody should succeed for NopCloser empty: %v", err)
+	}
+	if len(body) != 0 {
+		t.Errorf("body length = %d, want 0", len(body))
+	}
 }

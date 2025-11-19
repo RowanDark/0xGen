@@ -153,16 +153,16 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.Handle("/api/v1/scans", s.requireRole(team.RoleAnalyst, http.HandlerFunc(s.handleScans)))
 	mux.Handle("/api/v1/scans/", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleScanByID)))
 
-	// Cipher endpoints
-	mux.HandleFunc("/api/v1/cipher/execute", s.handleCipherExecute)
-	mux.HandleFunc("/api/v1/cipher/pipeline", s.handleCipherPipeline)
-	mux.HandleFunc("/api/v1/cipher/detect", s.handleCipherDetect)
-	mux.HandleFunc("/api/v1/cipher/smart-decode", s.handleCipherSmartDecode)
-	mux.HandleFunc("/api/v1/cipher/operations", s.handleCipherListOperations)
-	mux.HandleFunc("/api/v1/cipher/recipes/save", s.handleRecipeSave)
-	mux.HandleFunc("/api/v1/cipher/recipes/list", s.handleRecipeList)
-	mux.HandleFunc("/api/v1/cipher/recipes/load", s.handleRecipeLoad)
-	mux.HandleFunc("/api/v1/cipher/recipes/delete", s.handleRecipeDelete)
+	// Cipher endpoints - require at least Viewer role
+	mux.Handle("/api/v1/cipher/execute", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleCipherExecute)))
+	mux.Handle("/api/v1/cipher/pipeline", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleCipherPipeline)))
+	mux.Handle("/api/v1/cipher/detect", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleCipherDetect)))
+	mux.Handle("/api/v1/cipher/smart-decode", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleCipherSmartDecode)))
+	mux.Handle("/api/v1/cipher/operations", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleCipherListOperations)))
+	mux.Handle("/api/v1/cipher/recipes/save", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleRecipeSave)))
+	mux.Handle("/api/v1/cipher/recipes/list", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleRecipeList)))
+	mux.Handle("/api/v1/cipher/recipes/load", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleRecipeLoad)))
+	mux.Handle("/api/v1/cipher/recipes/delete", s.requireRole(team.RoleViewer, http.HandlerFunc(s.handleRecipeDelete)))
 
 	// Rewrite endpoints
 	if s.rewriteAPI != nil {

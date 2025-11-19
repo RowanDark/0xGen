@@ -2,7 +2,6 @@ package rewrite
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"

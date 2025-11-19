@@ -2,8 +2,10 @@ package tracing
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +25,12 @@ type Config struct {
 	// Headers are optional headers that should be included with OTLP requests.
 	Headers map[string]string
 	// SkipTLSVerify disables TLS verification when communicating with the collector.
+	// Deprecated: Use DevelopmentMode instead. This field is only honored when DevelopmentMode is true.
 	SkipTLSVerify bool
+	// DevelopmentMode enables development-only settings like skipping TLS verification.
+	// WARNING: Never enable this in production - it allows man-in-the-middle attacks!
+	// This can also be controlled via the 0XGEN_DEV_MODE environment variable.
+	DevelopmentMode bool
 	// ServiceName is recorded on exported spans to identify the emitting service.
 	ServiceName string
 	// SampleRatio controls probabilistic sampling for root spans. Values outside the range
@@ -32,6 +39,35 @@ type Config struct {
 	// FilePath controls the location where a JSONL copy of spans is written. When empty,
 	// spans are not persisted locally.
 	FilePath string
+}
+
+// IsDevelopmentMode returns true if the configuration is set for development mode.
+// It checks both the DevelopmentMode field and the 0XGEN_DEV_MODE environment variable.
+func (c *Config) IsDevelopmentMode() bool {
+	if c.DevelopmentMode {
+		return true
+	}
+	// Check environment variable
+	envVal := strings.ToLower(strings.TrimSpace(os.Getenv("0XGEN_DEV_MODE")))
+	return envVal == "true" || envVal == "1" || envVal == "yes"
+}
+
+// GetTLSConfig returns the appropriate TLS configuration based on the environment.
+// In development mode, TLS verification may be skipped (if SkipTLSVerify is also true).
+// In production mode, TLS certificates are always verified with a minimum of TLS 1.2.
+//
+// WARNING: Skipping TLS verification is dangerous and should only be used in development
+// environments. It enables man-in-the-middle attacks that can expose sensitive telemetry data.
+func (c *Config) GetTLSConfig() *tls.Config {
+	if c.IsDevelopmentMode() && c.SkipTLSVerify {
+		return &tls.Config{
+			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS12,
+		}
+	}
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
 }
 
 var (

@@ -45,6 +45,9 @@ type EngineMetrics struct {
 type Config struct {
 	DatabasePath string
 	Logger       *slog.Logger
+	// MaxBodySize is the maximum size in bytes for request/response bodies.
+	// Default is 10MB. Set to 0 to use default. Can also be set via 0XGEN_MAX_BODY_SIZE env var.
+	MaxBodySize int64
 }
 
 // NewEngine creates a new rewrite engine.

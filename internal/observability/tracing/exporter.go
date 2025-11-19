@@ -26,7 +26,7 @@ func newExporters(ctx context.Context, cfg Config) ([]sdktrace.SpanExporter, err
 		exporters = append(exporters, fileExporter)
 	}
 	if endpoint := strings.TrimSpace(cfg.Endpoint); endpoint != "" {
-		otlpExporter, err := newOTLPHTTPExporter(ctx, endpoint, cfg.Headers, cfg.SkipTLSVerify)
+		otlpExporter, err := newOTLPHTTPExporter(ctx, endpoint, cfg.Headers, cfg.GetTLSConfig())
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +114,7 @@ func (f *fileSpanExporter) Shutdown(context.Context) error {
 	return f.file.Close()
 }
 
-func newOTLPHTTPExporter(ctx context.Context, endpoint string, headers map[string]string, skipTLS bool) (sdktrace.SpanExporter, error) {
+func newOTLPHTTPExporter(ctx context.Context, endpoint string, headers map[string]string, tlsConfig *tls.Config) (sdktrace.SpanExporter, error) {
 	parsed, err := url.Parse(strings.TrimSpace(endpoint))
 	if err != nil {
 		return nil, fmt.Errorf("parse trace endpoint: %w", err)
@@ -147,8 +147,8 @@ func newOTLPHTTPExporter(ctx context.Context, endpoint string, headers map[strin
 	if parsed.Scheme == "http" {
 		opts = append(opts, otlptracehttp.WithInsecure())
 	}
-	if skipTLS {
-		opts = append(opts, otlptracehttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
+	if tlsConfig != nil {
+		opts = append(opts, otlptracehttp.WithTLSClientConfig(tlsConfig))
 	}
 
 	client := otlptracehttp.NewClient(opts...)

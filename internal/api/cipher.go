@@ -87,6 +87,12 @@ func (s *Server) handleCipherExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if req.Operation == "" {
+		http.Error(w, "operation field is required", http.StatusBadRequest)
+		return
+	}
+
 	// Get the operation from the registry
 	op, exists := cipher.GetOperation(req.Operation)
 	if !exists {
@@ -96,8 +102,8 @@ func (s *Server) handleCipherExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute the operation
-	ctx := context.Background()
+	// Execute the operation using request context for proper cancellation and tracing
+	ctx := r.Context()
 	params := req.Config
 	if params == nil {
 		params = make(map[string]interface{})
@@ -105,7 +111,16 @@ func (s *Server) handleCipherExecute(w http.ResponseWriter, r *http.Request) {
 
 	result, err := op.Execute(ctx, []byte(req.Input), params)
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherOperationResponse{
+		// Check for context cancellation
+		if ctx.Err() != nil {
+			if ctx.Err() == context.Canceled {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+			} else {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			}
+			return
+		}
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherOperationResponse{
 			Error: err.Error(),
 		})
 		return
@@ -129,16 +144,31 @@ func (s *Server) handleCipherPipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if len(req.Operations) == 0 {
+		http.Error(w, "operations field is required and must not be empty", http.StatusBadRequest)
+		return
+	}
+
 	// Create the pipeline
 	pipeline := &cipher.Pipeline{
 		Operations: req.Operations,
 	}
 
-	// Execute the pipeline
-	ctx := context.Background()
+	// Execute the pipeline using request context for proper cancellation and tracing
+	ctx := r.Context()
 	result, err := pipeline.Execute(ctx, []byte(req.Input))
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherPipelineResponse{
+		// Check for context cancellation
+		if ctx.Err() != nil {
+			if ctx.Err() == context.Canceled {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+			} else {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			}
+			return
+		}
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherPipelineResponse{
 			Error: err.Error(),
 		})
 		return
@@ -162,13 +192,29 @@ func (s *Server) handleCipherDetect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the smart detector
+	// Validate required fields
+	if req.Input == "" {
+		http.Error(w, "input field is required", http.StatusBadRequest)
+		return
+	}
+
+	// Use the smart detector with request context for proper cancellation and tracing
 	detector := cipher.NewSmartDetector()
-	ctx := context.Background()
+	ctx := r.Context()
 	detections, err := detector.Detect(ctx, []byte(req.Input))
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherDetectResponse{
-			Detections: []cipher.DetectionResult{},
+		// Check for context cancellation
+		if ctx.Err() != nil {
+			if ctx.Err() == context.Canceled {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+			} else {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			}
+			return
+		}
+		s.writeJSON(w, http.StatusUnprocessableEntity, map[string]interface{}{
+			"error":      err.Error(),
+			"detections": []cipher.DetectionResult{},
 		})
 		return
 	}
@@ -191,13 +237,30 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Use the smart detector to detect encoding
+	// Validate required fields
+	if req.Input == "" {
+		http.Error(w, "input field is required", http.StatusBadRequest)
+		return
+	}
+
+	// Use the smart detector to detect encoding with request context for proper cancellation and tracing
 	detector := cipher.NewSmartDetector()
-	ctx := context.Background()
+	ctx := r.Context()
 
 	detections, err := detector.Detect(ctx, []byte(req.Input))
+	if err != nil {
+		// Check for context cancellation
+		if ctx.Err() != nil {
+			if ctx.Err() == context.Canceled {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+			} else {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			}
+			return
+		}
+	}
 	if err != nil || len(detections) == 0 {
-		s.writeJSON(w, http.StatusOK, CipherSmartDecodeResponse{
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherSmartDecodeResponse{
 			Error: "could not detect encoding",
 		})
 		return
@@ -209,7 +272,7 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 	// Apply the suggested operation
 	op, exists := cipher.GetOperation(topDetection.Operation)
 	if !exists {
-		s.writeJSON(w, http.StatusOK, CipherSmartDecodeResponse{
+		s.writeJSON(w, http.StatusInternalServerError, CipherSmartDecodeResponse{
 			Error: "operation not found: " + topDetection.Operation,
 		})
 		return
@@ -217,7 +280,16 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 
 	result, err := op.Execute(ctx, []byte(req.Input), nil)
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, CipherSmartDecodeResponse{
+		// Check for context cancellation
+		if ctx.Err() != nil {
+			if ctx.Err() == context.Canceled {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+			} else {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			}
+			return
+		}
+		s.writeJSON(w, http.StatusUnprocessableEntity, CipherSmartDecodeResponse{
 			Error: err.Error(),
 		})
 		return
