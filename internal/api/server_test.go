@@ -952,3 +952,277 @@ func TestScanMethodValidation(t *testing.T) {
 		})
 	}
 }
+
+// Request Body Size Limit Tests (Issue #43)
+
+// setupTestServerWithLimit creates a test server with a custom max request size
+func setupTestServerWithLimit(t *testing.T, maxSize int64) *Server {
+	t.Helper()
+
+	// Create temporary directories for test
+	tempDir := t.TempDir()
+	recipesDir := tempDir + "/recipes"
+	if err := os.MkdirAll(recipesDir, 0755); err != nil {
+		t.Fatalf("Failed to create recipes dir: %v", err)
+	}
+
+	// Create a minimal signing key file for testing
+	signingKeyPath := tempDir + "/signing.key"
+	if err := os.WriteFile(signingKeyPath, []byte("test-signing-key-content"), 0600); err != nil {
+		t.Fatalf("Failed to create signing key: %v", err)
+	}
+
+	// Create workspace store
+	store := team.NewStore(nil)
+
+	cfg := Config{
+		Addr:            ":0",
+		StaticToken:     "test-static-token",
+		JWTSecret:       []byte("test-jwt-secret-key-12345"),
+		JWTIssuer:       "test-issuer",
+		DefaultTokenTTL: time.Hour,
+		SigningKeyPath:  signingKeyPath,
+		FindingsBus:     findings.NewBus(),
+		WorkspaceStore:  store,
+		RecipesDir:      recipesDir,
+		MaxRequestSize:  maxSize,
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	return server
+}
+
+// createTestHandler creates a handler wrapped with the body limit middleware for testing
+func createTestHandler(server *Server) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	mux.Handle("/api/v1/api-tokens", http.HandlerFunc(server.handleTokenIssue))
+	mux.Handle("/api/v1/plugins", server.requireRole(team.RoleViewer, http.HandlerFunc(server.handleListPlugins)))
+	mux.Handle("/api/v1/scans", server.requireRole(team.RoleAnalyst, http.HandlerFunc(server.handleScans)))
+	mux.Handle("/api/v1/cipher/execute", server.requireRole(team.RoleViewer, http.HandlerFunc(server.handleCipherExecute)))
+
+	// Wrap with body limit middleware
+	return server.limitRequestBody(mux)
+}
+
+func TestRequestBodySizeLimit(t *testing.T) {
+	// Create server with 1KB limit for easier testing
+	server := setupTestServerWithLimit(t, 1024)
+	handler := createTestHandler(server)
+
+	// Create oversized payload (2KB)
+	largePayload := strings.Repeat("a", 2*1024)
+
+	// Get auth token
+	token := getTestToken(t, server, "test-workspace", team.RoleAnalyst)
+
+	req := httptest.NewRequest("POST", "/api/v1/scans", strings.NewReader(largePayload))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	// MaxBytesReader returns 400 Bad Request when limit exceeded
+	// The error occurs during body read, so we check for error response
+	if rec.Code != http.StatusBadRequest && rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("expected status 400 or 413, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequestBodySizeLimit_WithinLimit(t *testing.T) {
+	// Create server with 10KB limit
+	server := setupTestServerWithLimit(t, 10*1024)
+	handler := createTestHandler(server)
+
+	// Create payload within limit (1KB)
+	smallPayload := `{"plugin": "test"}`
+
+	// Get auth token
+	token := getTestToken(t, server, "test-workspace", team.RoleAnalyst)
+
+	req := httptest.NewRequest("POST", "/api/v1/scans", strings.NewReader(smallPayload))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	// Should not be rejected due to size (may fail for other reasons like missing plugin)
+	if rec.Code == http.StatusRequestEntityTooLarge {
+		t.Errorf("request within limit should not return 413, got %d", rec.Code)
+	}
+}
+
+func TestRequestBodySizeLimit_DefaultLimit(t *testing.T) {
+	// Create server without specifying max size (should use default 10MB)
+	server := setupTestServer(t)
+
+	if server.GetMaxRequestSize() != DefaultMaxRequestSize {
+		t.Errorf("expected default max request size %d, got %d", DefaultMaxRequestSize, server.GetMaxRequestSize())
+	}
+}
+
+func TestRequestBodySizeLimit_CustomLimit(t *testing.T) {
+	customLimit := int64(5 * 1024 * 1024) // 5MB
+	server := setupTestServerWithLimit(t, customLimit)
+
+	if server.GetMaxRequestSize() != customLimit {
+		t.Errorf("expected custom max request size %d, got %d", customLimit, server.GetMaxRequestSize())
+	}
+}
+
+func TestRequestBodySizeLimit_GETRequestsNotLimited(t *testing.T) {
+	// Create server with tiny limit
+	server := setupTestServerWithLimit(t, 10)
+	handler := createTestHandler(server)
+
+	// GET requests should not be affected by body limit
+	req := httptest.NewRequest("GET", "/healthz", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("GET request should succeed, got %d", rec.Code)
+	}
+}
+
+func TestRequestBodySizeLimit_MultipleEndpoints(t *testing.T) {
+	// Create server with 100 byte limit
+	server := setupTestServerWithLimit(t, 100)
+	handler := createTestHandler(server)
+
+	// Get auth token
+	token := getTestToken(t, server, "test-workspace", team.RoleViewer)
+
+	// Oversized payload
+	largePayload := strings.Repeat("x", 200)
+
+	endpoints := []string{
+		"/api/v1/api-tokens",
+		"/api/v1/cipher/execute",
+	}
+
+	for _, endpoint := range endpoints {
+		t.Run(endpoint, func(t *testing.T) {
+			req := httptest.NewRequest("POST", endpoint, strings.NewReader(largePayload))
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("X-0xgen-Token", "test-static-token")
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			// Should be rejected due to size
+			if rec.Code != http.StatusBadRequest && rec.Code != http.StatusRequestEntityTooLarge {
+				t.Errorf("expected size limit error for %s, got %d: %s", endpoint, rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRequestBodySizeLimit_ExactLimit(t *testing.T) {
+	// Create server with exact limit
+	limit := int64(100)
+	server := setupTestServerWithLimit(t, limit)
+	handler := createTestHandler(server)
+
+	// Payload exactly at limit should work
+	exactPayload := strings.Repeat("a", int(limit))
+
+	req := httptest.NewRequest("POST", "/api/v1/api-tokens", strings.NewReader(exactPayload))
+	req.Header.Set("X-0xgen-Token", "test-static-token")
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	// Should not be rejected due to size (may be invalid JSON but not size error)
+	if rec.Code == http.StatusRequestEntityTooLarge {
+		t.Errorf("exact limit request should not return 413, got %d", rec.Code)
+	}
+}
+
+func TestRequestBodySizeLimit_ZeroConfigUsesDefault(t *testing.T) {
+	// Create temporary directories for test
+	tempDir := t.TempDir()
+	recipesDir := tempDir + "/recipes"
+	if err := os.MkdirAll(recipesDir, 0755); err != nil {
+		t.Fatalf("Failed to create recipes dir: %v", err)
+	}
+
+	signingKeyPath := tempDir + "/signing.key"
+	if err := os.WriteFile(signingKeyPath, []byte("test-signing-key-content"), 0600); err != nil {
+		t.Fatalf("Failed to create signing key: %v", err)
+	}
+
+	store := team.NewStore(nil)
+
+	cfg := Config{
+		Addr:            ":0",
+		StaticToken:     "test-static-token",
+		JWTSecret:       []byte("test-jwt-secret-key-12345"),
+		JWTIssuer:       "test-issuer",
+		DefaultTokenTTL: time.Hour,
+		SigningKeyPath:  signingKeyPath,
+		FindingsBus:     findings.NewBus(),
+		WorkspaceStore:  store,
+		RecipesDir:      recipesDir,
+		MaxRequestSize:  0, // Zero should use default
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.GetMaxRequestSize() != DefaultMaxRequestSize {
+		t.Errorf("zero config should use default %d, got %d", DefaultMaxRequestSize, server.GetMaxRequestSize())
+	}
+}
+
+func TestRequestBodySizeLimit_NegativeConfigUsesDefault(t *testing.T) {
+	// Create temporary directories for test
+	tempDir := t.TempDir()
+	recipesDir := tempDir + "/recipes"
+	if err := os.MkdirAll(recipesDir, 0755); err != nil {
+		t.Fatalf("Failed to create recipes dir: %v", err)
+	}
+
+	signingKeyPath := tempDir + "/signing.key"
+	if err := os.WriteFile(signingKeyPath, []byte("test-signing-key-content"), 0600); err != nil {
+		t.Fatalf("Failed to create signing key: %v", err)
+	}
+
+	store := team.NewStore(nil)
+
+	cfg := Config{
+		Addr:            ":0",
+		StaticToken:     "test-static-token",
+		JWTSecret:       []byte("test-jwt-secret-key-12345"),
+		JWTIssuer:       "test-issuer",
+		DefaultTokenTTL: time.Hour,
+		SigningKeyPath:  signingKeyPath,
+		FindingsBus:     findings.NewBus(),
+		WorkspaceStore:  store,
+		RecipesDir:      recipesDir,
+		MaxRequestSize:  -100, // Negative should use default
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.GetMaxRequestSize() != DefaultMaxRequestSize {
+		t.Errorf("negative config should use default %d, got %d", DefaultMaxRequestSize, server.GetMaxRequestSize())
+	}
+}

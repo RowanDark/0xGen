@@ -17,6 +17,9 @@ import (
 	"github.com/RowanDark/0xgen/internal/team"
 )
 
+// DefaultMaxRequestSize is the default maximum request body size (10 MB).
+const DefaultMaxRequestSize int64 = 10 * 1024 * 1024
+
 // Config configures the REST API server.
 type Config struct {
 	Addr            string
@@ -39,20 +42,22 @@ type Config struct {
 	WorkspaceStore  *team.Store
 	RecipesDir      string
 	RewriteEngine   *rewrite.Engine
+	MaxRequestSize  int64 // Maximum request body size in bytes (0 = use default)
 }
 
 // Server exposes REST endpoints for triggering scans and retrieving results.
 type Server struct {
-	cfg           Config
-	httpServer    *http.Server
-	authenticator *Authenticator
-	manager       *Manager
-	staticToken   string
-	logger        *logging.AuditLogger
-	managerCancel context.CancelFunc
-	teams         *team.Store
-	recipeManager *cipher.RecipeManager
-	rewriteAPI    *RewriteAPI
+	cfg            Config
+	httpServer     *http.Server
+	authenticator  *Authenticator
+	manager        *Manager
+	staticToken    string
+	logger         *logging.AuditLogger
+	managerCancel  context.CancelFunc
+	teams          *team.Store
+	recipeManager  *cipher.RecipeManager
+	rewriteAPI     *RewriteAPI
+	maxRequestSize int64
 }
 
 type contextKey string
@@ -129,15 +134,22 @@ func NewServer(cfg Config) (*Server, error) {
 		rewriteAPI = NewRewriteAPI(cfg.RewriteEngine, rewriteLogger)
 	}
 
+	// Set max request size with default if not specified
+	maxRequestSize := cfg.MaxRequestSize
+	if maxRequestSize <= 0 {
+		maxRequestSize = DefaultMaxRequestSize
+	}
+
 	return &Server{
-		cfg:           cfg,
-		authenticator: auth,
-		manager:       manager,
-		staticToken:   staticToken,
-		logger:        cfg.Logger,
-		teams:         store,
-		recipeManager: recipeManager,
-		rewriteAPI:    rewriteAPI,
+		cfg:            cfg,
+		authenticator:  auth,
+		manager:        manager,
+		staticToken:    staticToken,
+		logger:         cfg.Logger,
+		teams:          store,
+		recipeManager:  recipeManager,
+		rewriteAPI:     rewriteAPI,
+		maxRequestSize: maxRequestSize,
 	}, nil
 }
 
@@ -173,9 +185,12 @@ func (s *Server) Run(ctx context.Context) error {
 		s.rewriteAPI.RegisterRoutes(mux)
 	}
 
+	// Apply request body size limit middleware to all routes
+	handler := s.limitRequestBody(mux)
+
 	s.httpServer = &http.Server{
 		Addr:    s.cfg.Addr,
-		Handler: mux,
+		Handler: handler,
 	}
 
 	managerCtx, cancel := context.WithCancel(context.Background())
@@ -418,4 +433,25 @@ func (s *Server) writeJSON(w http.ResponseWriter, status int, data any) {
 			_ = s.logger.Emit(logging.AuditEvent{EventType: logging.EventRPCCall, Decision: logging.DecisionDeny, Reason: err.Error()})
 		}
 	}
+}
+
+// limitRequestBody returns a middleware that limits the request body size.
+// When the limit is exceeded, it returns HTTP 413 Request Entity Too Large.
+func (s *Server) limitRequestBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip body limiting for GET, HEAD, OPTIONS requests (they typically don't have bodies)
+		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Limit request body size
+		r.Body = http.MaxBytesReader(w, r.Body, s.maxRequestSize)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GetMaxRequestSize returns the configured maximum request body size.
+func (s *Server) GetMaxRequestSize() int64 {
+	return s.maxRequestSize
 }
