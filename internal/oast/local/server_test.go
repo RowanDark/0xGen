@@ -1419,3 +1419,537 @@ func TestStorage_Concurrency_Enhanced(t *testing.T) {
 		t.Errorf("expected count 100, got %d", storage.GetCount())
 	}
 }
+
+// Tests for ID Generation (Issue #44.3)
+
+func TestIDGenerator_Generate(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("test")
+
+	// Generate multiple IDs
+	ids := make(map[string]bool)
+	for i := 0; i < 1000; i++ {
+		id := gen.Generate()
+
+		// Check uniqueness
+		if ids[id] {
+			t.Fatalf("duplicate ID generated: %s", id)
+		}
+		ids[id] = true
+
+		// Check format
+		if !strings.HasPrefix(id, "test-") {
+			t.Errorf("expected ID to start with 'test-', got %s", id)
+		}
+
+		parts := strings.Split(id, "-")
+		if len(parts) != 4 {
+			t.Errorf("expected 4 parts in ID, got %d: %s", len(parts), id)
+		}
+	}
+}
+
+func TestIDGenerator_GenerateWithoutPrefix(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("")
+	id := gen.Generate()
+
+	parts := strings.Split(id, "-")
+	if len(parts) != 3 {
+		t.Errorf("expected 3 parts in ID without prefix, got %d: %s", len(parts), id)
+	}
+}
+
+func TestIDGenerator_GenerateShort(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("test")
+
+	// Generate multiple short IDs
+	ids := make(map[string]bool)
+	for i := 0; i < 100; i++ {
+		id := gen.GenerateShort()
+
+		// Check length
+		if len(id) != 8 {
+			t.Errorf("expected short ID length 8, got %d: %s", len(id), id)
+		}
+
+		// Check uniqueness (high probability)
+		if ids[id] {
+			// Not necessarily an error for short IDs, but unlikely
+			t.Logf("warning: duplicate short ID: %s", id)
+		}
+		ids[id] = true
+	}
+}
+
+func TestParseID_Full(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("oast")
+	id := gen.Generate()
+
+	metadata, err := ParseID(id)
+	if err != nil {
+		t.Fatalf("ParseID failed: %v", err)
+	}
+
+	if metadata.Prefix != "oast" {
+		t.Errorf("expected prefix 'oast', got %s", metadata.Prefix)
+	}
+
+	if metadata.Timestamp.IsZero() {
+		t.Error("expected non-zero timestamp")
+	}
+
+	if metadata.Random == "" {
+		t.Error("expected non-empty random")
+	}
+
+	if metadata.Counter == 0 {
+		t.Error("expected non-zero counter")
+	}
+}
+
+func TestParseID_WithoutPrefix(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("")
+	id := gen.Generate()
+
+	metadata, err := ParseID(id)
+	if err != nil {
+		t.Fatalf("ParseID failed: %v", err)
+	}
+
+	if metadata.Prefix != "" {
+		t.Errorf("expected empty prefix, got %s", metadata.Prefix)
+	}
+}
+
+func TestParseID_Invalid(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"",
+		"invalid",
+		"only-two",
+		"too-many-parts-here-five",
+	}
+
+	for _, id := range tests {
+		_, err := ParseID(id)
+		if err == nil {
+			t.Errorf("expected error for invalid ID %q", id)
+		}
+	}
+}
+
+func TestIsValidID(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("test")
+	id := gen.Generate()
+
+	if !IsValidID(id) {
+		t.Errorf("expected valid ID: %s", id)
+	}
+
+	if IsValidID("invalid") {
+		t.Error("expected invalid for 'invalid'")
+	}
+}
+
+func TestIDGenerator_Counter(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("test")
+
+	// Generate IDs and check counter increments
+	for i := 1; i <= 5; i++ {
+		id := gen.Generate()
+		metadata, _ := ParseID(id)
+
+		if metadata.Counter != uint64(i) {
+			t.Errorf("expected counter %d, got %d", i, metadata.Counter)
+		}
+	}
+}
+
+func TestIDGenerator_Concurrency(t *testing.T) {
+	t.Parallel()
+
+	gen := NewIDGenerator("test")
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	ids := make(map[string]bool)
+
+	// Generate IDs concurrently
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			id := gen.Generate()
+
+			mu.Lock()
+			if ids[id] {
+				t.Errorf("duplicate ID: %s", id)
+			}
+			ids[id] = true
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
+
+	if len(ids) != 100 {
+		t.Errorf("expected 100 unique IDs, got %d", len(ids))
+	}
+}
+
+// Tests for URL Builder (Issue #44.3)
+
+func TestURLBuilder_Generate(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	callback := builder.Generate()
+
+	if callback.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+
+	if !strings.Contains(callback.URL, "http://localhost:8443/callback/") {
+		t.Errorf("expected URL to contain base path, got %s", callback.URL)
+	}
+
+	if !strings.Contains(callback.URL, callback.ID) {
+		t.Errorf("expected URL to contain ID, got %s", callback.URL)
+	}
+}
+
+func TestURLBuilder_GenerateWithPath(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	callback := builder.GenerateWithPath("/test/path")
+
+	if !strings.HasSuffix(callback.URL, "/test/path") {
+		t.Errorf("expected URL to end with /test/path, got %s", callback.URL)
+	}
+}
+
+func TestURLBuilder_GenerateShort(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	callback := builder.GenerateShort()
+
+	if len(callback.ID) != 8 {
+		t.Errorf("expected short ID length 8, got %d", len(callback.ID))
+	}
+}
+
+func TestURLBuilder_BuildURL(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	url := builder.BuildURL("test-id-123")
+
+	expected := "http://localhost:8443/callback/test-id-123"
+	if url != expected {
+		t.Errorf("expected %s, got %s", expected, url)
+	}
+}
+
+func TestURLBuilder_BuildURLWithPath(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	url := builder.BuildURLWithPath("test-id", "extra/path")
+
+	expected := "http://localhost:8443/callback/test-id/extra/path"
+	if url != expected {
+		t.Errorf("expected %s, got %s", expected, url)
+	}
+}
+
+func TestURLBuilder_BuildURLWithQuery(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	url := builder.BuildURLWithQuery("test-id", map[string]string{
+		"foo": "bar",
+		"baz": "qux",
+	})
+
+	if !strings.Contains(url, "foo=bar") {
+		t.Errorf("expected URL to contain foo=bar, got %s", url)
+	}
+
+	if !strings.Contains(url, "baz=qux") {
+		t.Errorf("expected URL to contain baz=qux, got %s", url)
+	}
+}
+
+func TestURLBuilder_BuildURLWithQuery_Empty(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	url := builder.BuildURLWithQuery("test-id", nil)
+
+	expected := "http://localhost:8443/callback/test-id"
+	if url != expected {
+		t.Errorf("expected %s, got %s", expected, url)
+	}
+}
+
+func TestURLBuilder_GetBaseURL_TrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback/")
+
+	// Should strip trailing slash
+	if builder.GetBaseURL() != "http://localhost:8443/callback" {
+		t.Errorf("expected base URL without trailing slash, got %s", builder.GetBaseURL())
+	}
+}
+
+func TestURLBuilder_ExtractIDFromURL(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	tests := []struct {
+		url        string
+		expectedID string
+		shouldFail bool
+	}{
+		{"http://localhost:8443/callback/test-id", "test-id", false},
+		{"http://localhost:8443/callback/test-id/extra", "test-id", false},
+		{"http://localhost:8443/callback/", "", true},
+		{"http://localhost:8443/callback", "", true},
+	}
+
+	for _, tt := range tests {
+		id, err := builder.ExtractIDFromURL(tt.url)
+		if tt.shouldFail {
+			if err == nil {
+				t.Errorf("expected error for URL %s", tt.url)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error for URL %s: %v", tt.url, err)
+			}
+			if id != tt.expectedID {
+				t.Errorf("expected ID %s, got %s", tt.expectedID, id)
+			}
+		}
+	}
+}
+
+func TestURLBuilder_ShortenForDisplay(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+
+	// Short URL should not be shortened
+	callback := builder.GenerateShort()
+	if callback.ShortURL != callback.URL {
+		t.Errorf("short URL should not be shortened: %s", callback.ShortURL)
+	}
+
+	// Long URL should be shortened
+	callback = builder.Generate()
+	if len(callback.URL) > 60 && len(callback.ShortURL) >= len(callback.URL) {
+		t.Errorf("long URL should be shortened")
+	}
+}
+
+func TestNewURLBuilderWithPrefix(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilderWithPrefix("http://localhost:8443/callback", "custom")
+	callback := builder.Generate()
+
+	if !strings.Contains(callback.ID, "custom-") {
+		t.Errorf("expected ID with custom prefix, got %s", callback.ID)
+	}
+}
+
+// Tests for Payload Templates (Issue #44.3)
+
+func TestPayloadTemplate_Build(t *testing.T) {
+	t.Parallel()
+
+	template := PayloadTemplate{
+		Template: "curl http://{OAST_URL}/test",
+	}
+
+	payload := template.Build("callback123")
+
+	expected := "curl http://callback123/test"
+	if payload != expected {
+		t.Errorf("expected %s, got %s", expected, payload)
+	}
+}
+
+func TestPayloadTemplate_BuildWithHost(t *testing.T) {
+	t.Parallel()
+
+	template := PayloadTemplate{
+		Template: "nslookup {OAST_URL}",
+	}
+
+	payload := template.BuildWithHost("test.example.com")
+
+	expected := "nslookup test.example.com"
+	if payload != expected {
+		t.Errorf("expected %s, got %s", expected, payload)
+	}
+}
+
+func TestGetTemplatesByCategory(t *testing.T) {
+	t.Parallel()
+
+	ssrfTemplates := GetTemplatesByCategory("ssrf")
+	if len(ssrfTemplates) == 0 {
+		t.Error("expected at least one SSRF template")
+	}
+
+	for _, tmpl := range ssrfTemplates {
+		if tmpl.Category != "ssrf" {
+			t.Errorf("expected category ssrf, got %s", tmpl.Category)
+		}
+	}
+
+	// Non-existent category
+	empty := GetTemplatesByCategory("nonexistent")
+	if len(empty) != 0 {
+		t.Errorf("expected 0 templates for nonexistent category, got %d", len(empty))
+	}
+}
+
+func TestGetAllCategories(t *testing.T) {
+	t.Parallel()
+
+	categories := GetAllCategories()
+	if len(categories) == 0 {
+		t.Error("expected at least one category")
+	}
+
+	// Check for expected categories
+	expectedCategories := []string{"ssrf", "sqli", "xxe", "xss", "cmdi"}
+	for _, expected := range expectedCategories {
+		found := false
+		for _, cat := range categories {
+			if cat == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected category %s not found", expected)
+		}
+	}
+}
+
+func TestGetTemplateByName(t *testing.T) {
+	t.Parallel()
+
+	tmpl := GetTemplateByName("SSRF Basic")
+	if tmpl == nil {
+		t.Fatal("expected to find 'SSRF Basic' template")
+	}
+
+	if tmpl.Category != "ssrf" {
+		t.Errorf("expected category ssrf, got %s", tmpl.Category)
+	}
+
+	// Non-existent name
+	notFound := GetTemplateByName("Nonexistent Template")
+	if notFound != nil {
+		t.Error("expected nil for nonexistent template")
+	}
+}
+
+func TestDefaultTemplates_AllHavePlaceholder(t *testing.T) {
+	t.Parallel()
+
+	for _, tmpl := range DefaultTemplates {
+		if !strings.Contains(tmpl.Template, OASTURLPlaceholder) {
+			t.Errorf("template %s does not contain OAST URL placeholder", tmpl.Name)
+		}
+	}
+}
+
+func TestTemplateRegistry(t *testing.T) {
+	t.Parallel()
+
+	registry := NewTemplateRegistry()
+
+	// Check default templates are loaded
+	all := registry.GetAll()
+	if len(all) != len(DefaultTemplates) {
+		t.Errorf("expected %d templates, got %d", len(DefaultTemplates), len(all))
+	}
+
+	// Register custom template
+	custom := PayloadTemplate{
+		Name:        "Custom Test",
+		Description: "Custom test template",
+		Category:    "custom",
+		Template:    "test {OAST_URL}",
+	}
+	registry.Register(custom)
+
+	// Verify custom template is added
+	if len(registry.GetAll()) != len(DefaultTemplates)+1 {
+		t.Error("custom template not added")
+	}
+
+	// Get by category
+	customTemplates := registry.GetByCategory("custom")
+	if len(customTemplates) != 1 {
+		t.Errorf("expected 1 custom template, got %d", len(customTemplates))
+	}
+
+	// Get by name
+	found := registry.GetByName("Custom Test")
+	if found == nil {
+		t.Error("custom template not found by name")
+	}
+}
+
+func TestPayloadTemplate_Integration(t *testing.T) {
+	t.Parallel()
+
+	builder := NewURLBuilder("http://localhost:8443/callback")
+	callback := builder.Generate()
+
+	// Test building a payload with the generated URL
+	tmpl := GetTemplateByName("SSRF Basic")
+	if tmpl == nil {
+		t.Fatal("SSRF Basic template not found")
+	}
+
+	payload := tmpl.Build(callback.URL)
+
+	if !strings.Contains(payload, callback.URL) {
+		t.Errorf("payload should contain callback URL: %s", payload)
+	}
+
+	if !strings.HasPrefix(payload, "http://") {
+		t.Errorf("SSRF Basic payload should start with http://: %s", payload)
+	}
+}
