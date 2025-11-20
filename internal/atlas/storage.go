@@ -311,3 +311,38 @@ func (s *MemoryStorage) Clear() {
 	s.scansByWorkspace = make(map[string][]string)
 	s.findingsByScan = make(map[string][]string)
 }
+
+// StoreScanTargets stores targets for a scan (no-op for memory storage).
+func (s *MemoryStorage) StoreScanTargets(ctx context.Context, scanID string, targets []*ScanTarget) error {
+	// Memory storage doesn't need to persist targets separately
+	return nil
+}
+
+// GetUntestedTargets retrieves targets that haven't been tested yet (no-op for memory storage).
+func (s *MemoryStorage) GetUntestedTargets(ctx context.Context, scanID string) ([]*ScanTarget, error) {
+	// Memory storage doesn't support resumability
+	return []*ScanTarget{}, nil
+}
+
+// MarkTargetTested marks a target as tested (no-op for memory storage).
+func (s *MemoryStorage) MarkTargetTested(ctx context.Context, scanID string, targetURL string) error {
+	// Memory storage doesn't need to track tested targets
+	return nil
+}
+
+// CreateCheckpoint records that a module completed testing a target (no-op for memory storage).
+func (s *MemoryStorage) CreateCheckpoint(ctx context.Context, scanID, moduleName string, targetID int) error {
+	// Memory storage doesn't support checkpoints
+	return nil
+}
+
+// GetCheckpoints retrieves completed checkpoints (no-op for memory storage).
+func (s *MemoryStorage) GetCheckpoints(ctx context.Context, scanID string) (map[string]map[int]bool, error) {
+	// Memory storage doesn't support checkpoints
+	return make(map[string]map[int]bool), nil
+}
+
+// GetFindingsByScan retrieves all findings for a scan.
+func (s *MemoryStorage) GetFindingsByScan(ctx context.Context, scanID string) ([]*Finding, error) {
+	return s.ListFindings(ctx, FindingFilter{ScanID: scanID})
+}

@@ -242,6 +242,20 @@ type Storage interface {
 	GetFinding(ctx context.Context, findingID string) (*Finding, error)
 	// ListFindings returns findings matching the filter.
 	ListFindings(ctx context.Context, filter FindingFilter) ([]*Finding, error)
+
+	// Resumability methods
+	// StoreScanTargets stores targets for a scan.
+	StoreScanTargets(ctx context.Context, scanID string, targets []*ScanTarget) error
+	// GetUntestedTargets retrieves targets that haven't been tested yet.
+	GetUntestedTargets(ctx context.Context, scanID string) ([]*ScanTarget, error)
+	// MarkTargetTested marks a target as tested.
+	MarkTargetTested(ctx context.Context, scanID string, targetURL string) error
+	// CreateCheckpoint records that a module completed testing a target.
+	CreateCheckpoint(ctx context.Context, scanID, moduleName string, targetID int) error
+	// GetCheckpoints retrieves completed checkpoints.
+	GetCheckpoints(ctx context.Context, scanID string) (map[string]map[int]bool, error)
+	// GetFindingsByScan retrieves all findings for a scan.
+	GetFindingsByScan(ctx context.Context, scanID string) ([]*Finding, error)
 }
 
 // ScanFilter specifies criteria for listing scans.
