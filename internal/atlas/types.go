@@ -168,6 +168,7 @@ type Finding struct {
 	DetectedAt    time.Time
 	Verified      bool
 	FalsePositive bool
+	Metadata      map[string]interface{} // Additional metadata
 }
 
 // Severity represents the impact level of a finding.
