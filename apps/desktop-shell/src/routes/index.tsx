@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import { Activity, AlertTriangle, ListOrdered, Target, Timer, type LucideIcon } from 'lucide-react';
+import { Activity, AlertTriangle, Layers, ListOrdered, Sparkles, Target, Timer, type LucideIcon } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 
 import { Button } from '../components/ui/button';
@@ -335,6 +335,41 @@ function DashboardRoute() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 p-8">
+      {/* Control Center Featured Banner */}
+      <motion.section
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={shouldReduceMotion ? { duration: 0 } : baseTransition}
+        className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-rose-500/10 shadow-soft backdrop-blur-sm"
+      >
+        <div className="flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 shadow-lg">
+              <Layers className="h-7 w-7 text-white" strokeWidth={2} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-semibold tracking-tight">Control Center</h2>
+                <span className="inline-flex items-center rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-semibold text-purple-600 ring-1 ring-inset ring-purple-500/30 dark:text-purple-400">
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  New
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Access all security testing plugins and features from one unified interface. Monitor plugin status, launch workflows, and manage your entire testing pipeline.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="lg"
+            onClick={() => navigate({ to: '/control-center' })}
+            className="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white shadow-lg hover:opacity-90"
+          >
+            Open Control Center
+          </Button>
+        </div>
+      </motion.section>
+
       <section className="space-y-8">
         <div className="space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight">Operations overview</h1>
