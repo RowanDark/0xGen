@@ -4,7 +4,68 @@ This guide covers all methods for installing 0xGen v2.0.0-alpha on Linux, macOS,
 
 ---
 
-## Quick Install
+## 🚀 Easy Install Wizard (Recommended)
+
+The easiest way to install 0xGen is using our automated install wizard. It detects your system, installs dependencies, and configures everything for you.
+
+### macOS & Linux
+```bash
+curl -fsSL https://raw.githubusercontent.com/RowanDark/0xGen/main/install.sh | bash
+```
+
+Or download and run:
+```bash
+wget https://raw.githubusercontent.com/RowanDark/0xGen/main/install.sh
+chmod +x install.sh
+./install.sh
+```
+
+### Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/RowanDark/0xGen/main/install.ps1 | iex
+```
+
+Or download and run:
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/RowanDark/0xGen/main/install.ps1 -OutFile install.ps1
+.\install.ps1
+```
+
+### Wizard Features
+- **Auto-detection** of OS, architecture, and package managers
+- **Dependency management** - installs Go, Rust, Node.js if needed
+- **Component selection** - Choose CLI, GUI, plugins, or documentation
+- **Smart recommendations** - Suggests best installation method for your platform
+- **Post-install setup** - Configures CA certificates and proxy settings
+
+### Wizard Options
+```bash
+# Quick install with defaults (recommended)
+./install.sh --quick
+
+# CLI tools only
+./install.sh --cli-only
+
+# Include Desktop GUI
+./install.sh --gui
+
+# Build from source
+./install.sh --source
+
+# Custom installation directory
+./install.sh --install-dir /opt/0xgen
+
+# Help
+./install.sh --help
+```
+
+---
+
+## Manual Installation Methods
+
+If you prefer manual installation or the wizard doesn't work for your system, use one of the methods below.
+
+### Quick Install
 
 ### Homebrew (macOS/Linux) - Recommended
 ```bash

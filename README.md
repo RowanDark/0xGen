@@ -12,6 +12,26 @@ docs build pipeline.
 
 ## Installation
 
+### 🚀 Easy Install Wizard (Recommended)
+
+The fastest way to get started is with our automated install wizard:
+
+**macOS & Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/RowanDark/0xGen/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/RowanDark/0xGen/main/install.ps1 | iex
+```
+
+The wizard automatically detects your system, installs dependencies, and configures 0xGen. See [INSTALL.md](INSTALL.md) for more details and options.
+
+---
+
+### Manual Installation Methods
+
 ### macOS (Homebrew)
 
 macOS users can install the prebuilt `0xgenctl` binary via Homebrew using the
