@@ -103,6 +103,10 @@ func main() {
 		os.Exit(runTrends(args[1:]))
 	case "baseline":
 		os.Exit(runBaseline(args[1:]))
+	case "schedule":
+		os.Exit(runSchedule(args[1:]))
+	case "workflow":
+		os.Exit(runWorkflow(args[1:]))
 	case "history":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "history subcommand required")
