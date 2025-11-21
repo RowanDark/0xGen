@@ -19,6 +19,10 @@ const (
 	FormatHTML ReportFormat = "html"
 	// FormatJSON renders a machine-readable bundle.
 	FormatJSON ReportFormat = "json"
+	// FormatCSV renders a CSV spreadsheet.
+	FormatCSV ReportFormat = "csv"
+	// FormatXML renders an XML report.
+	FormatXML ReportFormat = "xml"
 )
 
 type TargetCount struct {

@@ -106,6 +106,18 @@ func RenderReport(inputPath, outputPath string, format ReportFormat, opts Report
 			return err
 		}
 		data = content
+	case FormatCSV:
+		content, err := RenderCSV(findings, opts)
+		if err != nil {
+			return err
+		}
+		data = content
+	case FormatXML:
+		content, err := RenderXML(findings, opts)
+		if err != nil {
+			return err
+		}
+		data = content
 	case FormatMarkdown, "":
 		content := RenderMarkdown(findings, opts)
 		data = []byte(content)
