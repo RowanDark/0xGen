@@ -339,9 +339,9 @@ function Install-ViaBinary {
         }
 
         if ($InstallCLI) {
+            # Only 0xgenctl is available for Windows (0xgend is Linux/macOS only)
             Copy-Item "$tempDir\0xgenctl.exe" -Destination $InstallDir -Force
-            Copy-Item "$tempDir\0xgend.exe" -Destination $InstallDir -Force
-            Write-Success "Installed 0xgenctl.exe and 0xgend.exe"
+            Write-Success "Installed 0xgenctl.exe"
         }
 
         # Add to PATH if not already
