@@ -1,0 +1,12 @@
+name: "Stealth Mode"
+description: "Slow, careful scanning to avoid detection"
+config:
+  depth: 2
+  intensity: 3
+  thoroughness: 3
+  max_concurrency: 2
+  rate_limit: 10
+  timeout: "30s"
+  randomize_user_agent: true
+  enable_anomaly: true
+  max_retries: 1

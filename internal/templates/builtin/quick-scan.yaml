@@ -1,0 +1,14 @@
+name: "Quick Scan"
+description: "Fast reconnaissance, minimal testing"
+config:
+  depth: 1
+  intensity: 2
+  thoroughness: 2
+  max_concurrency: 30
+  rate_limit: 200
+  timeout: "5s"
+  enabled_modules:
+    - sqli
+    - xss
+    - ssrf
+  enable_anomaly: false

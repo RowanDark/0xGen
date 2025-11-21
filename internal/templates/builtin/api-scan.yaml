@@ -1,0 +1,17 @@
+name: "API Testing"
+description: "API-specific testing with focus on common API vulnerabilities"
+config:
+  depth: 2
+  intensity: 4
+  thoroughness: 4
+  max_concurrency: 25
+  rate_limit: 150
+  timeout: "10s"
+  enabled_modules:
+    - sqli
+    - cmdi
+    - ssrf
+    - xxe
+    - auth_bypass
+  enable_anomaly: true
+  enable_ai_payloads: true
