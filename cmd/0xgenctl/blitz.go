@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -306,7 +305,7 @@ func runBlitzRun(args []string) int {
 
 	// Progress tracking
 	var mu sync.Mutex
-	var total, completed, errors, anomalies int64
+	var total, completed, errorCount, anomalies int64
 	startTime := time.Now()
 
 	// Progress ticker
@@ -321,7 +320,7 @@ func runBlitzRun(args []string) int {
 				elapsed := time.Since(startTime)
 				rate := float64(completed) / elapsed.Seconds()
 				fmt.Printf("\rProgress: %d/%d completed | %d errors | %d anomalies | %.1f req/s",
-					completed, total, errors, anomalies, rate)
+					completed, total, errorCount, anomalies, rate)
 				mu.Unlock()
 			}
 		}()
@@ -334,7 +333,7 @@ func runBlitzRun(args []string) int {
 
 		completed++
 		if result.Error != "" {
-			errors++
+			errorCount++
 		}
 		if result.Anomaly != nil && result.Anomaly.IsInteresting {
 			anomalies++
@@ -432,7 +431,7 @@ func runBlitzExport(args []string) int {
 	dbPath := fs.String("db", "", "path to results database (required)")
 	format := fs.String("format", "html", "export format: csv, json, html")
 	output := fs.String("output", "", "output file path")
-	anomaliesOnly := fs.Bool("anomalies-only", false, "export only interesting results")
+	_ = fs.Bool("anomalies-only", false, "export only interesting results") // TODO: implement filtering
 
 	if err := fs.Parse(args); err != nil {
 		return 2
