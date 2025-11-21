@@ -1,0 +1,12 @@
+name: "Deep Scan"
+description: "Thorough testing, all modules, slower but comprehensive"
+config:
+  depth: 3
+  intensity: 5
+  thoroughness: 5
+  max_concurrency: 10
+  rate_limit: 50
+  timeout: "30s"
+  enable_oast: true
+  enable_anomaly: true
+  enable_ai: true

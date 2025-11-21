@@ -1,0 +1,19 @@
+name: "Bug Bounty Hunter"
+description: "Fast, comprehensive scan optimized for bug bounty programs"
+config:
+  depth: 2
+  intensity: 4
+  thoroughness: 4
+  max_concurrency: 20
+  rate_limit: 100
+  timeout: "10s"
+  enable_oast: true
+  enabled_modules:
+    - sqli
+    - xss
+    - ssrf
+    - xxe
+    - cmdi
+    - path_traversal
+  enable_anomaly: true
+  enable_ai_payloads: true

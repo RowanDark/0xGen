@@ -16,6 +16,7 @@ import (
 
 	"github.com/RowanDark/0xgen/internal/blitz"
 	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/templates"
 )
 
 func runBlitz(args []string) int {
@@ -42,6 +43,9 @@ func runBlitz(args []string) int {
 func runBlitzRun(args []string) int {
 	fs := flag.NewFlagSet("blitz run", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
+
+	// Template flag
+	templateName := fs.String("template", "", "use a predefined scan template")
 
 	// Required flags
 	reqPath := fs.String("req", "", "path to HTTP request template (required)")
@@ -81,6 +85,30 @@ func runBlitzRun(args []string) int {
 
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+
+	// Load and apply template if specified
+	if *templateName != "" {
+		mgr, err := templates.NewManager()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing template manager: %v\n", err)
+			return 1
+		}
+
+		tmpl, err := mgr.Get(*templateName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading template '%s': %v\n", *templateName, err)
+			return 1
+		}
+
+		// Apply template defaults (only if flag wasn't explicitly set by user)
+		applyTemplateDefaults(tmpl, fs, args)
+
+		fmt.Printf("Using template: %s\n", tmpl.Name)
+		if tmpl.Description != "" {
+			fmt.Printf("  %s\n", tmpl.Description)
+		}
+		fmt.Println()
 	}
 
 	// Validate required flags
@@ -508,4 +536,73 @@ func truncate(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// applyTemplateDefaults applies template configuration to flag values
+func applyTemplateDefaults(tmpl *templates.Template, fs *flag.FlagSet, args []string) {
+	cfg := tmpl.Config
+
+	// Track which flags were explicitly set by the user
+	explicitFlags := make(map[string]bool)
+	fs.Visit(func(f *flag.Flag) {
+		explicitFlags[f.Name] = true
+	})
+
+	// Helper to set flag value if not explicitly set
+	setIfNotExplicit := func(name string, value interface{}) {
+		if explicitFlags[name] {
+			return // User explicitly set this flag, don't override
+		}
+
+		flag := fs.Lookup(name)
+		if flag == nil {
+			return
+		}
+
+		switch v := value.(type) {
+		case int:
+			flag.Value.Set(fmt.Sprintf("%d", v))
+		case float64:
+			flag.Value.Set(fmt.Sprintf("%f", v))
+		case string:
+			flag.Value.Set(v)
+		case bool:
+			flag.Value.Set(fmt.Sprintf("%t", v))
+		}
+	}
+
+	// Apply template values
+	if cfg.MaxConcurrency != nil {
+		setIfNotExplicit("concurrency", *cfg.MaxConcurrency)
+	}
+	if cfg.RateLimit != nil {
+		setIfNotExplicit("rate", *cfg.RateLimit)
+	}
+	if cfg.AttackType != nil {
+		setIfNotExplicit("attack", *cfg.AttackType)
+	}
+	if cfg.Markers != nil {
+		setIfNotExplicit("markers", *cfg.Markers)
+	}
+	if cfg.EnableAnomaly != nil {
+		setIfNotExplicit("anomaly", *cfg.EnableAnomaly)
+	}
+	if cfg.EnableAI != nil {
+		setIfNotExplicit("ai", *cfg.EnableAI)
+	}
+	if cfg.EnableAIPayloads != nil {
+		setIfNotExplicit("ai-payloads", *cfg.EnableAIPayloads)
+	}
+	if cfg.EnableAIClassify != nil {
+		setIfNotExplicit("ai-classify", *cfg.EnableAIClassify)
+	}
+	if cfg.EnableAIFindings != nil {
+		setIfNotExplicit("ai-findings", *cfg.EnableAIFindings)
+	}
+	if cfg.MaxRetries != nil {
+		setIfNotExplicit("retries", *cfg.MaxRetries)
+	}
+	if len(cfg.Patterns) > 0 {
+		setIfNotExplicit("patterns", strings.Join(cfg.Patterns, ","))
+	}
 }

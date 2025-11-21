@@ -95,6 +95,18 @@ func main() {
 		os.Exit(runRaider(args[1:]))
 	case "blitz":
 		os.Exit(runBlitz(args[1:]))
+	case "templates":
+		os.Exit(runTemplates(args[1:]))
+	case "compare":
+		os.Exit(runCompare(args[1:]))
+	case "trends":
+		os.Exit(runTrends(args[1:]))
+	case "baseline":
+		os.Exit(runBaseline(args[1:]))
+	case "schedule":
+		os.Exit(runSchedule(args[1:]))
+	case "workflow":
+		os.Exit(runWorkflow(args[1:]))
 	case "history":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "history subcommand required")

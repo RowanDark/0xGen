@@ -1,0 +1,14 @@
+name: "CI/CD Pipeline"
+description: "Fast scan for CI/CD integration"
+config:
+  depth: 1
+  intensity: 3
+  thoroughness: 3
+  max_concurrency: 50
+  rate_limit: 500
+  timeout: "5s"
+  enabled_modules:
+    - sqli
+    - xss
+    - cmdi
+  enable_anomaly: false
