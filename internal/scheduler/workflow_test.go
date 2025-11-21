@@ -367,6 +367,30 @@ func TestEvaluateCondition(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name:      "double-digit numeric comparison - 10 > 9 should be true",
+			condition: "findings.critical > 9",
+			context: map[string]interface{}{
+				"findings.critical": 10,
+			},
+			expected: true,
+		},
+		{
+			name:      "double-digit numeric comparison - 100 > 9 should be true",
+			condition: "findings.total > 9",
+			context: map[string]interface{}{
+				"findings.total": 100,
+			},
+			expected: true,
+		},
+		{
+			name:      "numeric comparison - 5 > 9 should be false",
+			condition: "findings.critical > 9",
+			context: map[string]interface{}{
+				"findings.critical": 5,
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {

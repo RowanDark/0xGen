@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,9 +193,12 @@ func (e *WorkflowEngine) evaluateCondition(condition string, context map[string]
 	if strings.Contains(condition, "findings.critical >") {
 		parts := strings.Split(condition, ">")
 		if len(parts) == 2 {
-			threshold := strings.TrimSpace(parts[1])
-			if criticalCount, ok := context["findings.critical"].(int); ok {
-				return fmt.Sprintf("%d", criticalCount) > threshold
+			thresholdStr := strings.TrimSpace(parts[1])
+			threshold, err := strconv.Atoi(thresholdStr)
+			if err == nil {
+				if criticalCount, ok := context["findings.critical"].(int); ok {
+					return criticalCount > threshold
+				}
 			}
 		}
 	}
@@ -203,9 +207,12 @@ func (e *WorkflowEngine) evaluateCondition(condition string, context map[string]
 	if strings.Contains(condition, "findings.total >") {
 		parts := strings.Split(condition, ">")
 		if len(parts) == 2 {
-			threshold := strings.TrimSpace(parts[1])
-			if totalCount, ok := context["findings.total"].(int); ok {
-				return fmt.Sprintf("%d", totalCount) > threshold
+			thresholdStr := strings.TrimSpace(parts[1])
+			threshold, err := strconv.Atoi(thresholdStr)
+			if err == nil {
+				if totalCount, ok := context["findings.total"].(int); ok {
+					return totalCount > threshold
+				}
 			}
 		}
 	}
