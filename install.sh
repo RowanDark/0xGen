@@ -573,53 +573,79 @@ install_via_scoop() {
 install_via_binary() {
     print_step "Installing from pre-built binary..."
 
-    local version="latest"
+    # Get the latest version tag from GitHub API
+    local version=$(curl -fsSL https://api.github.com/repos/RowanDark/0xGen/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+    if [[ -z "$version" ]]; then
+        print_error "Failed to fetch latest version from GitHub"
+        return 1
+    fi
+
     local base_url="https://github.com/RowanDark/0xGen/releases/latest/download"
 
-    # Determine binary name
-    local binary_name="0xgen_${OS}_${ARCH}"
+    # Determine binary name (GoReleaser format: 0xgenctl_${version}_${os}_${arch})
+    local binary_name="0xgenctl_${version}_${OS}_${ARCH}"
     if [[ "$OS" == "windows" ]]; then
         binary_name="${binary_name}.zip"
     else
         binary_name="${binary_name}.tar.gz"
     fi
 
-    print_info "Downloading $binary_name..."
     local temp_dir=$(mktemp -d)
+    sudo mkdir -p "$INSTALL_DIR"
 
-    if curl -fsSL -o "$temp_dir/$binary_name" "$base_url/$binary_name"; then
-        print_success "Downloaded successfully"
+    if [[ "$INSTALL_CLI" == true ]]; then
+        # Download and install 0xgenctl
+        print_info "Downloading $binary_name..."
+        if curl -fsSL -o "$temp_dir/$binary_name" "$base_url/$binary_name"; then
+            print_success "Downloaded 0xgenctl archive"
 
-        # Extract
-        print_info "Extracting..."
-        cd "$temp_dir"
-        if [[ "$OS" == "windows" ]]; then
-            unzip -q "$binary_name"
-        else
-            tar -xzf "$binary_name"
-        fi
+            # Extract
+            print_info "Extracting 0xgenctl..."
+            cd "$temp_dir"
+            if [[ "$OS" == "windows" ]]; then
+                unzip -q "$binary_name"
+            else
+                tar -xzf "$binary_name"
+            fi
 
-        # Install binaries
-        print_info "Installing to $INSTALL_DIR..."
-        sudo mkdir -p "$INSTALL_DIR"
-
-        if [[ "$INSTALL_CLI" == true ]]; then
+            # Install 0xgenctl
             sudo cp 0xgenctl "$INSTALL_DIR/"
-            sudo cp 0xgend "$INSTALL_DIR/"
-            sudo chmod +x "$INSTALL_DIR/0xgenctl" "$INSTALL_DIR/0xgend"
-            print_success "Installed 0xgenctl and 0xgend"
+            sudo chmod +x "$INSTALL_DIR/0xgenctl"
+            print_success "Installed 0xgenctl"
+            cd -
+        else
+            print_error "Failed to download 0xgenctl"
+            print_info "Please visit: https://github.com/RowanDark/0xGen/releases"
+            rm -rf "$temp_dir"
+            return 1
         fi
 
-        # Cleanup
-        cd -
-        rm -rf "$temp_dir"
+        # Download and install 0xgend (not available on Windows)
+        if [[ "$OS" != "windows" ]]; then
+            local daemon_name="0xgend_${version}_${OS}_${ARCH}.tar.gz"
+            print_info "Downloading $daemon_name..."
+            if curl -fsSL -o "$temp_dir/$daemon_name" "$base_url/$daemon_name"; then
+                print_success "Downloaded 0xgend archive"
 
-        print_success "Binary installation complete!"
-    else
-        print_error "Failed to download binary"
-        print_info "Please visit: https://github.com/RowanDark/0xGen/releases"
-        return 1
+                # Extract
+                print_info "Extracting 0xgend..."
+                cd "$temp_dir"
+                tar -xzf "$daemon_name"
+
+                # Install 0xgend
+                sudo cp 0xgend "$INSTALL_DIR/"
+                sudo chmod +x "$INSTALL_DIR/0xgend"
+                print_success "Installed 0xgend"
+                cd -
+            else
+                print_warning "Failed to download 0xgend (optional)"
+            fi
+        fi
     fi
+
+    # Cleanup
+    rm -rf "$temp_dir"
+    print_success "Binary installation complete!"
 }
 
 install_via_source() {
