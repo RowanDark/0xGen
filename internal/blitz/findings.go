@@ -3,7 +3,6 @@ package blitz
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/RowanDark/0xgen/internal/findings"
 )
@@ -397,11 +396,11 @@ func (fc *FindingsCorrelator) BatchCorrelate(results []*FuzzResult) []*findings.
 }
 
 // deduplicateFindings removes duplicate findings based on type and target.
-func (fc *FindingsCorrelator) deduplicateFindings(findings []*findings.Finding) []*findings.Finding {
+func (fc *FindingsCorrelator) deduplicateFindings(findingsList []*findings.Finding) []*findings.Finding {
 	seen := make(map[string]bool)
-	unique := make([]*findings.Finding, 0, len(findings))
+	unique := make([]*findings.Finding, 0, len(findingsList))
 
-	for _, finding := range findings {
+	for _, finding := range findingsList {
 		key := fmt.Sprintf("%s:%s", finding.Type, finding.Target)
 		if !seen[key] {
 			seen[key] = true
@@ -413,10 +412,10 @@ func (fc *FindingsCorrelator) deduplicateFindings(findings []*findings.Finding) 
 }
 
 // GetVulnerabilityStats returns statistics about detected vulnerabilities.
-func (fc *FindingsCorrelator) GetVulnerabilityStats(findings []*findings.Finding) map[string]int {
+func (fc *FindingsCorrelator) GetVulnerabilityStats(findingsList []*findings.Finding) map[string]int {
 	stats := make(map[string]int)
 
-	for _, finding := range findings {
+	for _, finding := range findingsList {
 		// Count by type
 		stats[finding.Type]++
 
@@ -430,7 +429,7 @@ func (fc *FindingsCorrelator) GetVulnerabilityStats(findings []*findings.Finding
 		}
 	}
 
-	stats["total"] = len(findings)
+	stats["total"] = len(findingsList)
 
 	return stats
 }
