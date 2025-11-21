@@ -573,11 +573,17 @@ install_via_scoop() {
 install_via_binary() {
     print_step "Installing from pre-built binary..."
 
-    local version="latest"
+    # Get the latest version tag from GitHub API
+    local version=$(curl -fsSL https://api.github.com/repos/RowanDark/0xGen/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+    if [[ -z "$version" ]]; then
+        print_error "Failed to fetch latest version from GitHub"
+        return 1
+    fi
+
     local base_url="https://github.com/RowanDark/0xGen/releases/latest/download"
 
-    # Determine binary name
-    local binary_name="0xgen_${OS}_${ARCH}"
+    # Determine binary name (GoReleaser format: 0xgenctl_${version}_${os}_${arch})
+    local binary_name="0xgenctl_${version}_${OS}_${ARCH}"
     if [[ "$OS" == "windows" ]]; then
         binary_name="${binary_name}.zip"
     else

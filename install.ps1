@@ -304,8 +304,18 @@ function Install-ViaScoop {
 function Install-ViaBinary {
     Write-Step "Installing from pre-built binary..."
 
+    # Get the latest version tag from GitHub API
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/RowanDark/0xGen/releases/latest"
+        $version = $release.tag_name
+    } catch {
+        Write-Error "Failed to fetch latest version from GitHub: $_"
+        return
+    }
+
     $baseUrl = "https://github.com/RowanDark/0xGen/releases/latest/download"
-    $binaryName = "0xgen_windows_amd64.zip"
+    # GoReleaser format: 0xgenctl_${version}_${os}_${arch}.zip
+    $binaryName = "0xgenctl_${version}_windows_amd64.zip"
 
     Write-Info "Downloading $binaryName..."
     $tempFile = "$env:TEMP\$binaryName"
