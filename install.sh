@@ -473,9 +473,14 @@ select_install_method() {
 
 select_components() {
     if $QUICK_MODE; then
-        print_step "Quick mode: Installing CLI tools and plugins"
+        # Preserve INSTALL_GUI if set by Full Install mode (option 2)
+        if [[ "$INSTALL_GUI" == true ]]; then
+            print_step "Full install mode: Installing CLI tools, GUI, and plugins"
+        else
+            print_step "Quick mode: Installing CLI tools and plugins"
+        fi
         INSTALL_CLI=true
-        INSTALL_GUI=false
+        # INSTALL_GUI is already set by mode selection, don't override
         INSTALL_PLUGINS=true
         INSTALL_DOCS=false
         return
@@ -608,8 +613,14 @@ install_via_binary() {
 
     local base_url="https://github.com/RowanDark/0xGen/releases/latest/download"
 
+    # Map OS name to GoReleaser format (macos -> darwin)
+    local download_os="$OS"
+    if [[ "$OS" == "macos" ]]; then
+        download_os="darwin"
+    fi
+
     # Determine binary name (GoReleaser format: 0xgenctl_${version}_${os}_${arch})
-    local binary_name="0xgenctl_${version}_${OS}_${ARCH}"
+    local binary_name="0xgenctl_${version}_${download_os}_${ARCH}"
     if [[ "$OS" == "windows" ]]; then
         binary_name="${binary_name}.zip"
     else
@@ -648,7 +659,7 @@ install_via_binary() {
 
         # Download and install 0xgend (not available on Windows)
         if [[ "$OS" != "windows" ]]; then
-            local daemon_name="0xgend_${version}_${OS}_${ARCH}.tar.gz"
+            local daemon_name="0xgend_${version}_${download_os}_${ARCH}.tar.gz"
             print_info "Downloading $daemon_name..."
             if curl -fsSL -o "$temp_dir/$daemon_name" "$base_url/$daemon_name"; then
                 print_success "Downloaded 0xgend archive"
