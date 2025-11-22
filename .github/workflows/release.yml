@@ -244,5 +244,3 @@ jobs:
       upload-assets: true
       upload-tag-name: ${{ github.ref_name }}
       provenance-name: 0xgen-${{ github.ref_name }}-provenance.intoto.jsonl
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
