@@ -231,6 +231,8 @@ jobs:
     name: 0xgen Release Provenance
     needs:
       - goreleaser
+    # Only run provenance generation on tag pushes (not manual dispatch from branch)
+    if: github.ref_type == 'tag'
     permissions:
       actions: read
       contents: write
@@ -239,8 +241,8 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: ${{ needs.goreleaser.outputs.hashes }}
-      upload-assets: ${{ github.ref_type == 'tag' }}
-      upload-tag-name: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+      upload-assets: true
+      upload-tag-name: ${{ github.ref_name }}
       provenance-name: 0xgen-${{ github.ref_name }}-provenance.intoto.jsonl
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
