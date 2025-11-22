@@ -33,6 +33,22 @@ INSTALL_PLUGINS=true
 INSTALL_DOCS=false
 BUILD_FROM_SOURCE=false
 QUICK_MODE=false
+INTERACTIVE=true
+
+# Check if we can read from terminal (handles curl | bash case)
+if [[ -t 0 ]]; then
+    # stdin is a terminal
+    TTY_INPUT="/dev/stdin"
+else
+    # stdin is piped (curl | bash), try to use /dev/tty
+    if [[ -e /dev/tty ]]; then
+        TTY_INPUT="/dev/tty"
+    else
+        # No TTY available, force quick mode
+        INTERACTIVE=false
+        QUICK_MODE=true
+    fi
+fi
 
 #############################################
 # Utility Functions
@@ -47,9 +63,8 @@ print_header() {
  | |_| | >  <| |_| |  __/ | | |
   \___/ /_/\_\\____|\___|_| |_|
 
-    Easy Install Wizard v%s
 EOF
-    printf "$WIZARD_VERSION\n"
+    echo -e "    Easy Install Wizard v${WIZARD_VERSION}"
     echo -e "${NC}"
     echo -e "${BOLD}Welcome to the 0xGen installation wizard!${NC}\n"
 }
@@ -85,10 +100,22 @@ ask_yes_no() {
         prompt="$prompt [y/N] "
     fi
 
-    read -p "$(echo -e ${CYAN}?${NC} $prompt)" response
+    echo -ne "${CYAN}?${NC} $prompt"
+    read response < "$TTY_INPUT"
     response=${response:-$default}
 
     [[ "$response" =~ ^[Yy]$ ]]
+}
+
+# Read user input from terminal (handles curl | bash)
+read_input() {
+    local prompt="$1"
+    local default="$2"
+    local response
+
+    echo -ne "${CYAN}?${NC} $prompt"
+    read response < "$TTY_INPUT"
+    echo "${response:-$default}"
 }
 
 command_exists() {
@@ -369,8 +396,7 @@ select_install_method() {
                 echo "  3) Build from source"
 
                 if ! $QUICK_MODE; then
-                    read -p "$(echo -e ${CYAN}?${NC} Select installation method [1]: )" choice
-                    choice=${choice:-1}
+                    choice=$(read_input "Select installation method [1]: " "1")
 
                     case "$choice" in
                         1)
@@ -930,14 +956,26 @@ main() {
     if ! $QUICK_MODE; then
         echo "Installation Modes:"
         echo "  1) Quick Install - Recommended defaults (CLI + plugins)"
-        echo "  2) Custom Install - Choose components"
+        echo "  2) Full Install - CLI + GUI + plugins"
+        echo "  3) Custom Install - Choose components"
         echo ""
-        read -p "$(echo -e ${CYAN}?${NC} Select mode [1]: )" mode_choice
-        mode_choice=${mode_choice:-1}
+        mode_choice=$(read_input "Select mode [1]: " "1")
 
-        if [[ "$mode_choice" == "1" ]]; then
-            QUICK_MODE=true
-        fi
+        case "$mode_choice" in
+            1)
+                QUICK_MODE=true
+                ;;
+            2)
+                QUICK_MODE=true
+                INSTALL_GUI=true
+                ;;
+            3)
+                QUICK_MODE=false
+                ;;
+            *)
+                QUICK_MODE=true
+                ;;
+        esac
     fi
 
     # Detection
