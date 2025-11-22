@@ -96,7 +96,7 @@ nfpms:
     vendor: 0xgen Project
     provides:
       - 0xgenctl
-    depends:
+    dependencies:
       - ca-certificates
     contents:
       - src: LICENSE
@@ -116,9 +116,7 @@ dockers:
     dockerfile: Dockerfile
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
-    platforms:
-      - linux/amd64
-      - linux/arm64
+      - "--platform=linux/amd64,linux/arm64"
 
 release:
   github:
