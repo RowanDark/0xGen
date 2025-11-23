@@ -528,16 +528,6 @@ func exportResults(storage *blitz.SQLiteStorage, path, format string, stats *bli
 	return exporter.Export(results, path)
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	if maxLen < 3 {
-		return s[:maxLen]
-	}
-	return s[:maxLen-3] + "..."
-}
-
 // applyTemplateDefaults applies template configuration to flag values
 func applyTemplateDefaults(tmpl *templates.Template, fs *flag.FlagSet, args []string) {
 	cfg := tmpl.Config
