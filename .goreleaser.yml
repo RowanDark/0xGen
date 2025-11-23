@@ -54,7 +54,7 @@ builds:
 
 archives:
   - id: 0xgenctl-archive
-    builds:
+    ids:
       - 0xgenctl
     name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     files:
@@ -62,21 +62,24 @@ archives:
       - README.md
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
   - id: 0xgend-archive
-    builds:
+    ids:
       - 0xgend
     name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
   - id: quickstartseed-archive
-    builds:
+    ids:
       - quickstartseed
     name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 checksum:
   name_template: "0xgen_{{ .Tag }}_checksums.txt"
@@ -84,7 +87,7 @@ checksum:
 nfpms:
   - id: 0xgenctl-linux-packages
     package_name: 0xgenctl
-    builds:
+    ids:
       - 0xgenctl
     formats:
       - deb
@@ -117,24 +120,44 @@ dockers:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}-amd64
       - ghcr.io/rowandark/0xgenctl:latest-amd64
     dockerfile: Dockerfile
-    goos: linux
-    goarch: amd64
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
       - "--platform=linux/amd64"
-    push: true
+      - "--provenance=false"
+      - "--sbom=false"
+      - "--push"
+    goos: linux
+    goarch: amd64
+    extra_files:
+      - go.mod
+      - go.sum
+      - cmd
+      - internal
+      - sdk
+      - proto
+      - LICENSE
   - id: 0xgenctl-image-arm64
     use: buildx
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}-arm64
       - ghcr.io/rowandark/0xgenctl:latest-arm64
     dockerfile: Dockerfile
-    goos: linux
-    goarch: arm64
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
       - "--platform=linux/arm64"
-    push: true
+      - "--provenance=false"
+      - "--sbom=false"
+      - "--push"
+    goos: linux
+    goarch: arm64
+    extra_files:
+      - go.mod
+      - go.sum
+      - cmd
+      - internal
+      - sdk
+      - proto
+      - LICENSE
 
 docker_manifests:
   - name_template: ghcr.io/rowandark/0xgenctl:{{ .Version }}
