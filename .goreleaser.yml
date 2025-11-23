@@ -113,6 +113,7 @@ nfpms:
 dockers:
   - id: 0xgenctl-image
     use: buildx
+    push: true
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}
       - ghcr.io/rowandark/0xgenctl:latest
