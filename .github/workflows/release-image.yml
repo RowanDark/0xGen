@@ -107,7 +107,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Grype vulnerability scan
-        uses: anchore/grype-action@v0.9.1
+        uses: anchore/scan-action@v3
         with:
           image: ${{ steps.tag.outputs.ref }}
           fail-build: true
