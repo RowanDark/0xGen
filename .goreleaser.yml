@@ -111,15 +111,40 @@ nfpms:
       postinstall: packaging/linux/postinstall.sh
 
 dockers:
-  - id: 0xgenctl-image
+  - id: 0xgenctl-image-amd64
     use: buildx
+    push: true
     image_templates:
-      - ghcr.io/rowandark/0xgenctl:{{ .Version }}
-      - ghcr.io/rowandark/0xgenctl:latest
+      - ghcr.io/rowandark/0xgenctl:{{ .Version }}-amd64
+      - ghcr.io/rowandark/0xgenctl:latest-amd64
     dockerfile: Dockerfile
+    goos: linux
+    goarch: amd64
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
-      - "--platform=linux/amd64,linux/arm64"
+      - "--platform=linux/amd64"
+  - id: 0xgenctl-image-arm64
+    use: buildx
+    push: true
+    image_templates:
+      - ghcr.io/rowandark/0xgenctl:{{ .Version }}-arm64
+      - ghcr.io/rowandark/0xgenctl:latest-arm64
+    dockerfile: Dockerfile
+    goos: linux
+    goarch: arm64
+    build_flag_templates:
+      - "--build-arg=VERSION={{ .Version }}"
+      - "--platform=linux/arm64"
+
+docker_manifests:
+  - name_template: ghcr.io/rowandark/0xgenctl:{{ .Version }}
+    image_templates:
+      - ghcr.io/rowandark/0xgenctl:{{ .Version }}-amd64
+      - ghcr.io/rowandark/0xgenctl:{{ .Version }}-arm64
+  - name_template: ghcr.io/rowandark/0xgenctl:latest
+    image_templates:
+      - ghcr.io/rowandark/0xgenctl:latest-amd64
+      - ghcr.io/rowandark/0xgenctl:latest-arm64
 
 release:
   github:
