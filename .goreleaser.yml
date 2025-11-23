@@ -122,6 +122,7 @@ dockers:
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
       - "--platform=linux/amd64"
+    push: true
   - id: 0xgenctl-image-arm64
     use: buildx
     image_templates:
@@ -133,6 +134,7 @@ dockers:
     build_flag_templates:
       - "--build-arg=VERSION={{ .Version }}"
       - "--platform=linux/arm64"
+    push: true
 
 docker_manifests:
   - name_template: ghcr.io/rowandark/0xgenctl:{{ .Version }}
