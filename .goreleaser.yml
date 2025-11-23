@@ -4,7 +4,10 @@ project_name: 0xgen
 
 before:
   hooks:
-    - go test ./...
+    # Run go mod tidy to ensure go.sum is up to date
+    - go mod tidy
+    # Verify the build compiles (tests run separately in CI)
+    - go build ./...
 
 builds:
   - id: 0xgenctl
