@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release (e.g., v2.0.4-Alpha)
+        required: true
 
 permissions:
   contents: write
@@ -20,10 +24,27 @@ jobs:
       WINDOWS_CODESIGN_PFX: ${{ secrets.WINDOWS_CODESIGN_PFX }}
       WINDOWS_CODESIGN_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
     steps:
+      - name: Determine release tag
+        id: release-tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.tag }}"
+            if [ -z "$tag" ]; then
+              echo "Tag input is required for manual runs" >&2
+              exit 1
+            fi
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ steps.release-tag.outputs.tag }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -59,7 +80,7 @@ jobs:
       - name: Sign Windows binaries
         if: env.WINDOWS_CODESIGN_PFX != ''
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.TAG }}
         run: |
           set -euo pipefail
           cert=$(mktemp)
@@ -95,7 +116,7 @@ jobs:
 
       - name: Build Windows installers
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.TAG }}
         run: |
           set -euo pipefail
           for arch in amd64 arm64; do
@@ -105,7 +126,7 @@ jobs:
 
       - name: Write release metadata
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.TAG }}
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -115,13 +136,13 @@ jobs:
         uses: anchore/sbom-action@v0
         with:
           path: .
-          output-file: dist/0xgen-${{ github.ref_name }}-sbom.spdx.json
+          output-file: dist/0xgen-${{ env.TAG }}-sbom.spdx.json
           format: spdx-json
 
       - name: Upload Windows installers to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.TAG }}
         run: |
           set -euo pipefail
           gh release upload "$TAG" \
