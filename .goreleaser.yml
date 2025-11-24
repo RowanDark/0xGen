@@ -116,6 +116,7 @@ nfpms:
 dockers:
   - id: 0xgenctl-image-amd64
     use: buildx
+    push: true
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}-amd64
       - ghcr.io/rowandark/0xgenctl:latest-amd64
@@ -125,7 +126,6 @@ dockers:
       - "--platform=linux/amd64"
       - "--provenance=false"
       - "--sbom=false"
-      - "--push"
     goos: linux
     goarch: amd64
     extra_files:
@@ -138,6 +138,7 @@ dockers:
       - LICENSE
   - id: 0xgenctl-image-arm64
     use: buildx
+    push: true
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}-arm64
       - ghcr.io/rowandark/0xgenctl:latest-arm64
@@ -147,7 +148,6 @@ dockers:
       - "--platform=linux/arm64"
       - "--provenance=false"
       - "--sbom=false"
-      - "--push"
     goos: linux
     goarch: arm64
     extra_files:
