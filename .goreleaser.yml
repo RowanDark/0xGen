@@ -4,10 +4,10 @@ project_name: 0xgen
 
 before:
   hooks:
-    - docker buildx create --name goreleaser-builder --use --driver docker-container || docker buildx use goreleaser-builder
-    # Run go mod tidy to ensure go.sum is up to date
+    - docker context use default
+    - docker buildx inspect goreleaser-builder >/dev/null 2>&1 || docker buildx create --name goreleaser-builder --driver docker-container --bootstrap
+    - docker buildx use goreleaser-builder
     - go mod tidy
-    # Verify the build compiles (tests run separately in CI)
     - go build ./...
 
 builds:
