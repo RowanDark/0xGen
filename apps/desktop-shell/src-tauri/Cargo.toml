@@ -17,7 +17,7 @@ url = "2.4"
 reqwest = { version = "0.11", features = ["blocking", "json", "stream", "rustls-tls"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
-tauri = { version = "1.5", features = ["event", "window-all"] }
+tauri = { version = "1.5", features = ["window-all"] }
 flate2 = { version = "1.0", features = ["rust_backend"] }
 tar = "0.4"
 tempfile = "3.8"
