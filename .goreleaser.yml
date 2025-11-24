@@ -117,6 +117,7 @@ nfpms:
 dockers:
   - id: 0xgenctl-image-amd64
     use: buildx
+    builder: goreleaser-builder
     push: true
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}-amd64
@@ -139,6 +140,7 @@ dockers:
       - LICENSE
   - id: 0xgenctl-image-arm64
     use: buildx
+    builder: goreleaser-builder
     push: true
     image_templates:
       - ghcr.io/rowandark/0xgenctl:{{ .Version }}-arm64
