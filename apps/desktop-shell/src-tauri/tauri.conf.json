@@ -26,11 +26,6 @@
         "create": false,
         "hide": false,
         "show": true
-      },
-      "event": {
-        "all": false,
-        "emit": true,
-        "listen": true
       }
     },
     "windows": [
@@ -42,18 +37,16 @@
         "fullscreen": false,
         "visible": true,
         "decorations": true,
-        "fileDropEnabled": false,
-        "devtools": false
+        "fileDropEnabled": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; font-src 'self';",
-      "withGlobalTauri": false
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; font-src 'self';"
     }
   },
   "build": {
-    "beforeBuildCommand": "pnpm install",
-    "beforeDevCommand": "pnpm install && pnpm dev",
+    "beforeBuildCommand": "npm install",
+    "beforeDevCommand": "npm install && npm run dev",
     "devPath": "http://127.0.0.1:5173",
     "distDir": "../dist"
   }
