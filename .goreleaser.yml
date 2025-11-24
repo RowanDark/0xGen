@@ -4,9 +4,6 @@ project_name: 0xgen
 
 before:
   hooks:
-    - docker context use default
-    - docker buildx inspect goreleaser-builder >/dev/null 2>&1 || docker buildx create --name goreleaser-builder --driver docker-container --bootstrap
-    - docker buildx use goreleaser-builder
     - go mod tidy
     - go build ./...
 
