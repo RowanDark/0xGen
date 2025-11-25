@@ -2,7 +2,7 @@ use chrono::{DateTime, Local, Utc};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
-use sysinfo::{CpuRefreshKind, RefreshKind, System};
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use url::Url;
 
 #[derive(Debug, Clone, Serialize)]
@@ -32,9 +32,9 @@ pub fn collect_diagnostics(api_base_url: &str) -> AnonymizedDiagnostics {
     let mut system = System::new_with_specifics(
         RefreshKind::new()
             .with_cpu(CpuRefreshKind::new())
-            .with_memory(),
+            .with_memory(MemoryRefreshKind::everything()),
     );
-    system.refresh_cpu_all();
+    system.refresh_cpu();
     system.refresh_memory();
 
     let hostname_hash = System::host_name().and_then(|hostname| {

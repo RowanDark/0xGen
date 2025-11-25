@@ -8,7 +8,7 @@ use crate::crash::CrashReporter;
 use tauri::Emitter;
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     fs,
     io::{self, BufRead, BufReader},
     path::{Component, Path, PathBuf},
@@ -17,7 +17,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose::STANDARD as Base64Engine, Engine as _};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use flate2::read::GzDecoder;
 use futures::{
     future::{AbortHandle, Abortable},
@@ -1293,21 +1293,21 @@ async fn start_run(
         .map_err(|err| err.to_string())
 }
 
-fn emit_run_event(window: &Window, run_id: &str, event: RunEvent) -> Result<(), ApiError> {
+fn emit_run_event(window: &WebviewWindow, run_id: &str, event: RunEvent) -> Result<(), ApiError> {
     let event_name = format!("runs:{}:events", run_id);
     window
-        .emit(event_name, Some(event))
+        .emit(&event_name, Some(event))
         .map_err(|_| ApiError::WindowMissing)
 }
 
 fn emit_flow_event(
-    window: &Window,
+    window: &WebviewWindow,
     stream_id: &str,
     event: FlowEventPayload,
 ) -> Result<(), ApiError> {
     let event_name = format!("flows:{}:events", stream_id);
     window
-        .emit(event_name, Some(event))
+        .emit(&event_name, Some(event))
         .map_err(|_| ApiError::WindowMissing)
 }
 
@@ -2959,7 +2959,7 @@ async fn cipher_delete_recipe(
         .map_err(|err| err.to_string())
 }
 
-fn configure_devtools(window: &Window) {
+fn configure_devtools(_window: &WebviewWindow) {
     // Note: In Tauri 2.x, devtools are managed differently
     // DevTools can be opened via right-click -> Inspect Element when in debug mode
 }
