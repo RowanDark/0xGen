@@ -18,8 +18,7 @@
         "resizable": true,
         "fullscreen": false,
         "visible": true,
-        "decorations": true,
-        "fileDropEnabled": false
+        "decorations": true
       }
     ],
     "security": {
