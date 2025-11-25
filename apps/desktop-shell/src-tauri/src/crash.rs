@@ -150,7 +150,7 @@ pub struct CrashFilePreview {
 }
 
 #[derive(Clone)]
-struct LogRingBuffer {
+pub struct LogRingBuffer {
     inner: Arc<Mutex<VecDeque<String>>>,
     capacity: usize,
 }

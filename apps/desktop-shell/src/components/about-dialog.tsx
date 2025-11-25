@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { getName, getVersion } from '@tauri-apps/api/app';
-import { arch as getArch, platform as getPlatform } from '@tauri-apps/api/os';
-import { open as openExternal } from '@tauri-apps/api/shell';
+import { arch as getArch, platform as getPlatform } from '@tauri-apps/plugin-os';
+import { open as openExternal } from '@tauri-apps/plugin-shell';
 import { ExternalLink, ShieldCheck, Loader2, X } from 'lucide-react';
 
 import { Button } from './ui/button';
