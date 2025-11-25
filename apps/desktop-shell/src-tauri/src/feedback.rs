@@ -180,10 +180,11 @@ fn mask_fragment(value: &str) -> String {
         return String::new();
     }
     let mut chars: Vec<char> = trimmed.chars().collect();
-    if chars.len() <= 2 {
-        return "*".repeat(chars.len());
+    let len = chars.len();
+    if len <= 2 {
+        return "*".repeat(len);
     }
-    for ch in chars.iter_mut().skip(1).take(chars.len() - 2) {
+    for ch in chars.iter_mut().skip(1).take(len - 2) {
         *ch = '*';
     }
     chars.into_iter().collect()

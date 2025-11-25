@@ -4,8 +4,8 @@ mod crash;
 mod diagnostics;
 mod feedback;
 
-use crate::crash::{self, CrashReporter};
-use crate::feedback;
+use crate::crash::CrashReporter;
+use tauri::Emitter;
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
@@ -813,7 +813,7 @@ impl SnapshotStore {
 fn canonicalise_value(value: &mut Value) {
     match value {
         Value::Object(map) => {
-            let mut entries: Vec<(String, Value)> = map.drain().collect();
+            let mut entries: Vec<(String, Value)> = std::mem::take(map).into_iter().collect();
             entries.sort_by(|a, b| a.0.cmp(&b.0));
             let mut ordered = serde_json::Map::with_capacity(entries.len());
             for (key, mut val) in entries {
@@ -937,32 +937,35 @@ fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> Has
 }
 
 fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyBucket> {
-    let mut buckets: BTreeMap<f64, f64> = BTreeMap::new();
+    let mut buckets: HashMap<String, (f64, f64)> = HashMap::new();
     for sample in samples.iter().filter(|sample| sample.name == name) {
         if let Some(bound_str) = sample.labels.get("le") {
             if bound_str == "+Inf" {
                 continue;
             }
             if let Ok(bound) = bound_str.parse::<f64>() {
-                let key = (bound * 1000.0).max(0.0);
-                *buckets.entry(key).or_insert(0.0) += sample.value;
+                let key_val = (bound * 1000.0).max(0.0);
+                let key = format!("{:.3}", key_val);
+                let entry = buckets.entry(key).or_insert((key_val, 0.0));
+                entry.1 += sample.value;
             }
         }
     }
 
-    buckets
-        .into_iter()
+    let mut result: Vec<LatencyBucket> = buckets
+        .into_values()
         .map(|(upper_bound_ms, count)| LatencyBucket {
             upper_bound_ms,
             count,
         })
-        .collect()
+        .collect();
+    result.sort_by(|a, b| a.upper_bound_ms.partial_cmp(&b.upper_bound_ms).unwrap_or(Ordering::Equal));
+    result
 }
 
 fn unix_to_datetime(secs: i64) -> DateTime<Utc> {
     DateTime::<Utc>::from_timestamp(secs, 0).unwrap_or_else(|| {
-        let fallback = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
-        DateTime::<Utc>::from_utc(fallback, Utc)
+        DateTime::<Utc>::from_timestamp(0, 0).unwrap()
     })
 }
 
@@ -1516,7 +1519,7 @@ async fn stream_events(
     run_id: String,
 ) -> Result<(), String> {
     let window = app
-        .get_window("main")
+        .get_webview_window("main")
         .ok_or_else(|| ApiError::WindowMissing.to_string())?;
 
     let url = api.endpoint(&format!("runs/{}/events", run_id));
@@ -1628,7 +1631,7 @@ async fn stream_flows(
     }
 
     let window = app
-        .get_window("main")
+        .get_webview_window("main")
         .ok_or_else(|| ApiError::WindowMissing.to_string())?;
 
     let mut url = Url::parse(&api.endpoint("flows/events")).map_err(|err| err.to_string())?;
@@ -2957,11 +2960,8 @@ async fn cipher_delete_recipe(
 }
 
 fn configure_devtools(window: &Window) {
-    let allow_devtools =
-        std::env::var("0XGEN_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
-    if let Ok(true) = allow_devtools {
-        let _ = window.open_devtools();
-    }
+    // Note: In Tauri 2.x, devtools are managed differently
+    // DevTools can be opened via right-click -> Inspect Element when in debug mode
 }
 
 fn main() {
@@ -2980,15 +2980,15 @@ fn main() {
         .setup(|app| {
             {
                 let crash_state: State<'_, CrashReporter> = app.state();
-                crash_state.attach_app(app.handle());
+                crash_state.attach_app(app.handle().clone());
             }
-            if let Some(dir) = app.path_resolver().app_local_data_dir() {
+            if let Some(dir) = app.path().app_local_data_dir().ok() {
                 let snapshots: State<'_, SnapshotStore> = app.state();
                 snapshots
                     .initialise(dir)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
             }
-            if let Some(window) = app.get_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 configure_devtools(&window);
             }
             Ok(())
