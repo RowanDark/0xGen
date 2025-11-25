@@ -158,6 +158,11 @@ func (c *Client) GenerateCallback(ctx context.Context, testID string) (*Callback
 
 	callback := c.builder.Generate()
 
+	// Register the callback with its test ID for future interactions
+	if c.storage != nil && testID != "" {
+		c.storage.RegisterCallback(callback.ID, testID)
+	}
+
 	return &Callback{
 		ID:      callback.ID,
 		URL:     callback.URL,
@@ -177,6 +182,11 @@ func (c *Client) GenerateCallbackWithPath(ctx context.Context, testID, path stri
 	}
 
 	callback := c.builder.GenerateWithPath(path)
+
+	// Register the callback with its test ID for future interactions
+	if c.storage != nil && testID != "" {
+		c.storage.RegisterCallback(callback.ID, testID)
+	}
 
 	return &Callback{
 		ID:      callback.ID,

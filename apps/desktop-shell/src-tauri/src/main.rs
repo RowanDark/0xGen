@@ -4,11 +4,11 @@ mod crash;
 mod diagnostics;
 mod feedback;
 
-use crate::crash::CrashReporter;
-use tauri::Emitter;
+use crate::crash::{self, CrashReporter};
+use crate::feedback;
 use std::{
     cmp::Ordering,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs,
     io::{self, BufRead, BufReader},
     path::{Component, Path, PathBuf},
@@ -17,7 +17,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose::STANDARD as Base64Engine, Engine as _};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use flate2::read::GzDecoder;
 use futures::{
     future::{AbortHandle, Abortable},
@@ -813,7 +813,7 @@ impl SnapshotStore {
 fn canonicalise_value(value: &mut Value) {
     match value {
         Value::Object(map) => {
-            let mut entries: Vec<(String, Value)> = std::mem::take(map).into_iter().collect();
+            let mut entries: Vec<(String, Value)> = map.drain().collect();
             entries.sort_by(|a, b| a.0.cmp(&b.0));
             let mut ordered = serde_json::Map::with_capacity(entries.len());
             for (key, mut val) in entries {
@@ -937,35 +937,32 @@ fn sum_metric_by_label(samples: &[MetricSample], name: &str, label: &str) -> Has
 }
 
 fn collect_latency_buckets(samples: &[MetricSample], name: &str) -> Vec<LatencyBucket> {
-    let mut buckets: HashMap<String, (f64, f64)> = HashMap::new();
+    let mut buckets: BTreeMap<f64, f64> = BTreeMap::new();
     for sample in samples.iter().filter(|sample| sample.name == name) {
         if let Some(bound_str) = sample.labels.get("le") {
             if bound_str == "+Inf" {
                 continue;
             }
             if let Ok(bound) = bound_str.parse::<f64>() {
-                let key_val = (bound * 1000.0).max(0.0);
-                let key = format!("{:.3}", key_val);
-                let entry = buckets.entry(key).or_insert((key_val, 0.0));
-                entry.1 += sample.value;
+                let key = (bound * 1000.0).max(0.0);
+                *buckets.entry(key).or_insert(0.0) += sample.value;
             }
         }
     }
 
-    let mut result: Vec<LatencyBucket> = buckets
-        .into_values()
+    buckets
+        .into_iter()
         .map(|(upper_bound_ms, count)| LatencyBucket {
             upper_bound_ms,
             count,
         })
-        .collect();
-    result.sort_by(|a, b| a.upper_bound_ms.partial_cmp(&b.upper_bound_ms).unwrap_or(Ordering::Equal));
-    result
+        .collect()
 }
 
 fn unix_to_datetime(secs: i64) -> DateTime<Utc> {
     DateTime::<Utc>::from_timestamp(secs, 0).unwrap_or_else(|| {
-        DateTime::<Utc>::from_timestamp(0, 0).unwrap()
+        let fallback = NaiveDateTime::from_timestamp_opt(0, 0).unwrap();
+        DateTime::<Utc>::from_utc(fallback, Utc)
     })
 }
 
@@ -1293,21 +1290,21 @@ async fn start_run(
         .map_err(|err| err.to_string())
 }
 
-fn emit_run_event(window: &WebviewWindow, run_id: &str, event: RunEvent) -> Result<(), ApiError> {
+fn emit_run_event(window: &Window, run_id: &str, event: RunEvent) -> Result<(), ApiError> {
     let event_name = format!("runs:{}:events", run_id);
     window
-        .emit(&event_name, Some(event))
+        .emit(event_name, Some(event))
         .map_err(|_| ApiError::WindowMissing)
 }
 
 fn emit_flow_event(
-    window: &WebviewWindow,
+    window: &Window,
     stream_id: &str,
     event: FlowEventPayload,
 ) -> Result<(), ApiError> {
     let event_name = format!("flows:{}:events", stream_id);
     window
-        .emit(&event_name, Some(event))
+        .emit(event_name, Some(event))
         .map_err(|_| ApiError::WindowMissing)
 }
 
@@ -1519,7 +1516,7 @@ async fn stream_events(
     run_id: String,
 ) -> Result<(), String> {
     let window = app
-        .get_webview_window("main")
+        .get_window("main")
         .ok_or_else(|| ApiError::WindowMissing.to_string())?;
 
     let url = api.endpoint(&format!("runs/{}/events", run_id));
@@ -1631,7 +1628,7 @@ async fn stream_flows(
     }
 
     let window = app
-        .get_webview_window("main")
+        .get_window("main")
         .ok_or_else(|| ApiError::WindowMissing.to_string())?;
 
     let mut url = Url::parse(&api.endpoint("flows/events")).map_err(|err| err.to_string())?;
@@ -2960,8 +2957,8 @@ async fn cipher_delete_recipe(
 }
 
 fn configure_devtools(_window: &WebviewWindow) {
-    // Note: In Tauri 2.x, devtools are managed differently
-    // DevTools can be opened via right-click -> Inspect Element when in debug mode
+    // DevTools configuration is handled by Tauri 2.x automatically in development mode
+    // No explicit API call needed
 }
 
 fn main() {
@@ -2973,6 +2970,9 @@ fn main() {
     crash::install_panic_hook();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(api)
         .manage(crash_reporter)
         .manage(SnapshotStore::new())

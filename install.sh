@@ -217,12 +217,12 @@ check_dependencies() {
             print_success "Node.js $node_version is installed"
         fi
 
-        if ! command_exists pnpm; then
-            missing_deps+=("pnpm")
-            print_warning "pnpm is not installed (required for GUI)"
+        if ! command_exists npm; then
+            missing_deps+=("npm")
+            print_warning "npm is not installed (required for GUI)"
         else
-            local pnpm_version=$(pnpm --version)
-            print_success "pnpm $pnpm_version is installed"
+            local npm_version=$(npm --version)
+            print_success "npm $npm_version is installed"
         fi
 
         if ! command_exists cargo; then
@@ -278,11 +278,8 @@ install_dependencies() {
                     go)
                         brew install go
                         ;;
-                    node)
+                    node|npm)
                         brew install node@18
-                        ;;
-                    pnpm)
-                        brew install pnpm
                         ;;
                     rust)
                         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -325,8 +322,8 @@ install_dependencies() {
                             sudo pacman -S --noconfirm go
                         fi
                         ;;
-                    node)
-                        print_info "Installing Node.js..."
+                    node|npm)
+                        print_info "Installing Node.js (includes npm)..."
                         if [[ "$pkg_manager" == "apt" ]]; then
                             curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
                             sudo apt-get install -y nodejs
@@ -334,9 +331,6 @@ install_dependencies() {
                             curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
                             sudo $pkg_manager install -y nodejs
                         fi
-                        ;;
-                    pnpm)
-                        curl -fsSL https://get.pnpm.io/install.sh | sh -
                         ;;
                     rust)
                         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -537,12 +531,21 @@ install_via_homebrew() {
     if [[ "$INSTALL_CLI" == true ]]; then
         print_info "Installing 0xGen CLI..."
         brew install 0xgen
-        print_success "0xGen CLI installed!"
+        print_success "0xGen CLI installed (includes plugins)!"
     fi
 
     if [[ "$INSTALL_GUI" == true ]]; then
-        print_warning "Desktop GUI installation via Homebrew coming soon"
-        print_info "Please build from source for now"
+        print_warning "Desktop GUI not available via Homebrew"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
+    fi
+
+    if [[ "$INSTALL_DOCS" == true ]]; then
+        print_warning "Documentation not available via Homebrew"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
     fi
 }
 
@@ -560,7 +563,21 @@ install_via_apt() {
     if [[ "$INSTALL_CLI" == true ]]; then
         print_info "Installing 0xGen CLI..."
         sudo apt-get install -y 0xgen
-        print_success "0xGen CLI installed!"
+        print_success "0xGen CLI installed (includes plugins)!"
+    fi
+
+    if [[ "$INSTALL_GUI" == true ]]; then
+        print_warning "Desktop GUI not available via APT package"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
+    fi
+
+    if [[ "$INSTALL_DOCS" == true ]]; then
+        print_warning "Documentation not available via APT package"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
     fi
 }
 
@@ -581,7 +598,21 @@ EOF
     if [[ "$INSTALL_CLI" == true ]]; then
         print_info "Installing 0xGen CLI..."
         sudo dnf install -y 0xgen
-        print_success "0xGen CLI installed!"
+        print_success "0xGen CLI installed (includes plugins)!"
+    fi
+
+    if [[ "$INSTALL_GUI" == true ]]; then
+        print_warning "Desktop GUI not available via DNF package"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
+    fi
+
+    if [[ "$INSTALL_DOCS" == true ]]; then
+        print_warning "Documentation not available via DNF package"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
     fi
 }
 
@@ -597,7 +628,17 @@ install_via_scoop() {
     if [[ "$INSTALL_CLI" == true ]]; then
         print_info "Installing 0xGen CLI..."
         scoop install 0xgen
-        print_success "0xGen CLI installed!"
+        print_success "0xGen CLI installed (includes plugins)!"
+    fi
+
+    if [[ "$INSTALL_GUI" == true ]]; then
+        print_warning "Desktop GUI not available via Scoop"
+        print_info "Please build from source or download from GitHub releases"
+    fi
+
+    if [[ "$INSTALL_DOCS" == true ]]; then
+        print_warning "Documentation not available via Scoop"
+        print_info "Visit: https://docs.0xgen.dev"
     fi
 }
 
@@ -683,6 +724,21 @@ install_via_binary() {
     # Cleanup
     rm -rf "$temp_dir"
     print_success "Binary installation complete!"
+
+    # Handle GUI and docs requests
+    if [[ "$INSTALL_GUI" == true ]]; then
+        print_warning "Desktop GUI not available as pre-built binary"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
+    fi
+
+    if [[ "$INSTALL_DOCS" == true ]]; then
+        print_warning "Documentation not available as pre-built binary"
+        print_info "Building from source instead..."
+        BUILD_FROM_SOURCE=true
+        install_via_source
+    fi
 }
 
 install_via_source() {
@@ -722,10 +778,10 @@ install_via_source() {
         cd apps/desktop-shell
 
         print_info "Installing Node.js dependencies..."
-        pnpm install
+        npm install
 
         print_info "Building Tauri application..."
-        pnpm tauri build
+        npm run tauri:build
 
         # Installation location varies by OS
         case "$OS" in
@@ -861,24 +917,27 @@ print_summary() {
     echo "  1. Verify installation:"
     echo "     $ 0xgenctl version"
     echo ""
-    echo "  2. Start the proxy daemon:"
-    echo "     $ 0xgend start"
+    echo "  2. Start the proxy daemon with authentication:"
+    echo "     $ 0xgend --token=your-secure-token"
+    echo "     (Replace 'your-secure-token' with a random string)"
     echo ""
     echo "  3. Configure your browser to use the proxy:"
     echo "     HTTP Proxy: localhost:8080"
     echo ""
-    echo "  4. Run a quick test:"
-    echo "     $ 0xgenctl scan https://example.com"
+    echo "  4. View available commands:"
+    echo "     $ 0xgenctl"
+    echo "     Common commands: report, findings, plugin, raider, blitz"
     echo ""
 
     if [[ "$INSTALL_GUI" == true ]]; then
         echo "  5. Launch the Desktop GUI:"
         case "$OS" in
             macos)
-                echo "     Open from Applications folder"
+                echo "     Open 0xGen from Applications folder"
                 ;;
             linux)
-                echo "     $ 0xgen-gui"
+                echo "     $ 0xgen"
+                echo "     Or search for '0xGen' in your application menu"
                 ;;
             windows)
                 echo "     Search for '0xGen' in Start Menu"

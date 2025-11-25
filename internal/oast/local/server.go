@@ -199,6 +199,9 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		body = []byte(fmt.Sprintf("Error reading body: %v", err))
 	}
 
+	// Look up the test ID for this callback
+	testID := s.storage.GetTestIDForCallback(id)
+
 	// Create interaction record
 	interaction := &Interaction{
 		ID:        id,
@@ -211,6 +214,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		Body:      string(body),
 		ClientIP:  extractClientIP(r),
 		UserAgent: r.UserAgent(),
+		TestID:    testID,
 	}
 
 	// Store interaction

@@ -24,6 +24,9 @@ type Storage struct {
 	// Index by test ID for fast lookup: testID -> []interactionID
 	testIndex map[string][]string
 
+	// Callback ID to test ID mapping for associating callbacks with tests
+	callbackTestID map[string]string
+
 	// Configuration
 	ttl time.Duration
 
@@ -41,11 +44,12 @@ func NewStorageWithTTL(ttl time.Duration) *Storage {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s := &Storage{
-		byID:      make(map[string][]*Interaction),
-		timeline:  make([]*Interaction, 0),
-		testIndex: make(map[string][]string),
-		ttl:       ttl,
-		cancel:    cancel,
+		byID:           make(map[string][]*Interaction),
+		timeline:       make([]*Interaction, 0),
+		testIndex:      make(map[string][]string),
+		callbackTestID: make(map[string]string),
+		ttl:            ttl,
+		cancel:         cancel,
 	}
 
 	// Start cleanup goroutine
@@ -71,6 +75,24 @@ func (s *Storage) Store(interaction *Interaction) error {
 	}
 
 	return nil
+}
+
+// RegisterCallback associates a callback ID with a test ID for future interactions.
+func (s *Storage) RegisterCallback(callbackID, testID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if testID != "" {
+		s.callbackTestID[callbackID] = testID
+	}
+}
+
+// GetTestIDForCallback retrieves the test ID associated with a callback ID.
+func (s *Storage) GetTestIDForCallback(callbackID string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.callbackTestID[callbackID]
 }
 
 // GetByID returns all interactions for a given callback ID.
@@ -223,6 +245,7 @@ func (s *Storage) Clear() {
 	s.byID = make(map[string][]*Interaction)
 	s.timeline = make([]*Interaction, 0)
 	s.testIndex = make(map[string][]string)
+	s.callbackTestID = make(map[string]string)
 }
 
 // DeleteByID removes all interactions for a given ID.
