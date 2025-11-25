@@ -424,7 +424,7 @@ func (s *SQLiteStorage) GetStats() (*Stats, error) {
 			MIN(duration_ms),
 			MAX(duration_ms)
 		FROM results
-		WHERE session_id = ? AND error IS NULL OR error = ''
+		WHERE session_id = ? AND (error IS NULL OR error = '')
 	`, s.sessionID).Scan(&stats.AvgDuration, &stats.MinDuration, &stats.MaxDuration)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("duration stats: %w", err)
