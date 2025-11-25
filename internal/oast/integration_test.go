@@ -461,17 +461,17 @@ func TestOAST_StorageCleanup(t *testing.T) {
 		t.Errorf("expected 1 interaction before cleanup, got %d", len(interactions))
 	}
 
-	// Cleanup the storage
+	// Clear the storage (remove all interactions)
 	storage := client.GetStorage()
-	storage.Cleanup()
+	storage.Clear()
 
-	// Verify interactions are cleaned up
+	// Verify interactions are cleared
 	interactions, err = client.CheckInteractions(ctx, cb.ID)
 	if err != nil {
-		t.Fatalf("failed to check interactions after cleanup: %v", err)
+		t.Fatalf("failed to check interactions after clear: %v", err)
 	}
 	if len(interactions) != 0 {
-		t.Errorf("expected 0 interactions after cleanup, got %d", len(interactions))
+		t.Errorf("expected 0 interactions after clear, got %d", len(interactions))
 	}
 }
 
