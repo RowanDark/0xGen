@@ -781,7 +781,7 @@ install_via_source() {
         npm install
 
         print_info "Building Tauri application..."
-        npm run tauri build
+        npm run tauri:build
 
         # Installation location varies by OS
         case "$OS" in
