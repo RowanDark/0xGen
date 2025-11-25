@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{from_str, json, Value};
 use sha2::{Digest, Sha256};
 use tar::Archive;
-use tauri::{async_runtime, Manager, State, Window};
+use tauri::{async_runtime, Manager, State, WebviewWindow};
 use tempfile::TempDir;
 use thiserror::Error;
 use url::Url;
