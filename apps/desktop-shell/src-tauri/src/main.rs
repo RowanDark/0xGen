@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{from_str, json, Value};
 use sha2::{Digest, Sha256};
 use tar::Archive;
-use tauri::{async_runtime, Manager, State, Window};
+use tauri::{async_runtime, Manager, State, WebviewWindow};
 use tempfile::TempDir;
 use thiserror::Error;
 use url::Url;
@@ -2956,12 +2956,9 @@ async fn cipher_delete_recipe(
         .map_err(|err| err.to_string())
 }
 
-fn configure_devtools(window: &Window) {
-    let allow_devtools =
-        std::env::var("0XGEN_ENABLE_DEVTOOLS").map(|v| v == "1" || v.eq_ignore_ascii_case("true"));
-    if let Ok(true) = allow_devtools {
-        let _ = window.open_devtools();
-    }
+fn configure_devtools(_window: &WebviewWindow) {
+    // DevTools configuration is handled by Tauri 2.x automatically in development mode
+    // No explicit API call needed
 }
 
 fn main() {
@@ -2973,6 +2970,9 @@ fn main() {
     crash::install_panic_hook();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(api)
         .manage(crash_reporter)
         .manage(SnapshotStore::new())
@@ -2980,15 +2980,15 @@ fn main() {
         .setup(|app| {
             {
                 let crash_state: State<'_, CrashReporter> = app.state();
-                crash_state.attach_app(app.handle());
+                crash_state.attach_app(app.handle().clone());
             }
-            if let Some(dir) = app.path_resolver().app_local_data_dir() {
+            if let Some(dir) = app.path().app_local_data_dir().ok() {
                 let snapshots: State<'_, SnapshotStore> = app.state();
                 snapshots
                     .initialise(dir)
                     .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
             }
-            if let Some(window) = app.get_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 configure_devtools(&window);
             }
             Ok(())

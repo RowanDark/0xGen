@@ -1,33 +1,15 @@
 {
-  "package": {
-    "productName": "0xgen",
-    "version": "0.1.0"
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "0xgen",
+  "version": "0.1.0",
+  "identifier": "dev.0xgen.desktop",
+  "build": {
+    "beforeBuildCommand": "npm install && npm run build",
+    "beforeDevCommand": "npm install && npm run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
   },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "fs": {
-        "all": false
-      },
-      "shell": {
-        "all": false,
-        "open": false
-      },
-      "http": {
-        "all": false,
-        "request": false
-      },
-      "dialog": {
-        "all": false
-      },
-      "window": {
-        "all": false,
-        "close": true,
-        "create": false,
-        "hide": false,
-        "show": true
-      }
-    },
+  "app": {
     "windows": [
       {
         "title": "0xgen",
@@ -36,18 +18,45 @@
         "resizable": true,
         "fullscreen": false,
         "visible": true,
-        "decorations": true,
-        "fileDropEnabled": false
+        "decorations": true
       }
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; font-src 'self';"
     }
   },
-  "build": {
-    "beforeBuildCommand": "npm install",
-    "beforeDevCommand": "npm install && npm run dev",
-    "devPath": "http://127.0.0.1:5173",
-    "distDir": "../dist"
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "dialog": {
+      "all": true,
+      "ask": true,
+      "confirm": true,
+      "message": true,
+      "open": true,
+      "save": true
+    },
+    "shell": {
+      "all": false,
+      "execute": false,
+      "open": true,
+      "scope": [
+        {
+          "name": "open-url",
+          "cmd": "open",
+          "args": true
+        }
+      ]
+    },
+    "os": {}
   }
 }
