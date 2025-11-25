@@ -95,6 +95,8 @@ func main() {
 		os.Exit(runRaider(args[1:]))
 	case "blitz":
 		os.Exit(runBlitz(args[1:]))
+	case "atlas":
+		os.Exit(runAtlas(args[1:]))
 	case "templates":
 		os.Exit(runTemplates(args[1:]))
 	case "compare":
