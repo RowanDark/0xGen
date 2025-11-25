@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
 interface Props {
