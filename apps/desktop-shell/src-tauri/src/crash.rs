@@ -15,7 +15,7 @@ use parking_lot::Mutex;
 use regex::{Captures, Regex};
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use thiserror::Error;
 use tracing::{error, info, warn};
 use tracing_subscriber::{fmt::MakeWriter, EnvFilter};
@@ -71,8 +71,6 @@ pub enum CrashError {
     InvalidPath,
     #[error("i/o error: {0}")]
     Io(#[from] io::Error),
-    #[error("archive error: {0}")]
-    Archive(#[from] tar::Error),
 }
 
 #[derive(Clone)]
@@ -281,7 +279,7 @@ impl CrashReporter {
         if self.inner.app_handle.set(app.clone()).is_ok() {
             let mut pending = self.inner.pending_events.lock();
             for summary in pending.drain(..) {
-                if let Err(err) = app.emit_all("crash-bundle-ready", &summary) {
+                if let Err(err) = app.emit("crash-bundle-ready", &summary) {
                     error!("failed to emit pending crash bundle event: {err}");
                 }
             }
@@ -491,7 +489,7 @@ impl CrashReporter {
 
     fn emit_summary(&self, summary: &CrashBundleSummary) {
         if let Some(app) = self.inner.app_handle.get() {
-            if let Err(err) = app.emit_all("crash-bundle-ready", summary) {
+            if let Err(err) = app.emit("crash-bundle-ready", summary) {
                 error!("failed to emit crash bundle event: {err}");
             }
         } else {

@@ -30,14 +30,14 @@ pub struct AnonymizedDiagnostics {
 
 pub fn collect_diagnostics(api_base_url: &str) -> AnonymizedDiagnostics {
     let mut system = System::new_with_specifics(
-        RefreshKind::nothing()
+        RefreshKind::new()
             .with_cpu(CpuRefreshKind::new())
             .with_memory(),
     );
-    system.refresh_cpu();
+    system.refresh_cpu_all();
     system.refresh_memory();
 
-    let hostname_hash = system.host_name().and_then(|hostname| {
+    let hostname_hash = System::host_name().and_then(|hostname| {
         if hostname.trim().is_empty() {
             None
         } else {
@@ -59,10 +59,10 @@ pub fn collect_diagnostics(api_base_url: &str) -> AnonymizedDiagnostics {
         captured_at,
         version: env!("CARGO_PKG_VERSION").to_string(),
         os: std::env::consts::OS.to_string(),
-        os_version: system.long_os_version(),
-        kernel_version: system.kernel_version(),
+        os_version: System::long_os_version(),
+        kernel_version: System::kernel_version(),
         architecture: std::env::consts::ARCH.to_string(),
-        uptime_seconds: system.uptime(),
+        uptime_seconds: System::uptime(),
         logical_cpus: system.cpus().len(),
         physical_cpus: system.physical_core_count(),
         total_memory_bytes,
