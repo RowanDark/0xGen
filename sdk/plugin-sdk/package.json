@@ -1,0 +1,25 @@
+{
+  "name": "@0xgen/plugin-sdk",
+  "version": "1.0.0",
+  "description": "Node.js Plugin SDK for 0xGen Security Scanner",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "0xgen",
+    "plugin",
+    "security",
+    "scanner"
+  ],
+  "author": "0xGen Team",
+  "license": "MIT",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.9.0",
+    "@grpc/proto-loader": "^0.7.10"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
