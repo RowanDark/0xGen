@@ -1,8 +1,10 @@
 # Grapher
 
-Grapher performs unauthenticated discovery of API schemas so downstream 0xgen workflows can reason about surfaced endpoints without touching production credentials.
+Grapher provides two main capabilities:
+1. **Schema Discovery**: Unauthenticated discovery of API schemas (OpenAPI, GraphQL) for downstream workflows
+2. **Graph Building**: Construct sitemap graphs by parsing HTML responses and extracting links
 
-## Scope
+## Schema Discovery
 
 - Probes common OpenAPI locations (`/.well-known/openapi.json`, `/openapi.json`, `/swagger.json`, `/swagger/v1/swagger.json`).
 - Checks likely GraphQL handlers (`/.well-known/graphql`, `/graphql`, `/api/graphql`) with safe `HEAD`/`GET` metadata requests.
@@ -42,3 +44,61 @@ Each successful discovery is emitted as a JSON object on its own line:
 ```
 
 The timestamps are recorded in RFC3339 UTC format. Downstream tooling can merge or deduplicate the JSONL as needed.
+
+## Graph Building
+
+The `Builder` API allows you to construct sitemap graphs by processing HTTP request/response pairs. It automatically:
+- Extracts all links from HTML responses (including `<a>`, `<link>`, `<script>`, and `<img>` tags)
+- Resolves relative URLs to absolute URLs correctly
+- Filters out invalid schemes (javascript:, mailto:, tel:, data:)
+- Handles URL normalization (removes fragments, trailing slashes)
+- Creates a directed graph with nodes (URLs) and edges (links)
+
+### Usage Example
+
+```go
+import "github.com/RowanDark/0xgen/plugins/grapher"
+
+// Create a new builder
+builder := NewBuilder()
+
+// Process HTTP responses as you crawl
+req, _ := http.NewRequest("GET", "https://example.com/", nil)
+resp := &http.Response{
+    StatusCode: 200,
+    Header:     http.Header{"Content-Type": []string{"text/html"}},
+    Body:       io.NopCloser(strings.NewReader(`<html>...`)),
+    Request:    req,
+}
+
+// Add the request/response to the graph
+err := builder.AddRequest(req, resp)
+
+// Get the resulting graph
+graph := builder.GetGraph()
+
+// Access nodes and edges
+fmt.Printf("Discovered %d URLs\n", len(graph.Nodes))
+fmt.Printf("Found %d links\n", len(graph.Edges))
+```
+
+### Features
+
+**Relative URL Resolution**: All relative URLs are correctly resolved to absolute URLs based on the request context:
+- `/about` → `https://example.com/about`
+- `../parent` → `https://example.com/parent`
+- `other.html` → `https://example.com/section/other.html`
+
+**Security Filtering**: Invalid and potentially dangerous schemes are filtered out:
+- ❌ `javascript:alert('xss')`
+- ❌ `mailto:test@example.com`
+- ❌ `tel:+1234567890`
+- ✅ `https://example.com/page`
+
+**Smart Processing**:
+- Only processes successful HTML responses (status 200-399 with HTML content type)
+- Deduplicates links within each page
+- Normalizes URLs for consistent node IDs
+- Thread-safe for concurrent crawling
+
+See `example_graph_builder.go` for a complete working example.
