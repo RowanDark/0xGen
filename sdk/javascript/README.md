@@ -455,8 +455,8 @@ parallelScans().catch(console.error);
 
 ## Requirements
 
-- Node.js >= 16.0.0
-- Modern browser with fetch support (or node-fetch polyfill for older Node versions)
+- Node.js >= 18.0.0 (native fetch API support)
+- Modern browser with fetch support
 
 ## License
 
