@@ -14,6 +14,7 @@ type SessionManager struct {
 	storage *Storage
 	engine  *EntropyEngine
 	now     func() time.Time
+	ctx     *pluginsdk.Context // Plugin context for emitting findings
 
 	// Session management
 	mu               sync.RWMutex
@@ -36,12 +37,18 @@ func NewSessionManager(storage *Storage, engine *EntropyEngine, now func() time.
 		storage:          storage,
 		engine:           engine,
 		now:              now,
+		ctx:              nil, // Set later via SetContext
 		sessions:         make(map[int64]*CaptureSession),
 		incrementalStats: make(map[int64]*IncrementalStats),
 		notifications:    make(chan SessionNotification, 100),
 		minSampleSize:    100,
 		maxOverheadMs:    5.0,
 	}
+}
+
+// SetContext sets the plugin context for emitting findings
+func (sm *SessionManager) SetContext(ctx *pluginsdk.Context) {
+	sm.ctx = ctx
 }
 
 // StartSession creates and starts a new capture session
@@ -333,6 +340,9 @@ func (sm *SessionManager) triggerAnalysis(session *CaptureSession, stats *Increm
 		analysis, err := sm.engine.AnalyzeSession(session.ID)
 		if err != nil {
 			// Log error but don't fail
+			if sm.ctx != nil {
+				sm.ctx.Logger().Error("failed to analyze session", "session_id", session.ID, "error", err)
+			}
 			return
 		}
 
@@ -359,6 +369,19 @@ func (sm *SessionManager) triggerAnalysis(session *CaptureSession, stats *Increm
 				"collision_rate":   analysis.CollisionRate,
 			},
 		})
+
+		// Create and emit finding to Atlas
+		if sm.ctx != nil {
+			finding := sm.engine.CreateFinding(analysis, session)
+			if err := sm.ctx.EmitFinding(finding); err != nil {
+				sm.ctx.Logger().Error("failed to emit finding", "session_id", session.ID, "error", err)
+			} else {
+				sm.ctx.Logger().Info("emitted entropy finding",
+					"session_id", session.ID,
+					"risk", analysis.Risk,
+					"randomness_score", analysis.RandomnessScore)
+			}
+		}
 
 		// Auto-stop if critical pattern detected
 		if analysis.Risk == RiskCritical && len(analysis.DetectedPatterns) > 0 {
