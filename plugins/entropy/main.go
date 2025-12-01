@@ -81,6 +81,9 @@ func newEntropyHooks(storage *Storage, now func() time.Time) *entropyHooks {
 func (h *entropyHooks) Init(ctx *pluginsdk.Context) error {
 	ctx.Logger().Info("Entropy plugin initialized")
 
+	// Set context on session manager for finding emission
+	h.sessionManager.SetContext(ctx)
+
 	// Load active sessions from database (persistence across restarts)
 	if err := h.sessionManager.LoadActiveSessions(); err != nil {
 		ctx.Logger().Error("failed to load active sessions", "error", err)
