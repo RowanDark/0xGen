@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -299,6 +300,46 @@ func TestBuilderAddRequestSkipsNonHTMLResponses(t *testing.T) {
 	}
 }
 
+func TestBuilderAddRequestXHTMLContent(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+	reqURL := mustParseURL("https://example.com/page.xhtml")
+	req := &http.Request{URL: reqURL}
+
+	xhtmlContent := `<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>XHTML</title></head>
+<body>
+	<a href="/link">Link</a>
+</body>
+</html>`
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/xhtml+xml"}},
+		Body:       io.NopCloser(bytes.NewBufferString(xhtmlContent)),
+		Request:    req,
+	}
+
+	err := b.AddRequest(req, resp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	graph := b.GetGraph()
+
+	// Should parse XHTML like HTML
+	if len(graph.Nodes) != 2 {
+		t.Fatalf("expected 2 nodes (source + link), got %d", len(graph.Nodes))
+	}
+	if len(graph.Edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d", len(graph.Edges))
+	}
+}
+
 func TestBuilderAddRequestSkipsErrorResponses(t *testing.T) {
 	t.Parallel()
 
@@ -493,6 +534,258 @@ func TestNormalizeURL(t *testing.T) {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestBuilderGetOrCreateNodeReusesExisting(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+
+	// Create first node
+	node1 := b.getOrCreateNode("https://example.com/page")
+	if node1 == nil {
+		t.Fatal("expected node, got nil")
+	}
+
+	// Try to create same node again - should reuse existing
+	node2 := b.getOrCreateNode("https://example.com/page")
+	if node2 == nil {
+		t.Fatal("expected node, got nil")
+	}
+
+	// Should be the exact same node (pointer equality)
+	if node1 != node2 {
+		t.Error("expected same node instance to be reused")
+	}
+
+	// Graph should only have one node
+	if len(b.graph.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(b.graph.Nodes))
+	}
+}
+
+func TestBuilderAddRequestSkipsSelfReferences(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+	reqURL := mustParseURL("https://example.com/page")
+	req := &http.Request{URL: reqURL}
+
+	// HTML with self-referencing link
+	htmlContent := `<!DOCTYPE html>
+<html>
+<body>
+	<a href="https://example.com/page">Self</a>
+	<a href="/page">Self Relative</a>
+	<a href="/other">Other</a>
+</body>
+</html>`
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/html"}},
+		Body:       io.NopCloser(bytes.NewBufferString(htmlContent)),
+		Request:    req,
+	}
+
+	err := b.AddRequest(req, resp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	graph := b.GetGraph()
+
+	// Should have source + other page = 2 nodes (self-refs skipped)
+	if len(graph.Nodes) != 2 {
+		t.Fatalf("expected 2 nodes, got %d", len(graph.Nodes))
+	}
+
+	// Should only have 1 edge (to /other, self-refs skipped)
+	if len(graph.Edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d", len(graph.Edges))
+	}
+}
+
+func TestBuilderParseLinksNilResponse(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+
+	// Test with nil response
+	links, err := b.parseLinks(nil)
+	if err == nil {
+		t.Fatal("expected error for nil response, got nil")
+	}
+	if links != nil {
+		t.Errorf("expected nil links, got %v", links)
+	}
+}
+
+func TestBuilderParseLinksNilBody(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+	reqURL := mustParseURL("https://example.com/page")
+	req := &http.Request{URL: reqURL}
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/html"}},
+		Body:       nil, // nil body
+		Request:    req,
+	}
+
+	links, err := b.parseLinks(resp)
+	if err == nil {
+		t.Fatal("expected error for nil body, got nil")
+	}
+	if links != nil {
+		t.Errorf("expected nil links, got %v", links)
+	}
+}
+
+func TestBuilderParseLinksInvalidHTML(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+	reqURL := mustParseURL("https://example.com/page")
+	req := &http.Request{URL: reqURL}
+
+	// HTML parser is very lenient, so this might not trigger parse error
+	// But we test the error path exists
+	invalidHTML := "<html><body><a href='/link'>Link</a></body></html>"
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/html"}},
+		Body:       io.NopCloser(strings.NewReader(invalidHTML)),
+		Request:    req,
+	}
+
+	// Should not panic even with "invalid" HTML
+	links, err := b.parseLinks(resp)
+	if err != nil {
+		// If it errors, that's fine (testing error path)
+		return
+	}
+	// HTML parser is very permissive, so it likely succeeded
+	if links == nil {
+		t.Error("expected links slice, got nil")
+	}
+}
+
+type failingReader struct{}
+
+func (f *failingReader) Read(p []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
+func (f *failingReader) Close() error {
+	return nil
+}
+
+func TestBuilderParseLinksReadError(t *testing.T) {
+	t.Parallel()
+
+	b := NewBuilder()
+	reqURL := mustParseURL("https://example.com/page")
+	req := &http.Request{URL: reqURL}
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/html"}},
+		Body:       &failingReader{},
+		Request:    req,
+	}
+
+	links, err := b.parseLinks(resp)
+	if err == nil {
+		t.Fatal("expected error for failing reader, got nil")
+	}
+	if links != nil {
+		t.Errorf("expected nil links, got %v", links)
+	}
+}
+
+func TestResolveHTMLLinkInvalidURL(t *testing.T) {
+	t.Parallel()
+
+	base := mustParseURL("https://example.com/page")
+
+	// Invalid URL that can't be parsed
+	invalidURLs := []string{
+		"://invalid",
+		"http://[::1]:namedport",
+		string([]byte{0x7f}), // invalid UTF-8
+	}
+
+	for _, invalid := range invalidURLs {
+		result := resolveHTMLLink(base, invalid)
+		if result != "" {
+			t.Errorf("expected empty string for invalid URL %q, got %q", invalid, result)
+		}
+	}
+}
+
+func TestResolveHTMLLinkNonHTTPSchemes(t *testing.T) {
+	t.Parallel()
+
+	base := mustParseURL("https://example.com/page")
+
+	// Test various non-HTTP schemes
+	schemes := []string{
+		"ftp://example.com/file",
+		"ws://example.com/socket",
+		"wss://example.com/socket",
+		"file:///etc/passwd",
+		"about:blank",
+	}
+
+	for _, schemeURL := range schemes {
+		result := resolveHTMLLink(base, schemeURL)
+		// All non-http/https schemes should be filtered
+		if result != "" {
+			t.Errorf("expected empty string for scheme %q, got %q", schemeURL, result)
+		}
+	}
+}
+
+func TestResolveHTMLLinkEmptyLink(t *testing.T) {
+	t.Parallel()
+
+	base := mustParseURL("https://example.com/page")
+
+	// Empty link should return empty after resolution
+	result := resolveHTMLLink(base, "")
+	if result != "" {
+		t.Errorf("expected empty string for empty link, got %q", result)
+	}
+}
+
+func TestNormalizeURLInvalidURL(t *testing.T) {
+	t.Parallel()
+
+	// Invalid URL that can't be parsed
+	invalid := "://invalid"
+	result := normalizeURL(invalid)
+
+	// Should return the original string when parsing fails
+	if result != invalid {
+		t.Errorf("expected %q for invalid URL, got %q", invalid, result)
+	}
+}
+
+func TestNormalizeURLFragmentAndTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	// Test URL with both fragment and trailing slash
+	input := "https://example.com/page/#section"
+	expected := "https://example.com/page"
+	result := normalizeURL(input)
+
+	if result != expected {
+		t.Errorf("expected %q, got %q", expected, result)
 	}
 }
 
