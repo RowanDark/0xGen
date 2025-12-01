@@ -1316,7 +1316,9 @@ func BenchmarkSessionManagerOverhead(b *testing.B) {
 }
 
 func TestSessionManagerFindingEmission(t *testing.T) {
-	// This test verifies that findings are emitted when weak randomness is detected
+	// This test verifies that the CreateFinding method produces valid findings
+	// when weak randomness is detected. Actual emission to Atlas is tested via
+	// integration tests with the full plugin SDK context.
 	dbPath := "test_finding_emission.db"
 	defer os.Remove(dbPath)
 
@@ -1326,31 +1328,8 @@ func TestSessionManagerFindingEmission(t *testing.T) {
 	}
 	defer storage.Close()
 
-	// Create a mock context to capture emitted findings
-	var emittedFindings []string
-	var mu sync.Mutex
-	mockCtx := &mockContext{
-		emitFindingFunc: func(finding interface{}) error {
-			mu.Lock()
-			defer mu.Unlock()
-			// Store finding type as string
-			if f, ok := finding.(Finding); ok {
-				emittedFindings = append(emittedFindings, f.Type)
-			}
-			return nil
-		},
-		loggerFunc: func() interface{} {
-			// Return a no-op logger for testing
-			return &noopLogger{}
-		},
-	}
-
 	engine := NewEntropyEngine(storage, time.Now)
 	sm := NewSessionManager(storage, engine, time.Now)
-
-	// Note: We can't actually test the finding emission in a unit test without
-	// the full plugin SDK context. Instead, we'll test that the CreateFinding
-	// method produces valid findings with correct fields.
 
 	extractor := TokenExtractor{Pattern: ".*", Location: "cookie", Name: "session"}
 	session, err := sm.StartSession("Test Finding Emission", extractor, 200, 10*time.Minute)
@@ -1442,15 +1421,3 @@ func TestSessionManagerFindingEmission(t *testing.T) {
 	t.Logf("Finding emitted: Type=%s, Risk=%s, Score=%.2f",
 		finding.Type, analysis.Risk, analysis.RandomnessScore)
 }
-
-// Helper types for testing (not actually used in unit test, but kept for reference)
-type mockContext struct {
-	emitFindingFunc func(finding interface{}) error
-	loggerFunc      func() interface{}
-}
-
-type noopLogger struct{}
-
-func (l *noopLogger) Info(msg string, args ...interface{})  {}
-func (l *noopLogger) Error(msg string, args ...interface{}) {}
-func (l *noopLogger) Warn(msg string, args ...interface{})  {}
