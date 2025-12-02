@@ -235,7 +235,10 @@ func TestGetRule_CorruptedJSON(t *testing.T) {
 		t.Fatalf("Failed to insert test rule: %v", err)
 	}
 
-	id, _ := result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		t.Fatalf("Failed to get last insert id: %v", err)
+	}
 
 	// GetRule should return error for corrupted JSON
 	_, err = storage.GetRule(ctx, int(id))
