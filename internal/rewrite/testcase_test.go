@@ -426,3 +426,46 @@ func TestTestCaseResponse(t *testing.T) {
 		t.Errorf("Expected 1 header change, got %d", len(result.SandboxResult.Diff.HeaderChanges))
 	}
 }
+
+// TestListTestCases_CorruptedJSON tests that ListTestCases returns error for corrupted JSON
+func TestListTestCases_CorruptedJSON(t *testing.T) {
+	dbPath := "/tmp/testcase_corrupted_test.db"
+	defer os.Remove(dbPath)
+
+	config := Config{
+		DatabasePath: dbPath,
+		Logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	engine, err := NewEngine(config)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	ctx := context.Background()
+
+	// Insert test case with corrupted input JSON directly into DB
+	_, err = engine.storage.db.ExecContext(ctx, `
+		INSERT INTO test_cases (
+			name, description, type, input, expected_output, rule_ids, tags,
+			created_at, modified_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "corrupted-test", "Test with corrupted JSON", "request",
+		"{invalid json{{{", nil, "[1]", "[]",
+		1234567890, 1234567890)
+	if err != nil {
+		t.Fatalf("Failed to insert corrupted test case: %v", err)
+	}
+
+	manager := NewTestCaseManager(engine.storage, nil, config.Logger)
+
+	// ListTestCases should return error
+	_, err = manager.ListTestCases(ctx)
+	if err == nil {
+		t.Error("ListTestCases should return error for corrupted input JSON")
+	}
+	if err != nil && err.Error() == "" {
+		t.Error("Error message should not be empty")
+	}
+}

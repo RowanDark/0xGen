@@ -415,6 +415,39 @@ func TestStorage_ForeignKeyConstraints(t *testing.T) {
 	}
 }
 
+// TestGetScan_CorruptedJSON tests that GetScan returns error for corrupted JSON
+func TestGetScan_CorruptedJSON(t *testing.T) {
+	storage := setupTestStorage(t)
+	defer storage.Close()
+
+	ctx := context.Background()
+
+	// Insert a scan with corrupted target_urls JSON directly into the database
+	_, err := storage.db.ExecContext(ctx, `
+		INSERT INTO scans (
+			id, name, target_type, state, target_urls, target_scope, config, tags,
+			phase, current_module, urls_discovered, urls_tested, urls_remaining,
+			requests_sent, findings_found, percent_complete,
+			started_at, completed_at, duration_ms, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "corrupt-scan", "Corrupted Scan", "url", "running",
+		"{invalid json{{{", nil, "{}", "[]",
+		nil, nil, 0, 0, 0, 0, 0, 0.0,
+		time.Now(), nil, nil, time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert corrupted scan: %v", err)
+	}
+
+	// GetScan should return error
+	_, err = storage.GetScan(ctx, "corrupt-scan")
+	if err == nil {
+		t.Error("GetScan should return error for corrupted target_urls JSON")
+	}
+	if err != nil && err.Error() == "" {
+		t.Error("Error message should not be empty")
+	}
+}
+
 // testLogger implements Logger interface for testing
 type testLogger struct{}
 
