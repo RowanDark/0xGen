@@ -192,6 +192,7 @@ func TestBuilderAddRequestIgnoresInvalidSchemes(t *testing.T) {
 <html>
 <body>
 	<a href="javascript:alert('xss')">JS</a>
+	<a href="vbscript:msgbox('xss')">VBS</a>
 	<a href="mailto:test@example.com">Email</a>
 	<a href="tel:+1234567890">Phone</a>
 	<a href="data:text/plain,hello">Data</a>
@@ -458,6 +459,12 @@ func TestResolveHTMLLink(t *testing.T) {
 			name:     "javascript scheme",
 			base:     "https://example.com/page",
 			href:     "javascript:alert('xss')",
+			expected: "",
+		},
+		{
+			name:     "vbscript scheme",
+			base:     "https://example.com/page",
+			href:     "vbscript:msgbox('xss')",
 			expected: "",
 		},
 		{

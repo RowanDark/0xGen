@@ -91,6 +91,7 @@ fmt.Printf("Found %d links\n", len(graph.Edges))
 
 **Security Filtering**: Invalid and potentially dangerous schemes are filtered out:
 - ❌ `javascript:alert('xss')`
+- ❌ `vbscript:msgbox('xss')`
 - ❌ `mailto:test@example.com`
 - ❌ `tel:+1234567890`
 - ✅ `https://example.com/page`

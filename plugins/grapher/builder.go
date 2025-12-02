@@ -247,8 +247,9 @@ func resolveHTMLLink(base *url.URL, href string) string {
 		return ""
 	}
 
-	// Skip invalid schemes
+	// Skip invalid and potentially dangerous schemes (XSS vectors, non-HTTP, etc.)
 	if strings.HasPrefix(href, "javascript:") ||
+		strings.HasPrefix(href, "vbscript:") ||
 		strings.HasPrefix(href, "mailto:") ||
 		strings.HasPrefix(href, "tel:") ||
 		strings.HasPrefix(href, "data:") {
