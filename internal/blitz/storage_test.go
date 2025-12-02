@@ -370,3 +370,52 @@ func BenchmarkStore_TransactionOverhead(b *testing.B) {
 		b.Errorf("Average overhead %.2f µs exceeds 5000 µs (5ms) target", avgUs)
 	}
 }
+
+// TestGetResult_CorruptedJSON tests that GetResult returns error for corrupted JSON
+func TestGetResult_CorruptedJSON(t *testing.T) {
+	dbPath := "test_corrupted_json.db"
+	defer os.Remove(dbPath)
+
+	storage, err := NewSQLiteStorage(dbPath)
+	if err != nil {
+		t.Fatalf("NewSQLiteStorage() error = %v", err)
+	}
+	defer storage.Close()
+
+	// Insert a result with corrupted JSON directly into the database
+	_, err = storage.db.Exec(`
+		INSERT INTO results (
+			session_id, request_id, position, position_name, payload,
+			payload_set, status_code, duration_ms, content_length,
+			request_method, request_url, request_headers, request_body,
+			response_headers, response_body, matches, error, timestamp,
+			anomaly_status_code, anomaly_content_len_delta,
+			anomaly_response_time_factor, anomaly_pattern_count, is_interesting
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, storage.sessionID, "req-corrupt", 0, "param", "test",
+		"{invalid json{{{", 200, 100, 256,
+		"GET", "http://example.com", "[]", "body",
+		"[]", "response", "[]", nil, time.Now().Unix(),
+		false, 0, 0.0, 0, false)
+	if err != nil {
+		t.Fatalf("Failed to insert corrupted result: %v", err)
+	}
+
+	// Get the inserted ID
+	var id int64
+	err = storage.db.QueryRow(`
+		SELECT id FROM results WHERE request_id = ? AND session_id = ?
+	`, "req-corrupt", storage.sessionID).Scan(&id)
+	if err != nil {
+		t.Fatalf("Failed to get result ID: %v", err)
+	}
+
+	// GetResult should return error
+	_, err = storage.GetResult(id)
+	if err == nil {
+		t.Error("GetResult should return error for corrupted payload_set JSON")
+	}
+	if err != nil && err.Error() == "" {
+		t.Error("Error message should not be empty")
+	}
+}

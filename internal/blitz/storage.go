@@ -341,16 +341,24 @@ func (s *SQLiteStorage) scanResult(rows *sql.Rows) (*FuzzResult, error) {
 
 	// Deserialize JSON fields
 	if len(payloadSetJSON) > 0 {
-		json.Unmarshal(payloadSetJSON, &result.PayloadSet)
+		if err := json.Unmarshal(payloadSetJSON, &result.PayloadSet); err != nil {
+			return nil, fmt.Errorf("unmarshal payload set: %w", err)
+		}
 	}
 	if len(requestHeadersJSON) > 0 {
-		json.Unmarshal(requestHeadersJSON, &result.Request.Headers)
+		if err := json.Unmarshal(requestHeadersJSON, &result.Request.Headers); err != nil {
+			return nil, fmt.Errorf("unmarshal request headers: %w", err)
+		}
 	}
 	if len(responseHeadersJSON) > 0 {
-		json.Unmarshal(responseHeadersJSON, &result.Response.Headers)
+		if err := json.Unmarshal(responseHeadersJSON, &result.Response.Headers); err != nil {
+			return nil, fmt.Errorf("unmarshal response headers: %w", err)
+		}
 	}
 	if len(matchesJSON) > 0 {
-		json.Unmarshal(matchesJSON, &result.Matches)
+		if err := json.Unmarshal(matchesJSON, &result.Matches); err != nil {
+			return nil, fmt.Errorf("unmarshal matches: %w", err)
+		}
 	}
 
 	if errorStr.Valid {

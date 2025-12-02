@@ -278,21 +278,29 @@ func (m *TestCaseManager) ListTestCases(ctx context.Context) ([]*TestCase, error
 		if inputJSON.Valid && inputJSON.String != "" {
 			if tc.Type == TestCaseTypeRequest {
 				var input TestRequestInput
-				json.Unmarshal([]byte(inputJSON.String), &input)
+				if err := json.Unmarshal([]byte(inputJSON.String), &input); err != nil {
+					return nil, fmt.Errorf("unmarshal test case %d input: %w", tc.ID, err)
+				}
 				tc.Input = &input
 			} else {
 				var input TestResponseInput
-				json.Unmarshal([]byte(inputJSON.String), &input)
+				if err := json.Unmarshal([]byte(inputJSON.String), &input); err != nil {
+					return nil, fmt.Errorf("unmarshal test case %d input: %w", tc.ID, err)
+				}
 				tc.Input = &input
 			}
 		}
 
 		if ruleIDsJSON.Valid {
-			json.Unmarshal([]byte(ruleIDsJSON.String), &tc.RuleIDs)
+			if err := json.Unmarshal([]byte(ruleIDsJSON.String), &tc.RuleIDs); err != nil {
+				return nil, fmt.Errorf("unmarshal test case %d rule IDs: %w", tc.ID, err)
+			}
 		}
 
 		if tagsJSON.Valid {
-			json.Unmarshal([]byte(tagsJSON.String), &tc.Tags)
+			if err := json.Unmarshal([]byte(tagsJSON.String), &tc.Tags); err != nil {
+				return nil, fmt.Errorf("unmarshal test case %d tags: %w", tc.ID, err)
+			}
 		}
 
 		testCases = append(testCases, &tc)
@@ -413,8 +421,14 @@ func (m *TestCaseManager) compareOutputs(actual, expected interface{}) []string 
 
 	// Normalize and compare
 	var actualMap, expectedMap map[string]interface{}
-	json.Unmarshal(actualJSON, &actualMap)
-	json.Unmarshal(expectedJSON, &expectedMap)
+	if err := json.Unmarshal(actualJSON, &actualMap); err != nil {
+		failures = append(failures, fmt.Sprintf("Failed to unmarshal actual output: %v", err))
+		return failures
+	}
+	if err := json.Unmarshal(expectedJSON, &expectedMap); err != nil {
+		failures = append(failures, fmt.Sprintf("Failed to unmarshal expected output: %v", err))
+		return failures
+	}
 
 	// Compare specific fields
 	if actualMap["method"] != expectedMap["method"] {

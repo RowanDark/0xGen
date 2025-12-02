@@ -129,16 +129,24 @@ func (s *Storage) GetScan(ctx context.Context, scanID string) (*atlas.Scan, erro
 
 	// Unmarshal JSON fields
 	if targetURLsJSON.Valid {
-		json.Unmarshal([]byte(targetURLsJSON.String), &scan.Target.URLs)
+		if err := json.Unmarshal([]byte(targetURLsJSON.String), &scan.Target.URLs); err != nil {
+			return nil, fmt.Errorf("unmarshal target URLs: %w", err)
+		}
 	}
 	if targetScopeJSON.Valid {
-		json.Unmarshal([]byte(targetScopeJSON.String), &scan.Target.Scope)
+		if err := json.Unmarshal([]byte(targetScopeJSON.String), &scan.Target.Scope); err != nil {
+			return nil, fmt.Errorf("unmarshal target scope: %w", err)
+		}
 	}
 	if configJSON.Valid {
-		json.Unmarshal([]byte(configJSON.String), &scan.Config)
+		if err := json.Unmarshal([]byte(configJSON.String), &scan.Config); err != nil {
+			return nil, fmt.Errorf("unmarshal config: %w", err)
+		}
 	}
 	if tagsJSON.Valid {
-		json.Unmarshal([]byte(tagsJSON.String), &scan.Tags)
+		if err := json.Unmarshal([]byte(tagsJSON.String), &scan.Tags); err != nil {
+			return nil, fmt.Errorf("unmarshal tags: %w", err)
+		}
 	}
 
 	if phase.Valid {
@@ -286,7 +294,9 @@ func (s *Storage) GetFindingsByScan(ctx context.Context, scanID string) ([]*atla
 		}
 
 		if referencesJSON.Valid {
-			json.Unmarshal([]byte(referencesJSON.String), &f.References)
+			if err := json.Unmarshal([]byte(referencesJSON.String), &f.References); err != nil {
+				return nil, fmt.Errorf("unmarshal finding %d references: %w", f.ID, err)
+			}
 		}
 
 		findings = append(findings, &f)
@@ -350,10 +360,14 @@ func (s *Storage) GetUntestedTargets(ctx context.Context, scanID string) ([]*atl
 		}
 
 		if paramsJSON.Valid {
-			json.Unmarshal([]byte(paramsJSON.String), &target.Parameters)
+			if err := json.Unmarshal([]byte(paramsJSON.String), &target.Parameters); err != nil {
+				return nil, fmt.Errorf("unmarshal target parameters: %w", err)
+			}
 		}
 		if headersJSON.Valid {
-			json.Unmarshal([]byte(headersJSON.String), &target.Headers)
+			if err := json.Unmarshal([]byte(headersJSON.String), &target.Headers); err != nil {
+				return nil, fmt.Errorf("unmarshal target headers: %w", err)
+			}
 		}
 
 		targets = append(targets, &target)
