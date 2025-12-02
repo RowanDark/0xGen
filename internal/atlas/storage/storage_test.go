@@ -425,12 +425,12 @@ func TestGetScan_CorruptedJSON(t *testing.T) {
 	// Insert a scan with corrupted target_urls JSON directly into the database
 	_, err := storage.db.ExecContext(ctx, `
 		INSERT INTO scans (
-			id, name, status, target_urls, target_scope, config, tags,
+			id, name, target_type, state, target_urls, target_scope, config, tags,
 			phase, current_module, urls_discovered, urls_tested, urls_remaining,
 			requests_sent, findings_found, percent_complete,
 			started_at, completed_at, duration_ms, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "corrupt-scan", "Corrupted Scan", "running",
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "corrupt-scan", "Corrupted Scan", "url", "running",
 		"{invalid json{{{", nil, "{}", "[]",
 		nil, nil, 0, 0, 0, 0, 0, 0.0,
 		time.Now(), nil, nil, time.Now())
