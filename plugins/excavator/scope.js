@@ -271,10 +271,14 @@ function wildcardToRegExp(pattern) {
   if (trimmed === '') {
     return null;
   }
-  const escaped = trimmed.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const regex = `^${escaped.replace(/\\\*/g, '.*')}$`;
+  // Lowercase the pattern since hostnames are case-insensitive and will be lowercased when tested
+  const normalized = trimmed.toLowerCase();
+  // Escape all special regex characters including * and ?
+  const escaped = normalized.replace(/[.+?^${}()|[\]\\*]/g, '\\$&');
+  // Replace escaped wildcards with regex equivalents
+  const regex = `^${escaped.replace(/\\\*/g, '.*').replace(/\\\?/g, '.')}$`;
   try {
-    return new RegExp(regex.toLowerCase());
+    return new RegExp(regex);
   } catch (error) {
     return null;
   }
