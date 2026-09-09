@@ -36,14 +36,14 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 - ✅ Plugin marketplace UI
 
 ### Built-in Security Analysis
-- ✅ **Hydra AI Plugin**: 5 vulnerability analyzers
+- ✅ **Hydra Plugin**: 5 vulnerability analyzers (pattern/substring matching)
   - XSS detection (reflection patterns)
   - SQL injection detection (error signatures)
   - SSRF detection (metadata endpoints)
   - Command injection detection (shell output)
   - Open redirect detection
 - ✅ Confidence-based severity escalation
-- ✅ Policy-based triage (LLM consensus)
+- ✅ Policy-based triage (threshold-based, not model-driven)
 - ✅ Findings export with metadata enrichment
 
 ### Desktop Application
@@ -57,10 +57,10 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 - ✅ Reduced motion support
 - ✅ Crash reporting with redaction
 
-### AI Assistant (Embedded)
+### Run Configuration Assistant (Embedded)
 - ✅ Mimir run configuration assistant
-- ✅ 5 heuristic recommendation rules
-- ✅ Context-aware plugin suggestions
+- ✅ 5 heuristic recommendation rules (no model or inference)
+- ✅ Rule-based plugin suggestions
 - ✅ Chat-style interface
 - ✅ One-click recommendation application
 
@@ -195,18 +195,20 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 
 ---
 
-## 5. AI/ML Features
+## 5. Automated Analysis Features
 
 | Feature | 0xGen | Burp Community | Burp Pro | Caido |
 |---------|-------|----------------|----------|-------|
-| **AI-Assisted Analysis** | ✅ Hydra plugin | ❌ | ⚠️ Limited | ❌ |
+| **Heuristic-Assisted Analysis** | ✅ Hydra plugin (pattern matching) | ❌ | ⚠️ Limited | ❌ |
 | **Vulnerability Prioritization** | ✅ Confidence scores | ❌ | ⚠️ Basic | ❌ |
-| **AI Configuration Assistant** | ✅ Mimir (heuristic) | ❌ | ❌ | ❌ |
+| **Run Configuration Assistant** | ✅ Mimir (heuristic rules) | ❌ | ❌ | ❌ |
 | **LLM Integration** | 🔮 Phase 4 | ❌ | ❌ | ❌ |
 | **Case Summarization** | 🔮 Phase 4 | ❌ | ❌ | ❌ |
 | **Natural Language Queries** | 🔮 Phase 4 | ❌ | ❌ | ❌ |
 
-**Winner**: **0xGen** (only tool with embedded AI analysis)
+Note: none of the ✅ rows above involve a model, inference, or outbound network call — they are rule-based heuristics. The 🔮 rows are the only genuinely AI/LLM-backed capabilities, and they're unbuilt (Phase 4).
+
+**Winner**: **0xGen** (only tool with embedded heuristic analysis)
 
 ---
 
@@ -334,7 +336,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 
 #### 0xGen Strengths 💪
 1. **Security-First Design**: Plugin sandboxing, signing, SLSA L3, SBOM
-2. **AI Integration**: Only tool with embedded AI vulnerability detection
+2. **Automated Detection**: Only tool with embedded heuristic vulnerability detection
 3. **Modern Architecture**: Go, gRPC, OpenTelemetry, Prometheus
 4. **CI/CD Native**: Headless mode, artifact replay, YAML configs
 5. **Open Source**: Full transparency, no licensing restrictions
@@ -378,7 +380,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 ### Choose **0xGen** if you need:
 - ✅ Open source tool with no licensing restrictions
 - ✅ CI/CD integration and automation (DevSecOps)
-- ✅ AI-assisted vulnerability detection
+- ✅ Passive, heuristic-assisted vulnerability detection
 - ✅ Supply chain security (SLSA, SBOM, signing)
 - ✅ Plugin development with strong security model
 - ✅ Low resource footprint for containerized environments
@@ -413,7 +415,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 
 ### Features Where 0xGen Leads 🏆
 1. **Security Model**: Plugin sandboxing, signing, capabilities (✅ vs ❌)
-2. **AI/ML**: Embedded vulnerability detection (✅ vs ❌)
+2. **Automated Detection**: Embedded heuristic vulnerability detection (✅ vs ❌)
 3. **Supply Chain**: SLSA L3, SBOM, provenance (✅ vs ❌)
 4. **CI/CD**: Native automation, headless, artifacts (✅ vs ⚠️)
 5. **Observability**: Prometheus, OpenTelemetry (✅ vs ❌)
@@ -451,7 +453,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 ┌────────────────────────────────────────────────────────┐
 │  Professional Pentesters (Boutique Firms)              │
 │  Leaders: Burp Pro, Caido                              │
-│  0xGen Position: AI-assisted analysis, open source     │
+│  0xGen Position: heuristic-assisted analysis, open source │
 └────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────┐
@@ -486,7 +488,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 ### From Burp Suite Community → 0xGen
 **Advantages**:
 - ✅ Gain active vulnerability detection (Hydra plugin)
-- ✅ AI-assisted analysis
+- ✅ Heuristic-assisted analysis
 - ✅ Commercial use allowed
 - ✅ Better CI/CD integration
 - ✅ Modern UI with accessibility
@@ -502,7 +504,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 - ✅ Open source transparency
 - ✅ Better CI/CD and automation
 - ✅ Supply chain security (SLSA, SBOM)
-- ✅ AI-assisted analysis
+- ✅ Heuristic-assisted analysis
 
 **Trade-offs**:
 - ⚠️ Less mature active scanner (plugin-based vs built-in)
@@ -516,7 +518,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 **Advantages**:
 - ✅ Free (vs $10-20/month)
 - ✅ Open source
-- ✅ AI vulnerability detection
+- ✅ Heuristic vulnerability detection
 - ✅ Better CI/CD integration
 - ✅ Supply chain security
 
@@ -535,7 +537,7 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 2. **Security researchers** wanting open source transparency
 3. **Budget-conscious teams** (free, full-featured)
 4. **Organizations prioritizing supply chain security** (SLSA L3, SBOM)
-5. **Teams wanting AI-assisted analysis**
+5. **Teams wanting built-in heuristic vulnerability detection**
 
 **Burp Suite Pro is the best choice for**:
 1. **Professional pentesters** needing comprehensive active scanning
@@ -568,9 +570,9 @@ Based on comprehensive audit of Issues #1-6, the following features are **produc
 **Rankings**:
 1. **Burp Suite Pro**: 95% (most complete, but $$$$)
 2. **Caido**: 90% (modern, affordable)
-3. **0xGen**: 89% (free, open source, AI-powered) ⭐
+3. **0xGen**: 89% (free, open source) ⭐
 4. Burp Community: 52% (too limited for professional use)
 
 ---
 
-**Key Takeaway**: 0xGen offers **89% feature completeness** compared to Burp Pro at **$0 cost** with unique advantages in AI analysis, supply chain security, and CI/CD integration. It's the best **open source alternative** and ideal for DevSecOps workflows.
+**Key Takeaway**: 0xGen offers **89% feature completeness** compared to Burp Pro at **$0 cost** with unique advantages in supply chain security and CI/CD integration. It's the best **open source alternative** and ideal for DevSecOps workflows.

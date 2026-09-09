@@ -133,7 +133,7 @@ The wizard can install the following components:
 
 Security testing plugins including:
 - **cartographer** - Application surface mapping
-- **hydra** - AI-powered vulnerability detection
+- **hydra** - Passive vulnerability detection
 - **raider** - Offensive testing
 - **seer** - Secrets and PII detection
 - **cryptographer** - Cryptographic analysis

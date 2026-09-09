@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-**0xGen** (Generation Zero) is an open-source, AI-powered offensive security platform that delivers 89% feature parity with Burp Suite Professional at $0 cost. Built with a security-first architecture, 0xGen combines intelligent vulnerability detection, enterprise-grade plugin security, and modern UX to democratize professional security testing.
+**0xGen** (Generation Zero) is an open-source offensive security platform that delivers 89% feature parity with Burp Suite Professional at $0 cost. Built with a security-first architecture, 0xGen combines passive and active vulnerability detection, enterprise-grade plugin security, and modern UX to democratize professional security testing.
 
 ---
 
@@ -21,11 +21,10 @@
 - **vs. Burp Suite Enterprise** - Save $15,000+/year
 - **Unlimited Users** - No per-seat costs
 
-### 🤖 **AI-Powered Intelligence**
-- **Hydra Plugin** - ML-based vulnerability detection
-- **Automated Analysis** - Reduce manual testing time by 70%
-- **Smart Correlation** - Find complex attack chains automatically
-- **Continuous Learning** - Improves with usage
+### 🔍 **Automated Vulnerability Detection**
+- **Hydra Plugin** - Passive analyzers with threshold-based confidence scoring
+- **Atlas Scanner** - Active testing against OWASP Top 10 categories
+- **CVSS Scoring** - Automatic vulnerability scoring with CWE/OWASP mappings
 
 ### 🔒 **Enterprise-Grade Security**
 - **SLSA Level 3** - Supply chain security (top 1% of OSS projects)
@@ -48,7 +47,7 @@
 | Feature | 0xGen | Burp Pro | Burp Free |
 |---------|-------|----------|-----------|
 | **HTTP/HTTPS Proxy** | ✅ | ✅ | ✅ |
-| **AI Vulnerability Detection** | ✅ | ❌ | ❌ |
+| **Passive Vulnerability Detection** | ✅ | ❌ | ❌ |
 | **Active Scanning** | ✅ | ✅ | ❌ |
 | **Automated Testing** | ✅ | ✅ | ❌ |
 | **Desktop GUI** | ✅ | ✅ | ✅ |
@@ -75,7 +74,7 @@
         │           │           │
   ┌─────▼────┐ ┌───▼────┐ ┌───▼────────┐
   │  Seer    │ │  Hydra │ │   Atlas    │
-  │ (Scanner)│ │  (AI)  │ │ (Active)   │
+  │ (Scanner)│ │(Passive)│ │ (Active)   │
   └──────────┘ └────────┘ └────────────┘
        Plugin Sandbox (5-Layer Isolation)
 ```
@@ -99,7 +98,7 @@
 | **Proxy Core** | HTTP/HTTPS interception, MITM, TLS 1.3 | ✅ 100% | 100% |
 | **Passive Scanning** | Seer detector, pattern matching | ✅ 100% | 90% |
 | **Active Scanning** | Atlas scanner, 7 modules (SQLi, XSS, SSRF, etc.) | ✅ 100% | 85% |
-| **AI Detection** | Hydra plugin infrastructure | ✅ 100% | N/A |
+| **Passive Detection** | Hydra plugin infrastructure | ✅ 100% | N/A |
 | **Desktop GUI** | Flow viewer, analysis panels | ✅ 92% | 85% |
 | **Plugin Security** | 5-layer sandbox, chroot (Linux), process isolation | ✅ 96% | 200% |
 | **CLI/API** | 0xgenctl CLI, gRPC API | ✅ 100% | 95% |
@@ -121,7 +120,7 @@
 ## Use Cases
 
 ### 1. **Bug Bounty Hunters**
-- **Automated Recon** - AI-powered vulnerability discovery
+- **Automated Recon** - Passive and active vulnerability discovery
 - **Smart Reporting** - Auto-generate PoC exploits
 - **Cost-Effective** - No monthly fees, unlimited targets
 - **Fast Iteration** - Test hundreds of endpoints in minutes
@@ -154,12 +153,12 @@
 
 ## Unique Differentiators
 
-### 🎯 **AI-Native Architecture**
-Unlike bolt-on AI features, 0xGen is designed from the ground up for intelligent automation:
-- **Hydra Plugin**: Purpose-built ML vulnerability detector
-- **Context-Aware**: Understands application logic, not just patterns
-- **Extensible**: Plugin SDK for custom AI models
-- **Privacy-First**: On-device inference (no cloud required)
+### 🎯 **Passive-First Detection**
+0xGen is designed from the ground up for local, in-process analysis:
+- **Hydra Plugin**: Threshold-based confidence scoring over passive pattern analyzers
+- **Local-Only**: All analysis runs in-process; no data leaves the host
+- **Extensible**: Plugin SDK for custom analyzers
+- **Privacy-First**: No cloud dependency, no external API calls
 
 ### 🛡️ **Best-in-Class Plugin Security**
 Most security tools trust plugins completely. 0xGen isolates them with 5 defense layers:
@@ -318,7 +317,7 @@ docker run --rm ghcr.io/rowandark/0xgenctl:latest demo
 | Feature | 0xGen OSS | 0xGen Enterprise | Burp Pro | Burp Enterprise |
 |---------|-----------|------------------|----------|-----------------|
 | **Core Features** | ✅ All | ✅ All | ✅ All | ✅ All |
-| **AI Detection** | ✅ | ✅ | ❌ | ⚠️ Limited |
+| **Passive Detection** | ✅ | ✅ | ❌ | ⚠️ Limited |
 | **Cost (1 user)** | **$0** | Contact | **$449/yr** | **$15K+/yr** |
 | **Cost (10 users)** | **$0** | Contact | **$4,490/yr** | **$50K+/yr** |
 | **Support** | Community | 24/7 SLA | Business hours | 24/7 SLA |
@@ -410,14 +409,14 @@ A: Community support via GitHub Discussions. Paid enterprise support coming Q4 2
 
 ## About the Project
 
-**0xGen** (Generation Zero) started as a vision to democratize professional security testing. Inspired by the success of open-source tools like OWASP ZAP and frustrated by the high cost of commercial alternatives, we built 0xGen from the ground up with modern technology, AI-first design, and uncompromising security.
+**0xGen** (Generation Zero) started as a vision to democratize professional security testing. Inspired by the success of open-source tools like OWASP ZAP and frustrated by the high cost of commercial alternatives, we built 0xGen from the ground up with modern technology and uncompromising security.
 
 **Our Mission**: Make world-class security testing accessible to everyone—from solo bug bounty hunters to Fortune 500 enterprises.
 
 **Our Values**:
 - **Transparency**: Open source, open roadmap, open communication
 - **Security**: SLSA L3, plugin sandboxing, responsible disclosure
-- **Innovation**: AI-powered, cloud-native, developer-friendly
+- **Innovation**: Cloud-native, developer-friendly, automation-first
 - **Community**: User-driven development, responsive to feedback
 - **Accessibility**: Free forever, comprehensive documentation
 

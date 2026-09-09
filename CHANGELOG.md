@@ -14,7 +14,7 @@ This release represents full completion of Phase 2 with comprehensive audit veri
 
 #### Core Platform
 - **HTTP/HTTPS Proxy Engine**: Full MITM interception with TLS/SSL support, certificate management, WebSocket support
-- **AI-Powered Vulnerability Detection**: Hydra plugin with 5 analyzers (XSS, SQLi, SSRF, CMDi, Open Redirect)
+- **Passive Vulnerability Detection**: Hydra plugin with 5 analyzers (XSS, SQLi, SSRF, CMDi, Open Redirect)
 - **Plugin System**: 5-layer security model (filesystem isolation, resource limits, integrity verification, capability tokens, supervision)
 - **Desktop GUI**: Tauri + React application with 8 themes, WCAG AA accessibility, virtualized rendering (50k flows)
 - **Cross-Platform CLI/Daemon**: 0xgenctl and 0xgend for Linux, macOS, Windows (amd64 + arm64)

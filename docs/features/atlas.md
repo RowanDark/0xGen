@@ -2,14 +2,14 @@
 
 ## Overview
 
-Atlas is 0xGen's built-in active vulnerability scanner that automatically detects security vulnerabilities by intelligently testing web applications with crafted payloads. It combines traditional active scanning techniques with AI-powered analysis to minimize false positives and provide actionable remediation advice.
+Atlas is 0xGen's built-in active vulnerability scanner that automatically detects security vulnerabilities by testing web applications with crafted payloads. It combines active scanning techniques with a rule-based confidence policy to flag likely false positives and provide actionable remediation advice.
 
 ## Key Features
 
 - **Comprehensive Detection**: Finds OWASP Top 10 vulnerabilities including SQL injection, XSS, SSRF, XXE, command injection, and more
 - **Intelligent Rate Limiting**: Adaptive throttling prevents overwhelming targets and triggering WAF/IDS
 - **Pause & Resume**: Save progress and resume scans without losing work
-- **AI-Powered Analysis**: Reduces false positives by up to 50% with intelligent verification
+- **Confidence Scoring**: Rule-based heuristics flag likely false positives for review
 - **CVSS Scoring**: Automatic vulnerability scoring with CWE and OWASP Top 10 mappings
 - **Deduplication**: Smart finding aggregation prevents duplicate reports
 - **OAST Integration**: Detects blind vulnerabilities with out-of-band callbacks
@@ -167,7 +167,6 @@ Detects authentication and access control issues:
 **2 - Low**
 - Basic payloads only
 - Minimal server load
-- Low false positive rate
 
 **3 - Normal (Default)**
 - Standard payload sets
@@ -681,13 +680,13 @@ A: Yes, each scan runs independently. You can start multiple scans in parallel.
 A: No, Atlas automates common tests but manual testing remains essential for complex vulnerabilities and business logic flaws.
 
 **Q: What's the difference from Burp Scanner?**
-A: Atlas is open source, free, and includes AI-powered analysis. It's designed for CI/CD integration and automation.
+A: Atlas is open source and free, and is designed for CI/CD integration and automation.
 
 **Q: Can I create custom detection modules?**
 A: Yes, see the [Module Development Guide](../plugins/modules.md) for details.
 
 **Q: How accurate is Atlas?**
-A: Atlas has a low false positive rate (~10% with AI enabled) and matches or exceeds commercial scanners for standard vulnerabilities.
+A: We don't have a published false-positive or false-negative rate for Atlas — `internal/atlas/BENCHMARKS.md` covers scan performance (throughput/latency), not detection accuracy. Its confidence-scoring rules (see `internal/atlas/false_positive.go`) flag likely false positives for review rather than eliminating them automatically.
 
 **Q: Is Atlas safe to use in production?**
 A: Use intensity levels 1-2 for production. Higher intensity levels should only be used in staging/testing environments.

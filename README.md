@@ -2,7 +2,7 @@
 
 <!-- version-badge -->[![Release](https://img.shields.io/badge/release-v0.0.0--dev-blue)](https://github.com/RowanDark/0xgen/releases/latest)<!-- /version-badge --> [![Build status](https://github.com/RowanDark/0xgen/actions/workflows/ci.yml/badge.svg)](https://github.com/RowanDark/0xgen/actions/workflows/ci.yml) [![Docs status](https://github.com/RowanDark/0xgen/actions/workflows/docs.yml/badge.svg?branch=main)](https://rowandark.github.io/0xgen/) [![Plugin count](https://img.shields.io/endpoint?url=https://rowandark.github.io/0xgen/api/plugin-stats.json&cacheSeconds=3600)](https://rowandark.github.io/0xgen/plugins/catalog/)
 
-0xgen — Generation Zero: AI-driven offensive security.
+0xgen — Generation Zero: open-source offensive security.
 
 The badges above highlight the most recent 0xgen release, continuous-integration
 status, documentation portal, and the live plugin catalog size published from the
@@ -168,7 +168,7 @@ concept command and embedded thumbnail metadata.
 
 | Plugin | Description | Use Case |
 |--------|-------------|----------|
-| **[Hydra](plugins/hydra/)** | AI-powered vulnerability detection with 5 specialized analyzers (XSS, SQLi, SSRF, Command Injection, Open Redirect) and consensus evaluation | Automated vulnerability discovery with <5% false positive rate. Ideal for continuous security testing and bug bounty hunting. |
+| **[Hydra](plugins/hydra/)** | Passive vulnerability detection with 5 specialized analyzers (XSS, SQLi, SSRF, Command Injection, Open Redirect) and threshold-based confidence scoring | Automated vulnerability discovery for continuous security testing and bug bounty hunting. |
 | **[Seer](plugins/seer/)** | Passive telemetry analyzer for secrets and PII detection using entropy heuristics and pattern matching | Identify leaked credentials (AWS keys, Slack tokens, JWTs) and sensitive data in HTTP traffic without active probing. |
 | **[Keys](plugins/keys/)** | Cryptographic key and token detection with high-entropy analysis | Extract API keys, access tokens, and cryptographic material from responses for security audits. |
 

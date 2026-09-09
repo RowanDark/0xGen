@@ -234,7 +234,7 @@ audit verification (Issues #1-7). Production-ready core infrastructure with
 
 Major Features:
 - HTTP/HTTPS Proxy Engine with full MITM interception
-- AI-Powered Vulnerability Detection (Hydra plugin)
+- Passive Vulnerability Detection (Hydra plugin)
 - 5-layer plugin security model
 - Cross-platform desktop GUI (Tauri + React)
 - SLSA Level 3 provenance and SBOM generation

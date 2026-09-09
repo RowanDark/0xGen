@@ -46,7 +46,7 @@ audit verification (Issues #1-7). Production-ready core with 89% feature
 parity vs Burp Suite Professional at $0 cost.
 
 Key Features:
-- Full HTTP/HTTPS proxy with AI-powered vulnerability detection
+- Full HTTP/HTTPS proxy with passive vulnerability detection
 - 5-layer plugin security model (best-in-class)
 - SLSA Level 3 provenance + SBOM generation
 - Modern desktop GUI (Tauri + React)
@@ -214,7 +214,7 @@ cd homebrew-0xgen
 # Update formula
 cat > Formula/0xgen.rb <<EOF
 class Oxgen < Formula
-  desc "Open source security testing platform with AI-powered analysis"
+  desc "Open source security testing platform with passive and active vulnerability detection"
   homepage "https://github.com/RowanDark/0xGen"
   version "2.0.0-alpha"
 
@@ -285,7 +285,7 @@ cd scoop-0xgen
 cat > bucket/0xgen.json <<EOF
 {
   "version": "2.0.0-alpha",
-  "description": "Open source security testing platform with AI-powered analysis",
+  "description": "Open source security testing platform with passive and active vulnerability detection",
   "homepage": "https://github.com/RowanDark/0xGen",
   "license": "MIT",
   "architecture": {
@@ -366,7 +366,7 @@ After comprehensive audits (Issues #1-7), we're proud to announce 100% Phase 2
 completion. 0xGen is now a production-ready open source security testing
 platform with:
 
-✅ AI-powered vulnerability detection (Hydra plugin)
+✅ Passive vulnerability detection (Hydra plugin)
 ✅ 5-layer plugin security model (best-in-class)
 ✅ SLSA Level 3 provenance + SBOM
 ✅ Modern desktop GUI (Tauri + React)
