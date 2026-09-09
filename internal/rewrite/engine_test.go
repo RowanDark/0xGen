@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestEngineCreation(t *testing.T) {

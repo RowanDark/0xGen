@@ -267,9 +267,10 @@ func TestStorage_ValidJSON(t *testing.T) {
 		},
 		Conditions: []Condition{
 			{
-				Field:    "header:Content-Type",
-				Operator: "contains",
-				Value:    "json",
+				Type:     ConditionContains,
+				Location: LocationHeader,
+				Name:     "Content-Type",
+				Pattern:  "json",
 			},
 		},
 		Actions: []Action{

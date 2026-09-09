@@ -2,6 +2,7 @@ package rewrite
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,11 +18,13 @@ func TestIntegration_FullRewriteWorkflow(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Create a rule
 	rule := &Rule{
@@ -44,13 +47,12 @@ func TestIntegration_FullRewriteWorkflow(t *testing.T) {
 	}
 
 	// Create the rule
-	id, err := engine.CreateRule(rule)
-	if err != nil {
+	if err := engine.CreateRule(ctx, rule); err != nil {
 		t.Fatalf("Failed to create rule: %v", err)
 	}
 
 	// Verify rule was created
-	retrieved, err := engine.GetRule(id)
+	retrieved, err := engine.GetRule(ctx, rule.ID)
 	if err != nil {
 		t.Fatalf("Failed to get rule: %v", err)
 	}
@@ -62,7 +64,7 @@ func TestIntegration_FullRewriteWorkflow(t *testing.T) {
 	req := httptest.NewRequest("GET", "https://api.example.com/users", nil)
 
 	// Process the request through the engine
-	engine.ProcessRequest(req, "test-req-1")
+	engine.ProcessRequest(req)
 
 	// Verify the header was added
 	apiKey := req.Header.Get("X-API-Key")
@@ -75,11 +77,13 @@ func TestIntegration_MultipleRulesWithPriority(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Create rules with different priorities
 	rules := []*Rule{
@@ -104,14 +108,14 @@ func TestIntegration_MultipleRulesWithPriority(t *testing.T) {
 	}
 
 	for _, rule := range rules {
-		if _, err := engine.CreateRule(rule); err != nil {
+		if err := engine.CreateRule(ctx, rule); err != nil {
 			t.Fatalf("Failed to create rule: %v", err)
 		}
 	}
 
 	// Process request
 	req := httptest.NewRequest("GET", "https://example.com", nil)
-	engine.ProcessRequest(req, "test-req-2")
+	engine.ProcessRequest(req)
 
 	// High priority rule should have executed last, replacing the value
 	order := req.Header.Get("X-Order")
@@ -124,11 +128,13 @@ func TestIntegration_VariablePassingBetweenRules(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Rule 1: Extract value and store in variable
 	rule1 := &Rule{
@@ -162,14 +168,14 @@ func TestIntegration_VariablePassingBetweenRules(t *testing.T) {
 		},
 	}
 
-	engine.CreateRule(rule1)
-	engine.CreateRule(rule2)
+	engine.CreateRule(ctx, rule1)
+	engine.CreateRule(ctx, rule2)
 
 	// Create request with Authorization header
 	req := httptest.NewRequest("GET", "https://example.com", nil)
 	req.Header.Set("Authorization", "Bearer my-secret-token")
 
-	engine.ProcessRequest(req, "test-req-3")
+	engine.ProcessRequest(req)
 
 	// Check if variable was extracted and used
 	tokenCopy := req.Header.Get("X-Token-Copy")
@@ -182,11 +188,13 @@ func TestIntegration_ConditionalRuleExecution(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Rule with condition
 	rule := &Rule{
@@ -206,11 +214,11 @@ func TestIntegration_ConditionalRuleExecution(t *testing.T) {
 		},
 	}
 
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	// Request without trigger header
 	req1 := httptest.NewRequest("GET", "https://example.com", nil)
-	engine.ProcessRequest(req1, "test-req-4")
+	engine.ProcessRequest(req1)
 	if req1.Header.Get("X-Conditional") != "" {
 		t.Error("X-Conditional should not be set without trigger")
 	}
@@ -218,7 +226,7 @@ func TestIntegration_ConditionalRuleExecution(t *testing.T) {
 	// Request with trigger header
 	req2 := httptest.NewRequest("GET", "https://example.com", nil)
 	req2.Header.Set("X-Trigger", "yes")
-	engine.ProcessRequest(req2, "test-req-5")
+	engine.ProcessRequest(req2)
 	if req2.Header.Get("X-Conditional") != "triggered" {
 		t.Error("X-Conditional should be set when trigger is present")
 	}
@@ -228,11 +236,13 @@ func TestIntegration_ResponseRewriting(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Rule to modify response
 	rule := &Rule{
@@ -246,19 +256,22 @@ func TestIntegration_ResponseRewriting(t *testing.T) {
 		},
 	}
 
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	// Create response
 	resp := &http.Response{
 		StatusCode: 200,
 		Header:     make(http.Header),
 		Body:       io.NopCloser(bytes.NewReader([]byte("test body"))),
+		// Request must be set: the engine matches response rules against
+		// the URL/method of the originating request.
+		Request: httptest.NewRequest("GET", "https://example.com", nil),
 	}
 	resp.Header.Set("X-Powered-By", "Go")
 	resp.Header.Set("Content-Type", "text/plain")
 
 	// Process response
-	engine.ProcessResponse(resp, "test-req-6")
+	engine.ProcessResponse(resp)
 
 	// Verify modifications
 	if resp.Header.Get("X-Powered-By") != "" {
@@ -273,8 +286,10 @@ func TestIntegration_RulePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
+	ctx := context.Background()
+
 	// Create engine and add rule
-	engine1, err := NewEngine(dbPath)
+	engine1, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
@@ -289,20 +304,20 @@ func TestIntegration_RulePersistence(t *testing.T) {
 		},
 	}
 
-	id, err := engine1.CreateRule(rule)
-	if err != nil {
+	if err := engine1.CreateRule(ctx, rule); err != nil {
 		t.Fatalf("Failed to create rule: %v", err)
 	}
+	id := rule.ID
 	engine1.Close()
 
 	// Reopen engine and verify rule exists
-	engine2, err := NewEngine(dbPath)
+	engine2, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to reopen engine: %v", err)
 	}
 	defer engine2.Close()
 
-	retrieved, err := engine2.GetRule(id)
+	retrieved, err := engine2.GetRule(ctx, id)
 	if err != nil {
 		t.Fatalf("Failed to get rule after restart: %v", err)
 	}
@@ -313,7 +328,7 @@ func TestIntegration_RulePersistence(t *testing.T) {
 
 	// Verify rule still works
 	req := httptest.NewRequest("GET", "https://example.com", nil)
-	engine2.ProcessRequest(req, "test-req-7")
+	engine2.ProcessRequest(req)
 
 	if req.Header.Get("X-Persistent") != "yes" {
 		t.Error("Persistent rule should still work after restart")
@@ -325,11 +340,13 @@ func TestIntegration_ImportExport(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 	exportPath := filepath.Join(tmpDir, "rules.json")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Create some rules
 	rules := []*Rule{
@@ -350,11 +367,11 @@ func TestIntegration_ImportExport(t *testing.T) {
 	}
 
 	for _, rule := range rules {
-		engine.CreateRule(rule)
+		engine.CreateRule(ctx, rule)
 	}
 
 	// Export rules
-	exported, err := engine.ListRules(true)
+	exported, err := engine.ListRules(ctx)
 	if err != nil {
 		t.Fatalf("Failed to list rules: %v", err)
 	}
@@ -365,11 +382,11 @@ func TestIntegration_ImportExport(t *testing.T) {
 
 	// Delete all rules
 	for _, rule := range exported {
-		engine.DeleteRule(rule.ID)
+		engine.DeleteRule(ctx, rule.ID)
 	}
 
 	// Verify deletion
-	remaining, _ := engine.ListRules(true)
+	remaining, _ := engine.ListRules(ctx)
 	if len(remaining) != 0 {
 		t.Errorf("Should have 0 rules after deletion, got %d", len(remaining))
 	}
@@ -377,11 +394,11 @@ func TestIntegration_ImportExport(t *testing.T) {
 	// Import rules back
 	for _, rule := range exported {
 		rule.ID = 0 // Clear ID for import
-		engine.CreateRule(rule)
+		engine.CreateRule(ctx, rule)
 	}
 
 	// Verify import
-	imported, _ := engine.ListRules(true)
+	imported, _ := engine.ListRules(ctx)
 	if len(imported) != 2 {
 		t.Errorf("Imported %d rules, want 2", len(imported))
 	}
@@ -394,14 +411,16 @@ func TestIntegration_SandboxTesting(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
 
+	ctx := context.Background()
+
 	// Create sandbox
-	sandbox := NewSandbox(engine)
+	sandbox := NewSandbox(engine, nil)
 
 	// Create rule
 	rule := &Rule{
@@ -414,11 +433,16 @@ func TestIntegration_SandboxTesting(t *testing.T) {
 		},
 	}
 
-	id, _ := engine.CreateRule(rule)
+	if err := engine.CreateRule(ctx, rule); err != nil {
+		t.Fatalf("Failed to create rule: %v", err)
+	}
 
 	// Test in sandbox
-	req := httptest.NewRequest("GET", "https://example.com", nil)
-	result, err := sandbox.TestRequest(req, []int{id})
+	input := &TestRequestInput{
+		Method: "GET",
+		URL:    "https://example.com",
+	}
+	result, err := sandbox.TestRequest(ctx, input, []int{rule.ID})
 	if err != nil {
 		t.Fatalf("Sandbox test failed: %v", err)
 	}
@@ -430,22 +454,19 @@ func TestIntegration_SandboxTesting(t *testing.T) {
 	if result.ExecutionLog.RulesMatched != 1 {
 		t.Errorf("RulesMatched = %d, want 1", result.ExecutionLog.RulesMatched)
 	}
-
-	// Original request should not be modified (sandbox isolation)
-	if req.Header.Get("X-Sandboxed") == "true" {
-		t.Error("Original request should not be modified by sandbox test")
-	}
 }
 
 func TestIntegration_BodyRewriting(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Rule to replace body content
 	rule := &Rule{
@@ -470,13 +491,13 @@ func TestIntegration_BodyRewriting(t *testing.T) {
 		},
 	}
 
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	// Create request with body
 	body := []byte(`{"key": "OLD_VALUE", "other": "data"}`)
 	req := httptest.NewRequest("POST", "https://example.com", bytes.NewReader(body))
 
-	engine.ProcessRequest(req, "test-req-8")
+	engine.ProcessRequest(req)
 
 	// Read modified body
 	modifiedBody, _ := io.ReadAll(req.Body)
@@ -490,11 +511,13 @@ func TestIntegration_CSRFBypassScenario(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Real-world scenario: Bypass CSRF token check by adding valid token
 	rule := &Rule{
@@ -525,11 +548,11 @@ func TestIntegration_CSRFBypassScenario(t *testing.T) {
 		},
 	}
 
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	// POST request without CSRF token
 	req := httptest.NewRequest("POST", "https://target.com/api/action", nil)
-	engine.ProcessRequest(req, "csrf-test-1")
+	engine.ProcessRequest(req)
 
 	token := req.Header.Get("X-CSRF-Token")
 	if token != "valid-csrf-token-abc123" {
@@ -538,7 +561,7 @@ func TestIntegration_CSRFBypassScenario(t *testing.T) {
 
 	// GET request should not be modified (not in methods list)
 	req2 := httptest.NewRequest("GET", "https://target.com/api/data", nil)
-	engine.ProcessRequest(req2, "csrf-test-2")
+	engine.ProcessRequest(req2)
 
 	if req2.Header.Get("X-CSRF-Token") != "" {
 		t.Error("GET request should not have CSRF token added")
@@ -549,11 +572,13 @@ func TestIntegration_JWTManipulation(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Extract JWT and store as variable
 	extractRule := &Rule{
@@ -563,9 +588,9 @@ func TestIntegration_JWTManipulation(t *testing.T) {
 		Scope:    RuleScope{Direction: DirectionRequest, URLPattern: ".*"},
 		Actions: []Action{
 			{
-				Type:     ActionSetVariable,
-				Name:     "jwt_token",
-				Value:    "${request.header.Authorization}",
+				Type:  ActionSetVariable,
+				Name:  "jwt_token",
+				Value: "${request.header.Authorization}",
 			},
 		},
 	}
@@ -586,13 +611,13 @@ func TestIntegration_JWTManipulation(t *testing.T) {
 		},
 	}
 
-	engine.CreateRule(extractRule)
-	engine.CreateRule(forwardRule)
+	engine.CreateRule(ctx, extractRule)
+	engine.CreateRule(ctx, forwardRule)
 
 	req := httptest.NewRequest("GET", "https://example.com", nil)
 	req.Header.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
 
-	engine.ProcessRequest(req, "jwt-test")
+	engine.ProcessRequest(req)
 
 	forwarded := req.Header.Get("X-Forwarded-Auth")
 	if forwarded != "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." {

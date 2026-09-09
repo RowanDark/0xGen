@@ -379,6 +379,30 @@ func (s *SQLiteStorage) scanResult(rows *sql.Rows) (*FuzzResult, error) {
 	return &result, nil
 }
 
+// GetResult retrieves a single result by its ID, scoped to the current
+// session.
+func (s *SQLiteStorage) GetResult(id int64) (*FuzzResult, error) {
+	rows, err := s.db.Query("SELECT * FROM results WHERE id = ? AND session_id = ?", id, s.sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("query result: %w", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("query result: %w", err)
+		}
+		return nil, fmt.Errorf("result %d not found", id)
+	}
+
+	result, err := s.scanResult(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scan result: %w", err)
+	}
+
+	return result, nil
+}
+
 // GetStats returns summary statistics for the current session.
 func (s *SQLiteStorage) GetStats() (*Stats, error) {
 	stats := &Stats{

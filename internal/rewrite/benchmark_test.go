@@ -2,8 +2,8 @@ package rewrite
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -15,11 +15,13 @@ func BenchmarkSingleRuleExecution(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Simple rule with one action
 	rule := &Rule{
@@ -31,12 +33,12 @@ func BenchmarkSingleRuleExecution(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Bench", Value: "test"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -44,11 +46,13 @@ func BenchmarkTenRules(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Create 10 rules
 	for i := 0; i < 10; i++ {
@@ -61,13 +65,13 @@ func BenchmarkTenRules(b *testing.B) {
 				{Type: ActionAdd, Location: LocationHeader, Name: fmt.Sprintf("X-Rule-%d", i), Value: "test"},
 			},
 		}
-		engine.CreateRule(rule)
+		engine.CreateRule(ctx, rule)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -75,11 +79,13 @@ func BenchmarkHundredRules(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Create 100 rules
 	for i := 0; i < 100; i++ {
@@ -92,13 +98,13 @@ func BenchmarkHundredRules(b *testing.B) {
 				{Type: ActionAdd, Location: LocationHeader, Name: fmt.Sprintf("X-Rule-%d", i), Value: "test"},
 			},
 		}
-		engine.CreateRule(rule)
+		engine.CreateRule(ctx, rule)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -106,11 +112,13 @@ func BenchmarkThousandRules(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Create 1000 rules
 	for i := 0; i < 1000; i++ {
@@ -123,13 +131,13 @@ func BenchmarkThousandRules(b *testing.B) {
 				{Type: ActionAdd, Location: LocationHeader, Name: fmt.Sprintf("X-Rule-%d", i), Value: "test"},
 			},
 		}
-		engine.CreateRule(rule)
+		engine.CreateRule(ctx, rule)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -137,11 +145,13 @@ func BenchmarkComplexRegexMatching(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Rule with complex regex
 	rule := &Rule{
@@ -156,7 +166,7 @@ func BenchmarkComplexRegexMatching(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Matched", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	urls := []string{
 		"https://api.example.com/v1/users/550e8400-e29b-41d4-a716-446655440000",
@@ -167,7 +177,7 @@ func BenchmarkComplexRegexMatching(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", urls[i%len(urls)], nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -175,11 +185,13 @@ func BenchmarkSimpleMatchVsRegex(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Simple string match condition
 	rule := &Rule{
@@ -199,13 +211,13 @@ func BenchmarkSimpleMatchVsRegex(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Browser", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -213,11 +225,13 @@ func BenchmarkBodyRewriting(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	rule := &Rule{
 		Name:     "Body Replace",
@@ -228,14 +242,14 @@ func BenchmarkBodyRewriting(b *testing.B) {
 			{Type: ActionReplace, Location: LocationBody, Name: "old", Value: "new"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	body := bytes.Repeat([]byte("This is old data that needs to be replaced. "), 100)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "https://example.com", bytes.NewReader(body))
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -243,11 +257,13 @@ func BenchmarkVariableSubstitution(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	rule := &Rule{
 		Name:     "Variable Substitution",
@@ -275,12 +291,12 @@ func BenchmarkVariableSubstitution(b *testing.B) {
 			},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -288,11 +304,13 @@ func BenchmarkJSONPathCondition(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	rule := &Rule{
 		Name:     "JSONPath Check",
@@ -310,7 +328,7 @@ func BenchmarkJSONPathCondition(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Has-Role", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	body := []byte(`{"user":{"id":123,"role":"admin","permissions":["read","write","delete"]}}`)
 
@@ -318,7 +336,7 @@ func BenchmarkJSONPathCondition(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "https://example.com", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -326,11 +344,13 @@ func BenchmarkMultipleConditions(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	rule := &Rule{
 		Name:     "Multiple Conditions",
@@ -346,14 +366,14 @@ func BenchmarkMultipleConditions(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-All-Matched", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(ctx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "https://example.com", nil)
 		req.Header.Set("Authorization", "Bearer token")
 		req.Header.Set("Content-Type", "application/json")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -361,13 +381,15 @@ func BenchmarkSandboxExecution(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
 
-	sandbox := NewSandbox(engine)
+	ctx := context.Background()
+
+	sandbox := NewSandbox(engine, nil)
 
 	rule := &Rule{
 		Name:     "Sandbox Test Rule",
@@ -378,13 +400,13 @@ func BenchmarkSandboxExecution(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Sandboxed", Value: "true"},
 		},
 	}
-	id, _ := engine.CreateRule(rule)
-	ruleIDs := []int{id}
+	engine.CreateRule(ctx, rule)
+	ruleIDs := []int{rule.ID}
+	input := &TestRequestInput{Method: "GET", URL: "https://example.com"}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "https://example.com", nil)
-		sandbox.TestRequest(req, ruleIDs)
+		sandbox.TestRequest(ctx, input, ruleIDs)
 	}
 }
 
@@ -423,11 +445,13 @@ func BenchmarkRealisticTraffic(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
 	defer engine.Close()
+
+	ctx := context.Background()
 
 	// Set up realistic rules
 	rules := []*Rule{
@@ -474,7 +498,7 @@ func BenchmarkRealisticTraffic(b *testing.B) {
 	}
 
 	for _, rule := range rules {
-		engine.CreateRule(rule)
+		engine.CreateRule(ctx, rule)
 	}
 
 	b.ResetTimer()
@@ -482,6 +506,6 @@ func BenchmarkRealisticTraffic(b *testing.B) {
 		req := httptest.NewRequest("GET", "https://api.example.com/v1/users", nil)
 		req.Header.Set("Authorization", "Bearer token123")
 		req.Header.Set("Content-Type", "application/json")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }

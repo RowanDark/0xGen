@@ -285,7 +285,7 @@ func TestRuleClone(t *testing.T) {
 	// Modify clone
 	clone.Name = "modified"
 	clone.Priority = 20
-	clone.Methods = append(clone.Methods, "POST")
+	clone.Scope.Methods = append(clone.Scope.Methods, "POST")
 	clone.Conditions[0].Pattern = "modified"
 	clone.Actions[0].Value = "modified"
 	clone.Tags[0] = "modified"
