@@ -39,7 +39,7 @@ HTTP Response → Analyzer Detection → Confidence Policy → Severity Assignme
 - **`CAP_EMIT_FINDINGS`**: Permission to emit vulnerability findings
 - **`CAP_HTTP_PASSIVE`**: Observe HTTP traffic without modification
 - **`CAP_FLOW_INSPECT`**: Access complete request/response pairs for context
-- **`CAP_AI_ANALYSIS`**: Capability name inherited from the plugin SDK; gates the confidence-scoring stage described above, not any model or external service
+- **`CAP_AI_ANALYSIS`**: Capability name inherited from the plugin SDK; reserved for a possible future AI-assisted analysis surface. Nothing in this plugin or the SDK gates behavior on it today — its presence here is not evidence that Hydra calls a model
 
 ## Architecture
 
@@ -50,7 +50,7 @@ plugins/hydra/
 ├── main.go           # Plugin entry point and hook registration
 ├── engine.go         # Core analysis engine and coordinator
 ├── analyzers.go      # Vulnerability-specific detection logic
-├── llm.go            # Threshold-based confidence policy ("aiEvaluator" implementation)
+├── policy.go         # Threshold-based confidence policy ("decisionEvaluator" implementation)
 ├── helpers.go        # Shared helpers
 ├── hooks.go          # Plugin SDK hook wiring
 ├── manifest.json     # Plugin metadata and capabilities
@@ -63,9 +63,9 @@ The `hydraEngine` coordinates all analyzers and applies the confidence policy:
 
 ```go
 type hydraEngine struct {
-    analyzers []analyzer        // List of vulnerability detectors
-    evaluator aiEvaluator       // Threshold-based confidence policy (see llm.go)
-    now       func() time.Time  // Timestamp generator (testable)
+    analyzers []analyzer          // List of vulnerability detectors
+    evaluator decisionEvaluator   // Threshold-based confidence policy (see policy.go)
+    now       func() time.Time    // Timestamp generator (testable)
 }
 ```
 
@@ -121,10 +121,10 @@ type analyzer interface {
 
 ### Confidence Policy Evaluator
 
-The `aiEvaluator` interface (implemented in `llm.go` by `llmConsensus`) is a lookup table of hardcoded per-category thresholds — not a model call:
+The `decisionEvaluator` interface (implemented in `policy.go` by `policyEvaluator`) is a lookup table of hardcoded per-category thresholds — not a model call:
 
 ```go
-type aiEvaluator interface {
+type decisionEvaluator interface {
     Decide(candidate *analysisCandidate) (analysisDecision, bool)
 }
 ```
@@ -159,7 +159,7 @@ Hydra is a standalone plugin binary started with two flags and a required enviro
 # 0XGEN_CAPABILITY_TOKEN must be set in the environment
 ```
 
-All five analyzers and their confidence thresholds are currently fixed in code (`engine.go`, `llm.go`) — there is no config file, CLI flag, or environment variable to toggle individual analyzers or adjust thresholds at runtime. Changing that behavior today means editing `newHydraEngine` or the per-category policies in `llm.go`.
+All five analyzers and their confidence thresholds are currently fixed in code (`engine.go`, `policy.go`) — there is no config file, CLI flag, or environment variable to toggle individual analyzers or adjust thresholds at runtime. Changing that behavior today means editing `newHydraEngine` or the per-category policies in `policy.go`.
 
 ## Detection Examples
 
@@ -260,7 +260,7 @@ No false-positive or false-negative rate has been measured for Hydra — `intern
 
 ### Tuning
 
-The analyzer set and confidence thresholds are fixed in code today (see [Configuration](#configuration)), so tuning Hydra currently means editing `engine.go` or `llm.go` directly and rebuilding the plugin — there is no runtime knob for it yet.
+The analyzer set and confidence thresholds are fixed in code today (see [Configuration](#configuration)), so tuning Hydra currently means editing `engine.go` or `policy.go` directly and rebuilding the plugin — there is no runtime knob for it yet.
 
 ## Security Considerations
 

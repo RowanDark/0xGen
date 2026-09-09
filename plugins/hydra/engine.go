@@ -12,7 +12,7 @@ import (
 
 type hydraEngine struct {
 	analyzers []analyzer
-	evaluator aiEvaluator
+	evaluator decisionEvaluator
 	now       func() time.Time
 }
 
@@ -21,7 +21,7 @@ type analyzer interface {
 	Analyse(responseContext) *analysisCandidate
 }
 
-type aiEvaluator interface {
+type decisionEvaluator interface {
 	Decide(*analysisCandidate) (analysisDecision, bool)
 }
 
@@ -69,7 +69,7 @@ func newHydraEngine(now func() time.Time) *hydraEngine {
 			newCommandInjectionAnalyzer(),
 			newOpenRedirectAnalyzer(),
 		},
-		evaluator: newLLMConsensus(),
+		evaluator: newPolicyEvaluator(),
 		now:       now,
 	}
 }
@@ -86,7 +86,7 @@ func (e *hydraEngine) process(ctx *pluginsdk.Context, event pluginsdk.HTTPPassiv
 		}
 		decision, ok := e.evaluator.Decide(candidate)
 		if !ok {
-			ctx.Logger().Debug("candidate rejected by AI consensus", "analyzer", analyzer.ID(), "confidence", fmt.Sprintf("%.2f", candidate.Confidence))
+			ctx.Logger().Debug("candidate rejected by confidence policy", "analyzer", analyzer.ID(), "confidence", fmt.Sprintf("%.2f", candidate.Confidence))
 			continue
 		}
 		finding := pluginsdk.Finding{
@@ -143,7 +143,7 @@ func buildMetadata(candidate *analysisCandidate, decision analysisDecision) map[
 		}
 		metadata[k] = v
 	}
-	metadata["analysis_mode"] = "ai_hybrid"
+	metadata["analysis_mode"] = "confidence_policy"
 	metadata["analysis_engine"] = "hydra"
 	metadata["analysis_confidence"] = fmt.Sprintf("%.2f", candidate.Confidence)
 	metadata["analysis_policy"] = decision.Policy

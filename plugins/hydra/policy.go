@@ -7,7 +7,7 @@ import (
 	pluginsdk "github.com/RowanDark/0xgen/sdk/plugin-sdk"
 )
 
-type llmPolicy struct {
+type confidencePolicy struct {
 	name              string
 	minConfidence     float64
 	escalateThreshold float64
@@ -17,12 +17,12 @@ type llmPolicy struct {
 	rationaleBuilder  func(analysisCandidate, float64) string
 }
 
-type llmConsensus struct {
-	policies map[string]llmPolicy
+type policyEvaluator struct {
+	policies map[string]confidencePolicy
 }
 
-func newLLMConsensus() aiEvaluator {
-	policies := map[string]llmPolicy{
+func newPolicyEvaluator() decisionEvaluator {
+	policies := map[string]confidencePolicy{
 		"xss": {
 			name:              "xss-reflection",
 			minConfidence:     0.55,
@@ -93,16 +93,16 @@ func newLLMConsensus() aiEvaluator {
 			},
 		},
 	}
-	return llmConsensus{policies: policies}
+	return policyEvaluator{policies: policies}
 }
 
-func (c llmConsensus) Decide(candidate *analysisCandidate) (analysisDecision, bool) {
+func (c policyEvaluator) Decide(candidate *analysisCandidate) (analysisDecision, bool) {
 	if candidate == nil {
 		return analysisDecision{}, false
 	}
 	policy, ok := c.policies[candidate.Category]
 	if !ok {
-		policy = llmPolicy{
+		policy = confidencePolicy{
 			name:              "generic",
 			minConfidence:     0.6,
 			escalateThreshold: 0.8,
@@ -112,7 +112,7 @@ func (c llmConsensus) Decide(candidate *analysisCandidate) (analysisDecision, bo
 				return fmt.Sprintf("Potential issue detected on %s", describeHost(ac))
 			},
 			rationaleBuilder: func(ac analysisCandidate, confidence float64) string {
-				return fmt.Sprintf("AI consensus accepted signal with %.0f%% confidence", confidence*100)
+				return fmt.Sprintf("Confidence policy accepted signal with %.0f%% confidence", confidence*100)
 			},
 		}
 	}
