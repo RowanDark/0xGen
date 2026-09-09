@@ -2,11 +2,13 @@ package launcher
 
 import (
 	"context"
+	"debug/elf"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -133,20 +135,12 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 	}()
 	binaryPath := filepath.Join(binaryDir, manifest.Entry)
 
-	build := exec.Command("go", "build", "-o", binaryPath, ".")
-	build.Dir = manifestDir
-	build.Stdout = cfg.Stdout
-	build.Stderr = cfg.Stderr
-	if err := build.Run(); err != nil {
+	if err := buildGoBinary(manifestDir, ".", binaryPath, cfg.Stdout, cfg.Stderr); err != nil {
 		return Result{}, fmt.Errorf("build plugin: %w", err)
 	}
 
 	sandboxPath := filepath.Join(binaryDir, "sandbox")
-	sandboxBuild := exec.Command("go", "build", "-o", sandboxPath, "./internal/plugins/runner/sandboxcmd")
-	sandboxBuild.Dir = repoRoot
-	sandboxBuild.Stdout = cfg.Stdout
-	sandboxBuild.Stderr = cfg.Stderr
-	if err := sandboxBuild.Run(); err != nil {
+	if err := buildGoBinary(repoRoot, "./internal/plugins/runner/sandboxcmd", sandboxPath, cfg.Stdout, cfg.Stderr); err != nil {
 		return Result{}, fmt.Errorf("build sandbox: %w", err)
 	}
 
@@ -193,6 +187,48 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 		return Result{}, err
 	}
 	return Result{Manifest: manifest}, nil
+}
+
+// buildGoBinary compiles the Go package at pkg (relative to dir) into out
+// with cgo disabled, then verifies the result is statically linked. Plugin
+// and sandbox binaries run inside a chroot with no dynamic loader or libc
+// staged into it, so a cgo-enabled build produces a binary that fails with
+// an opaque ENOENT at execve time rather than a clear build error.
+func buildGoBinary(dir, pkg, out string, stdout, stderr io.Writer) error {
+	build := exec.Command("go", "build", "-o", out, pkg)
+	build.Dir = dir
+	build.Env = append(os.Environ(), "CGO_ENABLED=0")
+	build.Stdout = stdout
+	build.Stderr = stderr
+	if err := build.Run(); err != nil {
+		return err
+	}
+	return assertStaticBinary(out)
+}
+
+// assertStaticBinary verifies that the ELF binary at path has no PT_INTERP
+// program header, i.e. it is statically linked and requires no dynamic
+// loader. A dynamically linked plugin or sandbox binary produces an
+// unreadable "exec: no such file or directory" error when launched inside
+// the chroot, since the loader and libc are never staged there. This check
+// only applies on Linux, where the sandbox uses a chroot; other platforms
+// produce non-ELF binaries and are skipped.
+func assertStaticBinary(path string) error {
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+	f, err := elf.Open(path)
+	if err != nil {
+		return fmt.Errorf("inspect binary %q: %w", path, err)
+	}
+	defer f.Close()
+
+	for _, prog := range f.Progs {
+		if prog.Type == elf.PT_INTERP {
+			return fmt.Errorf("binary %q is dynamically linked; rebuild with CGO_ENABLED=0 (cgo produces a dynamically linked binary that cannot run inside the sandbox chroot)", path)
+		}
+	}
+	return nil
 }
 
 func findAllowlist(start string) string {
