@@ -8,7 +8,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/kr/binarydist v0.1.0
-	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/slsa-framework/slsa-verifier/v2 v2.7.1
 	github.com/tidwall/gjson v1.18.0

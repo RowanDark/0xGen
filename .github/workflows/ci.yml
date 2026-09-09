@@ -119,6 +119,33 @@ jobs:
           version: v2.1.6
           args: --out-format=github-actions ./...
 
+  atlas-no-cgo:
+    name: Atlas storage (CGO disabled)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CGO_ENABLED: 0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Cache Go
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-nocgo-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-nocgo-
+
+      - name: Build (CGO disabled)
+        run: go build ./...
+
+      - name: Test Atlas storage (CGO disabled)
+        run: go test ./internal/atlas/...
+
   web-accessibility:
     name: 0xgen Web accessibility
     runs-on: ubuntu-latest

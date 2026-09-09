@@ -25,26 +25,9 @@ If you don't need persistent storage (results will only be in memory), you can b
 1. Not using the `--output` flag (results will be processed via callback only)
 2. Using only the export flags (`--export-csv`, `--export-json`, `--export-html`)
 
-## Alternative: Using mattn/go-sqlite3
-
-If you prefer the traditional CGo-based SQLite driver:
-
-1. Change the import in `storage.go`:
-   ```go
-   _ "github.com/mattn/go-sqlite3"
-   ```
-
-2. Change the driver name:
-   ```go
-   db, err := sql.Open("sqlite3", dbPath)
-   ```
-
-3. Install the dependency:
-   ```bash
-   go get github.com/mattn/go-sqlite3
-   ```
-
-Note: This requires CGo to be enabled.
+Note: Release builds use `CGO_ENABLED=0`, so `modernc.org/sqlite` (pure Go) is
+the only supported SQLite driver. Do not switch to a CGo-based driver — it
+will break every published release artifact.
 
 ## Verifying Installation
 
@@ -62,7 +45,6 @@ go build -o 0xgenctl cmd/0xgenctl/*.go
 
 **Build errors about sqlite:**
 - Install `modernc.org/sqlite` as shown above
-- Or use the alternative driver
 - Or build without storage support
 
 **Network issues during `go get`:**

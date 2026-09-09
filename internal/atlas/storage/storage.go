@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/atlas"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // Storage provides persistent storage for scans and findings.
@@ -19,7 +19,7 @@ type Storage struct {
 
 // New creates a new storage instance.
 func New(dbPath string, logger atlas.Logger) (*Storage, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
