@@ -709,7 +709,7 @@ return new Promise((resolve) => {
 
 #### **Task 4.2: `0xgenctl analyze` Command**
 - **File**: `cmd/0xgenctl/analyze.go`
-- **Description**: AI-powered analysis of findings
+- **Description**: Automated analysis of findings
 - **Acceptance Criteria**:
   ```bash
   0xgenctl analyze findings --file findings.jsonl
@@ -954,11 +954,11 @@ plugins:
     pairs_well_with: [secrets-scanner, form-fuzzer]
 
   - id: hydra
-    name: Hydra AI Analyzer
+    name: Hydra Passive Analyzer
     category: Analysis
     capabilities: [CAP_AI_ANALYSIS, CAP_HTTP_PASSIVE]
     use_cases:
-      - "AI-driven vulnerability detection (XSS, SQLi, SSRF)"
+      - "Passive vulnerability detection (XSS, SQLi, SSRF)"
       - "Confidence-based triage"
       - "Passive traffic analysis"
     pairs_well_with: [http-crawler, traffic-recorder]

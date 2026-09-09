@@ -1,16 +1,16 @@
 # Hydra Plugin
 
-AI-powered vulnerability detection engine for 0xGen. Hydra analyzes HTTP traffic using multiple specialized analyzers and AI consensus evaluation to identify security vulnerabilities with high confidence.
+Passive vulnerability detection engine for 0xGen. Hydra scans HTTP traffic with five pattern-matching analyzers and applies a threshold-based confidence policy to decide which candidate findings to emit.
 
 ## Overview
 
-Hydra is the core AI detection plugin for 0xGen, providing:
+Hydra is a passive detection plugin for 0xGen, providing:
 
-- **5 Vulnerability Analyzers**: XSS, SQLi, SSRF, Command Injection, Open Redirect
-- **AI Consensus Evaluation**: Multi-stage validation reducing false positives
+- **5 Vulnerability Analyzers**: XSS, SQLi, SSRF, Command Injection, Open Redirect — implemented as substring and pattern matching over response bodies and headers
+- **Confidence Policy Evaluation**: Per-category minimum-confidence and escalation thresholds decide whether a candidate is emitted and at what severity
 - **Passive Analysis**: Zero-impact detection from HTTP traffic observation
-- **Context-Aware Detection**: Understands application behavior patterns
-- **Production-Grade Accuracy**: Optimized for real-world pentesting workflows
+
+There is no machine learning model, inference step, or outbound network call anywhere in the plugin. "Confidence" is a score the analyzers assign based on which patterns matched; the evaluator compares that score against hardcoded thresholds.
 
 ## Features
 
@@ -18,29 +18,28 @@ Hydra is the core AI detection plugin for 0xGen, providing:
 
 | Vulnerability Type | Detection Method | Confidence Level |
 |-------------------|------------------|------------------|
-| **Cross-Site Scripting (XSS)** | Reflected payloads, context analysis | High (AI-validated) |
-| **SQL Injection (SQLi)** | Error patterns, boolean-based, time-based | High (AI-validated) |
+| **Cross-Site Scripting (XSS)** | Reflected payloads, context analysis | High |
+| **SQL Injection (SQLi)** | Error patterns, boolean-based, time-based | High |
 | **Server-Side Request Forgery (SSRF)** | Cloud metadata, internal IPs, DNS rebinding | Medium-High |
-| **Command Injection** | Shell metacharacters, output patterns | High (AI-validated) |
+| **Command Injection** | Shell metacharacters, output patterns | High |
 | **Open Redirect** | URL parameter manipulation, header injection | Medium |
 
-### AI Evaluation Pipeline
+### Detection Pipeline
 
 ```
-HTTP Response → Analyzer Detection → AI Evaluator → Confidence Scoring → Finding Emission
+HTTP Response → Analyzer Detection → Confidence Policy → Severity Assignment → Finding Emission
 ```
 
-1. **Analyzer Stage**: Specialized detectors scan for vulnerability patterns
-2. **AI Stage**: Machine learning model evaluates findings in context
-3. **Decision Stage**: Consensus algorithm determines final confidence
-4. **Emission Stage**: High-confidence findings sent to 0xGen core
+1. **Analyzer Stage**: Specialized detectors scan for vulnerability patterns and assign a confidence score
+2. **Policy Stage**: Per-category thresholds (`minConfidence`, `escalateThreshold`) decide whether to drop, emit, or escalate the severity of the candidate
+3. **Emission Stage**: Findings that clear the threshold are sent to 0xGen core
 
 ### Capabilities
 
 - **`CAP_EMIT_FINDINGS`**: Permission to emit vulnerability findings
 - **`CAP_HTTP_PASSIVE`**: Observe HTTP traffic without modification
 - **`CAP_FLOW_INSPECT`**: Access complete request/response pairs for context
-- **`CAP_AI_ANALYSIS`**: Use AI evaluation services for decision-making
+- **`CAP_AI_ANALYSIS`**: Capability name inherited from the plugin SDK; gates the confidence-scoring stage described above, not any model or external service
 
 ## Architecture
 
@@ -51,19 +50,21 @@ plugins/hydra/
 ├── main.go           # Plugin entry point and hook registration
 ├── engine.go         # Core analysis engine and coordinator
 ├── analyzers.go      # Vulnerability-specific detection logic
-├── evaluator.go      # AI consensus evaluation
+├── llm.go            # Threshold-based confidence policy ("aiEvaluator" implementation)
+├── helpers.go        # Shared helpers
+├── hooks.go          # Plugin SDK hook wiring
 ├── manifest.json     # Plugin metadata and capabilities
 └── README.md         # This file
 ```
 
 ### Analysis Engine
 
-The `hydraEngine` coordinates all analyzers and manages the AI evaluation pipeline:
+The `hydraEngine` coordinates all analyzers and applies the confidence policy:
 
 ```go
 type hydraEngine struct {
     analyzers []analyzer        // List of vulnerability detectors
-    evaluator aiEvaluator       // AI consensus evaluator
+    evaluator aiEvaluator       // Threshold-based confidence policy (see llm.go)
     now       func() time.Time  // Timestamp generator (testable)
 }
 ```
@@ -72,8 +73,8 @@ type hydraEngine struct {
 - `process()`: Main entry point for HTTP event analysis
 - Iterates through all analyzers
 - Collects candidate findings
-- Submits to AI evaluator for validation
-- Emits high-confidence findings
+- Submits each candidate to the confidence policy
+- Emits findings that clear the policy's threshold
 
 ### Analyzers
 
@@ -81,7 +82,8 @@ Each analyzer implements the `analyzer` interface:
 
 ```go
 type analyzer interface {
-    Analyse(ctx responseContext) *candidateFinding
+    ID() string
+    Analyse(ctx responseContext) *analysisCandidate
 }
 ```
 
@@ -117,27 +119,22 @@ type analyzer interface {
    - Location header injection
    - Meta refresh detection
 
-### AI Evaluator
+### Confidence Policy Evaluator
 
-The `aiEvaluator` provides context-aware validation:
+The `aiEvaluator` interface (implemented in `llm.go` by `llmConsensus`) is a lookup table of hardcoded per-category thresholds — not a model call:
 
 ```go
 type aiEvaluator interface {
-    Decide(candidate *candidateFinding) (decision, bool)
+    Decide(candidate *analysisCandidate) (analysisDecision, bool)
 }
 ```
 
-**Decision Types**:
-- `decisionEmit`: High confidence, emit finding immediately
-- `decisionDrop`: Low confidence, discard candidate
-- `decisionDefer`: Uncertain, collect more evidence
+Each vulnerability category has its own policy with two fixed thresholds:
 
-**Evaluation Factors**:
-- Pattern match strength
-- Response context analysis
-- Historical false positive rate
-- Application behavior baseline
-- Request/response correlation
+- `minConfidence`: candidates below this score are dropped
+- `escalateThreshold`: candidates at or above this score have their severity escalated
+
+For example, the XSS policy drops anything under 0.55 confidence and escalates to high severity at 0.75+. These numbers are compile-time constants; there is no learning, training data, or external evaluation involved.
 
 ## Usage
 
@@ -155,70 +152,14 @@ Hydra is enabled by default in 0xGen:
 
 ### Configuration
 
-Configure Hydra via 0xGen config file (`~/.0xgen/config.yaml`):
-
-```yaml
-plugins:
-  hydra:
-    enabled: true
-    config:
-      # AI evaluation threshold (0.0 - 1.0)
-      confidence_threshold: 0.75
-
-      # Maximum findings per target
-      max_findings_per_target: 100
-
-      # Enable/disable specific analyzers
-      analyzers:
-        xss: true
-        sqli: true
-        ssrf: true
-        command_injection: true
-        open_redirect: true
-
-      # AI model configuration
-      ai:
-        model: "gpt-4"
-        temperature: 0.3
-        max_tokens: 500
-```
-
-### Command-Line Options
+Hydra is a standalone plugin binary started with two flags and a required environment variable:
 
 ```bash
-# Disable Hydra temporarily
-0xgend start --disable-plugin hydra
-
-# Adjust AI confidence threshold
-0xgend start --plugin-config hydra.confidence_threshold=0.85
-
-# Enable only specific analyzers
-0xgend start --plugin-config hydra.analyzers.xss=true --plugin-config hydra.analyzers.sqli=false
+./hydra --server 127.0.0.1:50051 --token dev-token
+# 0XGEN_CAPABILITY_TOKEN must be set in the environment
 ```
 
-### Programmatic API
-
-Use Hydra from Go code:
-
-```go
-import "github.com/RowanDark/0xgen/plugins/hydra"
-
-// Create Hydra engine
-engine := hydra.NewEngine(hydra.Config{
-    ConfidenceThreshold: 0.75,
-    Analyzers: []string{"xss", "sqli", "ssrf"},
-})
-
-// Process HTTP response
-finding, err := engine.Analyze(httpResponse)
-if err != nil {
-    log.Fatal(err)
-}
-
-if finding != nil {
-    fmt.Printf("Vulnerability detected: %s\n", finding.Type)
-}
-```
+All five analyzers and their confidence thresholds are currently fixed in code (`engine.go`, `llm.go`) — there is no config file, CLI flag, or environment variable to toggle individual analyzers or adjust thresholds at runtime. Changing that behavior today means editing `newHydraEngine` or the per-category policies in `llm.go`.
 
 ## Detection Examples
 
@@ -244,7 +185,7 @@ Content-Type: text/html
 
 **Hydra Detection**:
 1. `xssAnalyzer` detects injected payload in response
-2. AI evaluator confirms HTML context injection
+2. Confidence policy clears the 0.55 minimum for the `xss` category and emits the finding
 3. Finding emitted:
    ```json
    {
@@ -278,7 +219,7 @@ You have an error in your SQL syntax near ''1'='1' at line 1
 
 **Hydra Detection**:
 1. `sqliAnalyzer` detects SQL error message
-2. AI evaluator confirms database-specific error pattern
+2. Confidence policy clears the 0.5 minimum for the `sqli` category and emits the finding
 3. Finding emitted with high confidence (0.95)
 
 ### Example 3: SSRF to Cloud Metadata
@@ -300,7 +241,7 @@ instance-id
 
 **Hydra Detection**:
 1. `ssrfAnalyzer` detects AWS metadata endpoint access
-2. AI evaluator confirms cloud metadata pattern
+2. Confidence policy clears the 0.55 minimum for the `ssrf` category, escalating to critical severity above 0.75
 3. Finding emitted as critical severity
 
 ## Performance
@@ -313,29 +254,13 @@ From pre-alpha performance testing (see `internal/atlas/BENCHMARKS.md`):
 |--------|-------|-------|
 | **Throughput** | ~340 targets/sec | Single XSS analyzer |
 | **Latency** | ~3ms/target | All analyzers active |
-| **Memory** | ~132KB/target | Includes AI evaluation |
-| **False Positive Rate** | <5% | With AI validation |
-| **False Negative Rate** | ~8% | Complex obfuscation cases |
+| **Memory** | ~132KB/target | |
 
-### Optimization Tips
+No false-positive or false-negative rate has been measured for Hydra — `internal/atlas/BENCHMARKS.md` covers throughput and latency only, not detection accuracy. Don't cite an accuracy figure for Hydra until one is backed by an actual benchmark in this repo.
 
-1. **Disable Unused Analyzers**: Only enable vulnerability types you're testing
-   ```yaml
-   analyzers:
-     xss: true
-     sqli: false  # Disable if not testing SQLi
-     ssrf: false
-   ```
+### Tuning
 
-2. **Adjust Confidence Threshold**: Higher threshold = fewer false positives
-   ```yaml
-   confidence_threshold: 0.85  # Default: 0.75
-   ```
-
-3. **Limit Findings**: Prevent finding explosion on large targets
-   ```yaml
-   max_findings_per_target: 50  # Default: 100
-   ```
+The analyzer set and confidence thresholds are fixed in code today (see [Configuration](#configuration)), so tuning Hydra currently means editing `engine.go` or `llm.go` directly and rebuilding the plugin — there is no runtime knob for it yet.
 
 ## Security Considerations
 
@@ -349,33 +274,12 @@ Hydra runs with the following sandbox restrictions:
 - **seccomp-bpf**: Syscall filtering (only safe syscalls allowed)
 - **Capabilities**: Dropped all Linux capabilities except analysis APIs
 
-### AI Model Security
-
-The AI evaluator communicates with external AI services:
-
-- **TLS Required**: All AI API calls use HTTPS
-- **API Key Protection**: Keys stored in secure keyring
-- **Rate Limiting**: Built-in rate limits prevent abuse
-- **Data Sanitization**: PII is stripped before sending to AI
-- **Audit Logging**: All AI decisions logged for review
-
 ### Privacy Considerations
 
-Hydra processes potentially sensitive HTTP traffic:
+Hydra processes potentially sensitive HTTP traffic entirely in-process:
 
-1. **Local Processing First**: Pattern matching done locally
-2. **Minimal AI Submission**: Only candidates sent to AI (not all traffic)
-3. **PII Stripping**: Sensitive data removed before AI evaluation
-4. **Configurable AI**: Can disable AI and use pattern matching only
-
-**Disable AI Mode**:
-```yaml
-plugins:
-  hydra:
-    config:
-      ai:
-        enabled: false  # Use pattern matching only
-```
+1. **No External Submission**: All analysis (pattern matching and confidence scoring) happens locally in the plugin; nothing is sent off-host
+2. **Passive Only**: Hydra observes traffic via `CAP_HTTP_PASSIVE`/`CAP_FLOW_INSPECT` and does not modify requests or responses
 
 ## Troubleshooting
 
@@ -385,51 +289,19 @@ plugins:
 
 **Solutions**:
 
-1. **Check confidence threshold** (too high filters all findings):
-   ```bash
-   0xgend start --plugin-config hydra.confidence_threshold=0.5
-   ```
-
-2. **Verify analyzers are enabled**:
-   ```bash
-   # Check which analyzers are active
-   0xgenctl config get plugins.hydra.analyzers
-   ```
-
-3. **Enable debug logging**:
+1. **Enable debug logging** to see which candidates are being dropped by the confidence policy:
    ```bash
    0xgend start --log-level debug | grep hydra
    ```
 
-4. **Test with known vulnerable target**:
+2. **Test with a known vulnerable target**:
    ```bash
    # DVWA (Damn Vulnerable Web Application)
    docker run -p 8080:80 vulnerables/web-dvwa
    0xgend start --target http://localhost:8080
    ```
 
-### False Positives
-
-**Symptom**: Hydra reports vulnerabilities that don't exist
-
-**Solutions**:
-
-1. **Increase confidence threshold**:
-   ```yaml
-   confidence_threshold: 0.85  # Stricter validation
-   ```
-
-2. **Review AI decisions**:
-   ```bash
-   # Check AI evaluation logs
-   tail -f ~/.0xgen/logs/hydra-ai.log
-   ```
-
-3. **Disable problematic analyzer**:
-   ```yaml
-   analyzers:
-     open_redirect: false  # If causing false positives
-   ```
+Remember that the analyzer set and thresholds are fixed at build time (see [Tuning](#tuning)) — there is no runtime config to check.
 
 ### High Memory Usage
 
@@ -437,49 +309,10 @@ plugins:
 
 **Solutions**:
 
-1. **Limit findings per target**:
-   ```yaml
-   max_findings_per_target: 25  # Reduce from default 100
-   ```
-
-2. **Reduce analyzer count**:
-   ```yaml
-   analyzers:
-     xss: true
-     sqli: true
-     ssrf: false
-     command_injection: false
-     open_redirect: false
-   ```
-
-3. **Check for memory leaks**:
+1. **Check for memory leaks**:
    ```bash
    # Monitor memory usage
    watch -n 1 "ps aux | grep hydra"
-   ```
-
-### AI Evaluator Errors
-
-**Symptom**: AI evaluation fails with errors
-
-**Solutions**:
-
-1. **Check API key**:
-   ```bash
-   # Verify API key is set
-   0xgenctl config get plugins.hydra.ai.api_key
-   ```
-
-2. **Test AI connectivity**:
-   ```bash
-   curl -H "Authorization: Bearer YOUR_API_KEY" \
-        https://api.openai.com/v1/models
-   ```
-
-3. **Disable AI temporarily**:
-   ```yaml
-   ai:
-     enabled: false  # Fall back to pattern matching
    ```
 
 ## Development
@@ -579,10 +412,8 @@ docker run -p 8080:80 vulnerables/web-dvwa
 ### Current Status (v2.0.0-alpha)
 
 - ✅ 5 vulnerability analyzers
-- ✅ AI consensus evaluation
+- ✅ Threshold-based confidence policy evaluation
 - ✅ Passive HTTP analysis
-- ✅ Context-aware detection
-- ✅ <5% false positive rate
 
 ### Planned Features (v2.1.0)
 
@@ -605,7 +436,7 @@ docker run -p 8080:80 vulnerables/web-dvwa
 We welcome contributions to Hydra! Focus areas:
 
 1. **New Analyzers**: Add detection for additional vulnerability types
-2. **AI Models**: Improve evaluation accuracy with better models
+2. **Confidence Policies**: Tune per-category thresholds, or make them runtime-configurable instead of compile-time constants
 3. **Performance**: Optimize analyzer speed and memory usage
 4. **Test Coverage**: Add tests for edge cases
 5. **Documentation**: Improve detection examples and troubleshooting
@@ -625,5 +456,5 @@ MIT License - see [LICENSE](../../LICENSE) for details.
 
 ## Version History
 
-- **v2.0.0-alpha** (2025-11-20): Initial release with 5 analyzers and AI evaluation
+- **v2.0.0-alpha** (2025-11-20): Initial release with 5 analyzers and threshold-based confidence evaluation
 - **v0.1.0** (2024-Q4): Internal pre-alpha testing

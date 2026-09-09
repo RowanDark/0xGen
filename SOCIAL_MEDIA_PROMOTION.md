@@ -29,7 +29,7 @@
 ```
 🚨 LAUNCH: After months of development, 0xGen v2.0.0-alpha is here!
 
-AI-powered security testing. Zero cost. Forever.
+Open-source security testing. Zero cost. Forever.
 
 89% feature parity with Burp Suite Professional.
 100% open source (MIT).
@@ -53,7 +53,7 @@ We asked: "What if professional security testing was free?"
 Meet 0xGen (Generation Zero):
 
 ✅ HTTP/HTTPS proxy with full MITM
-✅ AI-powered vulnerability detection
+✅ Passive vulnerability detection (Hydra plugin)
 ✅ Active scanning (SQLi, XSS, SSRF, etc.)
 ✅ Modern desktop GUI (Tauri + React)
 ✅ 5-layer plugin security model
@@ -78,7 +78,7 @@ Full benchmarks: [link]
 ```
 What makes 0xGen different?
 
-🤖 AI-Native: Built for intelligent automation from day one
+🔍 Passive-First: Detection built for zero-impact automation from day one
 🔒 Security-First: SLSA L3 (top 1% of OSS projects)
 🏗️ Plugin Sandboxing: 5-layer isolation (better than Burp)
 ☁️ Cloud-Native: Docker/K8s ready, API-first
@@ -300,7 +300,7 @@ Security testing shouldn't be a luxury. With professional tools costing $449/yea
 0xGen changes that.
 
 Key Capabilities:
-✅ AI-powered vulnerability detection (Hydra plugin)
+✅ Passive vulnerability detection (Hydra plugin)
 ✅ Full HTTP/HTTPS proxy with MITM interception
 ✅ Active scanning for SQLi, XSS, SSRF, and more
 ✅ SLSA Level 3 supply chain security (top 1% of OSS)
@@ -365,12 +365,12 @@ Hey r/netsec! I'm excited to share 0xGen, an open-source security testing platfo
 
 ## What is 0xGen?
 
-A free, AI-powered alternative to Burp Suite Professional with 89% feature parity.
+A free, open-source alternative to Burp Suite Professional with 89% feature parity.
 
 ## Key Features
 
 - **HTTP/HTTPS Proxy**: Full MITM interception with TLS 1.3
-- **AI Detection**: Hydra plugin for intelligent vulnerability discovery
+- **Passive Detection**: Hydra plugin for threshold-based vulnerability discovery
 - **Active Scanning**: SQLi, XSS, SSRF, XXE, command injection, path traversal
 - **Modern GUI**: Cross-platform desktop app (Tauri + React)
 - **Plugin Security**: 5-layer sandbox (cgroups, chroot, seccomp-bpf, etc.)
@@ -458,7 +458,7 @@ Fellow bug bounty hunters! 🎯
 Tired of paying $449/year for Burp Pro? I built 0xGen as a free alternative.
 
 **What You Get:**
-- AI-powered vulnerability detection
+- Passive vulnerability detection (Hydra plugin)
 - Active scanning (SQLi, XSS, SSRF, etc.)
 - Modern GUI (actually looks good)
 - Docker support (test anywhere)
@@ -511,7 +511,7 @@ Hi HN! I'm sharing 0xGen, an open-source security testing platform I've been bui
 
 What it does:
 - HTTP/HTTPS proxy with MITM interception
-- AI-powered vulnerability detection
+- Passive vulnerability detection (Hydra plugin)
 - Active scanning (SQLi, XSS, SSRF, XXE, etc.)
 - Modern desktop GUI (Tauri + React)
 - 5-layer plugin security sandbox
@@ -640,7 +640,7 @@ Help us prioritize what to build next! Vote with 👍 reactions.
 
 **[Visual: Side-by-side comparison checkmarks]**
 
-"AI-powered vulnerability detection. Modern GUI. SLSA Level 3 security."
+"Passive vulnerability detection. Modern GUI. SLSA Level 3 security."
 
 **[Visual: CLI demo, GUI demo]**
 
@@ -695,7 +695,7 @@ I've been following your work in [security area] for a while and really apprecia
 I recently launched 0xGen, an open-source security testing platform designed as a free alternative to Burp Suite Professional. It's currently in alpha with 89% feature parity.
 
 Key features:
-- AI-powered vulnerability detection
+- Passive vulnerability detection (Hydra plugin)
 - SLSA Level 3 supply chain security
 - 5-layer plugin sandboxing
 - Modern cross-platform GUI

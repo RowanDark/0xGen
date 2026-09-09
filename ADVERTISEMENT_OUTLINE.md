@@ -13,10 +13,9 @@
 **"Security Testing. Evolved."**
 
 ### Secondary Taglines
-- "AI-Powered. Community-Driven. Forever Free."
 - "89% Burp Suite Parity. 100% Open Source."
 - "Enterprise Security. Zero Cost."
-- "Generation Zero: Where AI Meets Offensive Security"
+- "Generation Zero: Open Source Offensive Security"
 
 ---
 
@@ -34,16 +33,16 @@ The Security Scanner You Can Actually Afford
 **Subheadline**:
 ```
 89% feature parity with Burp Suite Professional
-100% free forever | Open Source | AI-Powered
+100% free forever | Open Source
 ```
 
 **Body Copy**:
 ```
 Stop paying $449/year for professional security testing tools.
-0xGen delivers enterprise-grade vulnerability scanning with AI-powered
-detection, modern UX, and SLSA Level 3 supply chain security—at zero cost.
+0xGen delivers enterprise-grade vulnerability scanning, modern UX, and
+SLSA Level 3 supply chain security—at zero cost.
 
-✅ AI vulnerability detection (Hydra plugin)
+✅ Passive vulnerability detection (Hydra plugin)
 ✅ HTTP/HTTPS proxy with full MITM
 ✅ Active scanning (SQLi, XSS, SSRF, and more)
 ✅ 5-layer plugin security model
@@ -73,7 +72,7 @@ Why Pay When You Can Own?
 │ Feature                    │ 0xGen   │ Burp Pro │ Burp Free    │
 ├────────────────────────────┼─────────┼──────────┼──────────────┤
 │ Active Scanning            │    ✅    │    ✅     │      ❌       │
-│ AI Vulnerability Detection │    ✅    │    ❌     │      ❌       │
+│ Passive Vuln. Detection    │    ✅    │    ❌     │      ❌       │
 │ Modern Desktop GUI         │    ✅    │    ✅     │      ✅       │
 │ 5-Layer Plugin Security    │    ✅    │    ⚠️     │      ⚠️       │
 │ SLSA L3 Supply Chain       │    ✅    │    ❌     │      ❌       │
@@ -85,7 +84,7 @@ Why Pay When You Can Own?
 └────────────────────────────┴─────────┴──────────┴──────────────┘
 ```
 
-**Tagline**: "Choose Intelligence. Choose Freedom. Choose 0xGen."
+**Tagline**: "Choose Control. Choose Freedom. Choose 0xGen."
 
 **CTA**: [Get Started Free →]
 
@@ -99,7 +98,6 @@ Why Pay When You Can Own?
 ❌ Limited by proprietary tools
 ❌ Black-box plugin security
 ❌ Vendor lock-in
-❌ No AI-powered analysis
 ❌ Can't customize or extend
 ```
 
@@ -109,7 +107,7 @@ Why Pay When You Can Own?
 ✅ Full source code access
 ✅ 5-layer plugin sandbox
 ✅ Community-driven roadmap
-✅ AI-native architecture
+✅ Open plugin architecture
 ✅ Plugin SDK + API
 ```
 
@@ -130,7 +128,7 @@ Why Pay When You Can Own?
 💬 "Finally, a free alternative that doesn't feel like a free alternative."
    — Senior Penetration Tester
 
-💬 "The AI detection caught vulns I would have missed manually."
+💬 "Hydra caught vulns I would have missed manually."
    — Bug Bounty Hunter
 
 💬 "SLSA Level 3? That's better than most paid tools."
@@ -163,8 +161,8 @@ Why Pay When You Can Own?
 🛡️ SLSA Level 3 Supply Chain Security
    Cryptographic build provenance + SBOM
 
-🤖 AI-Native Architecture
-   Purpose-built ML vulnerability detector
+🔍 Passive-First Detection
+   Threshold-based confidence scoring, no cloud dependency
 
 🔒 5-Layer Plugin Sandbox
    Resource limits • Filesystem isolation • Network restrictions
@@ -326,7 +324,7 @@ No signup. No credit card. No catch.
 **Timeline**:
 ```
 ✅ Phase 2 (NOW): Core Platform
-   HTTP proxy • AI detection • Active scanning
+   HTTP proxy • Passive detection • Active scanning
 
 🔄 Phase 3 (Q1 2025): Manual Tools
    Fuzzer • Encoder • Comparer • Sequencer
@@ -378,7 +376,7 @@ No signup. No credit card. No catch.
 
 6. **DEV.to / Hashnode**
    - Format: Technical deep-dive articles
-   - Topics: "Building SLSA L3 from Scratch", "AI for Vuln Detection"
+   - Topics: "Building SLSA L3 from Scratch", "Passive Vuln Detection with Hydra"
    - Cost: Free (organic reach)
 
 ### Community Channels
@@ -457,9 +455,9 @@ No signup. No credit card. No catch.
    - Headline: "Stop Paying $449/Year"
    - Support: 89% feature parity, zero cost forever
 
-2. **AI Innovation**
-   - Headline: "AI-Powered Vulnerability Detection"
-   - Support: Hydra plugin, ML-based analysis
+2. **Automated Detection**
+   - Headline: "Passive Vulnerability Detection, Zero Setup"
+   - Support: Hydra plugin, threshold-based confidence scoring
 
 3. **Security Leadership**
    - Headline: "SLSA Level 3: Top 1% of OSS"
@@ -544,7 +542,6 @@ No signup. No credit card. No catch.
 ✅ "Security testing should be accessible to everyone"
 ✅ "Built by security professionals, for security professionals"
 ✅ "Open source you can trust"
-✅ "AI-powered intelligence"
 ✅ "Enterprise-grade, zero cost"
 
 ### What NOT to Say

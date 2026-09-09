@@ -158,7 +158,7 @@ Comprehensive audits completed for Issues #1-6:
 **New Features**:
 - **Workflow Automator**: Visual flow builder for complex attack chains
 - **Session Forge**: Advanced authentication flow handling (OAuth, JWT, SAML)
-- **Atlas Scanner**: AI-powered active vulnerability scanner
+- **Atlas Scanner**: Active vulnerability scanner with confidence-based false-positive filtering
 - **PDF Forge**: Professional reporting with AI executive summaries
 
 **Effort**: 28 weeks (7 months with parallel development)

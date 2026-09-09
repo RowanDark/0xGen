@@ -266,7 +266,7 @@ docs/en/
 - ✅ **Primary name:** `0xgen`
 - ✅ **CLI binary:** `0xgenctl`
 - ✅ **Daemon binary:** `0xgend`
-- ✅ **Project tagline:** "Generation Zero: AI-driven offensive security"
+- ✅ **Project tagline:** "Generation Zero: open-source offensive security"
 
 **Automated Branding Enforcement:**
 

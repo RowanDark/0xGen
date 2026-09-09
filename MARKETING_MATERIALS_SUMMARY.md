@@ -114,7 +114,7 @@ All posts are pre-written and ready to use immediately.
 Use these in ALL communications:
 
 1. **Cost Savings**: "89% Burp Suite parity at $0 cost"
-2. **AI Innovation**: "AI-powered vulnerability detection"
+2. **Automated Detection**: "Passive vulnerability detection out of the box"
 3. **Security Leadership**: "SLSA Level 3 (top 1% of OSS)"
 4. **Developer Experience**: "Built for automation"
 5. **Community Trust**: "Open source you can trust"

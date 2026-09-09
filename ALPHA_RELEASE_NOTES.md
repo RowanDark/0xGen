@@ -21,7 +21,7 @@
 - **Scope Policies**: YAML-based filtering (domain, wildcard, URL, CIDR, regex)
 - **Verification**: [VERIFICATION_REPORT_ISSUE_1.md](VERIFICATION_REPORT_ISSUE_1.md) ✅
 
-#### ✅ AI-Powered Vulnerability Detection
+#### ✅ Passive Vulnerability Detection
 - **Hydra Plugin**: 5 vulnerability analyzers (production-ready)
   - XSS detection (reflection patterns)
   - SQL injection detection (error signatures)
@@ -29,8 +29,8 @@
   - Command injection detection (shell output patterns)
   - Open redirect detection
 - **Confidence Scoring**: Policy-based severity escalation
-- **LLM Consensus**: Deterministic triage with transparent rationale
-- **AI Infrastructure**: Ready for Phase 4 external LLM integration
+- **Threshold Policy**: Deterministic, per-category triage with transparent rationale (no model or external call involved)
+- **Plugin Infrastructure**: Ready for a future external LLM integration (Phase 4, not yet built)
 - **Verification**: [VERIFICATION_REPORT_ISSUE_5.md](VERIFICATION_REPORT_ISSUE_5.md) ✅
 
 #### ✅ Plugin System with Best-in-Class Security
@@ -102,7 +102,7 @@
 | **Core Proxy** | ✅ 100% | ✅ 100% |
 | **Active Scanning** | ⚠️ Passive only (Hydra) | ✅ 100% |
 | **Manual Tools** | ⚠️ Partial | ✅ 100% |
-| **AI/ML Features** | ✅ **Unique** (Hydra + Mimir) | ❌ None |
+| **Built-in Heuristic Detection** | ✅ **Unique** (Hydra + Mimir) | ❌ None |
 | **Supply Chain Security** | ✅ **Unique** (SLSA L3, SBOM) | ❌ None |
 | **Plugin Security** | ✅ **Unique** (5-layer model) | ❌ JVM only |
 | **CI/CD Integration** | ✅ **Leading** | ⚠️ Limited |
@@ -149,7 +149,7 @@ These are **intentional design decisions or platform constraints**, documented t
 ### 3. No External LLM Integration Yet
 **Status**: Phase 4 (Q2-Q3 2025)
 
-**Current**: Embedded AI with deterministic heuristics (privacy-preserving, no external API calls)
+**Current**: Deterministic, rule-based heuristics — no model, inference, or external API calls
 - Hydra plugin: 5 vulnerability analyzers with confidence scoring
 - Mimir assistant: 5 heuristic recommendation rules
 
@@ -433,7 +433,7 @@ This alpha release was validated through comprehensive audits (Issues #1-7):
 - Documentation clarifications
 
 ### Inspiration
-0xGen draws inspiration from industry-leading tools while innovating in security, AI, and open source accessibility:
+0xGen draws inspiration from industry-leading tools while innovating in security and open source accessibility:
 - **Burp Suite**: Setting the standard for web security testing
 - **Caido**: Modern UX and performance
 - **OWASP**: Security best practices and community
@@ -459,7 +459,7 @@ Thank you to all early testers, contributors, and supporters who helped make thi
 5. Recruit open source contributors
 
 ### Long-Term Vision
-**Make 0xGen the world's most advanced open source security testing platform** - combining the power of Burp Suite, the innovation of AI, and features that no commercial tool offers - all while being completely free.
+**Make 0xGen the world's most advanced open source security testing platform** - combining the power of Burp Suite with features that no commercial tool offers - all while being completely free.
 
 ---
 
