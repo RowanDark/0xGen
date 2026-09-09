@@ -9,8 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/RowanDark/0xgen/internal/plugins/runner/sandboxenv"
 )
 
 const (
@@ -84,10 +87,19 @@ func createSandboxCommand(ctx context.Context, cfg Config) (*exec.Cmd, sandboxEn
 		Setpgid: true,
 	}
 
+	extra := make(map[string]string, 2)
+	if cfg.Limits.CPUSeconds > 0 {
+		extra[sandboxenv.CPUSecondsEnv] = strconv.FormatUint(cfg.Limits.CPUSeconds, 10)
+	}
+	if cfg.Limits.MemoryBytes > 0 {
+		extra[sandboxenv.MemoryBytesEnv] = strconv.FormatUint(cfg.Limits.MemoryBytes, 10)
+	}
+
 	env := sandboxEnv{
-		Path: "/bin",
-		Home: "/home/plugin",
-		Tmp:  "/tmp",
+		Path:  "/bin",
+		Home:  "/home/plugin",
+		Tmp:   "/tmp",
+		Extra: extra,
 	}
 
 	return cmd, env, cleanup, nil

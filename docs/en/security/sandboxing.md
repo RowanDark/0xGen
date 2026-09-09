@@ -139,32 +139,35 @@ Even without chroot-like isolation, Windows plugin sandboxing is still robust du
 
 ### Unix/Linux/macOS Implementation
 
-**File**: `internal/plugins/runner/limits_unix.go`
+**Files**: `internal/plugins/runner/sandboxcmd/main.go` (enforcement), `internal/plugins/runner/sandbox_unix.go` (limit hand-off)
 
-**Mechanism**: **POSIX RLIMIT** for hard resource constraints
+**Mechanism**: **POSIX RLIMIT**, applied inside the sandbox helper child process — never on the 0xgen daemon itself.
+
+The daemon passes the configured limits to the sandbox helper via two environment variables (`OXGEN_SANDBOX_CPU_SECONDS`, `OXGEN_SANDBOX_MEMORY_BYTES`, see `internal/plugins/runner/sandboxenv`). The helper applies them to *itself* after dropping privileges and before it execs the plugin binary, then strips the variables from the environment so they never reach plugin code:
 
 ```go
-func startWithLimits(cmd *exec.Cmd, lim Limits) error {
-    if lim.CPUSeconds > 0 {
-        // CPU time limit
-        newLimit := syscall.Rlimit{Cur: lim.CPUSeconds, Max: lim.CPUSeconds}
-        syscall.Setrlimit(syscall.RLIMIT_CPU, &newLimit)
+// sandboxcmd/main.go, running as the unprivileged sandbox helper — not the daemon
+func applyResourceLimits() error {
+    if v := os.Getenv(sandboxenv.CPUSecondsEnv); v != "" {
+        cpuSeconds, _ := strconv.ParseUint(v, 10, 64)
+        limit := syscall.Rlimit{Cur: cpuSeconds, Max: cpuSeconds}
+        syscall.Setrlimit(syscall.RLIMIT_CPU, &limit)
     }
-
-    if lim.MemoryBytes > 0 {
-        // Virtual memory limit
-        newLimit := syscall.Rlimit{Cur: lim.MemoryBytes, Max: lim.MemoryBytes}
-        syscall.Setrlimit(syscall.RLIMIT_AS, &newLimit)
+    if v := os.Getenv(sandboxenv.MemoryBytesEnv); v != "" {
+        memoryBytes, _ := strconv.ParseUint(v, 10, 64)
+        limit := syscall.Rlimit{Cur: memoryBytes, Max: memoryBytes}
+        syscall.Setrlimit(syscall.RLIMIT_AS, &limit)
     }
+    return nil
 }
 ```
 
 **Limits Enforced**:
 - ⏱️ **CPU Time**: Maximum CPU seconds (e.g., 60s)
 - 💾 **Memory**: Virtual memory limit (e.g., 512MB)
-- ⏲️ **Wall Time**: Real-time execution timeout (e.g., 5 minutes)
+- ⏲️ **Wall Time**: Real-time execution timeout (e.g., 5 minutes), enforced by `killProcessGroup` against the sandboxed process group
 
-**Enforcement**: Kernel-level hard limits. Plugin process killed if exceeded.
+**Enforcement**: Kernel-level hard limits, scoped to the single-use sandbox helper process. Because that process is unprivileged, short-lived, and about to exec the plugin, both `Cur` and `Max` are capped equally — the plugin can never raise its own ceiling back up. Applying the limits here (rather than to the daemon) means an unprivileged daemon process is never left permanently rate-limited by a prior plugin run, and concurrent plugin runs no longer share a single process-wide limit window.
 
 ---
 
