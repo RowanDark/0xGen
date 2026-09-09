@@ -1,13 +1,13 @@
 package runner
 
 import (
-        "context"
-        "errors"
-        "fmt"
-        "io"
-        "runtime"
-        "strings"
-        "time"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"runtime"
+	"strings"
+	"time"
 
 	"github.com/RowanDark/0xgen/internal/observability/tracing"
 )
@@ -34,6 +34,11 @@ type sandboxEnv struct {
 	Path string
 	Home string
 	Tmp  string
+	// Extra carries additional environment variables destined for the
+	// sandbox helper process only (e.g. resource limits). The unix sandbox
+	// helper strips these before it execs the plugin binary, so they never
+	// reach plugin code.
+	Extra map[string]string
 }
 
 // Run executes the plugin binary with the provided configuration. The caller
@@ -98,7 +103,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	cmd.Env = buildEnv(envCfg, cfg.Env)
 
-	if err := startWithLimits(cmd, cfg.Limits); err != nil {
+	if err := cmd.Start(); err != nil {
 		span.RecordError(err)
 		status = tracing.StatusError
 		statusMsg = "start plugin"
@@ -140,6 +145,9 @@ func buildEnv(envCfg sandboxEnv, overrides map[string]string) []string {
 	if runtime.GOOS == "windows" {
 		base["TEMP"] = envCfg.Tmp
 		base["TMP"] = envCfg.Tmp
+	}
+	for k, v := range envCfg.Extra {
+		base[k] = v
 	}
 	for k, v := range overrides {
 		base[k] = v
