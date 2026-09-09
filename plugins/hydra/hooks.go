@@ -10,7 +10,7 @@ func newHydraHooks(now func() time.Time) pluginsdk.Hooks {
 	engine := newHydraEngine(now)
 	return pluginsdk.Hooks{
 		OnStart: func(ctx *pluginsdk.Context) error {
-			ctx.Logger().Info("hydra AI analysis initialised", "analyzers", len(engine.analyzers))
+			ctx.Logger().Info("hydra engine initialised", "analyzers", len(engine.analyzers))
 			return nil
 		},
 		OnHTTPPassive: func(ctx *pluginsdk.Context, event pluginsdk.HTTPPassiveEvent) error {

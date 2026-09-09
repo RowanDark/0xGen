@@ -20,11 +20,13 @@
           "CAP_EMIT_FINDINGS",
           "CAP_HTTP_ACTIVE",
           "CAP_HTTP_PASSIVE",
+          "CAP_AI_ANALYSIS",
           "CAP_WS",
           "CAP_SPIDER",
           "CAP_REPORT",
           "CAP_STORAGE"
-        ]
+        ],
+        "description": "CAP_AI_ANALYSIS is reserved for a possible future AI-assisted analysis surface. No capability gate for it is implemented anywhere today; requesting it currently has no effect."
       }
     },
     "config": { "type": "object", "additionalProperties": true },

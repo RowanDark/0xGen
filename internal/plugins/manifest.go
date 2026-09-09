@@ -22,7 +22,9 @@ type Manifest struct {
 }
 
 var allowedCaps = map[string]struct{}{
-	"CAP_EMIT_FINDINGS":    {},
+	"CAP_EMIT_FINDINGS": {},
+	// CAP_AI_ANALYSIS is reserved for a possible future AI-assisted analysis
+	// surface. Nothing in this codebase gates behavior on it today.
 	"CAP_AI_ANALYSIS":      {},
 	"CAP_HTTP_ACTIVE":      {},
 	"CAP_HTTP_PASSIVE":     {},
