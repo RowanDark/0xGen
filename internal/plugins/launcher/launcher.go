@@ -194,16 +194,68 @@ func Run(ctx context.Context, cfg Config) (Result, error) {
 // and sandbox binaries run inside a chroot with no dynamic loader or libc
 // staged into it, so a cgo-enabled build produces a binary that fails with
 // an opaque ENOENT at execve time rather than a clear build error.
+//
+// This build runs before the sandbox exists to run it in: plugin source is
+// verified against a signed allowlist (see Run above) but is otherwise
+// trusted at build time, not sandboxed. See THREAT_MODEL.md's "Plugin
+// build-time trust boundary" for what that does and does not cover. The
+// restricted environment below reduces, but does not eliminate, that
+// exposure.
 func buildGoBinary(dir, pkg, out string, stdout, stderr io.Writer) error {
-	build := exec.Command("go", "build", "-o", out, pkg)
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return fmt.Errorf("locate go toolchain: %w", err)
+	}
+	build := exec.Command(goBin, "build", "-o", out, pkg)
 	build.Dir = dir
-	build.Env = append(os.Environ(), "CGO_ENABLED=0")
+	build.Env = restrictedBuildEnv(goBin)
 	build.Stdout = stdout
 	build.Stderr = stderr
 	if err := build.Run(); err != nil {
 		return err
 	}
 	return assertStaticBinary(out)
+}
+
+// restrictedBuildEnv returns the environment for the `go build` invocation
+// used to compile plugin and sandbox binaries from verified-but-untrusted
+// source. It deliberately does not inherit the daemon's full environment:
+//
+//   - CGO_ENABLED=0 keeps `#cgo LDFLAGS`/`#cgo CFLAGS` directives in plugin
+//     source from invoking a C compiler or linker at build time (also
+//     required for the static-linking check below).
+//   - GOFLAGS=-mod=readonly stops a build from silently rewriting go.mod or
+//     go.sum to pull in a dependency that was not already vetted.
+//   - GOTOOLCHAIN=local stops a plugin's go.mod from triggering a download
+//     and execution of a different Go toolchain version during the build.
+//   - PATH is replaced with the directory holding the resolved `go` binary
+//     plus standard system directories, rather than inherited, so a plugin
+//     build can't be influenced by an attacker-controlled PATH entry ahead
+//     of the real toolchain.
+//   - Everything else -- daemon secrets, auth tokens, and unrelated
+//     configuration -- is dropped rather than forwarded to build-time
+//     subprocesses. Only the handful of variables the Go toolchain itself
+//     needs to locate its cache and home directory are passed through.
+func restrictedBuildEnv(goBin string) []string {
+	pathDirs := []string{filepath.Dir(goBin)}
+	if runtime.GOOS != "windows" {
+		pathDirs = append(pathDirs, "/usr/local/bin", "/usr/bin", "/bin")
+	}
+	env := []string{
+		"PATH=" + strings.Join(pathDirs, string(os.PathListSeparator)),
+		"CGO_ENABLED=0",
+		"GOFLAGS=-mod=readonly",
+		"GOTOOLCHAIN=local",
+	}
+	for _, key := range []string{
+		"HOME", "USERPROFILE", "GOPATH", "GOCACHE", "GOMODCACHE", "GOROOT",
+		"TMPDIR", "TEMP", "TMP", "SystemRoot",
+	} {
+		if val, ok := os.LookupEnv(key); ok {
+			env = append(env, key+"="+val)
+		}
+	}
+	return env
 }
 
 // assertStaticBinary verifies that the ELF binary at path has no PT_INTERP
