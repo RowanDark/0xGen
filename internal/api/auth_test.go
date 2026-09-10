@@ -27,7 +27,7 @@ func TestMintWithOptionsIncludesWorkspaceClaims(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MintWithOptions failed: %v", err)
 	}
-	claims, err := auth.Validate(token)
+	claims, err := auth.Validate(token, "aud")
 	if err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestAuthenticatorValidatesOIDCTokens(t *testing.T) {
 	if err != nil {
 		t.Fatalf("signOIDCToken failed: %v", err)
 	}
-	claims, err := auth.Validate(token)
+	claims, err := auth.Validate(token, "")
 	if err != nil {
 		t.Fatalf("Validate failed: %v", err)
 	}
@@ -120,6 +120,93 @@ func signOIDCToken(key *rsa.PrivateKey, kid string, payload map[string]any) (str
 	}
 	sigSeg := base64.RawURLEncoding.EncodeToString(sig)
 	return strings.Join([]string{headerSeg, payloadSeg, sigSeg}, "."), nil
+}
+
+func TestValidateRejectsAudienceMismatch(t *testing.T) {
+	auth, err := NewAuthenticator([]byte("secret"), "issuer", time.Minute)
+	if err != nil {
+		t.Fatalf("NewAuthenticator failed: %v", err)
+	}
+	token, _, err := auth.MintWithOptions("user-1", TokenOptions{Audience: "aud-a"})
+	if err != nil {
+		t.Fatalf("MintWithOptions failed: %v", err)
+	}
+	if _, err := auth.Validate(token, "aud-a"); err != nil {
+		t.Fatalf("expected token to validate for its own audience, got %v", err)
+	}
+	if _, err := auth.Validate(token, "aud-b"); err == nil {
+		t.Fatal("expected token minted for audience aud-a to be rejected at audience aud-b")
+	}
+}
+
+func TestValidateRejectsAlgNone(t *testing.T) {
+	auth, err := NewAuthenticator([]byte("secret"), "issuer", time.Minute)
+	if err != nil {
+		t.Fatalf("NewAuthenticator failed: %v", err)
+	}
+	header := map[string]string{"alg": "none", "typ": "JWT"}
+	headerJSON, err := json.Marshal(header)
+	if err != nil {
+		t.Fatalf("marshal header failed: %v", err)
+	}
+	claims := Claims{
+		Issuer:    "issuer",
+		Subject:   "user-1",
+		Audience:  "aud-a",
+		IssuedAt:  time.Now().Unix(),
+		ExpiresAt: time.Now().Add(time.Minute).Unix(),
+	}
+	payloadJSON, err := json.Marshal(claims)
+	if err != nil {
+		t.Fatalf("marshal claims failed: %v", err)
+	}
+	token := strings.Join([]string{
+		base64.RawURLEncoding.EncodeToString(headerJSON),
+		base64.RawURLEncoding.EncodeToString(payloadJSON),
+		"",
+	}, ".")
+	if _, err := auth.Validate(token, "aud-a"); err == nil {
+		t.Fatal("expected alg \"none\" token to be rejected")
+	}
+}
+
+func TestValidateRejectsExpiredToken(t *testing.T) {
+	auth, err := NewAuthenticator([]byte("secret"), "issuer", time.Minute)
+	if err != nil {
+		t.Fatalf("NewAuthenticator failed: %v", err)
+	}
+	claims := Claims{
+		Issuer:    "issuer",
+		Subject:   "user-1",
+		Audience:  "aud-a",
+		IssuedAt:  time.Now().Add(-time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(-time.Minute).Unix(),
+		ID:        "jti-expired",
+	}
+	token, err := auth.sign(claims)
+	if err != nil {
+		t.Fatalf("sign failed: %v", err)
+	}
+	if _, err := auth.Validate(token, "aud-a"); err == nil {
+		t.Fatal("expected expired token to be rejected")
+	}
+}
+
+func TestValidateRejectsFutureNotBefore(t *testing.T) {
+	auth, err := NewAuthenticator([]byte("secret"), "issuer", time.Minute)
+	if err != nil {
+		t.Fatalf("NewAuthenticator failed: %v", err)
+	}
+	token, _, err := auth.MintWithOptions("user-1", TokenOptions{
+		Audience:  "aud-a",
+		NotBefore: time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("MintWithOptions failed: %v", err)
+	}
+	if _, err := auth.Validate(token, "aud-a"); err == nil {
+		t.Fatal("expected token with future nbf to be rejected")
+	}
 }
 
 func bigIntBytes(v int64) []byte {
