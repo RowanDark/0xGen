@@ -35,7 +35,7 @@ for target in "${targets[@]}"; do
 
         echo "Building 0xgenctl for $GOOS/$GOARCH"
         GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 \
-                go build -ldflags "$LDFLAGS" -o "$BUILD_DIR/0xgenctl" ./cmd/0xgenctl
+                go build -tags slsa -ldflags "$LDFLAGS" -o "$BUILD_DIR/0xgenctl" ./cmd/0xgenctl
 
         cp "$ROOT_DIR/LICENSE" "$BUILD_DIR/"
         cp "$ROOT_DIR/scripts/0xgenctl" "$BUILD_DIR/"

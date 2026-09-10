@@ -1,3 +1,5 @@
+//go:build slsa
+
 package main
 
 import (
