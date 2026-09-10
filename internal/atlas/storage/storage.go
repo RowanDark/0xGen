@@ -295,7 +295,7 @@ func (s *Storage) GetFindingsByScan(ctx context.Context, scanID string) ([]*atla
 
 		if referencesJSON.Valid {
 			if err := json.Unmarshal([]byte(referencesJSON.String), &f.References); err != nil {
-				return nil, fmt.Errorf("unmarshal finding %d references: %w", f.ID, err)
+				return nil, fmt.Errorf("unmarshal finding %s references: %w", f.ID, err)
 			}
 		}
 

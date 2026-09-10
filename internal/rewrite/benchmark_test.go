@@ -15,7 +15,7 @@ func BenchmarkSingleRuleExecution(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -44,7 +44,7 @@ func BenchmarkTenRules(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -75,7 +75,7 @@ func BenchmarkHundredRules(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -106,7 +106,7 @@ func BenchmarkThousandRules(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -137,7 +137,7 @@ func BenchmarkComplexRegexMatching(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -175,7 +175,7 @@ func BenchmarkSimpleMatchVsRegex(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -213,7 +213,7 @@ func BenchmarkBodyRewriting(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -243,7 +243,7 @@ func BenchmarkVariableSubstitution(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -288,7 +288,7 @@ func BenchmarkJSONPathCondition(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -326,7 +326,7 @@ func BenchmarkMultipleConditions(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -361,7 +361,7 @@ func BenchmarkSandboxExecution(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
@@ -423,7 +423,7 @@ func BenchmarkRealisticTraffic(b *testing.B) {
 	tmpDir := b.TempDir()
 	dbPath := filepath.Join(tmpDir, "bench.db")
 
-	engine, err := NewEngine(dbPath)
+	engine, err := NewEngine(Config{DatabasePath: dbPath})
 	if err != nil {
 		b.Fatalf("Failed to create engine: %v", err)
 	}
