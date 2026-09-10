@@ -13,6 +13,8 @@ builds:
     binary: 0xgenctl
     env:
       - CGO_ENABLED=0
+    flags:
+      - -tags=slsa
     ldflags:
       - -s -w -X main.version={{ .Version }}
     goos:

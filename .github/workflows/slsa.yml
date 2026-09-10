@@ -55,7 +55,7 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
-          go run ./cmd/0xgenctl verify-build \
+          go run -tags slsa ./cmd/0xgenctl verify-build \
             --artifact "dist/0xgenctl_${TAG}_linux_amd64.tar.gz" \
             --attestation "dist/0xgen-${TAG}-provenance.intoto.jsonl" \
             --tag "$TAG" \

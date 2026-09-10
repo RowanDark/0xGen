@@ -119,6 +119,39 @@ jobs:
           version: v2.1.6
           args: --out-format=github-actions ./...
 
+  slim-build:
+    name: 0xgenctl slim build (no slsa tag)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build 0xgenctl without the slsa build tag
+        run: go build -o /dev/null ./cmd/0xgenctl
+
+      - name: Ensure heavyweight slsa-verifier deps stay out of the default tree
+        run: |
+          set -euo pipefail
+          deps="$(go list -deps ./cmd/0xgenctl)"
+          if echo "$deps" | grep -E 'go\.mongodb\.org|k8s\.io|sigs\.k8s\.io|slsa-framework/slsa-verifier'; then
+            echo "verify-build's heavyweight dependencies leaked into the default build" >&2
+            exit 1
+          fi
+
+      - name: verify-build stub reports a clear error
+        run: |
+          set -euo pipefail
+          if go run ./cmd/0xgenctl verify-build dummy 2>err.log; then
+            echo "expected verify-build to fail without the slsa build tag" >&2
+            exit 1
+          fi
+          cat err.log
+          grep -q "go build -tags slsa" err.log
+
   atlas-no-cgo:
     name: Atlas storage (CGO disabled)
     runs-on: ubuntu-latest
