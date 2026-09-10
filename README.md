@@ -140,11 +140,16 @@ Clone the repository and run the zero-touch demo pipeline:
 0xgenctl demo
 ```
 
-The command spins up a local demo target, runs the Seer detector against it, ranks
-the generated findings, and emits an interactive HTML report under `out/demo/`.
-`make demo` remains available as a thin wrapper if you prefer a Make-based entry
-point. See the [Quickstart walkthrough](https://rowandark.github.io/0xgen/quickstart/)
-for a full tour and troubleshooting notes.
+The command spins up a local demo target and runs the Seer detector against it
+in-process (not through the plugin manifest, signature check, sandbox, or gRPC
+plugin bus), ranks the generated findings, and emits an interactive HTML report
+under `out/demo/`. Run `0xgenctl demo --full` to route the same scan through the
+real plugin path instead — manifest loading, allowlist and signature checks, a
+sandboxed `go build`, a capability grant, and the gRPC plugin bus — the same
+path production plugin runs use. `make demo` remains available as a thin
+wrapper if you prefer a Make-based entry point. See the
+[Quickstart walkthrough](https://rowandark.github.io/0xgen/quickstart/) for a
+full tour and troubleshooting notes.
 
 To inspect the generated Cases, launch the embedded UI server and open the
 provided address in your browser:

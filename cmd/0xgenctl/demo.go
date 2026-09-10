@@ -16,14 +16,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/html"
+	"google.golang.org/grpc"
 
+	"github.com/RowanDark/0xgen/internal/bus"
 	"github.com/RowanDark/0xgen/internal/findings"
+	"github.com/RowanDark/0xgen/internal/flows"
+	"github.com/RowanDark/0xgen/internal/plugins/launcher"
 	"github.com/RowanDark/0xgen/internal/ranker"
 	"github.com/RowanDark/0xgen/internal/reporter"
 	"github.com/RowanDark/0xgen/internal/seer"
+	pb "github.com/RowanDark/0xgen/proto/gen/go/proto/oxg"
 )
 
 type demoResult struct {
@@ -58,6 +64,7 @@ func runDemo(args []string) int {
 	fs.SetOutput(os.Stderr)
 	outDir := fs.String("out", filepath.Join("out", "demo"), "directory to write demo artifacts")
 	keep := fs.Bool("keep", false, "retain existing demo artifacts")
+	full := fs.Bool("full", false, "run the Seer stage through the real plugin path (manifest, allowlist, signature check, sandboxed build, capability grant, and gRPC plugin bus) instead of calling the detector in-process")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -72,7 +79,7 @@ func runDemo(args []string) int {
 	}
 
 	progress := demoProgress{Writer: os.Stdout}
-	result, err := executeDemo(strings.TrimSpace(*outDir), *keep, progress)
+	result, err := executeDemo(strings.TrimSpace(*outDir), *keep, *full, progress)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// Context cancellations stem from shutdown signalling; treat as transient failure.
@@ -102,7 +109,7 @@ func runDemo(args []string) int {
 	return 0
 }
 
-func executeDemo(outDir string, keep bool, progress demoProgress) (demoResult, error) {
+func executeDemo(outDir string, keep bool, full bool, progress demoProgress) (demoResult, error) {
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
 		return demoResult{}, fmt.Errorf("resolve output directory: %w", err)
@@ -148,9 +155,22 @@ func executeDemo(outDir string, keep bool, progress demoProgress) (demoResult, e
 	progress.Step("excavator", "Discovered %d internal links and %d external links", internalLinks, externalLinks)
 	progress.Step("excavator", "Wrote crawl transcript to %s", excavatorPath)
 
-	scanStart := time.Now()
-	findingsList := seer.Scan(addr, string(body), seer.Config{Now: func() time.Time { return base }})
-	scanDuration := time.Since(scanStart)
+	var findingsList []findings.Finding
+	var scanDuration time.Duration
+	if full {
+		progress.Step("seer", "--full requested: routing the scan through the real plugin path (manifest, allowlist, sandboxed build, capability grant, gRPC bus)")
+		fullFindings, fullDuration, err := runSeerFull(context.Background(), addr, resp.Header, body, progress)
+		if err != nil {
+			return demoResult{}, fmt.Errorf("run seer via plugin launcher: %w", err)
+		}
+		findingsList = fullFindings
+		scanDuration = fullDuration
+	} else {
+		progress.Step("seer", "Using the fast in-process detector; the plugin manifest, signature verification, sandbox, and gRPC bus are NOT exercised. Re-run with --full to use the real plugin path.")
+		scanStart := time.Now()
+		findingsList = seer.Scan(addr, string(body), seer.Config{Now: func() time.Time { return base }})
+		scanDuration = time.Since(scanStart)
+	}
 
 	findingsList = append(findingsList, demoShowcaseFinding(addr, base))
 	// Ensure deterministic ordering for downstream files by sorting IDs.
@@ -197,6 +217,205 @@ func executeDemo(outDir string, keep bool, progress demoProgress) (demoResult, e
 		Showcase:          showcase,
 		ShowcaseAvailable: hasShowcase,
 	}, nil
+}
+
+// runSeerFull scans the demo target by launching the real seer plugin
+// through internal/plugins/launcher: it loads the manifest, verifies the
+// artifact against plugins/ALLOWLIST, builds the plugin and sandbox binaries
+// with `go build`, requests a capability grant, and runs the plugin inside
+// the chroot/seccomp sandbox connected to an in-process gRPC plugin bus. The
+// demo target's response is delivered to the plugin as a passive HTTP flow
+// event, exactly as the proxy would deliver it in production.
+func runSeerFull(ctx context.Context, addr string, headers http.Header, body []byte, progress demoProgress) ([]findings.Finding, time.Duration, error) {
+	start := time.Now()
+
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	manifestPath := filepath.Join(repoRoot, "plugins", "seer", "manifest.json")
+	allowlistPath := filepath.Join(repoRoot, "plugins", "ALLOWLIST")
+	if _, err := os.Stat(manifestPath); err != nil {
+		return nil, 0, fmt.Errorf("--full requires running 0xgenctl from within the 0xgen repository (manifest not found at %s): %w", manifestPath, err)
+	}
+
+	findingsBus := findings.NewBus()
+	const authToken = "0xgenctl-demo-token"
+	busServer := bus.NewServer(authToken, findingsBus)
+	grpcServer := grpc.NewServer()
+	pb.RegisterPluginBusServer(grpcServer, busServer)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, 0, fmt.Errorf("start plugin bus listener: %w", err)
+	}
+	serveDone := make(chan struct{})
+	go func() {
+		defer close(serveDone)
+		_ = grpcServer.Serve(listener)
+	}()
+	defer func() {
+		grpcServer.GracefulStop()
+		<-serveDone
+	}()
+
+	progress.Step("seer", "Started in-process 0xgend plugin bus on %s", listener.Addr().String())
+
+	findingsCtx, findingsCancel := context.WithCancel(ctx)
+	findingsCh := findingsBus.Subscribe(findingsCtx)
+	collectDone := make(chan struct{})
+	receivedFinding := make(chan struct{})
+	var closeReceivedOnce sync.Once
+	var mu sync.Mutex
+	var collected []findings.Finding
+	go func() {
+		defer close(collectDone)
+		for f := range findingsCh {
+			mu.Lock()
+			collected = append(collected, f)
+			mu.Unlock()
+			closeReceivedOnce.Do(func() { close(receivedFinding) })
+		}
+	}()
+
+	// duration is a safety net: the plugin process is force-terminated once
+	// it elapses even if nothing was ever received (e.g. a cold build cache
+	// or a slow sandbox setup). In the common case the run ends far sooner,
+	// once a short grace period after the first finding arrives.
+	const duration = 30 * time.Second
+	runCtx, cancel := context.WithTimeout(ctx, duration)
+	defer cancel()
+
+	go func() {
+		select {
+		case <-receivedFinding:
+			// Give the plugin a brief window to flush any findings from the
+			// same flow event before tearing it down.
+			timer := time.NewTimer(750 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+			case <-runCtx.Done():
+			}
+			cancel()
+		case <-runCtx.Done():
+		}
+	}()
+
+	rawResponse := buildRawHTTPResponse(addr, headers, body)
+	publishDone := make(chan struct{})
+	go func() {
+		defer close(publishDone)
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-runCtx.Done():
+				return
+			case <-receivedFinding:
+				return
+			case <-ticker.C:
+				busServer.PublishFlowEvent(runCtx, flows.Event{
+					Type:      pb.FlowEvent_FLOW_RESPONSE,
+					Sanitized: rawResponse,
+					Timestamp: time.Now(),
+				})
+			}
+		}
+	}()
+
+	var logs bytes.Buffer
+	launcherCfg := launcher.Config{
+		ManifestPath:  manifestPath,
+		AllowlistPath: allowlistPath,
+		RepoRoot:      repoRoot,
+		// The signature checked into plugins/seer/main.go.sig cannot be
+		// verified without the private signing key, so the demo skips the
+		// check explicitly rather than silently succeeding. Every other
+		// stage of the real launcher path still runs: manifest loading,
+		// SHA-256 allowlist verification, the go build, the capability
+		// grant, and the sandboxed (chroot + seccomp) execution over the
+		// gRPC plugin bus.
+		SkipSignatureVerification: true,
+		ServerAddr:                listener.Addr().String(),
+		AuthToken:                 authToken,
+		Duration:                  duration,
+		Stdout:                    &logs,
+		Stderr:                    &logs,
+	}
+
+	progress.Step("seer", "Building and launching the seer plugin binary inside the sandbox")
+	_, runErr := launcher.Run(runCtx, launcherCfg)
+	<-publishDone
+
+	// context.DeadlineExceeded means the plugin ran for its full duration;
+	// context.Canceled means it was torn down early after findings arrived.
+	// Both are the expected shutdown path for this long-lived plugin, not
+	// failures.
+	if runErr != nil && !errors.Is(runErr, context.DeadlineExceeded) && !errors.Is(runErr, context.Canceled) {
+		findingsCancel()
+		<-collectDone
+		return nil, time.Since(start), fmt.Errorf("%w\nplugin output:\n%s", runErr, logs.String())
+	}
+
+	findingsCancel()
+	<-collectDone
+
+	mu.Lock()
+	result := append([]findings.Finding(nil), collected...)
+	mu.Unlock()
+
+	progress.Step("seer", "Sandboxed plugin process exited; captured %d finding(s) over the gRPC bus", len(result))
+
+	return result, time.Since(start), nil
+}
+
+// findRepoRoot locates the 0xgen repository root by walking up from the
+// current working directory looking for go.mod, falling back to the working
+// directory itself if none is found.
+func findRepoRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("determine working directory: %w", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", errors.New("could not locate repository root (no go.mod found in any parent directory)")
+}
+
+// buildRawHTTPResponse renders an HTTP response as the raw bytes format the
+// seer plugin's SDK expects from a passive flow event: a status line,
+// headers (including pseudo-headers describing the request), a blank line,
+// then the body.
+func buildRawHTTPResponse(addr string, headers http.Header, body []byte) []byte {
+	host := addr
+	if parsed, err := url.Parse(addr); err == nil && parsed.Host != "" {
+		host = parsed.Host
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("HTTP/1.1 200 OK\n")
+	fmt.Fprintf(&buf, "Host: %s\n", host)
+	buf.WriteString(":scheme: http\n")
+	fmt.Fprintf(&buf, ":authority: %s\n", host)
+	buf.WriteString(":path: /\n")
+	for key, values := range headers {
+		for _, value := range values {
+			fmt.Fprintf(&buf, "%s: %s\n", key, value)
+		}
+	}
+	buf.WriteString("\n")
+	buf.Write(body)
+	return buf.Bytes()
 }
 
 func startDemoTarget(html string) (*http.Server, string, error) {
