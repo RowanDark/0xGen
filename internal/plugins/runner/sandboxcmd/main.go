@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -108,9 +109,31 @@ func contains(keys []string, name string) bool {
 	return false
 }
 
+// seccompAuditArch returns the AUDIT_ARCH_* value the seccomp filter must
+// require of seccomp_data.arch for the architecture this binary was built
+// for. The filter is loaded into a single process at a time (this sandbox
+// helper immediately execs into the plugin binary), so a single arch value
+// is sufficient; a plugin that could somehow re-exec into a different
+// architecture would need a new filter installed for that process anyway.
+func seccompAuditArch() (uint32, error) {
+	switch runtime.GOARCH {
+	case "amd64":
+		return unix.AUDIT_ARCH_X86_64, nil
+	case "arm64":
+		return unix.AUDIT_ARCH_AARCH64, nil
+	default:
+		return 0, fmt.Errorf("unsupported GOARCH %q for seccomp filter", runtime.GOARCH)
+	}
+}
+
 func applyPolicy() error {
 	if err := unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
 		return fmt.Errorf("set no_new_privs: %w", err)
+	}
+
+	auditArch, err := seccompAuditArch()
+	if err != nil {
+		return err
 	}
 
 	disallowed := []uint32{
@@ -137,6 +160,17 @@ func applyPolicy() error {
 	appendIfDefined(int(unix.SYS_KEXEC_FILE_LOAD))
 
 	filters := []unix.SockFilter{
+		// Load seccomp_data.arch (offset 4) and kill the process outright
+		// if the syscall was not made via the expected ABI. Without this
+		// check, a process on x86-64 can enter the kernel through the
+		// i386 ABI (int 0x80), where syscall numbers differ from the
+		// x86-64 numbers compared below, completely bypassing the
+		// denylist: a blocked x86-64 syscall number is simply a different,
+		// unblocked syscall under the i386 table, and vice versa.
+		{Code: unix.BPF_LD | unix.BPF_W | unix.BPF_ABS, K: 4},
+		{Code: unix.BPF_JMP | unix.BPF_JEQ | unix.BPF_K, K: auditArch, Jt: 1, Jf: 0},
+		{Code: unix.BPF_RET | unix.BPF_K, K: unix.SECCOMP_RET_KILL_PROCESS},
+		// Load seccomp_data.nr (offset 0) for the denylist comparisons below.
 		{Code: unix.BPF_LD | unix.BPF_W | unix.BPF_ABS, K: 0},
 	}
 	for _, sc := range disallowed {
