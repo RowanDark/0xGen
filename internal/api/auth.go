@@ -1,22 +1,18 @@
 package api
 
 import (
-	"bytes"
-	"crypto"
-	"crypto/hmac"
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -31,6 +27,45 @@ type Claims struct {
 	ID          string `json:"jti"`
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	Role        string `json:"role,omitempty"`
+}
+
+// The methods below satisfy jwt.Claims so Claims can be used directly with
+// golang-jwt/jwt/v5's signing and parsing APIs.
+
+func (c Claims) GetExpirationTime() (*jwt.NumericDate, error) {
+	if c.ExpiresAt == 0 {
+		return nil, nil
+	}
+	return jwt.NewNumericDate(time.Unix(c.ExpiresAt, 0)), nil
+}
+
+func (c Claims) GetIssuedAt() (*jwt.NumericDate, error) {
+	if c.IssuedAt == 0 {
+		return nil, nil
+	}
+	return jwt.NewNumericDate(time.Unix(c.IssuedAt, 0)), nil
+}
+
+func (c Claims) GetNotBefore() (*jwt.NumericDate, error) {
+	if c.NotBefore == 0 {
+		return nil, nil
+	}
+	return jwt.NewNumericDate(time.Unix(c.NotBefore, 0)), nil
+}
+
+func (c Claims) GetIssuer() (string, error) {
+	return c.Issuer, nil
+}
+
+func (c Claims) GetSubject() (string, error) {
+	return c.Subject, nil
+}
+
+func (c Claims) GetAudience() (jwt.ClaimStrings, error) {
+	if c.Audience == "" {
+		return nil, nil
+	}
+	return jwt.ClaimStrings{c.Audience}, nil
 }
 
 // TokenOptions customises issued JWT claims.
@@ -164,125 +199,54 @@ func (a *Authenticator) MintWithOptions(subject string, opts TokenOptions) (stri
 // Validate parses and validates a JWT, returning the embedded claims.
 // expectedAudience, when non-empty, must match the token's "aud" claim on
 // the local HS256 path or the token is rejected.
-func (a *Authenticator) Validate(token, expectedAudience string) (Claims, error) {
-	token = strings.TrimSpace(token)
-	if token == "" {
+func (a *Authenticator) Validate(tokenString, expectedAudience string) (Claims, error) {
+	tokenString = strings.TrimSpace(tokenString)
+	if tokenString == "" {
 		return Claims{}, errors.New("token is required")
 	}
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return Claims{}, errors.New("invalid token format")
-	}
-	headerBytes, err := decodeSegment(parts[0])
+	unverified, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
-		return Claims{}, fmt.Errorf("decode header: %w", err)
+		return Claims{}, fmt.Errorf("parse token: %w", err)
 	}
-	var header jwtHeader
-	if err := json.Unmarshal(headerBytes, &header); err != nil {
-		return Claims{}, fmt.Errorf("parse header: %w", err)
+	if typ, ok := unverified.Header["typ"].(string); ok && typ != "" && !strings.EqualFold(typ, "JWT") {
+		return Claims{}, fmt.Errorf("unsupported typ %q", typ)
 	}
-	if typ := strings.TrimSpace(header.Typ); typ != "" && !strings.EqualFold(typ, "JWT") {
-		return Claims{}, fmt.Errorf("unsupported typ %q", header.Typ)
-	}
-	switch strings.ToUpper(strings.TrimSpace(header.Alg)) {
+	switch unverified.Method.Alg() {
 	case "HS256":
-		return a.validateLocal(header, parts[0], parts[1], parts[2], expectedAudience)
+		return a.validateLocal(tokenString, expectedAudience)
 	case "RS256":
 		if a.oidc == nil {
 			return Claims{}, errors.New("oidc verifier not configured")
 		}
-		return a.oidc.validate(header, parts[0], parts[1], parts[2])
+		return a.oidc.validate(tokenString)
 	default:
-		return Claims{}, fmt.Errorf("unsupported alg %q", header.Alg)
+		return Claims{}, fmt.Errorf("unsupported alg %q", unverified.Method.Alg())
 	}
 }
 
-func (a *Authenticator) validateLocal(header jwtHeader, headerSeg, payloadSeg, signatureSeg, expectedAudience string) (Claims, error) {
-	if err := a.verifySignature(headerSeg, payloadSeg, signatureSeg); err != nil {
-		return Claims{}, err
-	}
-	payloadBytes, err := decodeSegment(payloadSeg)
-	if err != nil {
-		return Claims{}, fmt.Errorf("decode payload: %w", err)
-	}
-	var claims Claims
-	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
-		return Claims{}, fmt.Errorf("parse claims: %w", err)
-	}
-	if claims.Issuer != a.issuer {
-		return Claims{}, errors.New("issuer mismatch")
+func (a *Authenticator) validateLocal(tokenString, expectedAudience string) (Claims, error) {
+	opts := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{"HS256"}),
+		jwt.WithIssuer(a.issuer),
+		jwt.WithExpirationRequired(),
 	}
 	expectedAudience = strings.TrimSpace(expectedAudience)
-	if expectedAudience != "" && claims.Audience != expectedAudience {
-		return Claims{}, errors.New("audience mismatch")
+	if expectedAudience != "" {
+		opts = append(opts, jwt.WithAudience(expectedAudience))
 	}
-	now := time.Now().UTC().Unix()
-	if claims.ExpiresAt <= now {
-		return Claims{}, errors.New("token expired")
+	var claims Claims
+	if _, err := jwt.ParseWithClaims(tokenString, &claims, func(*jwt.Token) (any, error) {
+		return a.secret, nil
+	}, opts...); err != nil {
+		return Claims{}, err
 	}
-	if claims.NotBefore != 0 && claims.NotBefore > now {
-		return Claims{}, errors.New("token not yet valid")
-	}
+	claims.Role = strings.ToLower(strings.TrimSpace(claims.Role))
+	claims.WorkspaceID = strings.TrimSpace(claims.WorkspaceID)
 	return claims, nil
 }
 
 func (a *Authenticator) sign(claims Claims) (string, error) {
-	header := map[string]string{"alg": "HS256", "typ": "JWT"}
-	headerJSON, err := json.Marshal(header)
-	if err != nil {
-		return "", fmt.Errorf("encode header: %w", err)
-	}
-	payloadJSON, err := json.Marshal(claims)
-	if err != nil {
-		return "", fmt.Errorf("encode claims: %w", err)
-	}
-	headerEnc := encodeSegment(headerJSON)
-	payloadEnc := encodeSegment(payloadJSON)
-	sigEnc, err := a.computeSignature(headerEnc, payloadEnc)
-	if err != nil {
-		return "", err
-	}
-	return strings.Join([]string{headerEnc, payloadEnc, sigEnc}, "."), nil
-}
-
-func (a *Authenticator) verifySignature(header, payload, signature string) error {
-	expected, err := a.computeSignature(header, payload)
-	if err != nil {
-		return err
-	}
-	if !hmac.Equal([]byte(signature), []byte(expected)) {
-		return errors.New("invalid signature")
-	}
-	return nil
-}
-
-func (a *Authenticator) computeSignature(header, payload string) (string, error) {
-	mac := hmac.New(sha256.New, a.secret)
-	if _, err := mac.Write([]byte(header)); err != nil {
-		return "", err
-	}
-	if _, err := mac.Write([]byte(".")); err != nil {
-		return "", err
-	}
-	if _, err := mac.Write([]byte(payload)); err != nil {
-		return "", err
-	}
-	sum := mac.Sum(nil)
-	return encodeSegment(sum), nil
-}
-
-func encodeSegment(data []byte) string {
-	return base64.RawURLEncoding.EncodeToString(data)
-}
-
-func decodeSegment(seg string) ([]byte, error) {
-	return base64.RawURLEncoding.DecodeString(seg)
-}
-
-type jwtHeader struct {
-	Alg string `json:"alg"`
-	Typ string `json:"typ"`
-	Kid string `json:"kid"`
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(a.secret)
 }
 
 type oidcVerifier struct {
@@ -316,115 +280,34 @@ func newOIDCVerifier(cfg OIDCConfig) (*oidcVerifier, error) {
 	}, nil
 }
 
-func (v *oidcVerifier) validate(header jwtHeader, headerSeg, payloadSeg, signatureSeg string) (Claims, error) {
-	payloadBytes, err := decodeSegment(payloadSeg)
-	if err != nil {
-		return Claims{}, fmt.Errorf("decode payload: %w", err)
+func (v *oidcVerifier) validate(tokenString string) (Claims, error) {
+	opts := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{"RS256"}),
+		jwt.WithIssuer(v.cfg.Issuer),
+		jwt.WithExpirationRequired(),
 	}
-	dec := json.NewDecoder(bytes.NewReader(payloadBytes))
-	dec.UseNumber()
-	var payload map[string]any
-	if err := dec.Decode(&payload); err != nil {
-		return Claims{}, fmt.Errorf("parse payload: %w", err)
-	}
-	issuer := strings.TrimSpace(asString(payload["iss"]))
-	if issuer != v.cfg.Issuer {
-		return Claims{}, errors.New("issuer mismatch")
-	}
-	if !v.validateAudience(payload["aud"]) {
-		return Claims{}, errors.New("audience mismatch")
-	}
-	exp, err := numericClaim(payload["exp"])
-	if err != nil {
-		return Claims{}, fmt.Errorf("parse exp: %w", err)
-	}
-	if time.Now().UTC().Unix() >= exp {
-		return Claims{}, errors.New("token expired")
-	}
-	iat, err := numericClaim(payload["iat"])
-	if err != nil {
-		iat = time.Now().UTC().Unix()
-	}
-	if rawNbf, ok := payload["nbf"]; ok {
-		nbf, err := numericClaim(rawNbf)
-		if err != nil {
-			return Claims{}, fmt.Errorf("parse nbf: %w", err)
+	if len(v.audiences) > 0 {
+		auds := make([]string, 0, len(v.audiences))
+		for aud := range v.audiences {
+			auds = append(auds, aud)
 		}
-		if time.Now().UTC().Unix() < nbf {
-			return Claims{}, errors.New("token not yet valid")
+		opts = append(opts, jwt.WithAudience(auds...))
+	}
+	var claims Claims
+	_, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (any, error) {
+		kid, _ := t.Header["kid"].(string)
+		kid = strings.TrimSpace(kid)
+		if kid == "" {
+			return nil, errors.New("missing kid")
 		}
-	}
-	kid := strings.TrimSpace(header.Kid)
-	if kid == "" {
-		return Claims{}, errors.New("missing kid")
-	}
-	key, err := v.publicKey(kid)
+		return v.publicKey(kid)
+	}, opts...)
 	if err != nil {
 		return Claims{}, err
 	}
-	signed := strings.Join([]string{headerSeg, payloadSeg}, ".")
-	sigBytes, err := decodeSegment(signatureSeg)
-	if err != nil {
-		return Claims{}, fmt.Errorf("decode signature: %w", err)
-	}
-	hasher := sha256.New()
-	if _, err := hasher.Write([]byte(signed)); err != nil {
-		return Claims{}, err
-	}
-	digest := hasher.Sum(nil)
-	if err := rsa.VerifyPKCS1v15(key, crypto.SHA256, digest, sigBytes); err != nil {
-		return Claims{}, fmt.Errorf("verify signature: %w", err)
-	}
-	claims := Claims{
-		Issuer:      issuer,
-		Subject:     asString(payload["sub"]),
-		Audience:    v.extractAudience(payload["aud"]),
-		IssuedAt:    iat,
-		ExpiresAt:   exp,
-		ID:          asString(payload["jti"]),
-		WorkspaceID: strings.TrimSpace(asString(payload["workspace_id"])),
-		Role:        strings.ToLower(strings.TrimSpace(asString(payload["role"]))),
-	}
+	claims.Role = strings.ToLower(strings.TrimSpace(claims.Role))
+	claims.WorkspaceID = strings.TrimSpace(claims.WorkspaceID)
 	return claims, nil
-}
-
-func (v *oidcVerifier) validateAudience(raw any) bool {
-	if len(v.audiences) == 0 {
-		return true
-	}
-	switch val := raw.(type) {
-	case string:
-		_, ok := v.audiences[val]
-		return ok
-	case []any:
-		for _, item := range val {
-			if s, ok := item.(string); ok {
-				if _, ok := v.audiences[s]; ok {
-					return true
-				}
-			}
-		}
-	case json.Number:
-		_, ok := v.audiences[val.String()]
-		return ok
-	}
-	return false
-}
-
-func (v *oidcVerifier) extractAudience(raw any) string {
-	switch val := raw.(type) {
-	case string:
-		return val
-	case []any:
-		for _, item := range val {
-			if s, ok := item.(string); ok {
-				return s
-			}
-		}
-	case json.Number:
-		return val.String()
-	}
-	return ""
 }
 
 func (v *oidcVerifier) publicKey(kid string) (*rsa.PublicKey, error) {
@@ -484,11 +367,11 @@ func (v *oidcVerifier) refreshKeysLocked() error {
 		if strings.ToUpper(key.Kty) != "RSA" {
 			continue
 		}
-		modulusBytes, err := decodeSegment(key.N)
+		modulusBytes, err := base64.RawURLEncoding.DecodeString(key.N)
 		if err != nil {
 			return fmt.Errorf("decode modulus: %w", err)
 		}
-		exponentBytes, err := decodeSegment(key.E)
+		exponentBytes, err := base64.RawURLEncoding.DecodeString(key.E)
 		if err != nil {
 			return fmt.Errorf("decode exponent: %w", err)
 		}
@@ -504,37 +387,4 @@ func (v *oidcVerifier) refreshKeysLocked() error {
 	v.keys = keys
 	v.lastRefresh = time.Now().UTC()
 	return nil
-}
-
-func numericClaim(value any) (int64, error) {
-	switch v := value.(type) {
-	case nil:
-		return 0, errors.New("missing numeric claim")
-	case float64:
-		return int64(v), nil
-	case json.Number:
-		return v.Int64()
-	case string:
-		if strings.TrimSpace(v) == "" {
-			return 0, errors.New("empty numeric claim")
-		}
-		return strconv.ParseInt(v, 10, 64)
-	case int64:
-		return v, nil
-	case int:
-		return int64(v), nil
-	default:
-		return 0, fmt.Errorf("unsupported numeric claim type %T", value)
-	}
-}
-
-func asString(value any) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	case json.Number:
-		return v.String()
-	default:
-		return ""
-	}
 }
