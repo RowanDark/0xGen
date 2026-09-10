@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,65 @@ import (
 	"github.com/RowanDark/0xgen/internal/ranker"
 	"github.com/RowanDark/0xgen/internal/testutil"
 )
+
+func TestExecuteDemoFastPathDisclosesInProcessScan(t *testing.T) {
+	t.Parallel()
+
+	outDir := filepath.Join(t.TempDir(), "demo-out")
+	var log strings.Builder
+	progress := demoProgress{Writer: &log}
+
+	if _, err := executeDemo(outDir, false, false, progress); err != nil {
+		t.Fatalf("executeDemo: %v", err)
+	}
+
+	out := log.String()
+	if !strings.Contains(out, "in-process detector") {
+		t.Fatalf("expected fast-path disclosure in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "--full") {
+		t.Fatalf("expected fast-path output to point at --full, got:\n%s", out)
+	}
+}
+
+// TestExecuteDemoFullPathUsesRealLauncher exercises the --full path end to
+// end: the seer plugin is built, allowlist- and (deliberately, since the
+// checked-in signature cannot be verified without the private key)
+// signature-checked, granted capabilities, and run inside the sandbox,
+// connected over a real gRPC plugin bus. It requires a privileged sandbox
+// (chroot) and is skipped in short mode like the other launcher-backed e2e
+// tests.
+func TestExecuteDemoFullPathUsesRealLauncher(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping full plugin-path demo test in short mode")
+	}
+	t.Parallel()
+
+	outDir := filepath.Join(t.TempDir(), "demo-out")
+	var log strings.Builder
+	progress := demoProgress{Writer: &log}
+
+	result, err := executeDemo(outDir, false, true, progress)
+	if err != nil {
+		t.Fatalf("executeDemo --full: %v", err)
+	}
+
+	out := log.String()
+	if !strings.Contains(out, "real plugin path") {
+		t.Fatalf("expected --full output to describe the real plugin path, got:\n%s", out)
+	}
+
+	var sawRealPluginFinding bool
+	for _, f := range result.Findings {
+		if strings.HasPrefix(f.Plugin, "seer-") {
+			sawRealPluginFinding = true
+			break
+		}
+	}
+	if !sawRealPluginFinding {
+		t.Fatalf("expected at least one finding emitted by the sandboxed seer plugin, got: %+v", result.Findings)
+	}
+}
 
 func TestFileURLFromPath(t *testing.T) {
 	t.Parallel()

@@ -4,7 +4,7 @@
   "entry": "seer",
   "artifact": "plugins/seer/main.go",
   "trusted": true,
-  "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS"],
+  "capabilities": ["CAP_HTTP_PASSIVE", "CAP_EMIT_FINDINGS", "CAP_FLOW_INSPECT"],
   "config": {
     "allowlist_env": "SEER_ALLOWLIST",
     "allowlist_file_env": "SEER_ALLOWLIST_FILE"
