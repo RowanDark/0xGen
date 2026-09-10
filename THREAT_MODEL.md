@@ -56,13 +56,20 @@ backdoors.
 
 ### Sandbox escapes
 
-Adversaries may attempt to escape container or VM sandboxes hosting plugins to
-compromise the orchestrator host.
+Adversaries may attempt to escape the process sandbox hosting a plugin to
+compromise the 0xgend host.
 
-* **Controls**: containers run as non-root, with dropped capabilities and
-  read-only filesystems. Host mounts only expose plugin-specific workspaces.
-* **Recommendations**: do not grant extra privileges in manifests, and ensure
-  unit tests include negative cases for privilege escalation attempts.
+* **Controls**: non-`trusted` plugins run inside a chroot with a
+  seccomp-bpf syscall denylist and a privilege drop to an unprivileged
+  uid/gid (see [README.md → Plugin Security](README.md#plugin-security) for
+  the exact mechanisms and what they do not cover). This is a chroot-based
+  process sandbox, not a container or VM boundary, and the chroot is not
+  mounted read-only. Building and entering it requires 0xgend to run as
+  root.
+* **Recommendations**: do not grant extra capabilities in manifests, keep
+  `trusted: true` for local development only, and ensure unit tests include
+  negative cases for privilege escalation attempts (e.g.
+  `internal/plugins/runner/sandboxcmd`'s seccomp and capability-drop tests).
 
 ### Man-in-the-middle (MITM)
 
@@ -88,10 +95,13 @@ requests to internal services or leaking local files.
 ## Residual risks
 
 * Operators must monitor plugin logs and metrics to detect abuse.
-* Sandboxing relies on container runtime hardening; a kernel exploit can bypass
-  isolation until patched.
-* 0xgen assumes the network perimeter enforces egress filtering. Lack of
-  filtering increases the blast radius of plugin compromise.
+* Sandboxing relies on chroot, seccomp, and privilege dropping in the same
+  kernel as the host; a kernel exploit can bypass isolation until patched.
+  Namespaces (mount, PID, user) are not used, so isolation is weaker than a
+  container or VM boundary.
+* The sandbox does not restrict plugin network egress at all. 0xgen assumes
+  the network perimeter enforces egress filtering; without one, a compromised
+  or malicious plugin can reach anything the host can reach.
 
 ## Reporting
 
