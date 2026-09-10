@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -17,6 +18,12 @@ import (
 	"github.com/RowanDark/0xgen/internal/team"
 )
 
+// defaultJWTAudience is the expected "aud" claim for locally-issued (HS256)
+// API tokens when Config.JWTAudience is not set. It matches the default
+// audience requested by 0xgenctl when minting tokens (see
+// cmd/0xgenctl/api_token.go).
+const defaultJWTAudience = "0xgen-ci"
+
 // DefaultMaxRequestSize is the default maximum request body size (10 MB).
 const DefaultMaxRequestSize int64 = 10 * 1024 * 1024
 
@@ -26,6 +33,7 @@ type Config struct {
 	StaticToken     string
 	JWTSecret       []byte
 	JWTIssuer       string
+	JWTAudience     string // Expected "aud" claim for locally-issued (HS256) API tokens; defaults to "0xgen-ci" if empty.
 	DefaultTokenTTL time.Duration
 	PluginsDir      string
 	AllowlistPath   string
@@ -58,6 +66,7 @@ type Server struct {
 	recipeManager  *cipher.RecipeManager
 	rewriteAPI     *RewriteAPI
 	maxRequestSize int64
+	apiAudience    string
 }
 
 type contextKey string
@@ -140,6 +149,11 @@ func NewServer(cfg Config) (*Server, error) {
 		maxRequestSize = DefaultMaxRequestSize
 	}
 
+	apiAudience := strings.TrimSpace(cfg.JWTAudience)
+	if apiAudience == "" {
+		apiAudience = defaultJWTAudience
+	}
+
 	return &Server{
 		cfg:            cfg,
 		authenticator:  auth,
@@ -150,6 +164,7 @@ func NewServer(cfg Config) (*Server, error) {
 		recipeManager:  recipeManager,
 		rewriteAPI:     rewriteAPI,
 		maxRequestSize: maxRequestSize,
+		apiAudience:    apiAudience,
 	}, nil
 }
 
@@ -234,7 +249,8 @@ func (s *Server) handleTokenIssue(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if token := strings.TrimSpace(r.Header.Get("X-0xgen-Token")); token != s.staticToken {
+	token := strings.TrimSpace(r.Header.Get("X-0xgen-Token"))
+	if subtle.ConstantTimeCompare([]byte(token), []byte(s.staticToken)) != 1 {
 		http.Error(w, "unauthorised", http.StatusUnauthorized)
 		return
 	}
@@ -400,7 +416,7 @@ func (s *Server) requireRole(minRole team.Role, next http.Handler) http.Handler 
 			return
 		}
 		token := strings.TrimSpace(authHeader[7:])
-		claims, err := s.authenticator.Validate(token)
+		claims, err := s.authenticator.Validate(token, s.apiAudience)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return

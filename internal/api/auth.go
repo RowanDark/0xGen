@@ -27,6 +27,7 @@ type Claims struct {
 	Audience    string `json:"aud"`
 	IssuedAt    int64  `json:"iat"`
 	ExpiresAt   int64  `json:"exp"`
+	NotBefore   int64  `json:"nbf,omitempty"`
 	ID          string `json:"jti"`
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	Role        string `json:"role,omitempty"`
@@ -38,6 +39,7 @@ type TokenOptions struct {
 	TTL         time.Duration
 	WorkspaceID string
 	Role        string
+	NotBefore   time.Time
 }
 
 // AuthOption mutates authenticator configuration.
@@ -137,12 +139,17 @@ func (a *Authenticator) MintWithOptions(subject string, opts TokenOptions) (stri
 	workspaceID := strings.TrimSpace(opts.WorkspaceID)
 	role := strings.ToLower(strings.TrimSpace(opts.Role))
 	now := time.Now().UTC()
+	var notBefore int64
+	if !opts.NotBefore.IsZero() {
+		notBefore = opts.NotBefore.UTC().Unix()
+	}
 	claims := Claims{
 		Issuer:      a.issuer,
 		Subject:     subject,
 		Audience:    audience,
 		IssuedAt:    now.Unix(),
 		ExpiresAt:   now.Add(ttl).Unix(),
+		NotBefore:   notBefore,
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,
 		Role:        role,
@@ -155,7 +162,9 @@ func (a *Authenticator) MintWithOptions(subject string, opts TokenOptions) (stri
 }
 
 // Validate parses and validates a JWT, returning the embedded claims.
-func (a *Authenticator) Validate(token string) (Claims, error) {
+// expectedAudience, when non-empty, must match the token's "aud" claim on
+// the local HS256 path or the token is rejected.
+func (a *Authenticator) Validate(token, expectedAudience string) (Claims, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
 		return Claims{}, errors.New("token is required")
@@ -172,9 +181,12 @@ func (a *Authenticator) Validate(token string) (Claims, error) {
 	if err := json.Unmarshal(headerBytes, &header); err != nil {
 		return Claims{}, fmt.Errorf("parse header: %w", err)
 	}
+	if typ := strings.TrimSpace(header.Typ); typ != "" && !strings.EqualFold(typ, "JWT") {
+		return Claims{}, fmt.Errorf("unsupported typ %q", header.Typ)
+	}
 	switch strings.ToUpper(strings.TrimSpace(header.Alg)) {
 	case "HS256":
-		return a.validateLocal(header, parts[0], parts[1], parts[2])
+		return a.validateLocal(header, parts[0], parts[1], parts[2], expectedAudience)
 	case "RS256":
 		if a.oidc == nil {
 			return Claims{}, errors.New("oidc verifier not configured")
@@ -185,7 +197,7 @@ func (a *Authenticator) Validate(token string) (Claims, error) {
 	}
 }
 
-func (a *Authenticator) validateLocal(header jwtHeader, headerSeg, payloadSeg, signatureSeg string) (Claims, error) {
+func (a *Authenticator) validateLocal(header jwtHeader, headerSeg, payloadSeg, signatureSeg, expectedAudience string) (Claims, error) {
 	if err := a.verifySignature(headerSeg, payloadSeg, signatureSeg); err != nil {
 		return Claims{}, err
 	}
@@ -200,8 +212,16 @@ func (a *Authenticator) validateLocal(header jwtHeader, headerSeg, payloadSeg, s
 	if claims.Issuer != a.issuer {
 		return Claims{}, errors.New("issuer mismatch")
 	}
-	if claims.ExpiresAt <= time.Now().UTC().Unix() {
+	expectedAudience = strings.TrimSpace(expectedAudience)
+	if expectedAudience != "" && claims.Audience != expectedAudience {
+		return Claims{}, errors.New("audience mismatch")
+	}
+	now := time.Now().UTC().Unix()
+	if claims.ExpiresAt <= now {
 		return Claims{}, errors.New("token expired")
+	}
+	if claims.NotBefore != 0 && claims.NotBefore > now {
+		return Claims{}, errors.New("token not yet valid")
 	}
 	return claims, nil
 }
@@ -324,6 +344,15 @@ func (v *oidcVerifier) validate(header jwtHeader, headerSeg, payloadSeg, signatu
 	iat, err := numericClaim(payload["iat"])
 	if err != nil {
 		iat = time.Now().UTC().Unix()
+	}
+	if rawNbf, ok := payload["nbf"]; ok {
+		nbf, err := numericClaim(rawNbf)
+		if err != nil {
+			return Claims{}, fmt.Errorf("parse nbf: %w", err)
+		}
+		if time.Now().UTC().Unix() < nbf {
+			return Claims{}, errors.New("token not yet valid")
+		}
 	}
 	kid := strings.TrimSpace(header.Kid)
 	if kid == "" {
