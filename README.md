@@ -234,13 +234,40 @@ Plugins request explicit capabilities that determine their permissions:
 
 ### Plugin Security
 
-All plugins (except those marked `trusted: true` for development) run in a 5-layer security sandbox:
+All plugins (except those marked `trusted: true` for development) run through
+[`internal/plugins/runner/sandboxcmd`](internal/plugins/runner/sandboxcmd/main.go), a
+single-use, unprivileged-on-exec helper that applies the following controls
+before it execs the plugin binary:
 
-1. **cgroups** - Resource limits (CPU, memory, PIDs)
-2. **chroot** - Isolated filesystem (read-only root)
-3. **Network restrictions** - Localhost and allowlisted IPs only
-4. **seccomp-bpf** - Syscall filtering (safe operations only)
-5. **Capability dropping** - No Linux capabilities except analysis APIs
+1. **Resource limits** - `RLIMIT_CPU` and `RLIMIT_AS` (soft and hard) cap CPU
+   time and address space via `setrlimit(2)` inside the sandbox helper. This
+   is a process rlimit, not cgroups - 0xgen does not use cgroups today, and
+   nothing here limits PIDs.
+2. **chroot** - the plugin runs inside a freshly built root under a temp
+   directory containing only `/bin` (the plugin and sandbox binaries),
+   `/home/plugin`, `/workspace`, `/tmp` (private to the sandbox user,
+   `0700`), `/dev/null`, `/dev/urandom`, and best-effort copies of
+   `/etc/resolv.conf` and the host's CA bundle. The chroot is **not**
+   mounted read-only, and building and entering it **requires 0xgend to run
+   as root** - see [INSTALL.md](INSTALL.md#plugin-sandbox-requirements-linux).
+3. **seccomp-bpf denylist** - blocks `ptrace`, `kexec_load`,
+   `kexec_file_load`, `open_by_handle_at`, `mount`, `umount2`,
+   `pivot_root`, `swapon`, `swapoff`, `reboot`, `setns`, `unshare`,
+   `chroot`, `bpf`, and `perf_event_open`, and kills the process outright if
+   a syscall arrives through an unexpected ABI (blocking the classic
+   32-bit `int 0x80` bypass on x86-64). This is a **denylist** of high-risk
+   syscalls, not an allowlist of safe ones - anything not listed above is
+   permitted.
+4. **Capability dropping** - `setresuid`/`setresgid` to an unprivileged
+   uid/gid (65534), `no_new_privs`, and `PR_CAPBSET_DROP` over the full
+   capability bounding set, so the process can never reacquire a Linux
+   capability even if it somehow regained uid 0.
+
+**Known gap:** network access is not restricted by the sandbox - a plugin
+can open arbitrary outbound sockets regardless of what it declares in its
+manifest. Plugins are expected to route network activity through the broker
+APIs described in the [Plugin Security Guide](PLUGIN_GUIDE.md) rather than
+raw sockets, but the sandbox does not currently enforce that.
 
 See the [Plugin Security Guide](PLUGIN_GUIDE.md) for threat model details and safe development patterns.
 

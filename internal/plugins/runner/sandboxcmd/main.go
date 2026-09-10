@@ -189,6 +189,16 @@ func applyPolicy() error {
 }
 
 func dropPrivileges() error {
+	// The capability bounding set must be dropped before the uid/gid switch
+	// below, not after: PR_CAPBSET_DROP requires CAP_SETPCAP in the
+	// process's effective set, which this process only holds while still
+	// root. Once Setresuid moves off uid 0, CAP_SETPCAP disappears from the
+	// effective set (no SECBIT_KEEP_CAPS is set here) and every subsequent
+	// PR_CAPBSET_DROP call would fail with EPERM, leaving the bounding set
+	// untouched.
+	if err := dropCapabilityBoundingSet(); err != nil {
+		return err
+	}
 	if err := unix.Setgroups([]int{sandboxGroupID}); err != nil {
 		return err
 	}
@@ -197,6 +207,29 @@ func dropPrivileges() error {
 	}
 	if err := unix.Setresuid(sandboxUserID, sandboxUserID, sandboxUserID); err != nil {
 		return err
+	}
+	return nil
+}
+
+// dropCapabilityBoundingSet removes every capability the running kernel
+// knows about from the process's bounding set. The bounding set is a
+// ceiling on which capabilities a process (or anything it execs) can ever
+// hold, even across a later setuid(0): clearing it here means that even if
+// the sandboxed plugin somehow regained uid 0 — for example by exploiting a
+// bug that let it exec a setuid-root binary — it still could not acquire a
+// single Linux capability.
+func dropCapabilityBoundingSet() error {
+	for capability := 0; capability <= unix.CAP_LAST_CAP; capability++ {
+		err := unix.Prctl(unix.PR_CAPBSET_DROP, uintptr(capability), 0, 0, 0)
+		if err == nil {
+			continue
+		}
+		if errno, ok := err.(unix.Errno); ok && errno == unix.EINVAL {
+			// The running kernel doesn't know this capability number
+			// (newer x/sys build than kernel); nothing to drop.
+			continue
+		}
+		return fmt.Errorf("drop capability %d from bounding set: %w", capability, err)
 	}
 	return nil
 }

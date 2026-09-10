@@ -458,6 +458,27 @@ chrome.exe --proxy-server="localhost:8080"
 
 ---
 
+## Plugin Sandbox Requirements (Linux)
+
+`0xgend` chroots and drops privileges for every plugin it runs, except
+plugins marked `trusted: true` for development (see
+[README.md → Plugin Security](README.md#plugin-security)). Both operations
+require root:
+
+- **Run `0xgend` as root** (or via `sudo`) on Linux. If it is not running as
+  root, plugin execution now fails immediately with a clear
+  `plugin sandbox requires the 0xgen daemon to run as root (uid 0)` error
+  instead of a raw permission-denied failure partway through starting the
+  plugin.
+- This requirement comes from the Linux sandbox implementation specifically
+  (chroot, `setresuid`/`setresgid`, seccomp). It does not apply to
+  `0xgenctl`, and does not apply if every plugin you run is `trusted: true`.
+- macOS and native Windows do not get the same sandboxing; plugins run
+  without a chroot/seccomp sandbox there today. Use WSL2 on Windows for full
+  plugin sandboxing (see the WSL2 option above).
+
+---
+
 ## Troubleshooting
 
 ### "command not found: 0xgenctl"

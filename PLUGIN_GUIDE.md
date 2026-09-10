@@ -10,13 +10,27 @@ patterns to keep new integrations safe.
 * **Avoid raw filesystem access**. Plugins should only write to their allocated
   workspace and must not read arbitrary host paths or environment variables that
   are unrelated to their task.
-* **Do not assume unrestricted networking.** Outbound connections may be
-  filtered or proxied. Use declarative manifest capabilities for any required
-  egress and prefer broker helpers for HTTP/WebSocket traffic.
+* **Do not open raw outbound sockets.** The sandbox does not currently
+  filter or proxy plugin network traffic - a plugin that dials out directly
+  will succeed regardless of its declared capabilities. Route egress through
+  the broker APIs anyway: it's the only path that gets auditing, and the
+  sandbox's lack of network filtering is a known gap, not a guarantee that
+  direct sockets stay available or safe (see [Sandbox internals](#sandbox-internals)).
 * **Fail closed.** Handle broker errors, timeouts, and validation failures by
   terminating gracefully rather than retrying indefinitely.
 * **Keep dependencies minimal and pinned.** Rely on reproducible builds, lock
   files, and integrity verification to reduce supply-chain exposure.
+
+## Sandbox internals
+
+Every non-`trusted` plugin runs inside a chroot with a seccomp-bpf syscall
+denylist and a privilege drop to an unprivileged uid/gid; there is no
+per-plugin sandbox configuration in the manifest. See
+[README.md → Plugin Security](README.md#plugin-security) for exactly which
+controls apply, which syscalls are blocked, and what is *not* enforced
+(notably: network access). Running `0xgend` as root is required for the
+sandbox to function at all - see
+[INSTALL.md → Plugin Sandbox Requirements](INSTALL.md#plugin-sandbox-requirements-linux).
 
 ## Recommended development workflow
 
@@ -31,23 +45,22 @@ patterns to keep new integrations safe.
 
 ```json
 {
-  "$schema": "../manifest.schema.json",
   "name": "oxg-example-plugin",
   "version": "0.1.0",
-  "description": "Demonstrates a minimal, sandbox-friendly plugin",
-  "entry": "./cmd/start.sh",
-  "capabilities": {
-    "http": { "outbound": ["broker"] },
-    "storage": { "workspace": true },
-    "secrets": { "broker": true }
-  },
-  "sandbox": {
-    "user": "oxg",
-    "mounts": ["workspace"],
-    "network": "isolated"
+  "entry": "example-plugin",
+  "artifact": "plugins/example-plugin/main.go",
+  "capabilities": ["CAP_EMIT_FINDINGS", "CAP_HTTP_PASSIVE"],
+  "signature": {
+    "signature": "main.go.sig",
+    "publicKey": "../keys/0xgen-plugin.pub"
   }
 }
 ```
+
+`capabilities` is a flat list of capability names (see
+`plugins.AllowedCapabilities()` for the full set); there is no per-manifest
+`sandbox` block - every non-`trusted` plugin gets the same fixed sandbox
+described in [Sandbox internals](#sandbox-internals) above.
 
 ## Minimal secure skeleton
 
