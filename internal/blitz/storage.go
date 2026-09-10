@@ -297,6 +297,26 @@ func (s *SQLiteStorage) Query(filters QueryFilters) ([]*FuzzResult, error) {
 	return results, nil
 }
 
+// GetResult retrieves a single result by its database ID.
+func (s *SQLiteStorage) GetResult(id int64) (*FuzzResult, error) {
+	rows, err := s.db.Query("SELECT * FROM results WHERE id = ?", id)
+	if err != nil {
+		return nil, fmt.Errorf("query result: %w", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, fmt.Errorf("result %d not found", id)
+	}
+
+	result, err := s.scanResult(rows)
+	if err != nil {
+		return nil, fmt.Errorf("scan result: %w", err)
+	}
+
+	return result, nil
+}
+
 // scanResult reads a result from a database row.
 func (s *SQLiteStorage) scanResult(rows *sql.Rows) (*FuzzResult, error) {
 	var result FuzzResult
