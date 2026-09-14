@@ -33,6 +33,9 @@ apps/desktop-shell/dist/
 apps/desktop-shell/src-tauri/target/
 apps/desktop-shell/src-tauri/Cargo.lock
 
+# desktop-shell uses pnpm; the npm lockfile is not authoritative and must not be reintroduced
+apps/desktop-shell/package-lock.json
+
 # Generated reports
 /out/
 plugins/excavator/benchmarks/latest.json
