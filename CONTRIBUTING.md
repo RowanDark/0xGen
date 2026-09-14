@@ -20,22 +20,21 @@ Thanks for helping shape 0xgen! To keep the project healthy and reproducible, pl
 
 ## Building 0xgenctl
 
-`0xgenctl` has two build modes, controlled by the `slsa` build tag:
+`go build ./cmd/0xgenctl` (or `go build ./...`) always produces the full CLI,
+including the `verify-build` subcommand. `0xgenctl` does not import
+`github.com/slsa-framework/slsa-verifier` (which transitively pulls in
+cosign, sigstore, rekor, fulcio, docker, kubernetes, trillian, and the
+MongoDB driver) — instead, `verify-build` shells out to the standalone
+`slsa-verifier` CLI binary at runtime. This keeps 0xgenctl's own dependency
+graph small and buildable without network access to `go.mongodb.org`,
+`k8s.io`, or `sigs.k8s.io`, which matters for coding agents, air-gapped
+builds, and restricted corporate proxies.
 
-- **Default build** (`go build ./cmd/0xgenctl`, or `go build ./...`): excludes
-  the `verify-build` subcommand's implementation. This keeps the CLI's
-  dependency graph small (~59 packages) and buildable without network access
-  to `go.mongodb.org`, `k8s.io`, or `sigs.k8s.io` — important for coding
-  agents, air-gapped builds, and restricted corporate proxies. Running
-  `0xgenctl verify-build` in a default build prints an error explaining how
-  to rebuild with the `slsa` tag and exits with status 2.
-- **Full build** (`go build -tags slsa ./cmd/0xgenctl`): includes the real
-  `verify-build` implementation, which verifies SLSA provenance via
-  `github.com/slsa-framework/slsa-verifier`. That dependency transitively
-  pulls in cosign, sigstore, rekor, fulcio, docker, kubernetes, trillian, and
-  the AWS/Azure/MongoDB SDKs (~148 packages), so only use this tag when you
-  need `verify-build` locally. Official release builds (goreleaser and
-  `scripts/build_release.sh`) always use `-tags slsa`.
+If `slsa-verifier` isn't on `PATH`, `0xgenctl verify-build` prints an error
+explaining how to install it
+(https://github.com/slsa-framework/slsa-verifier#installation) and exits
+with status 2. CI installs it via the project's official installer action
+before running provenance verification (see `.github/workflows/slsa.yml`).
 
 ## Pull request checklist
 

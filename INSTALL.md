@@ -424,7 +424,7 @@ verification.
 # Download provenance
 curl -LO https://github.com/RowanDark/0xGen/releases/download/v2.0.0-alpha/0xgen-v2.0.0-alpha-provenance.intoto.jsonl
 
-# Verify with 0xgenctl (built with `-tags slsa`, as release binaries are)
+# Verify with 0xgenctl (requires the slsa-verifier CLI on PATH)
 0xgenctl verify-build --attestation 0xgen-v2.0.0-alpha-provenance.intoto.jsonl --tag v2.0.0-alpha /usr/local/bin/0xgenctl
 
 # Or verify with the standalone slsa-verifier CLI

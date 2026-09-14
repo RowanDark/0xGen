@@ -1,9 +1,9 @@
-//go:build slsa
-
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,18 +11,18 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/RowanDark/0xgen/internal/reporter"
-	"github.com/slsa-framework/slsa-verifier/v2/options"
-	"github.com/slsa-framework/slsa-verifier/v2/verifiers"
 )
 
 const (
 	defaultReleaseRepo   = "RowanDark/0xgen"
 	genericBuilderIDPath = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0"
+	slsaVerifierBinary   = "slsa-verifier"
 )
 
 type releaseAsset struct {
@@ -118,7 +118,51 @@ func (g *githubFetcher) Fetch(ctx context.Context, owner, repo, tag, token strin
 }
 
 var activeFetcher provenanceFetcher = newGithubFetcher()
-var verifyProvenance = verifiers.VerifyArtifact
+
+// verifierArgs is what runSlsaVerifier needs to shell out to the
+// slsa-verifier CLI. Verification happens entirely in the external binary;
+// this process never links against slsa-verifier's Go packages, which pull
+// in cosign, sigstore, rekor, fulcio, docker, kubernetes, trillian, and the
+// MongoDB driver.
+type verifierArgs struct {
+	artifactPath   string
+	provenancePath string
+	sourceURI      string
+	tag            string
+	builderID      string
+}
+
+// slsaVerifierRunner runs `slsa-verifier verify-artifact` and returns its
+// combined output. A non-nil error means verification failed or the binary
+// could not be run.
+type slsaVerifierRunner func(ctx context.Context, args verifierArgs) (output string, err error)
+
+var runSlsaVerifier slsaVerifierRunner = execSlsaVerifier
+
+func execSlsaVerifier(ctx context.Context, args verifierArgs) (string, error) {
+	bin, err := exec.LookPath(slsaVerifierBinary)
+	if err != nil {
+		return "", fmt.Errorf(
+			"%s not found in PATH; install it from https://github.com/slsa-framework/slsa-verifier#installation and try again",
+			slsaVerifierBinary,
+		)
+	}
+
+	cmd := exec.CommandContext(ctx, bin, "verify-artifact",
+		args.artifactPath,
+		"--provenance-path", args.provenancePath,
+		"--source-uri", args.sourceURI,
+		"--source-tag", args.tag,
+		"--builder-id", args.builderID,
+	)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return out.String(), fmt.Errorf("slsa-verifier: %w", err)
+	}
+	return out.String(), nil
+}
 
 type inTotoStatement struct {
 	Subject []struct {
@@ -144,10 +188,40 @@ type inTotoStatement struct {
 	} `json:"predicate"`
 }
 
+// dsseEnvelope is the minimal shape of an in-toto attestation's DSSE
+// envelope, used only to pull display fields out of provenance that
+// slsa-verifier has already cryptographically verified. It is never used to
+// establish trust.
+type dsseEnvelope struct {
+	Payload string `json:"payload"`
+}
+
+func decodeStatement(provenance []byte) (inTotoStatement, error) {
+	var stmt inTotoStatement
+	line := provenance
+	if idx := bytes.IndexByte(line, '\n'); idx >= 0 {
+		line = line[:idx]
+	}
+	var envelope dsseEnvelope
+	if err := json.Unmarshal(line, &envelope); err != nil {
+		return stmt, fmt.Errorf("decode envelope: %w", err)
+	}
+	payload, err := base64.StdEncoding.DecodeString(envelope.Payload)
+	if err != nil {
+		return stmt, fmt.Errorf("decode payload: %w", err)
+	}
+	if err := json.Unmarshal(payload, &stmt); err != nil {
+		return stmt, fmt.Errorf("decode statement: %w", err)
+	}
+	return stmt, nil
+}
+
 func runVerifyBuild(args []string) int {
 	fs := flag.NewFlagSet("verify-build", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
+	artifactFlag := fs.String("artifact", "", "path to the artifact to verify (alternative to the positional argument)")
 	attestationPath := fs.String("attestation", "", "path to provenance attestation (defaults to release asset)")
+	provenancePath := fs.String("provenance", "", "alias for --attestation")
 	repo := fs.String("repo", defaultReleaseRepo, "GitHub repository in owner/name form")
 	tagFlag := fs.String("tag", "", "release tag to verify (defaults to the CLI version)")
 	tokenFlag := fs.String("token", "", "GitHub token used for release queries (optional)")
@@ -155,16 +229,24 @@ func runVerifyBuild(args []string) int {
 		return 2
 	}
 
-	remaining := fs.Args()
-	if len(remaining) == 0 {
+	artifactPath := strings.TrimSpace(*artifactFlag)
+	if artifactPath == "" {
+		remaining := fs.Args()
+		if len(remaining) == 0 {
+			fmt.Fprintln(os.Stderr, "artifact path is required")
+			return 2
+		}
+		artifactPath = strings.TrimSpace(remaining[0])
+	}
+	artifactPath = filepath.Clean(artifactPath)
+	if artifactPath == "" || artifactPath == "." {
 		fmt.Fprintln(os.Stderr, "artifact path is required")
 		return 2
 	}
 
-	artifactPath := filepath.Clean(strings.TrimSpace(remaining[0]))
-	if artifactPath == "" {
-		fmt.Fprintln(os.Stderr, "artifact path is required")
-		return 2
+	attestation := strings.TrimSpace(*attestationPath)
+	if attestation == "" {
+		attestation = strings.TrimSpace(*provenancePath)
 	}
 
 	repoOwner, repoName, err := splitRepo(strings.TrimSpace(*repo))
@@ -192,15 +274,12 @@ func runVerifyBuild(args []string) int {
 		fmt.Fprintf(os.Stderr, "hash artifact: %v\n", err)
 		return 1
 	}
-	digest := strings.TrimPrefix(digestFull, "sha256:")
-	if digest == "" || len(digest) != len(digestFull)-len("sha256:") {
-		fmt.Fprintln(os.Stderr, "unexpected digest format")
-		return 1
-	}
 
 	var provenance []byte
-	provenanceSource := strings.TrimSpace(*attestationPath)
+	var localProvenancePath string
+	provenanceSource := attestation
 	if provenanceSource != "" {
+		localProvenancePath = provenanceSource
 		provenance, err = os.ReadFile(provenanceSource)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "read attestation: %v\n", err)
@@ -208,35 +287,47 @@ func runVerifyBuild(args []string) int {
 		}
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
 		provenanceSource, provenance, err = activeFetcher.Fetch(ctx, repoOwner, repoName, tag, token)
+		cancel()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "download provenance: %v\n", err)
 			return 1
 		}
+
+		tmp, err := os.CreateTemp("", "0xgenctl-provenance-*.intoto.jsonl")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "stage provenance: %v\n", err)
+			return 1
+		}
+		defer os.Remove(tmp.Name())
+		if _, err := tmp.Write(provenance); err != nil {
+			tmp.Close()
+			fmt.Fprintf(os.Stderr, "stage provenance: %v\n", err)
+			return 1
+		}
+		if err := tmp.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "stage provenance: %v\n", err)
+			return 1
+		}
+		localProvenancePath = tmp.Name()
 	}
 
 	sourceURI := fmt.Sprintf("git+https://github.com/%s/%s", repoOwner, repoName)
-	tagRef := fmt.Sprintf("refs/tags/%s", tag)
-	builderID := genericBuilderIDPath
 
-	provOpts := &options.ProvenanceOpts{
-		ExpectedDigest:       digest,
-		ExpectedSourceURI:    sourceURI,
-		ExpectedTag:          &tagRef,
-		ExpectedVersionedTag: &tag,
-	}
-	builderOpts := &options.BuilderOpts{ExpectedID: &builderID}
-
-	verified, builder, err := verifyProvenance(context.Background(), provenance, digest, provOpts, builderOpts)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	output, err := runSlsaVerifier(ctx, verifierArgs{
+		artifactPath:   artifactPath,
+		provenancePath: localProvenancePath,
+		sourceURI:      sourceURI,
+		tag:            tag,
+		builderID:      genericBuilderIDPath,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "verify build: %v\n", err)
-		return 1
-	}
-
-	var statement inTotoStatement
-	if err := json.Unmarshal(verified, &statement); err != nil {
-		fmt.Fprintf(os.Stderr, "decode provenance payload: %v\n", err)
+		if strings.TrimSpace(output) != "" {
+			fmt.Fprintln(os.Stderr, strings.TrimSpace(output))
+		}
 		return 1
 	}
 
@@ -244,24 +335,24 @@ func runVerifyBuild(args []string) int {
 	fmt.Fprintf(os.Stdout, "Digest: %s\n", digestFull)
 	fmt.Fprintf(os.Stdout, "Release tag: %s\n", tag)
 	fmt.Fprintf(os.Stdout, "Source repository: %s\n", sourceURI)
-	if builder != nil {
-		fmt.Fprintf(os.Stdout, "Builder: %s\n", builder.String())
-	}
-	if statement.Predicate.Invocation.ConfigSource.Digest != nil {
+
+	if statement, err := decodeStatement(provenance); err == nil {
+		if statement.Predicate.Builder.ID != "" {
+			fmt.Fprintf(os.Stdout, "Builder: %s\n", statement.Predicate.Builder.ID)
+		}
 		if commit, ok := statement.Predicate.Invocation.ConfigSource.Digest["sha1"]; ok && commit != "" {
 			fmt.Fprintf(os.Stdout, "Source commit: %s\n", commit)
 		}
+		digest := strings.TrimPrefix(digestFull, "sha256:")
+		if subjectName := matchSubject(statement.Subject, digest); subjectName != "" {
+			fmt.Fprintf(os.Stdout, "Subject: %s\n", subjectName)
+		}
+		if statement.Predicate.Metadata.BuildInvocationID != "" {
+			fmt.Fprintf(os.Stdout, "Build invocation: %s\n", statement.Predicate.Metadata.BuildInvocationID)
+		}
 	}
+
 	fmt.Fprintf(os.Stdout, "Provenance: %s\n", provenanceSource)
-
-	subjectName := matchSubject(statement.Subject, digest)
-	if subjectName != "" {
-		fmt.Fprintf(os.Stdout, "Subject: %s\n", subjectName)
-	}
-
-	if statement.Predicate.Metadata.BuildInvocationID != "" {
-		fmt.Fprintf(os.Stdout, "Build invocation: %s\n", statement.Predicate.Metadata.BuildInvocationID)
-	}
 	fmt.Fprintln(os.Stdout, "Build provenance verified.")
 	return 0
 }
