@@ -1,0 +1,14 @@
+# Directories under plugins/ that intentionally have no manifest.json and are
+# therefore not loadable plugins. Checked by scripts/ci/check_plugin_dirs.sh.
+#
+# Every other directory under plugins/ must contain a valid manifest.json.
+
+# Shared plugin-signing key material referenced by every manifest's
+# `signature.publicKey` (e.g. "../keys/0xgen-plugin.pub"). Not a plugin
+# itself; see plugins/keys/README.md.
+keys
+
+# Test fixtures used by cmd/0xgenctl (the `plugin run --sample` flag) and by
+# integration tests. Not shipped or loaded as production plugins; see
+# plugins/samples/README.md.
+samples

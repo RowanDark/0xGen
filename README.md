@@ -167,7 +167,7 @@ concept command and embedded thumbnail metadata.
 
 ## Plugins
 
-0xgen's modular architecture is powered by 14 production plugins that handle everything from passive reconnaissance to active vulnerability detection. Each plugin runs in an isolated sandbox with explicit capability grants, ensuring safe execution even with untrusted code.
+0xgen's modular architecture is powered by 13 production plugins that handle everything from passive reconnaissance to active vulnerability detection. Each plugin runs in an isolated sandbox with explicit capability grants, ensuring safe execution even with untrusted code.
 
 ### Core Detection Plugins
 
@@ -175,7 +175,6 @@ concept command and embedded thumbnail metadata.
 |--------|-------------|----------|
 | **[Hydra](plugins/hydra/)** | Passive vulnerability detection with 5 specialized analyzers (XSS, SQLi, SSRF, Command Injection, Open Redirect) and threshold-based confidence scoring | Automated vulnerability discovery for continuous security testing and bug bounty hunting. |
 | **[Seer](plugins/seer/)** | Passive telemetry analyzer for secrets and PII detection using entropy heuristics and pattern matching | Identify leaked credentials (AWS keys, Slack tokens, JWTs) and sensitive data in HTTP traffic without active probing. |
-| **[Keys](plugins/keys/)** | Cryptographic key and token detection with high-entropy analysis | Extract API keys, access tokens, and cryptographic material from responses for security audits. |
 
 ### Discovery & Mapping
 
