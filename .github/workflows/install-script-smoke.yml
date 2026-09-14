@@ -1,0 +1,190 @@
+name: 0xgen install script smoke
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'install.sh'
+      - 'install.ps1'
+      - '.github/workflows/install-script-smoke.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'install.sh'
+      - 'install.ps1'
+      - '.github/workflows/install-script-smoke.yml'
+  schedule:
+    # Catches drift even when nobody touches the scripts: a new release
+    # that changes artifact naming, or the checksums/provenance assets
+    # disappearing, would otherwise go unnoticed until a user hits it.
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck install.sh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        run: shellcheck -S warning install.sh
+
+  powershell-parse:
+    name: Parse install.ps1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse install.ps1
+        shell: pwsh
+        run: |
+          $errors = $null
+          $tokens = $null
+          [System.Management.Automation.Language.Parser]::ParseFile('install.ps1', [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host "$($_.Message) at line $($_.Extent.StartLineNumber)" }
+            throw "install.ps1 failed to parse"
+          }
+
+  verify-checksum-logic:
+    name: Unit test checksum verification (install.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise verify_checksum against good and tampered artifacts
+        run: |
+          set -euo pipefail
+          source install.sh
+
+          tmp=$(mktemp -d)
+          echo "hello world" > "$tmp/artifact.tar.gz"
+          hash=$(sha256sum "$tmp/artifact.tar.gz" | awk '{print $1}')
+          printf '%s  artifact.tar.gz\n' "$hash" > "$tmp/checksums.txt"
+
+          echo "== known-good checksum must verify =="
+          verify_checksum "$tmp/artifact.tar.gz" "$tmp/checksums.txt"
+
+          echo "== tampered artifact must be rejected =="
+          echo "tampered" >> "$tmp/artifact.tar.gz"
+          if verify_checksum "$tmp/artifact.tar.gz" "$tmp/checksums.txt"; then
+            echo "::error::tampered artifact was accepted"
+            exit 1
+          fi
+
+          echo "== artifact missing from checksums file must be rejected =="
+          if verify_checksum "$tmp/no-such-file.tar.gz" "$tmp/checksums.txt" 2>/dev/null; then
+            echo "::error::artifact with no checksum entry was accepted"
+            exit 1
+          fi
+
+          echo "== missing checksums file must be rejected, not crash =="
+          if verify_checksum "$tmp/artifact.tar.gz" "$tmp/does-not-exist.txt" 2>/dev/null; then
+            echo "::error::missing checksums file was accepted"
+            exit 1
+          fi
+
+          rm -rf "$tmp"
+          echo "all checksum-verification assertions passed"
+
+  install-clean-container:
+    name: install.sh in a clean container (${{ matrix.image }})
+    needs:
+      - shellcheck
+      - verify-checksum-logic
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:bookworm-slim
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Install bootstrap tools
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git jq sudo
+
+      - uses: actions/checkout@v4
+
+      - name: Determine a release with published assets
+        id: release
+        run: |
+          set -euo pipefail
+          tag=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=20" \
+            | jq -r '[.[] | select(.draft == false and (.assets | length) > 0)][0].tag_name // empty')
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          if [ -z "$tag" ]; then
+            echo "::warning::No published release with assets was found; skipping the live install assertion"
+          fi
+
+      - name: Run install.sh and assert it succeeds
+        if: steps.release.outputs.tag != ''
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          bash install.sh --quick --cli-only --version "$TAG" </dev/null
+          # The .deb package installs into /usr/local/0xgen/bin, which is
+          # not on PATH by default (see README.md).
+          /usr/local/0xgen/bin/0xgenctl --version
+
+  install-clean-windows:
+    name: install.ps1 on a clean Windows runner
+    needs:
+      - powershell-parse
+      - verify-checksum-logic
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exercise Test-ArtifactChecksum against good and tampered artifacts
+        shell: pwsh
+        run: |
+          $env:INSTALL_PS1_NO_MAIN = '1'
+          . .\install.ps1
+
+          $tmp = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP ([System.Guid]::NewGuid()))
+          $artifact = Join-Path $tmp.FullName "artifact.zip"
+          Set-Content -Path $artifact -Value "hello world" -NoNewline
+          $hash = (Get-FileHash -Path $artifact -Algorithm SHA256).Hash.ToLower()
+          $checksums = Join-Path $tmp.FullName "checksums.txt"
+          Set-Content -Path $checksums -Value "$hash  artifact.zip"
+
+          if (-not (Test-ArtifactChecksum -ArtifactPath $artifact -ChecksumsFile $checksums)) {
+            throw "known-good checksum was rejected"
+          }
+
+          Add-Content -Path $artifact -Value "tampered"
+          if (Test-ArtifactChecksum -ArtifactPath $artifact -ChecksumsFile $checksums) {
+            throw "tampered artifact was accepted"
+          }
+
+          Remove-Item -Recurse -Force $tmp.FullName
+
+      - name: Determine a release with published assets
+        id: release
+        shell: pwsh
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GH_REPO/releases?per_page=20"
+          $withAssets = $releases | Where-Object { -not $_.draft -and $_.assets.Count -gt 0 } | Select-Object -First 1
+          if ($withAssets) {
+            "tag=$($withAssets.tag_name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            "tag=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "::warning::No published release with assets was found; skipping the live install assertion"
+          }
+
+      - name: Run install.ps1 and assert it succeeds
+        if: steps.release.outputs.tag != ''
+        shell: pwsh
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          .\install.ps1 -Quick -CliOnly -ReleaseVersion $env:TAG
+          & "$env:LOCALAPPDATA\0xGen\bin\0xgenctl.exe" --version
