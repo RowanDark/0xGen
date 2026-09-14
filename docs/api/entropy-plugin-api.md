@@ -1144,5 +1144,5 @@ export function EntropyDashboard() {
 For questions or issues with the Entropy plugin API:
 
 - **GitHub Issues**: https://github.com/RowanDark/0xGen/issues
-- **Documentation**: https://docs.0xgen.dev/api/entropy
+- **Documentation**: https://rowandark.github.io/0xgen/
 - **Examples**: https://github.com/RowanDark/0xGen/tree/main/examples/entropy

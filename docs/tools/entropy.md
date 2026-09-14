@@ -550,5 +550,5 @@ A: Entropy is designed for web token analysis. For dedicated cryptographic RNG t
 
 For issues, feature requests, or questions:
 - GitHub Issues: https://github.com/RowanDark/0xGen/issues
-- Documentation: https://docs.0xgen.dev
+- Documentation: https://rowandark.github.io/0xgen/
 - Community: https://discord.gg/0xgen

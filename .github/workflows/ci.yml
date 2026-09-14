@@ -35,6 +35,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: scripts/ci/check_ai_claims.sh
 
+      - name: Guard against dead domain references
+        if: matrix.os == 'ubuntu-latest'
+        run: scripts/ci/check_dead_domains.sh
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
