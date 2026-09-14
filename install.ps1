@@ -13,14 +13,22 @@ param(
     [switch]$CliOnly,
     [switch]$Gui,
     [switch]$Help,
-    [string]$InstallDir = "$env:LOCALAPPDATA\0xGen\bin"
+    [string]$InstallDir = "$env:LOCALAPPDATA\0xGen\bin",
+    # Release tag to install (e.g. "v2.0.5-Alpha"). Empty means "latest".
+    [string]$ReleaseVersion = ""
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 # Version
 $WizardVersion = "1.0.0"
+
+# Canonical project locations
+$GitHubRepo = "RowanDark/0xGen"
+$GitHubRepoUrl = "https://github.com/$GitHubRepo"
+$DocsBaseUrl = "https://rowandark.github.io/0xgen"
 
 # Global variables
 $InstallCLI = $true
@@ -102,6 +110,114 @@ function Test-IsAdmin {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+#############################################
+# Artifact Verification
+#############################################
+
+# Download the checksums file published alongside a release.
+function Get-ReleaseChecksums {
+    param(
+        [string]$BaseUrl,
+        [string]$Version,
+        [string]$Dest
+    )
+
+    $checksumsName = "0xgen_${Version}_checksums.txt"
+    Write-Info "Downloading release checksums ($checksumsName)..."
+    try {
+        Invoke-WebRequest -Uri "$BaseUrl/$checksumsName" -OutFile $Dest
+        return $true
+    } catch {
+        Write-Error "Failed to download checksums file: $_"
+        return $false
+    }
+}
+
+# Verify a downloaded artifact's SHA-256 digest against the release
+# checksums file. Fails closed: any error verifying the artifact causes
+# this to return $false.
+function Test-ArtifactChecksum {
+    param(
+        [string]$ArtifactPath,
+        [string]$ChecksumsFile
+    )
+
+    if (-not (Test-Path $ChecksumsFile)) {
+        Write-Error "Checksums file not found: $ChecksumsFile"
+        return $false
+    }
+
+    $fileName = Split-Path $ArtifactPath -Leaf
+    $expected = $null
+    foreach ($line in Get-Content $ChecksumsFile) {
+        $parts = $line -split '\s+'
+        if ($parts.Length -ge 2 -and $parts[1] -eq $fileName) {
+            $expected = $parts[0]
+            break
+        }
+    }
+
+    if (-not $expected) {
+        Write-Error "No checksum entry for $fileName in checksums file"
+        return $false
+    }
+
+    $actual = (Get-FileHash -Path $ArtifactPath -Algorithm SHA256).Hash
+    if ($expected.ToLower() -ne $actual.ToLower()) {
+        Write-Error "Checksum mismatch for $fileName"
+        Write-Error "  expected: $expected"
+        Write-Error "  actual:   $actual"
+        return $false
+    }
+
+    Write-Success "Checksum verified: $fileName"
+    return $true
+}
+
+# Best-effort SLSA provenance verification. Only runs when slsa-verifier is
+# installed; when it is, a failed verification is treated as fatal. Absence
+# of slsa-verifier only produces a warning, since checksum verification
+# above is what gates installation.
+function Test-SlsaProvenance {
+    param(
+        [string]$ArtifactPath,
+        [string]$Version,
+        [string]$BaseUrl,
+        [string]$TempDir
+    )
+
+    if (-not (Test-CommandExists "slsa-verifier")) {
+        Write-Warning "slsa-verifier not found; skipping SLSA provenance verification"
+        Write-Info "Install it from https://github.com/slsa-framework/slsa-verifier for stronger supply-chain guarantees"
+        return $true
+    }
+
+    $provenanceName = "0xgen-${Version}-provenance.intoto.jsonl"
+    $provenancePath = Join-Path $TempDir $provenanceName
+
+    Write-Info "Downloading SLSA provenance ($provenanceName)..."
+    try {
+        Invoke-WebRequest -Uri "$BaseUrl/$provenanceName" -OutFile $provenancePath
+    } catch {
+        Write-Error "Failed to download SLSA provenance attestation: $_"
+        return $false
+    }
+
+    $artifactName = Split-Path $ArtifactPath -Leaf
+    Write-Info "Verifying SLSA provenance for $artifactName..."
+    & slsa-verifier verify-artifact $ArtifactPath `
+        --provenance-path $provenancePath `
+        --source-uri "github.com/$GitHubRepo" `
+        --source-tag $Version
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "SLSA provenance verified"
+        return $true
+    }
+
+    Write-Error "SLSA provenance verification failed for $artifactName"
+    return $false
 }
 
 #############################################
@@ -304,33 +420,55 @@ function Install-ViaScoop {
 function Install-ViaBinary {
     Write-Step "Installing from pre-built binary..."
 
-    # Get the latest version tag from GitHub API
-    try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/RowanDark/0xGen/releases/latest"
-        $version = $release.tag_name
-    } catch {
-        Write-Error "Failed to fetch latest version from GitHub: $_"
-        return
+    if ($ReleaseVersion) {
+        $version = $ReleaseVersion
+    } else {
+        # Get the latest version tag from GitHub API
+        try {
+            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$GitHubRepo/releases/latest"
+            $version = $release.tag_name
+        } catch {
+            Write-Error "Failed to fetch latest version from GitHub: $_"
+            return
+        }
     }
 
-    $baseUrl = "https://github.com/RowanDark/0xGen/releases/latest/download"
+    $baseUrl = "$GitHubRepoUrl/releases/download/$version"
     # GoReleaser format: 0xgenctl_${version}_${os}_${arch}.zip
     $binaryName = "0xgenctl_${version}_windows_amd64.zip"
 
-    Write-Info "Downloading $binaryName..."
     $tempFile = "$env:TEMP\$binaryName"
     $tempDir = "$env:TEMP\0xgen-install"
+    if (Test-Path $tempDir) {
+        Remove-Item -Path $tempDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
     try {
+        $checksumsFile = Join-Path $tempDir "0xgen_${version}_checksums.txt"
+        if (-not (Get-ReleaseChecksums -BaseUrl $baseUrl -Version $version -Dest $checksumsFile)) {
+            Write-Error "Refusing to install unverified artifacts"
+            return
+        }
+
+        Write-Info "Downloading $binaryName..."
         Invoke-WebRequest -Uri "$baseUrl/$binaryName" -OutFile $tempFile
         Write-Success "Downloaded successfully"
 
+        if (-not (Test-ArtifactChecksum -ArtifactPath $tempFile -ChecksumsFile $checksumsFile)) {
+            Write-Error "Refusing to install: checksum verification failed for $binaryName"
+            return
+        }
+
+        if (-not (Test-SlsaProvenance -ArtifactPath $tempFile -Version $version -BaseUrl $baseUrl -TempDir $tempDir)) {
+            Write-Error "Refusing to install: SLSA provenance verification failed for $binaryName"
+            return
+        }
+
         # Extract
         Write-Info "Extracting..."
-        if (Test-Path $tempDir) {
-            Remove-Item -Path $tempDir -Recurse -Force
-        }
-        Expand-Archive -Path $tempFile -DestinationPath $tempDir
+        $extractDir = Join-Path $tempDir "extracted"
+        Expand-Archive -Path $tempFile -DestinationPath $extractDir
 
         # Install binaries
         Write-Info "Installing to $InstallDir..."
@@ -340,7 +478,7 @@ function Install-ViaBinary {
 
         if ($InstallCLI) {
             # Only 0xgenctl is available for Windows (0xgend is Linux/macOS only)
-            Copy-Item "$tempDir\0xgenctl.exe" -Destination $InstallDir -Force
+            Copy-Item "$extractDir\0xgenctl.exe" -Destination $InstallDir -Force
             Write-Success "Installed 0xgenctl.exe"
         }
 
@@ -352,15 +490,16 @@ function Install-ViaBinary {
             Write-Success "Added to PATH (restart terminal to apply)"
         }
 
-        # Cleanup
-        Remove-Item $tempFile -Force
-        Remove-Item $tempDir -Recurse -Force
-
         Write-Success "Binary installation complete!"
     } catch {
         Write-Error "Failed to download or install binary: $_"
-        Write-Info "Please visit: https://github.com/RowanDark/0xGen/releases"
+        Write-Info "Please visit: $GitHubRepoUrl/releases"
         return
+    } finally {
+        # Cleanup
+        if (Test-Path $tempDir) {
+            Remove-Item $tempDir -Recurse -Force
+        }
     }
 }
 
@@ -552,14 +691,14 @@ function Write-Summary {
     }
 
     Write-Host "Documentation:" -ForegroundColor White
-    Write-Host "  - Quick Start: https://docs.0xgen.dev/quickstart"
-    Write-Host "  - User Guide: https://docs.0xgen.dev/guide"
-    Write-Host "  - Plugin Development: https://docs.0xgen.dev/plugins"
+    Write-Host "  - Quick Start: $DocsBaseUrl/quickstart/"
+    Write-Host "  - User Guide: $DocsBaseUrl/cli/"
+    Write-Host "  - Plugin Development: $DocsBaseUrl/plugins/"
     Write-Host ""
 
     Write-Host "Community:" -ForegroundColor White
-    Write-Host "  - GitHub: https://github.com/RowanDark/0xGen"
-    Write-Host "  - Issues: https://github.com/RowanDark/0xGen/issues"
+    Write-Host "  - GitHub: $GitHubRepoUrl"
+    Write-Host "  - Issues: $GitHubRepoUrl/issues"
     Write-Host ""
 
     Write-Host "Thank you for installing 0xGen!" -ForegroundColor Green
@@ -579,6 +718,7 @@ function Main {
         Write-Host "  -CliOnly        Install only CLI tools"
         Write-Host "  -Gui            Include Desktop GUI"
         Write-Host "  -InstallDir     Installation directory (default: $env:LOCALAPPDATA\0xGen\bin)"
+        Write-Host "  -ReleaseVersion Install a specific release tag instead of latest"
         Write-Host "  -Help           Show this help message"
         exit 0
     }
@@ -663,5 +803,8 @@ function Main {
     Write-Summary
 }
 
-# Run main installation
-Main
+# Run main installation, unless dot-sourced for testing (e.g. to exercise
+# individual functions such as Test-ArtifactChecksum).
+if ($env:INSTALL_PS1_NO_MAIN -ne '1') {
+    Main
+}

@@ -48,7 +48,7 @@ Download the `.deb` package from the
 it with `dpkg`:
 
 ```bash
-sudo dpkg -i 0xgenctl_<version>_linux_amd64.deb
+sudo dpkg -i 0xgenctl_<version>_amd64.deb
 ```
 
 Replace `<version>` with the release you want to install. The package installs
@@ -60,7 +60,7 @@ create a symlink if you want to invoke the CLI without a fully qualified path.
 RPM packages are published alongside each release. Install them with `rpm`:
 
 ```bash
-sudo rpm -i 0xgenctl_<version>_linux_amd64.rpm
+sudo rpm -i 0xgenctl_<version>_amd64.rpm
 ```
 
 ### Windows

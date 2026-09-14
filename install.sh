@@ -7,7 +7,7 @@
 #   or
 #   ./install.sh
 
-set -e
+set -euo pipefail
 
 # Color codes for output
 RED='\033[0;31m'
@@ -22,11 +22,18 @@ BOLD='\033[1m'
 # Version
 WIZARD_VERSION="1.0.0"
 
+# Canonical project locations
+GITHUB_REPO="RowanDark/0xGen"
+GITHUB_REPO_URL="https://github.com/${GITHUB_REPO}"
+DOCS_BASE_URL="https://rowandark.github.io/0xgen"
+
 # Global variables
 OS=""
 ARCH=""
 INSTALL_METHOD=""
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+# Release tag to install (e.g. "v2.0.5-Alpha"). Empty means "latest".
+INSTALL_VERSION="${INSTALL_VERSION:-}"
 INSTALL_CLI=true
 INSTALL_GUI=false
 INSTALL_PLUGINS=true
@@ -100,6 +107,13 @@ ask_yes_no() {
         prompt="$prompt [y/N] "
     fi
 
+    # No terminal to read from (e.g. piped with no /dev/tty): fall back to
+    # the default answer instead of trying to read from an unset input.
+    if ! $INTERACTIVE; then
+        [[ "$default" == "y" ]]
+        return
+    fi
+
     echo -ne "${CYAN}?${NC} $prompt"
     read response < "$TTY_INPUT"
     response=${response:-$default}
@@ -113,6 +127,11 @@ read_input() {
     local default="$2"
     local response
 
+    if ! $INTERACTIVE; then
+        echo "$default"
+        return
+    fi
+
     echo -ne "${CYAN}?${NC} $prompt"
     read response < "$TTY_INPUT"
     echo "${response:-$default}"
@@ -120,6 +139,133 @@ read_input() {
 
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+#############################################
+# Artifact Verification
+#############################################
+
+# Compute the SHA-256 digest of a file, using whichever tool is available.
+compute_sha256() {
+    local target="$1"
+    if command_exists sha256sum; then
+        sha256sum "$target" | awk '{print $1}'
+    elif command_exists shasum; then
+        shasum -a 256 "$target" | awk '{print $1}'
+    else
+        print_error "No SHA-256 tool found (need sha256sum or shasum)"
+        return 1
+    fi
+}
+
+# Download the checksums file published alongside a release and verify a
+# single artifact against it. Fails closed: any error verifying the
+# artifact's checksum causes this to return non-zero.
+verify_checksum() {
+    local artifact_path="$1"
+    local checksums_file="$2"
+    local filename
+    filename="$(basename "$artifact_path")"
+
+    if [[ ! -f "$checksums_file" ]]; then
+        print_error "Checksums file not found: $checksums_file"
+        return 1
+    fi
+
+    local expected
+    expected="$(awk -v f="$filename" '$2 == f { print $1; exit }' "$checksums_file")"
+    if [[ -z "$expected" ]]; then
+        print_error "No checksum entry for $filename in checksums file"
+        return 1
+    fi
+
+    local actual
+    actual="$(compute_sha256 "$artifact_path")" || return 1
+
+    if [[ "$expected" != "$actual" ]]; then
+        print_error "Checksum mismatch for $filename"
+        print_error "  expected: $expected"
+        print_error "  actual:   $actual"
+        return 1
+    fi
+
+    print_success "Checksum verified: $filename"
+    return 0
+}
+
+# Resolve which release tag to install: $INSTALL_VERSION when set (via
+# --version or the INSTALL_VERSION env var), otherwise whatever GitHub
+# currently reports as the latest release. Prints the resolved tag on
+# stdout; returns non-zero if it cannot be determined.
+resolve_release_version() {
+    if [[ -n "$INSTALL_VERSION" ]]; then
+        echo "$INSTALL_VERSION"
+        return 0
+    fi
+
+    print_info "Fetching latest release metadata..." >&2
+    local version
+    version=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+    if [[ -z "$version" ]]; then
+        return 1
+    fi
+    echo "$version"
+    return 0
+}
+
+# Download the release checksums file into $2 for the given release tag.
+# Returns non-zero if it cannot be fetched -- callers must treat that as
+# fatal for anything downloaded from the release.
+fetch_checksums_file() {
+    local base_url="$1"
+    local version="$2"
+    local dest="$3"
+    local checksums_name="0xgen_${version}_checksums.txt"
+
+    print_info "Downloading release checksums ($checksums_name)..."
+    if ! curl -fsSL -o "$dest" "$base_url/$checksums_name"; then
+        print_error "Failed to download checksums file"
+        return 1
+    fi
+    return 0
+}
+
+# Best-effort SLSA provenance verification. Only runs when slsa-verifier is
+# installed; when it is, a failed verification is treated as fatal. Absence
+# of slsa-verifier only produces a warning, since checksum verification
+# above is what gates installation.
+verify_slsa_provenance() {
+    local artifact_path="$1"
+    local version="$2"
+    local base_url="$3"
+    local temp_dir="$4"
+
+    if ! command_exists slsa-verifier; then
+        print_warning "slsa-verifier not found; skipping SLSA provenance verification"
+        print_info "Install it from https://github.com/slsa-framework/slsa-verifier for stronger supply-chain guarantees"
+        return 0
+    fi
+
+    local provenance_name="0xgen-${version}-provenance.intoto.jsonl"
+    local provenance_path="$temp_dir/$provenance_name"
+
+    print_info "Downloading SLSA provenance ($provenance_name)..."
+    if ! curl -fsSL -o "$provenance_path" "$base_url/$provenance_name"; then
+        print_error "Failed to download SLSA provenance attestation"
+        return 1
+    fi
+
+    print_info "Verifying SLSA provenance for $(basename "$artifact_path")..."
+    if slsa-verifier verify-artifact "$artifact_path" \
+        --provenance-path "$provenance_path" \
+        --source-uri "github.com/${GITHUB_REPO}" \
+        --source-tag "$version"; then
+        print_success "SLSA provenance verified"
+        return 0
+    fi
+
+    print_error "SLSA provenance verification failed for $(basename "$artifact_path")"
+    return 1
 }
 
 #############################################
@@ -549,71 +695,90 @@ install_via_homebrew() {
     fi
 }
 
-install_via_apt() {
-    print_step "Installing via APT..."
+# 0xGen does not operate a hosted apt/yum repository. Instead, the .deb/.rpm
+# packages published as GitHub release assets are downloaded directly and
+# verified against the release checksums (and, when slsa-verifier is
+# available, SLSA provenance) before anything is installed.
+install_via_linux_package() {
+    local pkg_format="$1" # "deb" or "rpm"
 
-    # Add repository
-    print_info "Adding 0xGen repository..."
-    curl -fsSL https://packages.0xgen.dev/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/0xgen-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/0xgen-archive-keyring.gpg] https://packages.0xgen.dev/deb stable main" | \
-        sudo tee /etc/apt/sources.list.d/0xgen.list
+    local version
+    if ! version=$(resolve_release_version); then
+        print_error "Failed to fetch latest version from GitHub"
+        return 1
+    fi
 
-    sudo apt-get update
+    local base_url="${GITHUB_REPO_URL}/releases/download/${version}"
+    local package_name="0xgenctl_${version}_${ARCH}.${pkg_format}"
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+
+    local checksums_file="$temp_dir/0xgen_${version}_checksums.txt"
+    if ! fetch_checksums_file "$base_url" "$version" "$checksums_file"; then
+        print_error "Refusing to install unverified artifacts"
+        rm -rf "$temp_dir"
+        return 1
+    fi
 
     if [[ "$INSTALL_CLI" == true ]]; then
+        print_info "Downloading $package_name..."
+        if ! curl -fsSL -o "$temp_dir/$package_name" "$base_url/$package_name"; then
+            print_error "Failed to download $package_name"
+            print_info "Please visit: ${GITHUB_REPO_URL}/releases"
+            rm -rf "$temp_dir"
+            return 1
+        fi
+
+        if ! verify_checksum "$temp_dir/$package_name" "$checksums_file"; then
+            print_error "Refusing to install: checksum verification failed for $package_name"
+            rm -rf "$temp_dir"
+            return 1
+        fi
+
+        if ! verify_slsa_provenance "$temp_dir/$package_name" "$version" "$base_url" "$temp_dir"; then
+            print_error "Refusing to install: SLSA provenance verification failed for $package_name"
+            rm -rf "$temp_dir"
+            return 1
+        fi
+
         print_info "Installing 0xGen CLI..."
-        sudo apt-get install -y 0xgen
+        case "$pkg_format" in
+            deb)
+                sudo dpkg -i "$temp_dir/$package_name" || sudo apt-get install -f -y
+                ;;
+            rpm)
+                sudo rpm -i "$temp_dir/$package_name"
+                ;;
+        esac
         print_success "0xGen CLI installed (includes plugins)!"
     fi
 
+    rm -rf "$temp_dir"
+
     if [[ "$INSTALL_GUI" == true ]]; then
-        print_warning "Desktop GUI not available via APT package"
+        print_warning "Desktop GUI not available as a pre-built Linux package"
         print_info "Building from source instead..."
         BUILD_FROM_SOURCE=true
         install_via_source
     fi
 
     if [[ "$INSTALL_DOCS" == true ]]; then
-        print_warning "Documentation not available via APT package"
+        print_warning "Documentation not available as a pre-built Linux package"
         print_info "Building from source instead..."
         BUILD_FROM_SOURCE=true
         install_via_source
     fi
 }
 
+install_via_apt() {
+    print_step "Installing .deb package from GitHub Releases..."
+    install_via_linux_package "deb"
+}
+
 install_via_dnf() {
-    print_step "Installing via DNF..."
-
-    # Add repository
-    print_info "Adding 0xGen repository..."
-    sudo tee /etc/yum.repos.d/0xgen.repo > /dev/null << EOF
-[0xgen]
-name=0xGen Repository
-baseurl=https://packages.0xgen.dev/rpm
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.0xgen.dev/gpg.key
-EOF
-
-    if [[ "$INSTALL_CLI" == true ]]; then
-        print_info "Installing 0xGen CLI..."
-        sudo dnf install -y 0xgen
-        print_success "0xGen CLI installed (includes plugins)!"
-    fi
-
-    if [[ "$INSTALL_GUI" == true ]]; then
-        print_warning "Desktop GUI not available via DNF package"
-        print_info "Building from source instead..."
-        BUILD_FROM_SOURCE=true
-        install_via_source
-    fi
-
-    if [[ "$INSTALL_DOCS" == true ]]; then
-        print_warning "Documentation not available via DNF package"
-        print_info "Building from source instead..."
-        BUILD_FROM_SOURCE=true
-        install_via_source
-    fi
+    print_step "Installing .rpm package from GitHub Releases..."
+    install_via_linux_package "rpm"
 }
 
 install_via_scoop() {
@@ -638,21 +803,20 @@ install_via_scoop() {
 
     if [[ "$INSTALL_DOCS" == true ]]; then
         print_warning "Documentation not available via Scoop"
-        print_info "Visit: https://docs.0xgen.dev"
+        print_info "Visit: ${DOCS_BASE_URL}/"
     fi
 }
 
 install_via_binary() {
     print_step "Installing from pre-built binary..."
 
-    # Get the latest version tag from GitHub API
-    local version=$(curl -fsSL https://api.github.com/repos/RowanDark/0xGen/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
-    if [[ -z "$version" ]]; then
+    local version
+    if ! version=$(resolve_release_version); then
         print_error "Failed to fetch latest version from GitHub"
         return 1
     fi
 
-    local base_url="https://github.com/RowanDark/0xGen/releases/latest/download"
+    local base_url="${GITHUB_REPO_URL}/releases/download/${version}"
 
     # Map OS name to GoReleaser format (macos -> darwin)
     local download_os="$OS"
@@ -668,7 +832,16 @@ install_via_binary() {
         binary_name="${binary_name}.tar.gz"
     fi
 
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
+
+    local checksums_file="$temp_dir/0xgen_${version}_checksums.txt"
+    if ! fetch_checksums_file "$base_url" "$version" "$checksums_file"; then
+        print_error "Refusing to install unverified artifacts"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+
     sudo mkdir -p "$INSTALL_DIR"
 
     if [[ "$INSTALL_CLI" == true ]]; then
@@ -676,6 +849,18 @@ install_via_binary() {
         print_info "Downloading $binary_name..."
         if curl -fsSL -o "$temp_dir/$binary_name" "$base_url/$binary_name"; then
             print_success "Downloaded 0xgenctl archive"
+
+            if ! verify_checksum "$temp_dir/$binary_name" "$checksums_file"; then
+                print_error "Refusing to install: checksum verification failed for $binary_name"
+                rm -rf "$temp_dir"
+                return 1
+            fi
+
+            if ! verify_slsa_provenance "$temp_dir/$binary_name" "$version" "$base_url" "$temp_dir"; then
+                print_error "Refusing to install: SLSA provenance verification failed for $binary_name"
+                rm -rf "$temp_dir"
+                return 1
+            fi
 
             # Extract
             print_info "Extracting 0xgenctl..."
@@ -693,7 +878,7 @@ install_via_binary() {
             cd -
         else
             print_error "Failed to download 0xgenctl"
-            print_info "Please visit: https://github.com/RowanDark/0xGen/releases"
+            print_info "Please visit: ${GITHUB_REPO_URL}/releases"
             rm -rf "$temp_dir"
             return 1
         fi
@@ -704,6 +889,18 @@ install_via_binary() {
             print_info "Downloading $daemon_name..."
             if curl -fsSL -o "$temp_dir/$daemon_name" "$base_url/$daemon_name"; then
                 print_success "Downloaded 0xgend archive"
+
+                if ! verify_checksum "$temp_dir/$daemon_name" "$checksums_file"; then
+                    print_error "Refusing to install: checksum verification failed for $daemon_name"
+                    rm -rf "$temp_dir"
+                    return 1
+                fi
+
+                if ! verify_slsa_provenance "$temp_dir/$daemon_name" "$version" "$base_url" "$temp_dir"; then
+                    print_error "Refusing to install: SLSA provenance verification failed for $daemon_name"
+                    rm -rf "$temp_dir"
+                    return 1
+                fi
 
                 # Extract
                 print_info "Extracting 0xgend..."
@@ -947,14 +1144,14 @@ print_summary() {
     fi
 
     echo -e "${BOLD}Documentation:${NC}"
-    echo "  - Quick Start: https://docs.0xgen.dev/quickstart"
-    echo "  - User Guide: https://docs.0xgen.dev/guide"
-    echo "  - Plugin Development: https://docs.0xgen.dev/plugins"
+    echo "  - Quick Start: ${DOCS_BASE_URL}/quickstart/"
+    echo "  - User Guide: ${DOCS_BASE_URL}/cli/"
+    echo "  - Plugin Development: ${DOCS_BASE_URL}/plugins/"
     echo ""
 
     echo -e "${BOLD}Community:${NC}"
-    echo "  - GitHub: https://github.com/RowanDark/0xGen"
-    echo "  - Issues: https://github.com/RowanDark/0xGen/issues"
+    echo "  - GitHub: ${GITHUB_REPO_URL}"
+    echo "  - Issues: ${GITHUB_REPO_URL}/issues"
     echo ""
 
     echo -e "${GREEN}${BOLD}Thank you for installing 0xGen!${NC}"
@@ -989,7 +1186,19 @@ main() {
                 shift
                 ;;
             --install-dir)
+                if [[ $# -lt 2 ]]; then
+                    print_error "--install-dir requires a value"
+                    exit 1
+                fi
                 INSTALL_DIR="$2"
+                shift 2
+                ;;
+            --version)
+                if [[ $# -lt 2 ]]; then
+                    print_error "--version requires a value"
+                    exit 1
+                fi
+                INSTALL_VERSION="$2"
                 shift 2
                 ;;
             --help|-h)
@@ -1001,6 +1210,7 @@ main() {
                 echo "  --gui              Include Desktop GUI"
                 echo "  --source           Build from source"
                 echo "  --install-dir DIR  Installation directory (default: /usr/local/bin)"
+                echo "  --version TAG      Install a specific release tag instead of latest"
                 echo "  --help, -h         Show this help message"
                 exit 0
                 ;;
@@ -1015,7 +1225,9 @@ main() {
     # Check if running as root (not recommended)
     if [[ $EUID -eq 0 ]]; then
         print_warning "Running as root is not recommended"
-        if ! ask_yes_no "Continue anyway?" "n"; then
+        if $QUICK_MODE; then
+            print_info "Continuing because --quick was requested"
+        elif ! ask_yes_no "Continue anyway?" "n"; then
             exit 1
         fi
     fi
@@ -1112,5 +1324,8 @@ main() {
     print_summary
 }
 
-# Run main installation
-main "$@"
+# Run main installation, unless this file is being sourced (e.g. by tests
+# that want to exercise individual functions such as verify_checksum).
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

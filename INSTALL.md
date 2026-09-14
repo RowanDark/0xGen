@@ -402,23 +402,40 @@ pnpm tauri build
 ls -lh out/demo/
 ```
 
+### Verify Checksum
+
+Every release publishes a single checksums file covering all archives and
+packages. Verify the artifact you downloaded before installing it:
+
+```bash
+# Download the checksums file for the release
+curl -LO https://github.com/RowanDark/0xGen/releases/download/v2.0.0-alpha/0xgen_v2.0.0-alpha_checksums.txt
+
+# Verify (only the files you actually downloaded need to be present)
+sha256sum --ignore-missing -c 0xgen_v2.0.0-alpha_checksums.txt
+```
+
+The `install.sh` / `install.ps1` wizards do this automatically for every
+artifact they download, and refuse to install anything that fails
+verification.
+
 ### Verify SLSA Provenance
 ```bash
 # Download provenance
 curl -LO https://github.com/RowanDark/0xGen/releases/download/v2.0.0-alpha/0xgen-v2.0.0-alpha-provenance.intoto.jsonl
 
-# Verify with 0xgenctl
-0xgenctl verify-build --provenance 0xgen-v2.0.0-alpha-provenance.intoto.jsonl /usr/local/bin/0xgenctl
+# Verify with 0xgenctl (built with `-tags slsa`, as release binaries are)
+0xgenctl verify-build --attestation 0xgen-v2.0.0-alpha-provenance.intoto.jsonl --tag v2.0.0-alpha /usr/local/bin/0xgenctl
+
+# Or verify with the standalone slsa-verifier CLI
+slsa-verifier verify-artifact /usr/local/bin/0xgenctl \
+  --provenance-path 0xgen-v2.0.0-alpha-provenance.intoto.jsonl \
+  --source-uri github.com/RowanDark/0xGen \
+  --source-tag v2.0.0-alpha
 ```
 
-### Verify Checksum
-```bash
-# Download checksums
-curl -LO https://github.com/RowanDark/0xGen/releases/download/v2.0.0-alpha/SHA256SUMS.txt
-
-# Verify
-sha256sum -c SHA256SUMS.txt 2>&1 | grep OK
-```
+The install wizards run this verification automatically whenever
+`slsa-verifier` is available on `PATH`.
 
 ---
 
