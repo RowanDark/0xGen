@@ -32,6 +32,35 @@ controls apply, which syscalls are blocked, and what is *not* enforced
 sandbox to function at all - see
 [INSTALL.md → Plugin Sandbox Requirements](INSTALL.md#plugin-sandbox-requirements-linux).
 
+## Build-time trust boundary
+
+The sandbox above only covers *running* a plugin. Before that, `0xgend`
+compiles your plugin's source with `go build`, as the daemon user, outside
+any sandbox — the sandbox doesn't exist yet at that point in the pipeline.
+**Plugin source is trusted at build time.** The allowlist hash and cosign
+signature checked before the build (see
+[Threat model → Plugin build-time trust boundary](THREAT_MODEL.md#plugin-build-time-trust-boundary))
+prove authenticity and detect tampering; they do not sandbox the build
+itself. `go build` runs with `CGO_ENABLED=0`, `GOFLAGS=-mod=readonly`,
+`GOTOOLCHAIN=local`, and a scrubbed environment (fixed `PATH`, no daemon
+secrets forwarded), which closes the most direct code-execution vector
+(`#cgo LDFLAGS`/`#cgo CFLAGS`) and limits what the build can pull in or
+leak — but it is still a full Go toolchain invocation with the daemon
+user's filesystem and network access, not a sandboxed build.
+
+Practical implications:
+
+* Only submit or sign plugins you trust to run arbitrary code as the
+  `0xgend` user at build time, not just at run time.
+* A Go toolchain is a hard runtime dependency of `0xgend` wherever plugins
+  are built from source (see
+  [INSTALL.md → Build from Source](INSTALL.md#build-from-source)).
+* Plugins are currently distributed and built as source, not as
+  precompiled artifacts, even though the plugin catalog is described
+  elsewhere as distributing vetted plugins — that gap is tracked, and the
+  long-term direction is precompiled, signed artifacts so no build happens
+  on the operator's machine.
+
 ## Recommended development workflow
 
 1. Start from the minimal plugin skeleton below.

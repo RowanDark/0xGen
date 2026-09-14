@@ -460,6 +460,24 @@ chrome.exe --proxy-server="localhost:8080"
 
 ## Plugin Sandbox Requirements (Linux)
 
+### Go toolchain (runtime requirement, not just a build dependency)
+
+`0xgend` compiles each plugin's source with `go build` at run time, before
+launching it — this happens on every plugin invocation, not just when you
+build 0xgend itself from source. **A Go toolchain (`go` on `PATH` for the
+user running `0xgend`) is therefore a hard runtime dependency wherever you
+run plugins**, including on pre-built `0xgend` binaries installed via
+Homebrew, `.deb`/`.rpm` packages, Scoop, or the release tarballs above.
+Install the same Go version referenced in [go.mod](go.mod) (or newer) even
+if you never build 0xgend from source yourself.
+
+This also means plugin source is compiled, and therefore trusted, on the
+machine running `0xgend` — see
+[PLUGIN_GUIDE.md → Build-time trust boundary](PLUGIN_GUIDE.md#build-time-trust-boundary)
+before running plugins you did not author.
+
+### Sandbox
+
 `0xgend` chroots and drops privileges for every plugin it runs, except
 plugins marked `trusted: true` for development (see
 [README.md → Plugin Security](README.md#plugin-security)). Both operations

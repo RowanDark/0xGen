@@ -2,8 +2,10 @@ package launcher
 
 import (
 	"debug/elf"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -40,6 +42,65 @@ func TestBuildGoBinaryStaticallyLinksExampleHello(t *testing.T) {
 	for _, prog := range f.Progs {
 		if prog.Type == elf.PT_INTERP {
 			t.Fatalf("built plugin binary %q is dynamically linked (found PT_INTERP segment); expected a static, CGO_ENABLED=0 build", outPath)
+		}
+	}
+}
+
+// TestRestrictedBuildEnvScrubsSecretsAndPath is a regression test for the
+// plugin build-time trust boundary: buildGoBinary compiles verified-but-
+// untrusted plugin source before any sandbox exists to contain it, so the
+// build subprocess must not inherit the daemon's full environment (which
+// may hold auth tokens or other secrets) or an attacker-influenceable PATH.
+func TestRestrictedBuildEnvScrubsSecretsAndPath(t *testing.T) {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go toolchain not on PATH")
+	}
+
+	env := restrictedBuildEnv(goBin)
+
+	want := map[string]string{
+		"CGO_ENABLED": "0",
+		"GOFLAGS":     "-mod=readonly",
+		"GOTOOLCHAIN": "local",
+	}
+	got := map[string]string{}
+	for _, kv := range env {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok {
+			t.Fatalf("malformed env entry %q", kv)
+		}
+		if _, dup := got[k]; dup {
+			t.Fatalf("duplicate env key %q in restricted build env", k)
+		}
+		got[k] = v
+	}
+
+	for key, wantVal := range want {
+		if gotVal, ok := got[key]; !ok || gotVal != wantVal {
+			t.Errorf("env[%q] = %q, want %q", key, gotVal, wantVal)
+		}
+	}
+
+	path, ok := got["PATH"]
+	if !ok {
+		t.Fatal("restricted build env has no PATH")
+	}
+	if !strings.Contains(path, filepath.Dir(goBin)) {
+		t.Errorf("PATH %q does not contain resolved go toolchain dir %q", path, filepath.Dir(goBin))
+	}
+
+	// Anything not on the explicit allowlist below must not be forwarded,
+	// since a leaked env var here is a leaked daemon secret at build time.
+	allowed := map[string]bool{
+		"PATH": true, "CGO_ENABLED": true, "GOFLAGS": true, "GOTOOLCHAIN": true,
+		"HOME": true, "USERPROFILE": true, "GOPATH": true, "GOCACHE": true,
+		"GOMODCACHE": true, "GOROOT": true, "TMPDIR": true, "TEMP": true,
+		"TMP": true, "SystemRoot": true,
+	}
+	for key := range got {
+		if !allowed[key] {
+			t.Errorf("restricted build env forwards unexpected variable %q", key)
 		}
 	}
 }

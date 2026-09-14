@@ -54,6 +54,42 @@ backdoors.
 * **Recommendations**: pin versions in manifests, run `make sbom`, and review
   diffs in vendor directories or generated code before merging.
 
+### Plugin build-time trust boundary
+
+`0xgend` compiles plugin source with `go build` before the sandbox
+described below even exists to contain it: the build itself runs as the
+daemon user, outside any sandbox.
+
+* **Controls**: before building, the launcher (`internal/plugins/launcher/launcher.go`)
+  verifies the plugin artifact's hash against a signed allowlist and, unless
+  explicitly skipped for `trusted: true` development plugins, verifies a
+  cosign signature over the source. The `go build` invocation itself runs
+  with `CGO_ENABLED=0` (closing the `#cgo LDFLAGS`/`#cgo CFLAGS` code-execution
+  vector), `GOFLAGS=-mod=readonly` (so a build cannot silently add
+  dependencies outside `go.sum`), and `GOTOOLCHAIN=local` (so a plugin's
+  `go.mod` cannot trigger downloading and running a different Go toolchain).
+  The subprocess environment is scrubbed to a fixed `PATH` plus a short
+  allowlist of toolchain variables (`HOME`, `GOCACHE`, `GOPATH`, etc.); daemon
+  secrets and the rest of the daemon's environment are not forwarded to the
+  build.
+* **What this does not provide**: verifying a signature and then compiling
+  the verified source is not equivalent to running untrusted code in a
+  sandbox. The Go compiler and standard library are a large trusted
+  computing base, and `go build` executes with the daemon's filesystem and
+  process privileges (network access, ability to read/write anything the
+  daemon user can). A plugin author whose signing key is compromised, or
+  who the operator does not fully trust, can affect the build host through
+  any means available to a Go program running as that user — not just the
+  narrower `#cgo` vector the env-scrubbing above closes. Treat the signature
+  allowlist as authenticity and change-detection, not as a sandbox
+  boundary: **plugin source is trusted at build time**.
+* **Recommendations**: only sign plugins from authors you trust to run
+  arbitrary code as the `0xgend` user. Do not treat `ALLOWLIST` entries or
+  cosign signatures as a substitute for reviewing plugin source. The
+  long-term fix tracked for this gap is distributing plugins as precompiled,
+  signed artifacts so no build happens on the operator's machine at all;
+  until then, this section is the accurate threat model for the build step.
+
 ### Sandbox escapes
 
 Adversaries may attempt to escape the process sandbox hosting a plugin to
