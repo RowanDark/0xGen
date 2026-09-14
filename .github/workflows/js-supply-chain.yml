@@ -20,6 +20,25 @@ jobs:
         with:
           node-version: 20
 
+      - name: Guard against duplicate JS lockfiles
+        run: |
+          set -euo pipefail
+          shopt -s nullglob globstar
+          fail=0
+          for manifest in **/package.json; do
+            [[ "$manifest" == */node_modules/* ]] && continue
+            dir=$(dirname "$manifest")
+            locks=()
+            for lock in package-lock.json pnpm-lock.yaml yarn.lock; do
+              [ -f "$dir/$lock" ] && locks+=("$lock")
+            done
+            if [ "${#locks[@]}" -gt 1 ]; then
+              echo "Multiple lockfiles in $dir: ${locks[*]} — pick one package manager and delete the rest" >&2
+              fail=1
+            fi
+          done
+          exit "$fail"
+
       - name: Audit plugin dependencies
         run: |
           set -euo pipefail

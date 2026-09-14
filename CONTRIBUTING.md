@@ -7,6 +7,11 @@ Thanks for helping shape 0xgen! To keep the project healthy and reproducible, pl
 - Install Go 1.21+, Node.js 18+, and the Amass binary if you plan to exercise OSINT Well locally.
 - `go install golang.org/x/tools/cmd/goimports@latest` helps keep imports tidy.
 - Set `0XGEN_OUT` if you want 0xgen services to write artefacts outside of `/out`.
+- Node.js package managers are pinned per project and must not be mixed:
+  - `plugins/excavator` uses **npm** — commit `package-lock.json` there.
+  - `apps/desktop-shell` uses **pnpm** (install with `npm install -g pnpm` or
+    `corepack enable`) — commit `pnpm-lock.yaml` there and do not generate a
+    `package-lock.json` in that directory.
 
 ## Working on changes
 
@@ -15,6 +20,7 @@ Thanks for helping shape 0xgen! To keep the project healthy and reproducible, pl
    - `go test ./...`
    - `npm --prefix plugins/excavator test`
    - `npm --prefix plugins/excavator run crawl -- https://example.com` (optional sanity check)
+   - `pnpm --prefix apps/desktop-shell install --frozen-lockfile && pnpm --prefix apps/desktop-shell run test:a11y` when touching the desktop shell
 3. Format Go code with `gofmt -w` (or `goimports`) before committing.
 4. Update documentation (README, CHANGELOG, docs/) when behaviour changes or new features land.
 
