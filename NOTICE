@@ -1,0 +1,44 @@
+0xgen
+Copyright the 0xgen contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product bundles verbatim copies of third-party source code that
+are licensed separately from the Apache License above. Each bundled
+tree carries its own LICENSE file next to the source it covers; the
+notices below record where each copy came from.
+
+--------------------------------------------------------------------------
+
+third_party/golang.org/x/crypto/
+    Source:  golang.org/x/crypto (https://pkg.go.dev/golang.org/x/crypto)
+    License: BSD-3-Clause, see third_party/golang.org/x/crypto/LICENSE
+    Version: not recorded at vendoring time. The vendored source matches
+             golang.org/x/crypto's chacha20, chacha20poly1305, cryptobyte,
+             hkdf, and internal/poly1305 packages (non-test files only);
+             it does not exactly match any of v0.39.0-v0.42.0 byte-for-byte,
+             so the precise commit should be confirmed and recorded here
+             by whoever re-vendors this tree next.
+
+internal/netgate/http3/
+    Source:  golang.org/x/net/http3 (https://pkg.go.dev/golang.org/x/net/http3)
+    License: BSD-3-Clause, see internal/netgate/http3/LICENSE
+    Version: golang.org/x/net's http3 package is unreleased/experimental
+             and predates the golang.org/x/net v0.41.0 tag already used
+             as a normal dependency in go.mod (v0.41.0 does not contain an
+             http3 package). The exact upstream commit this copy was taken
+             from was not recorded at vendoring time; the retained
+             "TODO(bradfitz)" comments and per-file 2024/2025 copyright
+             headers are the only provenance markers currently available.
+             This code is kept under internal/ rather than third_party/
+             because it is actively compiled as part of the main Go
+             module (github.com/RowanDark/0xgen) via the
+             internal/netgate package -- moving it under third_party/
+             with its own go.mod, as third_party/golang.org/x/crypto/
+             does, would turn it into a separate Go module and break that
+             import.
+
+--------------------------------------------------------------------------
+
+See third_party/README.md for more on how vendored code under
+third_party/ is organized.
