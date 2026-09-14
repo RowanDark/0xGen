@@ -2,6 +2,7 @@ package rewrite
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,8 @@ import (
 )
 
 // Performance benchmarks for Rewrite engine
+
+var benchCtx = context.Background()
 
 func BenchmarkSingleRuleExecution(b *testing.B) {
 	tmpDir := b.TempDir()
@@ -31,12 +34,12 @@ func BenchmarkSingleRuleExecution(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Bench", Value: "test"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -61,13 +64,13 @@ func BenchmarkTenRules(b *testing.B) {
 				{Type: ActionAdd, Location: LocationHeader, Name: fmt.Sprintf("X-Rule-%d", i), Value: "test"},
 			},
 		}
-		engine.CreateRule(rule)
+		engine.CreateRule(benchCtx, rule)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -92,13 +95,13 @@ func BenchmarkHundredRules(b *testing.B) {
 				{Type: ActionAdd, Location: LocationHeader, Name: fmt.Sprintf("X-Rule-%d", i), Value: "test"},
 			},
 		}
-		engine.CreateRule(rule)
+		engine.CreateRule(benchCtx, rule)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -123,13 +126,13 @@ func BenchmarkThousandRules(b *testing.B) {
 				{Type: ActionAdd, Location: LocationHeader, Name: fmt.Sprintf("X-Rule-%d", i), Value: "test"},
 			},
 		}
-		engine.CreateRule(rule)
+		engine.CreateRule(benchCtx, rule)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -156,7 +159,7 @@ func BenchmarkComplexRegexMatching(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Matched", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	urls := []string{
 		"https://api.example.com/v1/users/550e8400-e29b-41d4-a716-446655440000",
@@ -167,7 +170,7 @@ func BenchmarkComplexRegexMatching(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", urls[i%len(urls)], nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -199,13 +202,13 @@ func BenchmarkSimpleMatchVsRegex(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Browser", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -228,14 +231,14 @@ func BenchmarkBodyRewriting(b *testing.B) {
 			{Type: ActionReplace, Location: LocationBody, Name: "old", Value: "new"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	body := bytes.Repeat([]byte("This is old data that needs to be replaced. "), 100)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "https://example.com", bytes.NewReader(body))
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -275,12 +278,12 @@ func BenchmarkVariableSubstitution(b *testing.B) {
 			},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "https://example.com", nil)
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -310,7 +313,7 @@ func BenchmarkJSONPathCondition(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Has-Role", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	body := []byte(`{"user":{"id":123,"role":"admin","permissions":["read","write","delete"]}}`)
 
@@ -318,7 +321,7 @@ func BenchmarkJSONPathCondition(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "https://example.com", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -346,14 +349,14 @@ func BenchmarkMultipleConditions(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-All-Matched", Value: "true"},
 		},
 	}
-	engine.CreateRule(rule)
+	engine.CreateRule(benchCtx, rule)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "https://example.com", nil)
 		req.Header.Set("Authorization", "Bearer token")
 		req.Header.Set("Content-Type", "application/json")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
 
@@ -367,7 +370,7 @@ func BenchmarkSandboxExecution(b *testing.B) {
 	}
 	defer engine.Close()
 
-	sandbox := NewSandbox(engine)
+	sandbox := NewSandbox(engine, nil)
 
 	rule := &Rule{
 		Name:     "Sandbox Test Rule",
@@ -378,13 +381,14 @@ func BenchmarkSandboxExecution(b *testing.B) {
 			{Type: ActionAdd, Location: LocationHeader, Name: "X-Sandboxed", Value: "true"},
 		},
 	}
-	id, _ := engine.CreateRule(rule)
-	ruleIDs := []int{id}
+	engine.CreateRule(benchCtx, rule)
+	ruleIDs := []int{rule.ID}
+
+	input := &TestRequestInput{Method: "GET", URL: "https://example.com"}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "https://example.com", nil)
-		sandbox.TestRequest(req, ruleIDs)
+		sandbox.TestRequest(benchCtx, input, ruleIDs)
 	}
 }
 
@@ -474,7 +478,7 @@ func BenchmarkRealisticTraffic(b *testing.B) {
 	}
 
 	for _, rule := range rules {
-		engine.CreateRule(rule)
+		engine.CreateRule(benchCtx, rule)
 	}
 
 	b.ResetTimer()
@@ -482,6 +486,6 @@ func BenchmarkRealisticTraffic(b *testing.B) {
 		req := httptest.NewRequest("GET", "https://api.example.com/v1/users", nil)
 		req.Header.Set("Authorization", "Bearer token123")
 		req.Header.Set("Content-Type", "application/json")
-		engine.ProcessRequest(req, fmt.Sprintf("bench-%d", i))
+		engine.ProcessRequest(req)
 	}
 }
