@@ -30,6 +30,19 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
 
+	// Make concurrent writers wait for the write lock instead of failing
+	// immediately with SQLITE_BUSY.
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("set busy timeout: %w", err)
+	}
+
+	// SQLite allows only one writer at a time. Serialize access through a
+	// single connection so concurrent Store() calls queue for the write
+	// lock instead of racing across pooled connections that each only
+	// apply the busy_timeout pragma to themselves.
+	db.SetMaxOpenConns(1)
+
 	// Enable foreign key constraints
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		db.Close()
