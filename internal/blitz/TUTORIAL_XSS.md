@@ -1,12 +1,12 @@
-# Tutorial: Fuzzing for XSS with AI Payloads
+# Tutorial: Fuzzing for XSS with Context-Aware Payloads
 
 ## Overview
 
-This tutorial demonstrates how to use Blitz to discover Cross-Site Scripting (XSS) vulnerabilities using AI-powered payload generation and classification.
+This tutorial demonstrates how to use Blitz to discover Cross-Site Scripting (XSS) vulnerabilities using context-aware payload generation and pattern-based classification.
 
 **Learning Objectives:**
 - Understand XSS vulnerability types
-- Use AI to generate context-aware XSS payloads
+- Generate context-aware XSS payloads
 - Detect payload reflection and execution
 - Validate and exploit XSS findings
 - Generate professional reports
@@ -176,11 +176,11 @@ curl "http://blog.example.com/search?q=%3Cscript%3Ealert(1)%3C/script%3E" | grep
 
 ✅ **Confirmed XSS!** The script tag is reflected without encoding.
 
-## AI-Powered XSS Discovery
+## Context-Aware XSS Discovery
 
-Now let's use AI to automatically generate and detect XSS payloads.
+Now let's use Blitz's context-aware payload generation and pattern classification to automatically generate and detect XSS payloads.
 
-### Step 1: Run with AI Features
+### Step 1: Run with Context-Aware Features
 
 ```bash
 0xgenctl blitz run \
@@ -193,7 +193,7 @@ Now let's use AI to automatically generate and detect XSS payloads.
   --output xss-ai-test.db
 ```
 
-**What AI Does:**
+**What This Does:**
 
 1. **Context Analysis:**
    - Detects `Accept: text/html` header → HTML context
@@ -213,8 +213,8 @@ Now let's use AI to automatically generate and detect XSS payloads.
 **Output:**
 
 ```
-[*] Starting Blitz with AI features...
-[*] AI analyzing request...
+[*] Starting Blitz with context-aware features...
+[*] Analyzing request...
 [*] Detected HTML context (Accept: text/html)
 [*] Parameter 'search_query' likely reflects user input
 [*] Selected vulnerability categories: xss, injection
@@ -223,18 +223,18 @@ Now let's use AI to automatically generate and detect XSS payloads.
 [+] Baseline: Status 200, Length 3421
 
 [+] Anomaly! Payload: <script>alert(document.domain)</script>
-[!] AI Classification: xss_reflection (confidence: 0.95)
+[!] Classification: xss_reflection (confidence: 0.95)
 [!] Evidence: <script>alert(document.domain)</script> found in response
 [!] Finding created: finding-xss-001
 
 [+] Anomaly! Payload: <img src=x onerror=alert(1)>
-[!] AI Classification: xss_reflection (confidence: 0.90)
+[!] Classification: xss_reflection (confidence: 0.90)
 [!] Finding created: finding-xss-002
 
 Progress: 52/52 (100%) | Findings: 5 | Completed
 ```
 
-### Step 2: Review AI Findings
+### Step 2: Review Findings
 
 ```bash
 cat xss-findings.jsonl | jq '.'
@@ -283,14 +283,14 @@ Content-Type: application/json
 {"comment":"{{comment_text}}","author":"{{author_name}}"}
 ```
 
-**AI Payload Generation:**
+**Context-Aware Payload Generation:**
 
-When AI detects JSON context, it generates payloads that:
+When Blitz detects JSON context, it generates payloads that:
 1. Break out of JSON strings
 2. Close JSON objects
 3. Inject script tags
 
-**Example AI Payloads:**
+**Example Context-Aware Payloads:**
 
 ```json
 </script><script>alert(1)</script>
@@ -319,7 +319,7 @@ Sometimes input is reflected inside an HTML attribute:
 <input type="text" value="USER_INPUT">
 ```
 
-**AI-Generated Payloads for Attribute Context:**
+**Context-Aware Payloads for Attribute Context:**
 
 ```html
 " onload=alert(1) x="
@@ -341,7 +341,7 @@ var searchQuery = "USER_INPUT";
 </script>
 ```
 
-**AI Payloads:**
+**Context-Aware Payloads:**
 
 ```javascript
 "; alert(1); //
@@ -360,7 +360,7 @@ Input reflected in `href` or `src` attributes:
 <a href="USER_INPUT">Click here</a>
 ```
 
-**AI Payloads:**
+**Context-Aware Payloads:**
 
 ```
 javascript:alert(1)
@@ -370,7 +370,7 @@ vbscript:msgbox(1)
 
 ## Context-Aware Payload Generation
 
-Blitz's AI analyzes multiple factors to generate appropriate payloads:
+Blitz analyzes multiple factors to generate appropriate payloads:
 
 ### HTML Context Indicators
 
@@ -415,7 +415,7 @@ Blitz's AI analyzes multiple factors to generate appropriate payloads:
 
 ## Bypassing Filters
 
-AI-generated payloads include common bypass techniques:
+Generated payloads include common bypass techniques:
 
 ### Case Variation
 
@@ -692,8 +692,8 @@ If Blitz doesn't find XSS:
 In this tutorial, you learned:
 
 ✅ Create XSS request templates
-✅ Use AI to generate context-aware XSS payloads
-✅ Detect payload reflection with AI classification
+✅ Generate context-aware XSS payloads
+✅ Detect payload reflection with pattern classification
 ✅ Validate XSS vulnerabilities manually
 ✅ Demonstrate exploitation impact
 ✅ Provide remediation guidance

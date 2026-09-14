@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Blitz GUI provides an intuitive, modern interface for setting up and executing AI-powered fuzzing attacks. Built with React, TypeScript, and Tailwind CSS, it offers a familiar experience similar to Burp Suite Intruder but with enhanced AI capabilities and real-time feedback.
+The Blitz GUI provides an intuitive, modern interface for setting up and executing fuzzing attacks. Built with React, TypeScript, and Tailwind CSS, it offers a familiar experience similar to Burp Suite Intruder but with context-aware payload generation and real-time feedback.
 
 ## Location
 
@@ -76,7 +76,7 @@ Two markers: `{{user}}` and `{{pass}}`
   - Numeric: Start, end, step
   - Alphabetic: a-z, A-Z ranges
 - **Custom:** Manually enter payloads (one per line)
-- **AI-Generated:** Context-aware payloads (requires AI flag)
+- **Context-Aware:** Payloads generated from target analysis (requires `--ai-payloads` flag)
 
 **Features:**
 - Live payload preview (first 10 items)
@@ -190,17 +190,17 @@ The top control panel provides:
    - Click interesting results for details
    - Export for further analysis
 
-### AI-Powered Workflow
+### Context-Aware Workflow
 
-When AI features are enabled (backend integration):
+When the pattern-based features are enabled (backend integration):
 
 1. **Automatic Payload Selection**
    - Blitz analyzes your request context
    - Suggests relevant vulnerability payloads
    - Reduces false positives
 
-2. **Smart Anomaly Detection**
-   - AI classifies responses in real-time
+2. **Pattern-Based Anomaly Detection**
+   - The response classifier matches patterns in real-time
    - Flags potential vulnerabilities
    - Maps to CWE/OWASP categories
 
@@ -322,9 +322,9 @@ The GUI is built with accessibility in mind:
 |---------|--------------|-----------|
 | Position Markers | § markers | {{ }} markers |
 | Attack Types | 4 types | 4 types (same) |
-| Payload Sources | Multiple | Multiple + AI |
+| Payload Sources | Multiple | Multiple + context-aware |
 | Live Updates | Yes | Yes |
-| Anomaly Detection | Basic | AI-powered |
+| Anomaly Detection | Basic | Pattern-based |
 | Theming | Light only | Dark/Light |
 | Export Formats | XML, CSV | CSV, JSON, HTML |
 | Findings Integration | Manual | Automatic |

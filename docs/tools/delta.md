@@ -6,7 +6,7 @@ Delta is an advanced semantic diffing tool designed for security researchers and
 
 **Key Features:**
 - 🔍 **Semantic Diffing**: Understands JSON, XML, and text structure
-- 🤖 **AI-Powered Noise Filtering**: Automatically identifies and filters timestamps, UUIDs, session tokens, and other noise
+- 🔎 **Pattern-Based Noise Filtering**: Automatically identifies and filters timestamps, UUIDs, session tokens, and other noise
 - 📊 **Batch Comparison**: Compare multiple responses simultaneously to detect outliers and patterns
 - 🎯 **Security-Focused**: Designed for finding authentication bypasses, privilege escalation, and session handling issues
 - 📈 **Statistical Analysis**: Similarity matrices, clustering, and anomaly detection
@@ -29,7 +29,7 @@ Delta is an advanced semantic diffing tool designed for security researchers and
 3. **Select baseline strategy** (first, median, all-pairs)
 4. **Adjust outlier threshold** (default: 80%)
 5. **Click "Batch Compare"**
-6. **Analyze results**: similarity matrix, outliers, AI insights
+6. **Analyze results**: similarity matrix, outliers, automated insights
 
 ## Features
 
@@ -124,9 +124,9 @@ Similar to JSON, Delta understands XML structure:
 - ✅ **Signal**: Attribute `role` changed from "user" to "admin"
 - 🔇 **Noise**: Session token change (filtered)
 
-### 4. AI Noise Filtering
+### 4. Noise Filtering
 
-Delta's AI-powered noise classifier automatically identifies and filters common noise patterns:
+Delta's pattern-based noise classifier automatically identifies and filters common noise patterns:
 
 **Filtered Patterns:**
 - ⏱️ **Timestamps**: ISO8601, Unix timestamps, RFC2822 dates
@@ -191,9 +191,9 @@ Similar responses are automatically grouped:
 - Shows cluster size and avg similarity
 - Identifies representative response per cluster
 
-**AI Insights:**
+**Automated Insights:**
 
-Automated analysis generates actionable insights:
+Pattern-based analysis generates actionable insights:
 - "3 responses suggest rate limiting (status 429)"
 - "Outlier response has unusual error message"
 - "All responses share common structure with varying session tokens"
@@ -273,7 +273,7 @@ New: ["read", "admin"]
 1. Send 20-50 requests with various invalid inputs
 2. Use Batch Comparison with all-pairs strategy
 3. Review outliers (responses that differ significantly)
-4. Check AI insights for common error patterns
+4. Check automated insights for common error patterns
 5. Identify verbose error messages that leak internal details
 
 **Example:**
@@ -350,7 +350,7 @@ Choose comparison level for text:
 
 ### Noise Filtering
 
-**Auto Mode** (Default): AI classifier automatically filters noise
+**Auto Mode** (Default): Pattern classifier automatically filters noise
 **Manual Mode**: Review each change and mark as signal/noise
 **Disabled**: Show all changes without filtering
 
@@ -514,7 +514,7 @@ Keyboard navigation is 10x faster than mouse clicking.
 |---------|-------|---------------|
 | Semantic JSON diff | ✅ Yes | ❌ No |
 | Semantic XML diff | ✅ Yes | ❌ No |
-| AI noise filtering | ✅ Yes | ❌ No |
+| Pattern-based noise filtering | ✅ Yes | ❌ No |
 | Batch comparison | ✅ Yes | ❌ No |
 | Outlier detection | ✅ Yes | ❌ No |
 | Similarity matrix | ✅ Yes | ❌ No |
@@ -544,7 +544,7 @@ A: Maximum 50 responses. For best performance, 10-20 is recommended.
 A: Yes! Export to JSON, CSV, or HTML. JSON export includes full results for re-importing.
 
 **Q: Does Delta work offline?**
-A: Yes, all diff computation is local. AI filtering uses rule-based patterns, not cloud APIs.
+A: Yes, all diff computation is local. Noise filtering uses rule-based patterns, not cloud APIs.
 
 **Q: Can I customize noise patterns?**
 A: Yes, via plugin API you can add custom noise pattern definitions.

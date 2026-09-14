@@ -1,20 +1,26 @@
-# Blitz AI Integration
+# Blitz Payload Generation and Response Classification
 
-Blitz integrates advanced AI-powered features to enhance fuzzing effectiveness beyond traditional tools. This document describes the AI capabilities available in Blitz Issue #12.2.
+Blitz includes context-aware payload generation and pattern-based response
+classification to enhance fuzzing beyond a plain wordlist. This document
+describes those features.
 
 ## Overview
 
-Blitz AI features include:
+Blitz's pattern-based features include:
 
-1. **AI Payload Selector** - Contextual payload generation based on endpoint analysis
-2. **AI Response Classifier** - Intelligent vulnerability detection and classification
+1. **Context Payload Selector** - Contextual payload generation based on endpoint analysis
+2. **Pattern Response Classifier** - Vulnerability detection and classification from regex/literal patterns
 3. **Findings Correlator** - Automatic correlation to CWE/OWASP vulnerability databases
 
-## AI Payload Selector
+None of this relies on a model or external inference call - it is regex
+matching, literal string matching, and heuristics over the request/response
+data, all of which run locally.
+
+## Context Payload Selector
 
 ### Purpose
 
-Instead of using generic wordlists, the AI Payload Selector analyzes your target endpoint and generates contextually relevant payloads based on:
+Instead of using generic wordlists, the Context Payload Selector analyzes your target endpoint and generates contextually relevant payloads based on:
 
 - URL path structure
 - Parameter names
@@ -24,7 +30,7 @@ Instead of using generic wordlists, the AI Payload Selector analyzes your target
 
 ### Supported Vulnerability Categories
 
-The AI generates targeted payloads for:
+The selector generates targeted payloads for:
 
 - **SQL Injection** (CWE-89)
   - Triggered for: database-related parameters, API endpoints, search functions
@@ -53,13 +59,13 @@ The AI generates targeted payloads for:
 ### Usage
 
 ```bash
-# Enable AI payload generation
+# Enable context-aware payload generation
 0xgenctl blitz run \
   --req request.txt \
   --ai-payloads \
   --attack sniper
 
-# Or enable all AI features
+# Or enable all pattern-based features
 0xgenctl blitz run \
   --req request.txt \
   --ai \
@@ -75,9 +81,9 @@ GET /api/search?query={{search}}&limit={{limit}} HTTP/1.1
 Host: example.com
 ```
 
-The AI will:
-1. Analyze that `/api/search` suggests a database query
-2. Identify `query` parameter as SQL injection candidate
+The selector will:
+1. Match `/api/search` against known database-query path patterns
+2. Identify `query` parameter as a SQL injection candidate by name
 3. Identify `limit` as a numeric parameter (IDOR candidate)
 4. Generate targeted SQLi payloads for `query`
 5. Generate numeric range payloads for `limit`
@@ -85,7 +91,7 @@ The AI will:
 ### Configuration
 
 ```go
-aiConfig := &blitz.AIPayloadConfig{
+config := &blitz.ContextPayloadConfig{
     EnableContextAnalysis:  true,
     MaxPayloadsPerCategory: 15,
     EnableAdvancedPayloads: true,
@@ -95,11 +101,11 @@ aiConfig := &blitz.AIPayloadConfig{
 }
 ```
 
-## AI Response Classifier
+## Pattern Response Classifier
 
 ### Purpose
 
-The AI Response Classifier analyzes fuzzing results to automatically detect and classify vulnerabilities based on response patterns.
+The Pattern Response Classifier analyzes fuzzing results to detect and classify vulnerabilities by matching response bodies against a fixed table of regexes and literal strings, each with a hardcoded confidence score.
 
 ### Detection Patterns
 
@@ -136,7 +142,7 @@ The AI Response Classifier analyzes fuzzing results to automatically detect and 
 ### Usage
 
 ```bash
-# Enable AI classification
+# Enable pattern-based classification
 0xgenctl blitz run \
   --req request.txt \
   --payloads wordlist.txt \
@@ -150,7 +156,7 @@ The AI Response Classifier analyzes fuzzing results to automatically detect and 
 
 Classifications include:
 - **Category**: Type of vulnerability detected
-- **Confidence**: Score from 0.0 to 1.0
+- **Confidence**: A fixed score (0.0-1.0) hardcoded per pattern, not a measured probability
 - **Evidence**: Matched pattern or snippet
 - **Message**: Human-readable description
 - **CWE**: Common Weakness Enumeration ID
@@ -204,7 +210,7 @@ Findings are emitted in the standard 0xGen findings format:
   --findings-output findings.jsonl \
   --attack sniper
 
-# Enable all AI features (recommended)
+# Enable all pattern-based features (recommended)
 0xgenctl blitz run \
   --req request.txt \
   --ai \
@@ -214,7 +220,7 @@ Findings are emitted in the standard 0xGen findings format:
 
 ### Vulnerability Database
 
-The correlator includes comprehensive vulnerability information:
+The correlator includes vulnerability reference information:
 
 | Category | CWE | OWASP | Severity |
 |----------|-----|-------|----------|
@@ -233,9 +239,9 @@ Each finding includes:
 - Remediation steps
 - Reference links
 
-## Complete AI Example
+## Complete Example
 
-Here's a full example using all AI features:
+Here's a full example using all pattern-based features:
 
 ```bash
 # Create request template
@@ -247,7 +253,7 @@ Content-Type: application/json
 {"username": "{{user}}", "password": "{{pass}}"}
 EOF
 
-# Run Blitz with full AI
+# Run Blitz with everything enabled
 0xgenctl blitz run \
   --req login.txt \
   --ai \
@@ -258,11 +264,11 @@ EOF
   --export-html report.html
 
 # What happens:
-# 1. AI analyzes the endpoint (POST /api/login)
+# 1. The selector matches the endpoint (POST /api/login) against known patterns
 # 2. Identifies username/password as auth parameters
 # 3. Generates SQLi payloads for both fields
 # 4. Fuzzes with Pitchfork attack (paired payloads)
-# 5. Classifies responses with AI
+# 5. Classifies responses against the pattern table
 # 6. Correlates anomalies to vulnerabilities
 # 7. Emits findings with CWE/OWASP mappings
 # 8. Writes findings to JSON Lines file
@@ -276,8 +282,8 @@ Found 2 insertion point(s)
   [0] user
   [1] pass
 
-🤖 AI Payload Generation enabled - analyzing target context...
-Generated 2 AI-powered payload sets
+Context payload generation enabled - analyzing target context...
+Generated 2 context-aware payload sets
 
 Results will be stored in: blitz_20251113_120000.db
 Findings will be written to: findings.jsonl
@@ -296,13 +302,13 @@ Successful:        147
 Failed:            0
 Anomalies:         3
 Pattern Matches:   2
-Findings (AI):     2
+Findings:          2
 Avg Duration:      124ms
 Duration Range:    98ms - 456ms
 
-=== AI Features Used ===
-✓ AI Payload Generation
-✓ AI Response Classification
+=== Features Used ===
+✓ Context Payload Generation
+✓ Pattern Response Classification
 ✓ Findings Correlation
 
 Exported to HTML: report.html
@@ -323,20 +329,20 @@ func main() {
     // Parse request template
     request, _ := blitz.ParseRequest(reqTemplate, markers)
 
-    // Create AI payload selector
-    aiConfig := &blitz.AIPayloadConfig{
+    // Create context payload selector
+    config := &blitz.ContextPayloadConfig{
         EnableContextAnalysis:  true,
         MaxPayloadsPerCategory: 15,
         EnableAdvancedPayloads: true,
     }
-    selector := blitz.NewAIPayloadSelector(aiConfig)
-    generators := blitz.CreateAIPayloadGenerator(selector, request)
+    selector := blitz.NewContextPayloadSelector(config)
+    generators := blitz.CreateContextPayloadGenerator(selector, request)
 
-    // Configure engine with AI features
+    // Configure engine with pattern-based features
     storage, _ := blitz.NewSQLiteStorage("results.db")
     defer storage.Close()
 
-    config := &blitz.EngineConfig{
+    engineConfig := &blitz.EngineConfig{
         Request:                   request,
         AttackType:                blitz.AttackTypeSniper,
         Generators:                generators,
@@ -353,7 +359,7 @@ func main() {
     }
 
     // Run engine
-    engine, _ := blitz.NewEngine(config)
+    engine, _ := blitz.NewEngine(engineConfig)
     engine.Run(context.Background(), func(result *blitz.FuzzResult) error {
         // Handle result
         return nil
@@ -363,30 +369,11 @@ func main() {
 
 ## Performance Considerations
 
-- **AI Payload Generation**: Adds ~100-200ms to initialization (one-time cost)
-- **AI Classification**: Adds ~1-5ms per anomalous response
+- **Context Payload Generation**: Adds ~100-200ms to initialization (one-time cost)
+- **Pattern Classification**: Adds ~1-5ms per anomalous response
 - **Findings Correlation**: Adds ~2-10ms per finding generation
 
 Total overhead is minimal (<1%) for typical fuzzing campaigns.
-
-## Comparison with Other Tools
-
-| Feature | Blitz AI | Burp Intruder Pro | ZAP |
-|---------|----------|-------------------|-----|
-| **Contextual Payloads** | ✓ AI-powered | Manual | Rules-based |
-| **Auto-Classification** | ✓ AI + patterns | Manual | Rules-based |
-| **CWE/OWASP Mapping** | ✓ Automatic | Manual | Limited |
-| **Findings Format** | ✓ Standard | Proprietary | XML |
-| **Cost** | Free | $449/year | Free |
-
-## Future Enhancements (Phase 3+)
-
-- LLM integration for natural language payload generation
-- Learning from successful exploitation attempts
-- Automated exploit chain discovery
-- Integration with Claude/Anthropic for advanced reasoning
-- Real-time collaboration with Hydra plugin
-- Distributed AI model across fuzzing workers
 
 ## References
 

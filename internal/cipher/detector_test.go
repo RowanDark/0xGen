@@ -6,7 +6,7 @@ import (
 )
 
 func TestDetectBase64(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -69,7 +69,7 @@ func TestDetectBase64(t *testing.T) {
 }
 
 func TestDetectHex(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -140,7 +140,7 @@ func TestDetectHex(t *testing.T) {
 }
 
 func TestDetectURL(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -188,7 +188,7 @@ func TestDetectURL(t *testing.T) {
 }
 
 func TestDetectHTML(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -236,7 +236,7 @@ func TestDetectHTML(t *testing.T) {
 }
 
 func TestDetectBinary(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -294,7 +294,7 @@ func TestDetectBinary(t *testing.T) {
 }
 
 func TestDetectJWT(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -330,7 +330,7 @@ func TestDetectJWT(t *testing.T) {
 }
 
 func TestDetectGzip(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	// Create gzip compressed data
@@ -356,7 +356,7 @@ func TestDetectGzip(t *testing.T) {
 }
 
 func TestDetectMultipleEncodings(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	// Create input that could be multiple encodings
@@ -415,7 +415,7 @@ func TestDecodeAll(t *testing.T) {
 }
 
 func TestDetectorAccuracy(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	ctx := context.Background()
 
 	// Test cases with known encodings
@@ -463,7 +463,7 @@ func TestDetectorAccuracy(t *testing.T) {
 }
 
 func TestSupportedEncodings(t *testing.T) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	encodings := detector.SupportedEncodings()
 
 	expectedEncodings := []string{

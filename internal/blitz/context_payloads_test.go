@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAIPayloadSelector_AnalyzeTarget(t *testing.T) {
+func TestContextPayloadSelector_AnalyzeTarget(t *testing.T) {
 	request := `GET /api/user/{{id}}/profile?role={{role}} HTTP/1.1
 Host: api.example.com
 Content-Type: application/json
@@ -18,7 +18,7 @@ Content-Type: application/json
 		t.Fatalf("ParseRequest failed: %v", err)
 	}
 
-	selector := NewAIPayloadSelector(nil)
+	selector := NewContextPayloadSelector(nil)
 	ctx := selector.AnalyzeTarget(req)
 
 	if ctx.Method != "GET" {
@@ -34,7 +34,7 @@ Content-Type: application/json
 	}
 }
 
-func TestAIPayloadSelector_SQLiContext(t *testing.T) {
+func TestContextPayloadSelector_SQLiContext(t *testing.T) {
 	request := `GET /search?query={{search}} HTTP/1.1
 Host: example.com
 
@@ -43,7 +43,7 @@ Host: example.com
 	markers := Markers{Open: "{{", Close: "}}"}
 	req, _ := ParseRequest(request, markers)
 
-	selector := NewAIPayloadSelector(nil)
+	selector := NewContextPayloadSelector(nil)
 	ctx := selector.AnalyzeTarget(req)
 
 	param := ctx.Parameters[0]
@@ -62,7 +62,7 @@ Host: example.com
 	}
 }
 
-func TestAIPayloadSelector_XSSContext(t *testing.T) {
+func TestContextPayloadSelector_XSSContext(t *testing.T) {
 	request := `GET /view?comment={{comment}} HTTP/1.1
 Host: example.com
 Content-Type: text/html
@@ -72,7 +72,7 @@ Content-Type: text/html
 	markers := Markers{Open: "{{", Close: "}}"}
 	req, _ := ParseRequest(request, markers)
 
-	selector := NewAIPayloadSelector(nil)
+	selector := NewContextPayloadSelector(nil)
 	ctx := selector.AnalyzeTarget(req)
 
 	param := ctx.Parameters[0]
@@ -91,8 +91,8 @@ Content-Type: text/html
 	}
 }
 
-func TestAIPayloadSelector_GenerateSQLiPayloads(t *testing.T) {
-	selector := NewAIPayloadSelector(&AIPayloadConfig{
+func TestContextPayloadSelector_GenerateSQLiPayloads(t *testing.T) {
+	selector := NewContextPayloadSelector(&ContextPayloadConfig{
 		EnableAdvancedPayloads: false,
 		MaxPayloadsPerCategory: 10,
 	})
@@ -120,8 +120,8 @@ func TestAIPayloadSelector_GenerateSQLiPayloads(t *testing.T) {
 	}
 }
 
-func TestAIPayloadSelector_GenerateXSSPayloads(t *testing.T) {
-	selector := NewAIPayloadSelector(nil)
+func TestContextPayloadSelector_GenerateXSSPayloads(t *testing.T) {
+	selector := NewContextPayloadSelector(nil)
 
 	ctx := &TargetContext{}
 	param := ParameterInfo{Name: "comment"}
@@ -146,7 +146,7 @@ func TestAIPayloadSelector_GenerateXSSPayloads(t *testing.T) {
 	}
 }
 
-func TestCreateAIPayloadGenerator(t *testing.T) {
+func TestCreateContextPayloadGenerator(t *testing.T) {
 	request := `GET /api/user/{{id}} HTTP/1.1
 Host: api.example.com
 
@@ -155,11 +155,11 @@ Host: api.example.com
 	markers := Markers{Open: "{{", Close: "}}"}
 	req, _ := ParseRequest(request, markers)
 
-	selector := NewAIPayloadSelector(&AIPayloadConfig{
+	selector := NewContextPayloadSelector(&ContextPayloadConfig{
 		MaxPayloadsPerCategory: 5,
 	})
 
-	generators := CreateAIPayloadGenerator(selector, req)
+	generators := CreateContextPayloadGenerator(selector, req)
 
 	if len(generators) != 1 {
 		t.Errorf("Expected 1 generator, got %d", len(generators))
@@ -176,7 +176,7 @@ Host: api.example.com
 }
 
 func TestInferLocation(t *testing.T) {
-	selector := NewAIPayloadSelector(nil)
+	selector := NewContextPayloadSelector(nil)
 
 	tests := []struct {
 		name     string

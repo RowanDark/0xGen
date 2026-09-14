@@ -1,13 +1,13 @@
-# Blitz - AI-Powered Fuzzer
+# Blitz - Web Application Fuzzer
 
-Blitz is 0xGen's answer to Burp Intruder, featuring AI-enhanced payload selection and real-time anomaly detection. It's designed to be significantly better than Burp Intruder while remaining free and open-source.
+Blitz is 0xGen's answer to Burp Intruder, featuring context-aware payload selection and real-time anomaly detection. It's designed to be significantly better than Burp Intruder while remaining free and open-source.
 
 ## Features
 
 ### Core Capabilities
 
 - **4 Attack Types**: Sniper, Battering Ram, Pitchfork, and Cluster Bomb
-- **Smart Payload Generators**: Support for wordlists (txt, csv, json), ranges (numeric and character), and regex patterns
+- **Payload Generators**: Support for wordlists (txt, csv, json), ranges (numeric and character), and regex patterns
 - **Concurrent Execution**: Handle 100+ concurrent requests with configurable rate limiting
 - **Real-time Anomaly Detection**: Automatically identify interesting responses based on status codes, response times, and content length deviations
 - **Pattern Matching**: Regex-based pattern matching for finding sensitive data and error messages
@@ -278,21 +278,21 @@ func main() {
 | **Price** | Free | $449/year (Pro) |
 | **Attack Types** | 4 (all) | 4 (1 free) |
 | **Concurrency** | 100+ | Limited in Free |
-| **Anomaly Detection** | Built-in AI | Manual |
+| **Anomaly Detection** | Built-in | Manual |
 | **Pattern Matching** | Regex built-in | Limited |
 | **Storage** | SQLite | Memory |
 | **Export Formats** | CSV, JSON, HTML | Limited |
 | **CLI** | Full CLI | GUI only |
 | **Scriptable** | Go API | Extensions |
 
+Blitz also includes context-aware payload generation and pattern-based response classification (`--ai-payloads`, `--ai-classify`, `--ai-findings`). See [PAYLOAD_AND_CLASSIFICATION.md](PAYLOAD_AND_CLASSIFICATION.md) for details - none of it involves a model or outbound network call.
+
 ## Future Enhancements (Phase 3+)
 
-- AI-powered payload generation
-- Smart payload selection based on response patterns
 - Distributed fuzzing across multiple workers
 - Real-time UI for live monitoring
-- Integration with finding correlation system
 - Custom scripting for advanced logic
+- Optional external LLM-assisted payload/response analysis (see Phase 4 in the project roadmap)
 
 ## License
 

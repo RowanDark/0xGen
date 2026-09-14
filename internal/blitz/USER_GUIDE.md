@@ -9,7 +9,7 @@
 5. [Position Markers](#position-markers)
 6. [Attack Types](#attack-types)
 7. [Payload Sources](#payload-sources)
-8. [AI-Powered Features](#ai-powered-features)
+8. [Context-Aware Features](#context-aware-features)
 9. [Running Fuzzing Attacks](#running-fuzzing-attacks)
 10. [Analyzing Results](#analyzing-results)
 11. [Exporting Data](#exporting-data)
@@ -18,13 +18,13 @@
 
 ## Introduction
 
-**Blitz** is an AI-powered web application fuzzer designed to automatically discover security vulnerabilities through intelligent payload generation and anomaly detection. Think of it as Burp Suite Intruder enhanced with artificial intelligence.
+**Blitz** is a web application fuzzer designed to automatically discover security vulnerabilities through context-aware payload generation and anomaly detection. Think of it as Burp Suite Intruder enhanced with target-aware payload selection and pattern-based response classification.
 
 ### Key Features
 
 - 🎯 **4 Attack Types:** Sniper, Battering Ram, Pitchfork, and Cluster Bomb
-- 🤖 **AI Payload Generation:** Context-aware payloads for SQLi, XSS, Command Injection, and more
-- 📊 **Smart Anomaly Detection:** AI-powered response classification
+- 🤖 **Context-Aware Payload Generation:** Context-aware payloads for SQLi, XSS, Command Injection, and more
+- 📊 **Pattern-Based Anomaly Detection:** Response classification using regex and literal pattern matching
 - 🔍 **Automatic Findings:** Correlates interesting results to vulnerability findings
 - ⚡ **High Performance:** Concurrent execution with rate limiting
 - 💾 **Persistent Storage:** SQLite database for result querying
@@ -474,33 +474,33 @@ root,toor,root@test.com
 -p "regex:[a-z]{5}@[a-z]{3}\\.com:50"
 ```
 
-### 5. AI-Generated Payloads
+### 5. Context-Aware Payloads
 
-**Let AI select contextually relevant payloads:**
+**Let Blitz select contextually relevant payloads:**
 
 ```bash
-# Enable AI payload generation
+# Enable context-aware payload generation
 --ai-payloads
 
-# AI will analyze the request and generate appropriate payloads
+# Blitz will analyze the request and generate appropriate payloads
 # for SQL injection, XSS, command injection, etc.
 ```
 
-## AI-Powered Features
+## Context-Aware Features
 
-### Enabling AI Features
+### Enabling Context-Aware Features
 
 ```bash
-# Enable all AI features
+# Enable all context-aware/pattern-based features
 --ai
 
 # Or individually:
---ai-payloads       # AI payload generation
---ai-classify       # AI response classification
+--ai-payloads       # Context-aware payload generation
+--ai-classify       # Pattern-based response classification
 --ai-findings       # Auto-correlate to findings
 ```
 
-### AI Payload Generation
+### Context-Aware Payload Generation
 
 Blitz analyzes your request template and generates contextually relevant payloads.
 
@@ -510,7 +510,7 @@ Blitz analyzes your request template and generates contextually relevant payload
 GET /api/user/{{id}}/profile?search={{query}} HTTP/1.1
 ```
 
-**AI Analysis:**
+**Analysis:**
 - `{{id}}`: Path parameter, likely numeric → IDOR payloads + SQLi
 - `{{query}}`: Search parameter → SQLi + XSS payloads
 
@@ -518,7 +518,7 @@ GET /api/user/{{id}}/profile?search={{query}} HTTP/1.1
 - For `id`: `1' OR '1'='1`, `-1`, `999999`, `../../../etc/passwd`
 - For `query`: `<script>alert(1)</script>`, `' OR 1=1--`, `../../etc/passwd`
 
-### AI Response Classification
+### Pattern-Based Response Classification
 
 Blitz uses pattern matching and heuristics to classify responses:
 
@@ -598,9 +598,9 @@ Findings appear in the 0xGen dashboard and can be exported to reports.
 | `--rate-limit` | Requests per second (0=unlimited) | `0` |
 | `--timeout` | Request timeout in seconds | `10` |
 | `--output` | SQLite database path | `blitz-<session>.db` |
-| `--ai` | Enable all AI features | `false` |
-| `--ai-payloads` | AI payload generation | `false` |
-| `--ai-classify` | AI response classification | `false` |
+| `--ai` | Enable all context-aware/pattern-based features | `false` |
+| `--ai-payloads` | Context-aware payload generation | `false` |
+| `--ai-classify` | Pattern-based response classification | `false` |
 | `--ai-findings` | Auto-create findings | `false` |
 | `--findings-output` | Findings output file (JSONL) | None |
 | `--follow-redirects` | Follow HTTP redirects | `false` |
@@ -631,7 +631,7 @@ Findings appear in the 0xGen dashboard and can be exported to reports.
   --rate-limit 10
 ```
 
-**3. SQLi Discovery with AI:**
+**3. SQLi Discovery with Context-Aware Features:**
 
 ```bash
 0xgenctl blitz run \
@@ -955,9 +955,9 @@ Preview requests without sending them:
 2. **Use Rate Limiting:** Respect target servers and avoid detection.
 3. **Monitor Progress:** Use verbose mode to track fuzzing progress.
 4. **Filter Results:** Focus on anomalies rather than all results.
-5. **Leverage AI:** Use `--ai` flags to reduce false positives.
+5. **Leverage Context-Aware Features:** Use `--ai` flags to reduce false positives.
 6. **Organize Sessions:** Use descriptive output database names.
-7. **Review Findings:** Always manually verify AI-generated findings.
+7. **Review Findings:** Always manually verify auto-generated findings.
 8. **Export Early:** Export results periodically in case of interruption.
 9. **Test Safely:** Only test systems you have permission to assess.
 10. **Document Results:** Keep notes on interesting findings.
@@ -965,7 +965,7 @@ Preview requests without sending them:
 ## Next Steps
 
 - [Tutorial: Finding SQL Injection with Blitz](./TUTORIAL_SQLI.md)
-- [Tutorial: Fuzzing for XSS with AI Payloads](./TUTORIAL_XSS.md)
+- [Tutorial: Fuzzing for XSS with Context-Aware Payloads](./TUTORIAL_XSS.md)
 - [API Documentation for Plugin Developers](./API_DOCS.md)
 - [Blitz GUI Guide](./BLITZ_GUI.md)
 

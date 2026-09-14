@@ -10,16 +10,16 @@ import (
 	"strings"
 )
 
-// SmartDetector implements intelligent encoding detection
-type SmartDetector struct{}
+// EncodingDetector detects the encoding of input data using heuristics and pattern matching.
+type EncodingDetector struct{}
 
-// NewSmartDetector creates a new smart detector
-func NewSmartDetector() *SmartDetector {
-	return &SmartDetector{}
+// NewEncodingDetector creates a new encoding detector
+func NewEncodingDetector() *EncodingDetector {
+	return &EncodingDetector{}
 }
 
 // Detect attempts to identify the encoding of the input
-func (d *SmartDetector) Detect(ctx context.Context, input []byte) ([]DetectionResult, error) {
+func (d *EncodingDetector) Detect(ctx context.Context, input []byte) ([]DetectionResult, error) {
 	if len(input) == 0 {
 		return nil, fmt.Errorf("empty input")
 	}
@@ -50,7 +50,7 @@ func (d *SmartDetector) Detect(ctx context.Context, input []byte) ([]DetectionRe
 }
 
 // SupportedEncodings returns a list of encodings this detector can identify
-func (d *SmartDetector) SupportedEncodings() []string {
+func (d *EncodingDetector) SupportedEncodings() []string {
 	return []string{
 		"base64",
 		"base64url",
@@ -64,7 +64,7 @@ func (d *SmartDetector) SupportedEncodings() []string {
 }
 
 // detectBase64 checks if input is Base64 encoded
-func (d *SmartDetector) detectBase64(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectBase64(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 	inputStr := strings.TrimSpace(string(input))
 
@@ -119,7 +119,7 @@ func (d *SmartDetector) detectBase64(input []byte) []DetectionResult {
 }
 
 // detectHex checks if input is hexadecimal
-func (d *SmartDetector) detectHex(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectHex(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 	inputStr := strings.TrimSpace(string(input))
 
@@ -163,7 +163,7 @@ func (d *SmartDetector) detectHex(input []byte) []DetectionResult {
 }
 
 // detectURL checks if input is URL-encoded
-func (d *SmartDetector) detectURL(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectURL(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 	inputStr := string(input)
 
@@ -193,7 +193,7 @@ func (d *SmartDetector) detectURL(input []byte) []DetectionResult {
 }
 
 // detectHTML checks if input contains HTML entities
-func (d *SmartDetector) detectHTML(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectHTML(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 	inputStr := string(input)
 
@@ -216,7 +216,7 @@ func (d *SmartDetector) detectHTML(input []byte) []DetectionResult {
 }
 
 // detectBinary checks if input is binary string
-func (d *SmartDetector) detectBinary(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectBinary(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 	inputStr := strings.TrimSpace(string(input))
 	inputStr = strings.ReplaceAll(inputStr, " ", "")
@@ -242,7 +242,7 @@ func (d *SmartDetector) detectBinary(input []byte) []DetectionResult {
 }
 
 // detectJWT checks if input is a JWT token
-func (d *SmartDetector) detectJWT(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectJWT(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 	inputStr := strings.TrimSpace(string(input))
 
@@ -277,7 +277,7 @@ func (d *SmartDetector) detectJWT(input []byte) []DetectionResult {
 }
 
 // detectGzip checks if input is gzip compressed
-func (d *SmartDetector) detectGzip(input []byte) []DetectionResult {
+func (d *EncodingDetector) detectGzip(input []byte) []DetectionResult {
 	results := []DetectionResult{}
 
 	// Gzip magic bytes: 0x1f 0x8b
@@ -331,7 +331,7 @@ func sortResultsByConfidence(results []DetectionResult) {
 
 // DecodeAll attempts to decode using all detected encodings
 func DecodeAll(ctx context.Context, input []byte) ([]DecodeResult, error) {
-	detector := NewSmartDetector()
+	detector := NewEncodingDetector()
 	detections, err := detector.Detect(ctx, input)
 	if err != nil {
 		return nil, err

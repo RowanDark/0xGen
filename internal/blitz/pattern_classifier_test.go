@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-func TestAIClassifier_ClassifySQLError(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_ClassifySQLError(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	result := &FuzzResult{
 		Payload: "' OR 1=1--",
@@ -41,8 +41,8 @@ func TestAIClassifier_ClassifySQLError(t *testing.T) {
 	}
 }
 
-func TestAIClassifier_ClassifyXSS(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_ClassifyXSS(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	result := &FuzzResult{
 		Payload: "<script>alert(1)</script>",
@@ -70,8 +70,8 @@ func TestAIClassifier_ClassifyXSS(t *testing.T) {
 	}
 }
 
-func TestAIClassifier_ClassifyCommandExecution(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_ClassifyCommandExecution(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	result := &FuzzResult{
 		Payload: "; whoami",
@@ -99,8 +99,8 @@ func TestAIClassifier_ClassifyCommandExecution(t *testing.T) {
 	}
 }
 
-func TestAIClassifier_ClassifyWithContext(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_ClassifyWithContext(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	result := &FuzzResult{
 		Payload: "' OR 1=1--",
@@ -125,8 +125,8 @@ func TestAIClassifier_ClassifyWithContext(t *testing.T) {
 	}
 }
 
-func TestAIClassifier_GetTopClassification(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_GetTopClassification(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	classifications := []Classification{
 		{Category: ClassCategorySQLError, Confidence: 0.95},
@@ -148,8 +148,8 @@ func TestAIClassifier_GetTopClassification(t *testing.T) {
 	}
 }
 
-func TestAIClassifier_NoClassificationForCleanResponse(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_NoClassificationForCleanResponse(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	result := &FuzzResult{
 		Payload: "test",
@@ -167,8 +167,8 @@ func TestAIClassifier_NoClassificationForCleanResponse(t *testing.T) {
 	}
 }
 
-func TestAIClassifier_SensitiveDataDetection(t *testing.T) {
-	classifier := NewAIClassifier()
+func TestPatternClassifier_SensitiveDataDetection(t *testing.T) {
+	classifier := NewPatternClassifier()
 
 	result := &FuzzResult{
 		Payload: "test",

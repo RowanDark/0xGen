@@ -198,8 +198,8 @@ func (s *Server) handleCipherDetect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the smart detector with request context for proper cancellation and tracing
-	detector := cipher.NewSmartDetector()
+	// Use the encoding detector with request context for proper cancellation and tracing
+	detector := cipher.NewEncodingDetector()
 	ctx := r.Context()
 	detections, err := detector.Detect(ctx, []byte(req.Input))
 	if err != nil {
@@ -243,8 +243,8 @@ func (s *Server) handleCipherSmartDecode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Use the smart detector to detect encoding with request context for proper cancellation and tracing
-	detector := cipher.NewSmartDetector()
+	// Use the encoding detector to detect encoding with request context for proper cancellation and tracing
+	detector := cipher.NewEncodingDetector()
 	ctx := r.Context()
 
 	detections, err := detector.Detect(ctx, []byte(req.Input))

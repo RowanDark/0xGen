@@ -52,7 +52,7 @@ async fn execute_cipher_operation(
 
 #[tauri::command]
 async fn detect_encoding(input: String) -> Result<Vec<DetectionResult>, String> {
-    // Use SmartDetector
+    // Use EncodingDetector
 }
 ```
 
@@ -223,7 +223,7 @@ async fn execute_cipher_operation(operation: String, input: String) -> Result<St
 
 #[tauri::command]
 async fn detect_encoding(input: String) -> Result<Vec<serde_json::Value>, String> {
-    let detector = cipher.NewSmartDetector();
+    let detector = cipher.NewEncodingDetector();
     let results = detector.Detect(context.Background(), input.as_bytes())?;
     Ok(serde_json::to_value(results).map_err(|e| e.to_string())?)
 }
