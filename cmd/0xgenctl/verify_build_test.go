@@ -1,10 +1,8 @@
-//go:build slsa
-
 package main
 
 import (
-	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -13,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/RowanDark/0xgen/internal/reporter"
-	"github.com/slsa-framework/slsa-verifier/v2/options"
-	"github.com/slsa-framework/slsa-verifier/v2/verifiers/utils"
 )
 
 type failingFetcher struct{}
@@ -31,6 +27,23 @@ type stubFetcher struct {
 func (s *stubFetcher) Fetch(_ context.Context, _, _, _, _ string) (string, []byte, error) {
 	s.called = true
 	return "remote.intoto", s.data, nil
+}
+
+func encodeProvenance(t *testing.T, statement map[string]any) []byte {
+	t.Helper()
+	payload, err := json.Marshal(statement)
+	if err != nil {
+		t.Fatalf("marshal statement: %v", err)
+	}
+	envelope := map[string]string{
+		"payloadType": "application/vnd.in-toto+json",
+		"payload":     base64.StdEncoding.EncodeToString(payload),
+	}
+	data, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatalf("marshal envelope: %v", err)
+	}
+	return data
 }
 
 func TestRunVerifyBuildRequiresArtifact(t *testing.T) {
@@ -91,6 +104,32 @@ func TestRunVerifyBuildFetchError(t *testing.T) {
 	}
 }
 
+func TestRunVerifyBuildVerifierNotFound(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	dir := t.TempDir()
+	artifact := filepath.Join(dir, "artifact.bin")
+	if err := os.WriteFile(artifact, []byte("data"), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	attestation := filepath.Join(dir, "provenance.intoto.jsonl")
+	if err := os.WriteFile(attestation, encodeProvenance(t, map[string]any{}), 0o644); err != nil {
+		t.Fatalf("write attestation: %v", err)
+	}
+
+	originalRunner := runSlsaVerifier
+	runSlsaVerifier = func(_ context.Context, _ verifierArgs) (string, error) {
+		return "", errors.New("slsa-verifier not found in PATH")
+	}
+	t.Cleanup(func() { runSlsaVerifier = originalRunner })
+
+	code := runVerifyBuild([]string{"--attestation", attestation, "--tag", "v1.2.3", artifact})
+	if code != 1 {
+		t.Fatalf("expected exit code 1, got %d", code)
+	}
+}
+
 func TestRunVerifyBuildSuccessWithFetcher(t *testing.T) {
 	restore := silenceOutput(t)
 	defer restore()
@@ -123,40 +162,75 @@ func TestRunVerifyBuildSuccessWithFetcher(t *testing.T) {
 			"metadata": map[string]string{"buildInvocationID": "123"},
 		},
 	}
-	payload, err := json.Marshal(statement)
-	if err != nil {
-		t.Fatalf("marshal statement: %v", err)
-	}
+	provenance := encodeProvenance(t, statement)
 
-	stub := &stubFetcher{data: []byte("attestation")}
+	stub := &stubFetcher{data: provenance}
 	originalFetcher := activeFetcher
 	activeFetcher = stub
 	t.Cleanup(func() { activeFetcher = originalFetcher })
 
-	builder, err := utils.TrustedBuilderIDNew(genericBuilderIDPath, false)
-	if err != nil {
-		t.Fatalf("builder id: %v", err)
+	var gotArgs verifierArgs
+	originalRunner := runSlsaVerifier
+	runSlsaVerifier = func(_ context.Context, args verifierArgs) (string, error) {
+		gotArgs = args
+		data, err := os.ReadFile(args.provenancePath)
+		if err != nil {
+			t.Fatalf("read staged provenance: %v", err)
+		}
+		if string(data) != string(provenance) {
+			t.Fatalf("unexpected staged provenance contents")
+		}
+		return "PASSED\n", nil
 	}
-
-	originalVerifier := verifyProvenance
-	verifyProvenance = func(ctx context.Context, prov []byte, artifactHash string, provOpts *options.ProvenanceOpts, builderOpts *options.BuilderOpts) ([]byte, *utils.TrustedBuilderID, error) {
-		if !bytes.Equal(prov, stub.data) {
-			t.Fatalf("unexpected provenance payload")
-		}
-		if artifactHash != digest {
-			t.Fatalf("expected digest %s, got %s", digest, artifactHash)
-		}
-		if provOpts.ExpectedDigest != digest {
-			t.Fatalf("expected digest in opts")
-		}
-		return payload, builder, nil
-	}
-	t.Cleanup(func() { verifyProvenance = originalVerifier })
+	t.Cleanup(func() { runSlsaVerifier = originalRunner })
 
 	if code := runVerifyBuild([]string{"--tag", "v1.2.3", artifact}); code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 	if !stub.called {
 		t.Fatalf("expected fetcher to be called")
+	}
+	if gotArgs.artifactPath != filepath.Clean(artifact) {
+		t.Fatalf("unexpected artifact path: %s", gotArgs.artifactPath)
+	}
+	if gotArgs.sourceURI != "git+https://github.com/RowanDark/0xgen" {
+		t.Fatalf("unexpected source URI: %s", gotArgs.sourceURI)
+	}
+	if gotArgs.tag != "v1.2.3" {
+		t.Fatalf("unexpected tag: %s", gotArgs.tag)
+	}
+	if gotArgs.builderID != genericBuilderIDPath {
+		t.Fatalf("unexpected builder ID: %s", gotArgs.builderID)
+	}
+}
+
+func TestRunVerifyBuildArtifactFlag(t *testing.T) {
+	restore := silenceOutput(t)
+	defer restore()
+
+	dir := t.TempDir()
+	artifact := filepath.Join(dir, "artifact.bin")
+	if err := os.WriteFile(artifact, []byte("data"), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	attestation := filepath.Join(dir, "provenance.intoto.jsonl")
+	if err := os.WriteFile(attestation, encodeProvenance(t, map[string]any{}), 0o644); err != nil {
+		t.Fatalf("write attestation: %v", err)
+	}
+
+	var gotArgs verifierArgs
+	originalRunner := runSlsaVerifier
+	runSlsaVerifier = func(_ context.Context, args verifierArgs) (string, error) {
+		gotArgs = args
+		return "PASSED\n", nil
+	}
+	t.Cleanup(func() { runSlsaVerifier = originalRunner })
+
+	code := runVerifyBuild([]string{"--artifact", artifact, "--attestation", attestation, "--tag", "v1.2.3"})
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+	if gotArgs.artifactPath != filepath.Clean(artifact) {
+		t.Fatalf("unexpected artifact path: %s", gotArgs.artifactPath)
 	}
 }
