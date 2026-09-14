@@ -4,7 +4,7 @@
 // # Overview
 //
 // Cipher is 0xGen's answer to Burp Decoder, offering:
-//   - AI-powered auto-detection of encodings (90%+ accuracy)
+//   - Heuristic auto-detection of encodings
 //   - Transformation chaining (pipeline multiple operations)
 //   - JWT signing/validation
 //   - Recipe library (save and reuse transformation chains)
@@ -24,7 +24,7 @@
 //
 // Automatically detect encoding:
 //
-//	detector := cipher.NewSmartDetector()
+//	detector := cipher.NewEncodingDetector()
 //	results, _ := detector.Detect(ctx, []byte("SGVsbG8gV29ybGQh"))
 //
 //	for _, r := range results {
@@ -118,9 +118,10 @@
 //   - jwt_verify - Verify JWT token with secret
 //   - jwt_sign - Sign JWT token with secret
 //
-// # Detection Accuracy
+// # Detection Confidence
 //
-// The auto-detection system achieves 90%+ accuracy on common encodings:
+// The auto-detection heuristics assign a confidence score per encoding,
+// not a measured accuracy rate:
 //   - Base64: 90-95% confidence
 //   - Hexadecimal: 80-95% confidence (higher with 0x prefix)
 //   - URL encoding: 50-95% confidence (based on density)

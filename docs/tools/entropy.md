@@ -2,7 +2,7 @@
 
 ## Overview
 
-Entropy is a powerful randomness analysis tool designed to detect weak pseudo-random number generators (PRNGs), predictable session IDs, and other security vulnerabilities related to insufficient randomness. It combines statistical analysis, PRNG fingerprinting, and AI-powered pattern detection to identify tokens that can be predicted or brute-forced.
+Entropy is a powerful randomness analysis tool designed to detect weak pseudo-random number generators (PRNGs), predictable session IDs, and other security vulnerabilities related to insufficient randomness. It combines statistical analysis, PRNG fingerprinting, and pattern detection to identify tokens that can be predicted or brute-forced.
 
 ### Why Entropy Matters
 
@@ -430,7 +430,7 @@ jobs:
 |---------|---------------|----------------|
 | **Statistical Tests** | 7 tests (Chi-squared, Runs, Serial Correlation, Spectral, Entropy, Collisions, Bit Distribution) | 6 tests (similar coverage) |
 | **PRNG Fingerprinting** | ✅ Detects 7 known weak PRNGs | ❌ No PRNG fingerprinting |
-| **AI Pattern Detection** | ✅ 5 pattern types | ❌ Manual analysis only |
+| **Pattern Detection** | ✅ 5 pattern types | ❌ Manual analysis only |
 | **Real-Time Capture** | ✅ Live statistics, auto-stop | ⚠️ Basic auto-stop |
 | **Incremental Analysis** | ✅ Results update as tokens captured | ❌ Analysis only after completion |
 | **Visualizations** | ✅ 6 interactive charts (heatmap, FFT, time-series) | ⚠️ Basic charts |
@@ -533,7 +533,7 @@ A: Randomness score (0-100) is quantitative assessment. Risk level (low/medium/h
 A: Yes, use the JSON export format to import pre-collected tokens (API feature).
 
 **Q: How does Entropy compare to NIST randomness tests?**
-A: Entropy implements similar statistical tests (runs, spectral, chi-squared) but adds security-focused features like PRNG fingerprinting and AI pattern detection specifically for web tokens.
+A: Entropy implements similar statistical tests (runs, spectral, chi-squared) but adds security-focused features like PRNG fingerprinting and pattern detection specifically for web tokens.
 
 **Q: Is Entropy suitable for cryptographic RNG testing?**
 A: Entropy is designed for web token analysis. For dedicated cryptographic RNG testing, use NIST SP 800-22 test suite or dieharder.

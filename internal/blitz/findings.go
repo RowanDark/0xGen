@@ -9,7 +9,7 @@ import (
 
 // FindingsCorrelator converts Blitz fuzzing results into 0xGen findings.
 type FindingsCorrelator struct {
-	classifier *AIClassifier
+	classifier *PatternClassifier
 	sessionID  string
 }
 
@@ -28,7 +28,7 @@ type VulnerabilityInfo struct {
 // NewFindingsCorrelator creates a new findings correlator.
 func NewFindingsCorrelator(sessionID string) *FindingsCorrelator {
 	return &FindingsCorrelator{
-		classifier: NewAIClassifier(),
+		classifier: NewPatternClassifier(),
 		sessionID:  sessionID,
 	}
 }
@@ -42,7 +42,7 @@ func (fc *FindingsCorrelator) CorrelateResult(result *FuzzResult) []*findings.Fi
 		return resultFindings
 	}
 
-	// Classify the response with AI
+	// Classify the response using pattern matching
 	classifications := fc.classifier.ClassifyWithContext(result, result.Payload)
 
 	// Generate findings for each classification

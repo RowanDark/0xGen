@@ -20,7 +20,7 @@ type Engine struct {
 	config     *EngineConfig
 	analyzer   *Analyzer
 	strategy   AttackStrategy
-	classifier *AIClassifier
+	classifier *PatternClassifier
 	correlator *FindingsCorrelator
 }
 
@@ -65,9 +65,9 @@ func NewEngine(config *EngineConfig) (*Engine, error) {
 		strategy: strategy,
 	}
 
-	// Initialize AI components if enabled
+	// Initialize the response classifier if enabled
 	if config.EnableAIClassification {
-		engine.classifier = NewAIClassifier()
+		engine.classifier = NewPatternClassifier()
 	}
 
 	if config.EnableFindingsCorrelation {
@@ -174,7 +174,7 @@ func (e *Engine) executeJobs(ctx context.Context, jobs []AttackJob, callback fun
 			// Analyze response
 			e.analyzer.Analyze(result)
 
-			// AI Classification
+			// Pattern classification
 			if e.classifier != nil && result.Anomaly != nil && result.Anomaly.IsInteresting {
 				classifications := e.classifier.ClassifyWithContext(result, result.Payload)
 

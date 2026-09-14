@@ -26,8 +26,8 @@
 | **Build Pipeline** | 100% | ✅ Multi-platform, automated |
 | **GUI & UX** | 92% | ✅ Functional (see [clarification](#known-clarifications)) |
 | **Security** | 96% | ✅ SLSA L3, SBOM, signing |
-| **AI (Current)** | 63% | ✅ Embedded AI complete |
-| **AI (Infrastructure)** | 100% | ✅ Ready for Phase 4 LLM |
+| **Heuristic Analysis (Current)** | 63% | ✅ Embedded heuristics complete |
+| **Heuristic Analysis (Infrastructure)** | 100% | ✅ Ready for Phase 4 LLM |
 
 **Overall**: **98% Phase 2 Ready** (after documentation updates)
 
@@ -45,7 +45,7 @@ Comprehensive audits completed for Issues #1-6:
 | #2 | Build & Distribution Pipeline | ✅ Complete | [VERIFICATION_REPORT_ISSUE_2.md](VERIFICATION_REPORT_ISSUE_2.md) |
 | #3 | GUI & UX Feature Audit | ✅ Complete | [VERIFICATION_REPORT_ISSUE_3.md](VERIFICATION_REPORT_ISSUE_3.md) |
 | #4 | Security & Supply Chain Compliance | ✅ Complete | [VERIFICATION_REPORT_ISSUE_4.md](VERIFICATION_REPORT_ISSUE_4.md) |
-| #5 | AI Integration Infrastructure | ✅ Complete | [VERIFICATION_REPORT_ISSUE_5.md](VERIFICATION_REPORT_ISSUE_5.md) |
+| #5 | Heuristic Analysis Infrastructure | ✅ Complete | [VERIFICATION_REPORT_ISSUE_5.md](VERIFICATION_REPORT_ISSUE_5.md) |
 | #6 | Gap Analysis & Readiness Report | ✅ Complete | [VERIFICATION_REPORT_ISSUE_6.md](VERIFICATION_REPORT_ISSUE_6.md) |
 | #7 | Documentation Clarifications | 🚧 In Progress | Alpha Launch blocker (P0) |
 
@@ -96,7 +96,7 @@ Comprehensive audits completed for Issues #1-6:
 - ✅ Core proxy engine (MITM, TLS interception)
 - ✅ Plugin system with sandboxing (5 security layers)
 - ✅ Desktop GUI (Flows, Plugins panels)
-- ✅ Hydra AI analyzer (5 vulnerability types)
+- ✅ Hydra heuristic analyzer (5 vulnerability types)
 - ✅ SLSA Level 3 provenance, SBOM, signing
 - ✅ Multi-platform distribution (Linux, macOS, Windows)
 - ✅ CI/CD automation
@@ -115,10 +115,10 @@ Comprehensive audits completed for Issues #1-6:
 
 | Tool | Burp Equivalent | Key Improvement |
 |------|----------------|-----------------|
-| **Blitz** | Intruder | AI payload selection, real-time anomaly detection |
+| **Blitz** | Intruder | Context-aware payload selection, real-time anomaly detection |
 | **Cipher** | Decoder | Auto-detection, transformation chaining, JWT signing |
 | **Delta** | Comparer | Semantic diffing, batch comparison |
-| **Entropy** | Sequencer | AI pattern detection, modern visualizations |
+| **Entropy** | Sequencer | Pattern detection, modern visualizations |
 | **Rewrite** | Match/Replace | Visual rule builder, variable extraction |
 
 **Effort**: 16 weeks (4 months with parallel development)
@@ -130,7 +130,7 @@ Comprehensive audits completed for Issues #1-6:
 ### Phase 4: AI Integration (Q2-Q3 2025)
 
 **Duration**: 6 months (Apr - Sep 2025)
-**Goal**: Connect AI infrastructure to external LLMs
+**Goal**: Connect the existing heuristic analysis layer to external LLMs
 **Target**: 100% feature parity (equals Burp Pro)
 
 **Deliverables**:
@@ -246,13 +246,13 @@ Comprehensive audits completed for Issues #1-6:
   - WCAG AA compliance
   - 8 themes including accessibility modes
 
-#### AI & Analysis
+#### Heuristic Analysis
 
-- **Hydra Plugin**: [plugins/hydra/](plugins/hydra/) - AI vulnerability analyzer
+- **Hydra Plugin**: [plugins/hydra/](plugins/hydra/) - heuristic vulnerability analyzer
   - 5 vulnerability analyzers (XSS, SQLi, SSRF, CMDi, Redirect)
-  - LLM consensus system (policy-based evaluation)
+  - Policy-based confidence evaluation
   - Confidence scoring and metadata enrichment
-- **AI Infrastructure**: [internal/ai/](internal/ai/) - Placeholder for Phase 4
+- **LLM Integration**: Not yet started - planned for Phase 4
 - **Mimir Agent**: [apps/desktop-shell/src/lib/mimir-agent.ts](apps/desktop-shell/src/lib/mimir-agent.ts)
   - Run configuration assistant (heuristic-based)
   - 5 recommendation rules
@@ -276,7 +276,7 @@ Comprehensive audits completed for Issues #1-6:
 ### Maintained Throughout All Phases
 
 1. **Open Source**: Always free, full transparency
-2. **AI-First**: Every feature enhanced with ML
+2. **Heuristic-First**: Every feature enhanced with deterministic, transparent heuristics
 3. **Security Model**: Best-in-class plugin sandboxing (5 layers)
 4. **Supply Chain**: SLSA L3, SBOM, provenance (only tool with this)
 5. **CI/CD Native**: Built for automation from day 1
@@ -338,7 +338,7 @@ Comprehensive audits completed for Issues #1-6:
 
 Looking for contributors in:
 
-1. **Blitz (Fuzzer)**: AI payload selection, anomaly detection
+1. **Blitz (Fuzzer)**: Context-aware payload selection, anomaly detection
 2. **Cipher (Encoder)**: Auto-detection, transformation chaining
 3. **Delta (Comparer)**: Semantic diffing, batch comparison
 4. **Entropy (Sequencer)**: Randomness analysis, visualizations

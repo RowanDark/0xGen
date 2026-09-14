@@ -59,7 +59,7 @@ This documentation provides comprehensive guidance for developers who want to ex
 │                           │                             │
 │                           ▼                             │
 │  ┌────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │  Anomaly   │◀─│   Response   │─▶│      AI        │  │
+│  │  Anomaly   │◀─│   Response   │─▶│    Pattern     │  │
 │  │  Detector  │  │   Analyzer   │  │  Classifier    │  │
 │  └────────────┘  └──────────────┘  └────────────────┘  │
 │                           │                             │
@@ -79,7 +79,7 @@ This documentation provides comprehensive guidance for developers who want to ex
 3. **Attack Strategy** → Combines payloads into attack jobs
 4. **Worker Pool** → Executes HTTP requests concurrently
 5. **Response Analyzer** → Detects anomalies
-6. **AI Classifier** → Classifies vulnerabilities
+6. **Pattern Classifier** → Classifies vulnerabilities
 7. **Findings Correlator** → Creates security findings
 8. **Storage** → Persists results
 9. **Export** → Formats for output
@@ -561,12 +561,12 @@ func (a *Analyzer) Analyze(result *FuzzResult) *AnomalyIndicator
 - **Response Time Factor:** Much slower or faster (> 2x or < 0.5x)
 - **Pattern Matching:** Custom regex patterns
 
-### AI Classifier
+### Pattern Classifier
 
 Classifies responses for vulnerability patterns.
 
 ```go
-type AIClassifier struct {
+type PatternClassifier struct {
     patterns map[ClassificationCategory][]classificationPattern
 }
 
@@ -580,8 +580,8 @@ type Classification struct {
     OWASP      string
 }
 
-func (c *AIClassifier) Classify(response *FuzzResult) []Classification
-func (c *AIClassifier) ClassifyWithContext(result *FuzzResult, payload string) []Classification
+func (c *PatternClassifier) Classify(response *FuzzResult) []Classification
+func (c *PatternClassifier) ClassifyWithContext(result *FuzzResult, payload string) []Classification
 ```
 
 ### Creating a Custom Classifier
@@ -651,7 +651,7 @@ Converts fuzzing results to 0xGen findings.
 
 ```go
 type FindingsCorrelator struct {
-    classifier *AIClassifier
+    classifier *PatternClassifier
     sessionID  string
 }
 
@@ -939,7 +939,7 @@ Content-Type: application/json
 }
 ```
 
-### Example 2: IDOR Testing with AI
+### Example 2: IDOR Testing with Pattern Classification
 
 ```go
 package main

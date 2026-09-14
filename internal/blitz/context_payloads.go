@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-// AIPayloadSelector generates contextually relevant payloads based on target analysis.
-type AIPayloadSelector struct {
-	config *AIPayloadConfig
+// ContextPayloadSelector generates contextually relevant payloads based on target analysis.
+type ContextPayloadSelector struct {
+	config *ContextPayloadConfig
 }
 
-// AIPayloadConfig configures AI payload generation behavior.
-type AIPayloadConfig struct {
+// ContextPayloadConfig configures context-aware payload generation behavior.
+type ContextPayloadConfig struct {
 	// EnableContextAnalysis enables endpoint context analysis.
 	EnableContextAnalysis bool
 
@@ -65,10 +65,10 @@ type ParameterInfo struct {
 	Type     string // "string", "numeric", "boolean", "json", "xml"
 }
 
-// NewAIPayloadSelector creates a new AI-powered payload selector.
-func NewAIPayloadSelector(config *AIPayloadConfig) *AIPayloadSelector {
+// NewContextPayloadSelector creates a new context-aware payload selector.
+func NewContextPayloadSelector(config *ContextPayloadConfig) *ContextPayloadSelector {
 	if config == nil {
-		config = &AIPayloadConfig{
+		config = &ContextPayloadConfig{
 			EnableContextAnalysis:  true,
 			MaxPayloadsPerCategory: 10,
 			EnableAdvancedPayloads: true,
@@ -79,13 +79,13 @@ func NewAIPayloadSelector(config *AIPayloadConfig) *AIPayloadSelector {
 		config.MaxPayloadsPerCategory = 10
 	}
 
-	return &AIPayloadSelector{
+	return &ContextPayloadSelector{
 		config: config,
 	}
 }
 
 // AnalyzeTarget examines the request template to infer context.
-func (s *AIPayloadSelector) AnalyzeTarget(request *Request) *TargetContext {
+func (s *ContextPayloadSelector) AnalyzeTarget(request *Request) *TargetContext {
 	ctx := &TargetContext{
 		Parameters:      make([]ParameterInfo, len(request.Positions)),
 		InferredContext: make([]string, 0),
@@ -127,7 +127,7 @@ func (s *AIPayloadSelector) AnalyzeTarget(request *Request) *TargetContext {
 }
 
 // GeneratePayloads creates contextually relevant payloads.
-func (s *AIPayloadSelector) GeneratePayloads(targetCtx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) GeneratePayloads(targetCtx *TargetContext, param ParameterInfo) []string {
 	var allPayloads []string
 
 	// Determine which vulnerability categories to test
@@ -154,7 +154,7 @@ func (s *AIPayloadSelector) GeneratePayloads(targetCtx *TargetContext, param Par
 }
 
 // selectCategories determines which vulnerability types to test.
-func (s *AIPayloadSelector) selectCategories(ctx *TargetContext, param ParameterInfo) []VulnCategory {
+func (s *ContextPayloadSelector) selectCategories(ctx *TargetContext, param ParameterInfo) []VulnCategory {
 	categories := make([]VulnCategory, 0)
 
 	// SQL injection candidates
@@ -196,7 +196,7 @@ func (s *AIPayloadSelector) selectCategories(ctx *TargetContext, param Parameter
 }
 
 // likelySQLContext determines if parameter might interact with database.
-func (s *AIPayloadSelector) likelySQLContext(ctx *TargetContext, param ParameterInfo) bool {
+func (s *ContextPayloadSelector) likelySQLContext(ctx *TargetContext, param ParameterInfo) bool {
 	dbIndicators := []string{
 		"id", "user", "account", "search", "query", "filter",
 		"name", "email", "login", "username", "order", "sort",
@@ -214,7 +214,7 @@ func (s *AIPayloadSelector) likelySQLContext(ctx *TargetContext, param Parameter
 }
 
 // likelyHTMLContext determines if parameter might be rendered in HTML.
-func (s *AIPayloadSelector) likelyHTMLContext(ctx *TargetContext, param ParameterInfo) bool {
+func (s *ContextPayloadSelector) likelyHTMLContext(ctx *TargetContext, param ParameterInfo) bool {
 	htmlIndicators := []string{
 		"comment", "message", "text", "content", "description",
 		"title", "body", "post", "article", "name",
@@ -233,7 +233,7 @@ func (s *AIPayloadSelector) likelyHTMLContext(ctx *TargetContext, param Paramete
 }
 
 // likelyCommandContext determines if parameter might be used in system commands.
-func (s *AIPayloadSelector) likelyCommandContext(ctx *TargetContext, param ParameterInfo) bool {
+func (s *ContextPayloadSelector) likelyCommandContext(ctx *TargetContext, param ParameterInfo) bool {
 	commandIndicators := []string{
 		"cmd", "command", "exec", "run", "execute", "system",
 		"shell", "script", "process", "ping", "host",
@@ -250,7 +250,7 @@ func (s *AIPayloadSelector) likelyCommandContext(ctx *TargetContext, param Param
 }
 
 // likelyFilesystemContext determines if parameter might access filesystem.
-func (s *AIPayloadSelector) likelyFilesystemContext(ctx *TargetContext, param ParameterInfo) bool {
+func (s *ContextPayloadSelector) likelyFilesystemContext(ctx *TargetContext, param ParameterInfo) bool {
 	fileIndicators := []string{
 		"file", "path", "filename", "dir", "directory", "folder",
 		"upload", "download", "document", "attachment", "resource",
@@ -268,7 +268,7 @@ func (s *AIPayloadSelector) likelyFilesystemContext(ctx *TargetContext, param Pa
 }
 
 // likelyURLContext determines if parameter might be a URL.
-func (s *AIPayloadSelector) likelyURLContext(ctx *TargetContext, param ParameterInfo) bool {
+func (s *ContextPayloadSelector) likelyURLContext(ctx *TargetContext, param ParameterInfo) bool {
 	urlIndicators := []string{
 		"url", "uri", "link", "redirect", "callback", "webhook",
 		"next", "return", "continue", "target", "destination",
@@ -278,7 +278,7 @@ func (s *AIPayloadSelector) likelyURLContext(ctx *TargetContext, param Parameter
 }
 
 // likelyIDContext determines if parameter is an identifier (IDOR candidate).
-func (s *AIPayloadSelector) likelyIDContext(ctx *TargetContext, param ParameterInfo) bool {
+func (s *ContextPayloadSelector) likelyIDContext(ctx *TargetContext, param ParameterInfo) bool {
 	idIndicators := []string{
 		"id", "uid", "user_id", "account_id", "customer_id",
 		"order_id", "invoice_id", "ref", "reference",
@@ -289,7 +289,7 @@ func (s *AIPayloadSelector) likelyIDContext(ctx *TargetContext, param ParameterI
 }
 
 // generateForCategory generates payloads for a specific vulnerability category.
-func (s *AIPayloadSelector) generateForCategory(category VulnCategory, ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generateForCategory(category VulnCategory, ctx *TargetContext, param ParameterInfo) []string {
 	switch category {
 	case VulnCategorySQLi:
 		return s.generateSQLiPayloads(ctx, param)
@@ -309,7 +309,7 @@ func (s *AIPayloadSelector) generateForCategory(category VulnCategory, ctx *Targ
 }
 
 // generateSQLiPayloads creates SQL injection test vectors.
-func (s *AIPayloadSelector) generateSQLiPayloads(ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generateSQLiPayloads(ctx *TargetContext, param ParameterInfo) []string {
 	basic := []string{
 		"'",
 		"\"",
@@ -339,7 +339,7 @@ func (s *AIPayloadSelector) generateSQLiPayloads(ctx *TargetContext, param Param
 }
 
 // generateXSSPayloads creates XSS test vectors.
-func (s *AIPayloadSelector) generateXSSPayloads(ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generateXSSPayloads(ctx *TargetContext, param ParameterInfo) []string {
 	basic := []string{
 		"<script>alert(1)</script>",
 		"<img src=x onerror=alert(1)>",
@@ -366,7 +366,7 @@ func (s *AIPayloadSelector) generateXSSPayloads(ctx *TargetContext, param Parame
 }
 
 // generateCommandInjPayloads creates command injection test vectors.
-func (s *AIPayloadSelector) generateCommandInjPayloads(ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generateCommandInjPayloads(ctx *TargetContext, param ParameterInfo) []string {
 	basic := []string{
 		"; ls",
 		"| ls",
@@ -395,7 +395,7 @@ func (s *AIPayloadSelector) generateCommandInjPayloads(ctx *TargetContext, param
 }
 
 // generatePathTraversalPayloads creates path traversal test vectors.
-func (s *AIPayloadSelector) generatePathTraversalPayloads(ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generatePathTraversalPayloads(ctx *TargetContext, param ParameterInfo) []string {
 	basic := []string{
 		"../",
 		"../../",
@@ -423,7 +423,7 @@ func (s *AIPayloadSelector) generatePathTraversalPayloads(ctx *TargetContext, pa
 }
 
 // generateSSRFPayloads creates SSRF test vectors.
-func (s *AIPayloadSelector) generateSSRFPayloads(ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generateSSRFPayloads(ctx *TargetContext, param ParameterInfo) []string {
 	basic := []string{
 		"http://localhost",
 		"http://127.0.0.1",
@@ -449,7 +449,7 @@ func (s *AIPayloadSelector) generateSSRFPayloads(ctx *TargetContext, param Param
 }
 
 // generateIDORPayloads creates IDOR test vectors.
-func (s *AIPayloadSelector) generateIDORPayloads(ctx *TargetContext, param ParameterInfo) []string {
+func (s *ContextPayloadSelector) generateIDORPayloads(ctx *TargetContext, param ParameterInfo) []string {
 	// Generate IDs around common values
 	return []string{
 		"1", "2", "3", "10", "100", "1000",
@@ -459,7 +459,7 @@ func (s *AIPayloadSelector) generateIDORPayloads(ctx *TargetContext, param Param
 
 // Helper functions
 
-func (s *AIPayloadSelector) inferLocation(raw string, pos Position) string {
+func (s *ContextPayloadSelector) inferLocation(raw string, pos Position) string {
 	// Check if in URL (first line)
 	lines := strings.Split(raw, "\n")
 	if len(lines) > 0 && strings.Contains(lines[0], pos.Name) {
@@ -488,7 +488,7 @@ func (s *AIPayloadSelector) inferLocation(raw string, pos Position) string {
 	return "body"
 }
 
-func (s *AIPayloadSelector) inferType(name, value string) string {
+func (s *ContextPayloadSelector) inferType(name, value string) string {
 	// Check if numeric
 	if regexp.MustCompile(`^\d+$`).MatchString(value) {
 		return "numeric"
@@ -513,7 +513,7 @@ func (s *AIPayloadSelector) inferType(name, value string) string {
 	return "string"
 }
 
-func (s *AIPayloadSelector) inferContext(ctx *TargetContext) []string {
+func (s *ContextPayloadSelector) inferContext(ctx *TargetContext) []string {
 	contexts := make([]string, 0)
 
 	// Analyze path
@@ -557,8 +557,8 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
-// CreateAIPayloadGenerator creates a PayloadGenerator from AI analysis.
-func CreateAIPayloadGenerator(selector *AIPayloadSelector, request *Request) []PayloadGenerator {
+// CreateContextPayloadGenerator creates a PayloadGenerator from target context analysis.
+func CreateContextPayloadGenerator(selector *ContextPayloadSelector, request *Request) []PayloadGenerator {
 	targetCtx := selector.AnalyzeTarget(request)
 
 	generators := make([]PayloadGenerator, 0, len(request.Positions))
@@ -580,7 +580,7 @@ func CreateAIPayloadGenerator(selector *AIPayloadSelector, request *Request) []P
 		payloads := selector.GeneratePayloads(targetCtx, param)
 
 		gen := NewStaticGenerator(
-			fmt.Sprintf("AI:%s", pos.Name),
+			fmt.Sprintf("Context:%s", pos.Name),
 			payloads,
 		)
 

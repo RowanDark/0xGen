@@ -1,12 +1,12 @@
-# Cipher - Smart Encoder/Decoder
+# Cipher - Encoder/Decoder
 
-Cipher is 0xGen's answer to Burp Decoder, providing AI-powered encoding detection and transformation chaining for security testing.
+Cipher is 0xGen's answer to Burp Decoder, providing heuristic encoding detection and transformation chaining for security testing.
 
 ## Features
 
 ### ✨ Better than Burp Decoder
 
-- **AI Auto-Detection**: Automatically detect encoding (no manual selection) with 90%+ accuracy
+- **Auto-Detection**: Automatically detect encoding (no manual selection) using heuristic confidence scoring
 - **Transformation Chaining**: Chain operations (Base64 → URL decode → JSON parse)
 - **JWT Signing/Validation**: Full JWT support with HS256/384/512
 - **Recipe Library**: Save common transformation chains for reuse
@@ -167,9 +167,9 @@ Detected: url-encoded (80% confidence)
 Reasoning: Contains 2 URL-encoded sequences
 ```
 
-## Detection Accuracy
+## Detection Confidence
 
-The AI auto-detection system achieves high accuracy across encodings:
+The auto-detection heuristics assign a confidence score per encoding:
 
 | Encoding | Confidence Range | Notes |
 |----------|-----------------|-------|
@@ -189,7 +189,7 @@ Cipher is built on the `/internal/cipher` package and can be used programmatical
 import "github.com/RowanDark/0xgen/internal/cipher"
 
 // Auto-detect encoding
-detector := cipher.NewSmartDetector()
+detector := cipher.NewEncodingDetector()
 results, _ := detector.Detect(ctx, []byte("SGVsbG8="))
 
 // Build pipeline
@@ -231,7 +231,7 @@ Recipes are saved to localStorage in the browser. For persistent storage across 
 │  └──────────┘  └──────────┘            │
 │  ┌──────────┐  ┌──────────┐            │
 │  │ Detector │  │  Recipe  │            │
-│  │   (AI)   │  │ Manager  │            │
+│  │(Heuristic)│ │ Manager  │            │
 │  └──────────┘  └──────────┘            │
 └─────────────────────────────────────────┘
 ```
@@ -247,7 +247,7 @@ Recipes are saved to localStorage in the browser. For persistent storage across 
 - [x] Transformation pipeline with chaining
 - [x] Reversible pipelines (undo/redo)
 - [x] Recipe save/load system
-- [x] AI auto-detection (90%+ accuracy)
+- [x] Heuristic auto-detection with confidence scoring
 - [x] Interactive web UI
 - [x] Comprehensive test coverage (86%+)
 

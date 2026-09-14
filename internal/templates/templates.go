@@ -54,7 +54,7 @@ type TemplateConfig struct {
 	EnableAnomaly *bool    `yaml:"enable_anomaly,omitempty"`
 	Patterns      []string `yaml:"patterns,omitempty"`
 
-	// AI features
+	// Context and pattern-based features
 	EnableAI           *bool `yaml:"enable_ai,omitempty"`
 	EnableAIPayloads   *bool `yaml:"enable_ai_payloads,omitempty"`
 	EnableAIClassify   *bool `yaml:"enable_ai_classify,omitempty"`

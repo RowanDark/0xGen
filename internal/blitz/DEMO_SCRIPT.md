@@ -1,5 +1,5 @@
 # Blitz Demo Video Script
-## "Blitz vs Burp Intruder: AI-Powered Web Fuzzing"
+## "Blitz vs Burp Intruder: Context-Aware Web Fuzzing"
 
 **Duration:** 5 minutes
 **Target Audience:** Security professionals, penetration testers
@@ -14,9 +14,9 @@
 **[Visual: Split screen showing Burp Suite logo vs 0xGen Blitz logo]**
 
 **Narrator:**
-"Welcome to Blitz - the AI-powered web fuzzer that takes everything you love about Burp Suite Intruder and supercharges it with artificial intelligence. In the next 5 minutes, I'll show you why Blitz is the future of web application security testing."
+"Welcome to Blitz - the context-aware web fuzzer that takes everything you love about Burp Suite Intruder and supercharges it with target-aware payload generation and pattern-based classification. In the next 5 minutes, I'll show you why Blitz is the future of web application security testing."
 
-**[Visual: Text overlay - "4 Attack Types | AI Payloads | Smart Detection | Open Source"]**
+**[Visual: Text overlay - "4 Attack Types | Context-Aware Payloads | Pattern Detection | Open Source"]**
 
 ---
 
@@ -42,18 +42,18 @@
 - Sets concurrency to 5
 
 **Narrator:**
-"Notice how similar the setup is - Blitz uses the same attack types you're familiar with: Sniper, Battering Ram, Pitchfork, and Cluster Bomb. But watch what happens when we enable AI."
+"Notice how similar the setup is - Blitz uses the same attack types you're familiar with: Sniper, Battering Ram, Pitchfork, and Cluster Bomb. But watch what happens when we enable context-aware payloads."
 
 ---
 
-### Scene 3: AI Payload Generation (1:30 - 2:15)
+### Scene 3: Context-Aware Payload Generation (1:30 - 2:15)
 
 **[Visual: Close-up of Blitz analyzing the request]**
 
 **Narrator:**
-"Here's where Blitz gets interesting. Instead of manually selecting payloads, Blitz's AI analyzes your request template."
+"Here's where Blitz gets interesting. Instead of manually selecting payloads, Blitz analyzes your request template."
 
-**[Visual: Animation showing AI analysis]**
+**[Visual: Animation showing target context analysis]**
 ```
 Analyzing request...
 ✓ Detected POST method
@@ -65,7 +65,7 @@ Analyzing request...
 ```
 
 **Narrator:**
-"The AI identified that we're testing a login endpoint with JSON body, and automatically generated 45 SQL injection payloads relevant to authentication bypass. In Burp, you had to manually curate this wordlist."
+"Blitz identified that we're testing a login endpoint with JSON body, and automatically generated 45 SQL injection payloads relevant to authentication bypass. In Burp, you had to manually curate this wordlist."
 
 **[Visual: Comparison of payload lists]**
 
@@ -76,7 +76,7 @@ admin' --
 ' OR 1=1--
 ```
 
-**Blitz AI Payloads:**
+**Blitz Context-Aware Payloads:**
 ```
 ' OR '1'='1
 admin' --
@@ -118,7 +118,7 @@ admin')} OR 1=1--  ← Context-aware escaping
     Status: 200 (was 401)
     Length: 523 bytes (+478 from baseline)
 
-[!] AI Classification: auth_bypass
+[!] Classification: auth_bypass
     Confidence: 0.95
     CWE: CWE-287
     OWASP: A07:2021-Authentication Failures
@@ -131,14 +131,14 @@ admin')} OR 1=1--  ← Context-aware escaping
 
 ---
 
-### Scene 5: AI Classification (3:00 - 3:45)
+### Scene 5: Response Classification (3:00 - 3:45)
 
-**[Visual: Close-up of Blitz's AI classifier in action]**
+**[Visual: Close-up of Blitz's response classifier in action]**
 
 **Narrator:**
 "But Blitz doesn't stop at detecting anomalies. Watch as it analyzes each response for vulnerability indicators."
 
-**[Visual: Animation of AI classification]**
+**[Visual: Animation of response classification]**
 
 **Response 1:**
 ```http
@@ -162,7 +162,7 @@ HTTP/1.1 401 Unauthorized
 **Classification:** `none` | Not interesting
 
 **Narrator:**
-"Blitz's AI uses 50+ detection patterns to classify responses into vulnerability categories - SQL errors, XSS reflection, command execution, sensitive data exposure, and more. Each finding includes CWE and OWASP mappings."
+"Blitz uses 50+ detection patterns to classify responses into vulnerability categories - SQL errors, XSS reflection, command execution, sensitive data exposure, and more. Each finding includes CWE and OWASP mappings."
 
 ---
 
@@ -236,8 +236,8 @@ References:
 |---------|-------------------|-------|
 | Attack Types | 4 | 4 ✓ |
 | Custom Payloads | ✓ | ✓ |
-| AI Payload Generation | ✗ | ✓ |
-| AI Classification | ✗ | ✓ |
+| Context-Aware Payload Generation | ✗ | ✓ |
+| Pattern-Based Classification | ✗ | ✓ |
 | Anomaly Detection | Basic | Advanced |
 | CWE/OWASP Mapping | ✗ | ✓ |
 | Auto Findings | ✗ | ✓ |
@@ -258,7 +258,7 @@ References:
 **[Visual: Blitz logo with GitHub link]**
 
 **Narrator:**
-"Blitz brings AI-powered intelligence to web fuzzing. Same workflow you love from Burp Intruder, enhanced with context-aware payloads, smart detection, and automatic findings generation."
+"Blitz brings context-aware payload generation and pattern-based detection to web fuzzing. Same workflow you love from Burp Intruder, enhanced with context-aware payloads, automatic classification, and automatic findings generation."
 
 **[Visual: Text overlay]**
 ```
@@ -296,7 +296,7 @@ youtube.com/0xgen
    - 50/50 split
 
 2. **Full Screen Demos:**
-   - Blitz AI analysis animations
+   - Blitz target analysis animations
    - Finding detail views
    - Feature comparison tables
 
@@ -332,7 +332,7 @@ youtube.com/0xgen
 1. **Editing:**
    - Cut any mistakes or long pauses
    - Add smooth transitions between scenes
-   - Include animated graphics for AI analysis
+   - Include animated graphics for payload analysis
 
 2. **Captions:**
    - Add closed captions for accessibility
@@ -341,29 +341,29 @@ youtube.com/0xgen
 3. **Thumbnail:**
    - Text: "Blitz vs Burp Intruder"
    - Show split screen of both tools
-   - Include "AI-Powered" badge
+   - Include "Context-Aware" badge
    - High contrast, eye-catching design
 
 ### YouTube Upload
 
 **Title:**
-"Blitz vs Burp Intruder: AI-Powered Web Fuzzing - Finding SQL Injection in Minutes"
+"Blitz vs Burp Intruder: Context-Aware Web Fuzzing - Finding SQL Injection in Minutes"
 
 **Description:**
 ```
-In this video, I demonstrate Blitz - an open-source, AI-powered web fuzzer that enhances the Burp Suite Intruder workflow with intelligent payload generation and automatic vulnerability detection.
+In this video, I demonstrate Blitz - an open-source, context-aware web fuzzer that enhances the Burp Suite Intruder workflow with target-aware payload generation and automatic vulnerability detection.
 
 🎯 What You'll Learn:
 - How Blitz compares to Burp Suite Intruder
-- AI-powered payload generation for SQL injection
+- Context-aware payload generation for SQL injection
 - Automatic vulnerability classification with CWE/OWASP mapping
 - Converting fuzzing results into actionable security findings
 - Why Blitz is free and open source
 
 ⚡ Key Features:
 ✓ 4 Attack Types (Sniper, Battering Ram, Pitchfork, Cluster Bomb)
-✓ AI-generated context-aware payloads
-✓ Smart anomaly detection and classification
+✓ Context-aware payload generation
+✓ Pattern-based anomaly detection and classification
 ✓ Auto-generated security findings with remediation
 ✓ Desktop GUI and CLI interfaces
 ✓ Open source and completely free
@@ -377,9 +377,9 @@ Tutorial (XSS): https://github.com/RowanDark/0xGen/blob/main/internal/blitz/TUTO
 📚 Chapters:
 0:00 - Introduction
 0:30 - Side-by-Side Setup
-1:30 - AI Payload Generation
+1:30 - Context-Aware Payload Generation
 2:15 - Running the Attack
-3:00 - AI Classification
+3:00 - Response Classification
 3:45 - Findings Integration
 4:30 - Feature Comparison
 4:50 - Conclusion
@@ -401,13 +401,13 @@ For social media / quick demos:
 ### Quick Demo Script (2:00)
 
 **0:00-0:15 - Hook**
-"I'm going to find a SQL injection vulnerability in 30 seconds using AI. Watch this."
+"I'm going to find a SQL injection vulnerability in 30 seconds using context-aware payloads. Watch this."
 
 **0:15-0:45 - Setup**
-[Show Blitz GUI] "Here's a login request. I'll mark the injection points and enable AI payloads. That's it - no wordlist needed."
+[Show Blitz GUI] "Here's a login request. I'll mark the injection points and enable context-aware payloads. That's it - no wordlist needed."
 
 **0:45-1:15 - Detection**
-[Run attack] "Blitz's AI generated 45 relevant payloads and... there! Authentication bypass detected in 12 seconds with full CWE/OWASP classification."
+[Run attack] "Blitz generated 45 relevant payloads and... there! Authentication bypass detected in 12 seconds with full CWE/OWASP classification."
 
 **1:15-1:45 - Finding**
 [Show finding] "Automatic finding generated with PoC, remediation, and references. This is report-ready output."

@@ -329,7 +329,7 @@ func (bdr BatchDiffResult) Summary() string
 
 ### NoiseClassifier
 
-AI-powered noise classifier for filtering temporal changes.
+Pattern-based noise classifier for filtering temporal changes.
 
 ```go
 type NoiseClassifier struct {

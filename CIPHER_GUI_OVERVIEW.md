@@ -53,9 +53,9 @@ Functions:
 - ClearRegistry() - For testing
 ```
 
-#### e) **detector.go** - SmartDetector (AI-powered detection)
+#### e) **detector.go** - EncodingDetector (heuristic detection)
 ```
-Detects with 90%+ accuracy:
+Confidence scores per encoding:
 - Base64 (90-95% confidence)
 - Hexadecimal (80-95%, higher with 0x prefix)
 - URL encoding (50-95% based on density)
@@ -91,7 +91,7 @@ Features:
 - Stateless, thread-safe operations
 - Reversible pipelines (auto-reverse chains)
 - Recipe library with persistent storage
-- AI-powered encoding auto-detection
+- Heuristic encoding auto-detection
 - Zero dependencies for core operations
 
 ---
@@ -644,7 +644,7 @@ const handleExecute = async () => {
 ├── types.go              # Core interfaces & data structures
 ├── operations.go         # 14+ encoding/decoding operations
 ├── crypto_operations.go  # Hashing, JWT, compression
-├── detector.go           # Smart auto-detection (90%+ accuracy)
+├── detector.go           # Heuristic auto-detection with confidence scoring
 ├── registry.go           # Thread-safe operation registry
 ├── recipes.go            # Recipe management & persistence
 └── *_test.go            # Unit tests

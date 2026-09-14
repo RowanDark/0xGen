@@ -2,12 +2,12 @@
 
 ## Overview
 
-This tutorial demonstrates how to use Blitz to discover SQL injection vulnerabilities in web applications. We'll cover both manual payload testing and AI-powered discovery.
+This tutorial demonstrates how to use Blitz to discover SQL injection vulnerabilities in web applications. We'll cover both manual payload testing and context-aware discovery.
 
 **Learning Objectives:**
 - Understand SQL injection basics
 - Create effective request templates
-- Use AI-generated SQLi payloads
+- Use context-aware SQLi payload generation
 - Analyze and validate findings
 - Generate professional reports
 
@@ -205,11 +205,11 @@ HTTP/1.1 200 OK
 
 ✅ **Confirmed!** The application is vulnerable to SQL injection, allowing authentication bypass.
 
-## Advanced: AI-Powered SQLi Discovery
+## Advanced: Context-Aware SQLi Discovery
 
-Let's use Blitz's AI features to automatically detect and classify SQL injection.
+Let's use Blitz's context-aware payload and pattern classification features to automatically detect and classify SQL injection.
 
-### Step 1: Run with AI Features
+### Step 1: Run with Context-Aware Features
 
 ```bash
 0xgenctl blitz run \
@@ -223,34 +223,34 @@ Let's use Blitz's AI features to automatically detect and classify SQL injection
 ```
 
 **What happens:**
-1. **AI Payload Selection:** Blitz analyzes the request and generates SQLi payloads relevant to login forms
-2. **AI Classification:** Responses are classified for SQL error patterns
+1. **Context-Aware Payload Selection:** Blitz analyzes the request and generates SQLi payloads relevant to login forms
+2. **Pattern Classification:** Responses are classified for SQL error patterns
 3. **Findings Correlation:** Interesting results are converted to 0xGen findings with CWE/OWASP mapping
 
 **Output:**
 
 ```
-[*] Starting Blitz fuzzer with AI features...
-[*] AI analyzing request template...
+[*] Starting Blitz fuzzer with context-aware features...
+[*] Analyzing request template...
 [*] Detected parameters: user (query), pass (body)
 [*] Selected vulnerability categories: sqli, auth_bypass
-[*] Generated 45 AI payloads
+[*] Generated 45 context-aware payloads
 
 [+] Baseline: Status 401, Length 45
 
 [+] Anomaly! Payload: ' OR '1'='1, Status: 200, Length: 523
-[!] AI Classification: auth_bypass (confidence: 0.85)
+[!] Classification: auth_bypass (confidence: 0.85)
 [!] Finding created: finding-auth-bypass-001
 
 [+] Anomaly! Payload: admin' --, Status: 500, Length: 1842
-[!] AI Classification: sql_error (confidence: 0.95)
+[!] Classification: sql_error (confidence: 0.95)
 [!] Evidence: "You have an error in your SQL syntax"
 [!] Finding created: finding-sql-error-002
 
 Progress: 45/45 (100%) | Findings: 2 | Completed
 ```
 
-### Step 2: Review AI Findings
+### Step 2: Review Findings
 
 **View findings file:**
 
@@ -321,7 +321,7 @@ Host: shop.example.com
   --concurrency 10
 ```
 
-**AI-Generated Payloads:**
+**Context-Aware Payloads:**
 ```
 ' OR '1'='1
 1' UNION SELECT NULL,NULL,NULL--
@@ -450,9 +450,9 @@ Start simple, then escalate:
 4. **Database enumeration:** Extract schema information
 5. **Data exfiltration:** Extract sensitive data
 
-### 4. Use AI Classification
+### 4. Use Pattern Classification
 
-Let Blitz's AI identify SQL errors automatically:
+Let Blitz's response classifier identify SQL errors automatically:
 - Reduces manual analysis
 - Detects subtle vulnerabilities
 - Provides CWE/OWASP mapping
@@ -581,7 +581,7 @@ If you get false positives:
 
 1. **Verify manually:** Always confirm with curl or browser
 2. **Check baseline:** Ensure baseline request is accurate
-3. **Adjust AI confidence threshold:** Filter by higher confidence scores
+3. **Adjust classification confidence threshold:** Filter by higher confidence scores
 4. **Review response content:** Look at actual error messages
 
 ### Rate Limiting
@@ -600,7 +600,7 @@ In this tutorial, you learned to:
 
 ✅ Capture and template HTTP requests
 ✅ Create effective position markers
-✅ Use manual and AI-generated SQLi payloads
+✅ Use manual and context-aware SQLi payloads
 ✅ Run Blitz with various attack types
 ✅ Analyze results for SQL injection indicators
 ✅ Validate findings manually
@@ -609,7 +609,7 @@ In this tutorial, you learned to:
 
 ## Next Steps
 
-- [Tutorial: Fuzzing for XSS with AI Payloads](./TUTORIAL_XSS.md)
+- [Tutorial: Fuzzing for XSS with Context-Aware Payloads](./TUTORIAL_XSS.md)
 - [Blitz User Guide](./USER_GUIDE.md)
 - [API Documentation](./API_DOCS.md)
 

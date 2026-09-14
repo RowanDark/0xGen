@@ -31,6 +31,10 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
         run: scripts/ci/check_legacy_branding.sh
 
+      - name: Guard against unfounded AI claims in docs
+        if: matrix.os == 'ubuntu-latest'
+        run: scripts/ci/check_ai_claims.sh
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:

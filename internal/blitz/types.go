@@ -143,11 +143,11 @@ type EngineConfig struct {
 	// Storage backend (optional).
 	Storage Storage
 
-	// AI-powered features
-	// EnableAIPayloads uses AI to generate contextually relevant payloads.
+	// Context and pattern-based features
+	// EnableAIPayloads generates contextually relevant payloads from target analysis.
 	EnableAIPayloads bool
 
-	// EnableAIClassification uses AI to classify responses.
+	// EnableAIClassification classifies responses using pattern matching.
 	EnableAIClassification bool
 
 	// EnableFindingsCorrelation converts interesting results to 0xGen findings.

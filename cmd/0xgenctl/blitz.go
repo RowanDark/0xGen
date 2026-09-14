@@ -69,10 +69,10 @@ func runBlitzRun(args []string) int {
 	patterns := fs.String("patterns", "", "comma-separated regex patterns to search in responses")
 	enableAnomaly := fs.Bool("anomaly", true, "enable anomaly detection")
 
-	// AI configuration
-	enableAI := fs.Bool("ai", false, "enable all AI features (payloads, classification, findings)")
-	aiPayloads := fs.Bool("ai-payloads", false, "use AI to generate contextually relevant payloads")
-	aiClassify := fs.Bool("ai-classify", false, "use AI to classify responses")
+	// Pattern-based feature configuration
+	enableAI := fs.Bool("ai", false, "enable all pattern-based features (payloads, classification, findings)")
+	aiPayloads := fs.Bool("ai-payloads", false, "generate contextually relevant payloads from target analysis")
+	aiClassify := fs.Bool("ai-classify", false, "classify responses using pattern matching")
 	aiFindings := fs.Bool("ai-findings", false, "correlate interesting results to 0xGen findings")
 	findingsOutput := fs.String("findings-output", "", "write findings to file (JSON Lines format)")
 
@@ -151,7 +151,7 @@ func runBlitzRun(args []string) int {
 		fmt.Println()
 	}
 
-	// Determine if AI features are enabled
+	// Determine which pattern-based features are enabled
 	useAIPayloads := *enableAI || *aiPayloads
 	useAIClassify := *enableAI || *aiClassify
 	useAIFindings := *enableAI || *aiFindings
@@ -159,23 +159,23 @@ func runBlitzRun(args []string) int {
 	// Load payload generators
 	var generators []blitz.PayloadGenerator
 
-	// AI Payload Generation
+	// Context-aware payload generation
 	if useAIPayloads {
 		if !*quiet {
-			fmt.Println("🤖 AI Payload Generation enabled - analyzing target context...")
+			fmt.Println("Context payload generation enabled - analyzing target context...")
 		}
 
-		aiConfig := &blitz.AIPayloadConfig{
+		contextConfig := &blitz.ContextPayloadConfig{
 			EnableContextAnalysis:  true,
 			MaxPayloadsPerCategory: 15,
 			EnableAdvancedPayloads: true,
 		}
 
-		selector := blitz.NewAIPayloadSelector(aiConfig)
-		generators = blitz.CreateAIPayloadGenerator(selector, request)
+		selector := blitz.NewContextPayloadSelector(contextConfig)
+		generators = blitz.CreateContextPayloadGenerator(selector, request)
 
 		if !*quiet {
-			fmt.Printf("Generated %d AI-powered payload sets\n\n", len(generators))
+			fmt.Printf("Generated %d context-aware payload sets\n\n", len(generators))
 		}
 	} else {
 		// Manual payload specification
@@ -399,7 +399,7 @@ func runBlitzRun(args []string) int {
 		fmt.Printf("Anomalies:         %d\n", stats.AnomalyCount)
 		fmt.Printf("Pattern Matches:   %d\n", stats.PatternMatchCount)
 		if useAIFindings {
-			fmt.Printf("Findings (AI):     %d\n", findingsCount)
+			fmt.Printf("Findings:          %d\n", findingsCount)
 		}
 		fmt.Printf("Avg Duration:      %dms\n", stats.AvgDuration)
 		fmt.Printf("Duration Range:    %dms - %dms\n", stats.MinDuration, stats.MaxDuration)
@@ -409,14 +409,14 @@ func runBlitzRun(args []string) int {
 			fmt.Printf("  %d: %d requests\n", code, count)
 		}
 
-		// AI feature summary
+		// Feature summary
 		if useAIPayloads || useAIClassify || useAIFindings {
-			fmt.Println("\n=== AI Features Used ===")
+			fmt.Println("\n=== Features Used ===")
 			if useAIPayloads {
-				fmt.Println("✓ AI Payload Generation")
+				fmt.Println("✓ Context Payload Generation")
 			}
 			if useAIClassify {
-				fmt.Println("✓ AI Response Classification")
+				fmt.Println("✓ Pattern Response Classification")
 			}
 			if useAIFindings {
 				fmt.Println("✓ Findings Correlation")

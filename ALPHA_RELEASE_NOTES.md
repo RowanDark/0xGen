@@ -170,10 +170,10 @@ These are **intentional design decisions or platform constraints**, documented t
 **Status**: Phase 3 (Q1 2025) - 3 months
 
 **Planned**:
-- **Blitz** (fuzzer, better than Burp Intruder) - AI payload selection
+- **Blitz** (fuzzer, better than Burp Intruder) - context-aware payload selection
 - **Cipher** (encoder/decoder) - Auto-detection, chaining
 - **Delta** (comparer) - Semantic diffing
-- **Entropy** (sequencer) - AI pattern detection
+- **Entropy** (sequencer) - pattern detection
 - **Rewrite** (match/replace) - Visual rule builder
 
 **Roadmap**: [ROADMAP_COMPETITIVE.md Phase 3](ROADMAP_COMPETITIVE.md#phase-3-critical-parity-features-q1-2025)
@@ -219,7 +219,7 @@ None ✅
 - **Build Pipeline**: [VERIFICATION_REPORT_ISSUE_2.md](VERIFICATION_REPORT_ISSUE_2.md)
 - **GUI & UX**: [VERIFICATION_REPORT_ISSUE_3.md](VERIFICATION_REPORT_ISSUE_3.md)
 - **Security Model**: [VERIFICATION_REPORT_ISSUE_4.md](VERIFICATION_REPORT_ISSUE_4.md)
-- **AI Infrastructure**: [VERIFICATION_REPORT_ISSUE_5.md](VERIFICATION_REPORT_ISSUE_5.md)
+- **Heuristic Analysis Infrastructure**: [VERIFICATION_REPORT_ISSUE_5.md](VERIFICATION_REPORT_ISSUE_5.md)
 - **Gap Analysis**: [VERIFICATION_REPORT_ISSUE_6.md](VERIFICATION_REPORT_ISSUE_6.md)
 
 ### Security
@@ -353,7 +353,7 @@ We welcome contributions! 0xGen is open source and community-driven.
 
 ### Priority Areas (Phase 3 - Q1 2025)
 We're especially looking for help with:
-- **Blitz (Fuzzer)**: AI payload selection, anomaly detection
+- **Blitz (Fuzzer)**: context-aware payload selection, anomaly detection
 - **Cipher (Encoder)**: Auto-detection, transformation chaining
 - **Delta (Comparer)**: Semantic diffing, batch comparison
 - **Entropy (Sequencer)**: Randomness analysis
@@ -428,7 +428,7 @@ This alpha release was validated through comprehensive audits (Issues #1-7):
 - Build & distribution pipeline
 - GUI & UX features
 - Security & supply chain compliance
-- AI integration infrastructure
+- Heuristic analysis infrastructure
 - Gap analysis & readiness assessment
 - Documentation clarifications
 

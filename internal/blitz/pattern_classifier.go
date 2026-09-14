@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// AIClassifier provides AI-powered response classification.
-type AIClassifier struct {
+// PatternClassifier classifies fuzzer responses using regex and literal patterns.
+type PatternClassifier struct {
 	patterns map[ClassificationCategory][]classificationPattern
 }
 
@@ -25,7 +25,7 @@ const (
 	ClassCategoryAuth          ClassificationCategory = "auth_bypass"
 )
 
-// Classification represents an AI classification of a response.
+// Classification represents a pattern-matched classification of a response.
 type Classification struct {
 	Category   ClassificationCategory
 	Confidence float64
@@ -46,9 +46,9 @@ type classificationPattern struct {
 	owasp      string
 }
 
-// NewAIClassifier creates a new AI-powered response classifier.
-func NewAIClassifier() *AIClassifier {
-	c := &AIClassifier{
+// NewPatternClassifier creates a new pattern-based response classifier.
+func NewPatternClassifier() *PatternClassifier {
+	c := &PatternClassifier{
 		patterns: make(map[ClassificationCategory][]classificationPattern),
 	}
 
@@ -57,7 +57,7 @@ func NewAIClassifier() *AIClassifier {
 }
 
 // initializePatterns sets up classification patterns for each category.
-func (c *AIClassifier) initializePatterns() {
+func (c *PatternClassifier) initializePatterns() {
 	// SQL Error patterns
 	c.patterns[ClassCategorySQLError] = []classificationPattern{
 		{
@@ -352,7 +352,7 @@ func (c *AIClassifier) initializePatterns() {
 }
 
 // Classify analyzes a response and returns all matching classifications.
-func (c *AIClassifier) Classify(response *FuzzResult) []Classification {
+func (c *PatternClassifier) Classify(response *FuzzResult) []Classification {
 	classifications := make([]Classification, 0)
 
 	body := strings.ToLower(response.Response.Body)
@@ -379,7 +379,7 @@ func (c *AIClassifier) Classify(response *FuzzResult) []Classification {
 }
 
 // ClassifyWithContext provides enhanced classification using request context.
-func (c *AIClassifier) ClassifyWithContext(result *FuzzResult, payload string) []Classification {
+func (c *PatternClassifier) ClassifyWithContext(result *FuzzResult, payload string) []Classification {
 	classifications := c.Classify(result)
 
 	// Enhance classifications with payload context
@@ -391,7 +391,7 @@ func (c *AIClassifier) ClassifyWithContext(result *FuzzResult, payload string) [
 }
 
 // matchPattern checks if a pattern matches the response.
-func (c *AIClassifier) matchPattern(pattern classificationPattern, originalBody, lowerBody string) (bool, string) {
+func (c *PatternClassifier) matchPattern(pattern classificationPattern, originalBody, lowerBody string) (bool, string) {
 	if pattern.regex != nil {
 		// Use regex on original body to preserve case
 		matches := pattern.regex.FindString(originalBody)
@@ -419,7 +419,7 @@ func (c *AIClassifier) matchPattern(pattern classificationPattern, originalBody,
 }
 
 // enhanceClassification adds contextual information to a classification.
-func (c *AIClassifier) enhanceClassification(class Classification, result *FuzzResult, payload string) Classification {
+func (c *PatternClassifier) enhanceClassification(class Classification, result *FuzzResult, payload string) Classification {
 	// Increase confidence if payload is reflected in response
 	if strings.Contains(strings.ToLower(result.Response.Body), strings.ToLower(payload)) {
 		class.Confidence = min(class.Confidence+0.1, 1.0)
@@ -438,7 +438,7 @@ func (c *AIClassifier) enhanceClassification(class Classification, result *FuzzR
 }
 
 // GetTopClassification returns the highest confidence classification.
-func (c *AIClassifier) GetTopClassification(classifications []Classification) *Classification {
+func (c *PatternClassifier) GetTopClassification(classifications []Classification) *Classification {
 	if len(classifications) == 0 {
 		return nil
 	}

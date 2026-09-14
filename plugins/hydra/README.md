@@ -10,7 +10,7 @@ Hydra is a passive detection plugin for 0xGen, providing:
 - **Confidence Policy Evaluation**: Per-category minimum-confidence and escalation thresholds decide whether a candidate is emitted and at what severity
 - **Passive Analysis**: Zero-impact detection from HTTP traffic observation
 
-There is no machine learning model, inference step, or outbound network call anywhere in the plugin. "Confidence" is a score the analyzers assign based on which patterns matched; the evaluator compares that score against hardcoded thresholds.
+There is no trained model, inference step, or outbound network call anywhere in the plugin. "Confidence" is a score the analyzers assign based on which patterns matched; the evaluator compares that score against hardcoded thresholds.
 
 ## Features
 
@@ -428,7 +428,7 @@ docker run -p 8080:80 vulnerables/web-dvwa
 - 📋 Active exploitation verification
 - 📋 Automatic payload generation
 - 📋 Vulnerability chaining detection
-- 📋 Machine learning model training interface
+- 📋 Optional external LLM-assisted triage (see Phase 4 in the project roadmap)
 - 📋 Real-time threat intelligence integration
 
 ## Contributing

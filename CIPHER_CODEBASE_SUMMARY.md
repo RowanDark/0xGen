@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-You have a modern Tauri-based desktop application with a React frontend communicating with a Go backend. The Cipher module (Issue 13.1) is fully implemented in Go with 30+ encoding/decoding operations, smart auto-detection, recipe management, and pipeline support. The GUI framework uses TanStack Router with file-based routing and Tailwind CSS styling.
+You have a modern Tauri-based desktop application with a React frontend communicating with a Go backend. The Cipher module (Issue 13.1) is fully implemented in Go with 30+ encoding/decoding operations, heuristic auto-detection, recipe management, and pipeline support. The GUI framework uses TanStack Router with file-based routing and Tailwind CSS styling.
 
 **Current Status:** Cipher backend is complete and battle-tested. GUI panel needs to be implemented.
 
@@ -42,7 +42,7 @@ You have a modern Tauri-based desktop application with a React frontend communic
 │                          │  │ │ cipher package           │ │    │
 │                          │  │ │ (30+ operations)         │ │    │
 │                          │  │ │ - Operations registry    │ │    │
-│                          │  │ │ - SmartDetector          │ │    │
+│                          │  │ │ - EncodingDetector       │ │    │
 │                          │  │ │ - RecipeManager          │ │    │
 │                          │  │ │ - Pipeline executor      │ │    │
 │                          │  │ └──────────────────────────┘ │    │
@@ -105,7 +105,7 @@ You have a modern Tauri-based desktop application with a React frontend communic
 │   │   ├── types.go                # Core interfaces & types
 │   │   ├── operations.go           # 14+ encode/decode ops
 │   │   ├── crypto_operations.go    # Hash, JWT, compression
-│   │   ├── detector.go             # SmartDetector (90%+ accuracy)
+│   │   ├── detector.go             # EncodingDetector (heuristic confidence scoring)
 │   │   ├── registry.go             # Thread-safe registry
 │   │   ├── recipes.go              # Recipe management
 │   │   └── *_test.go               # Unit tests
@@ -137,7 +137,7 @@ Core Operations:
 - 2 Conversion operations (ASCII ↔ Hex)
 
 Key Components:
-- `SmartDetector`: AI-powered auto-detection with 90%+ accuracy
+- `EncodingDetector`: Heuristic auto-detection with per-encoding confidence scoring
 - `RecipeManager`: Persistent recipe storage with search
 - `Pipeline`: Chain operations and reverse them
 
@@ -408,7 +408,7 @@ sed -n '2133,2196p' /home/user/0xGen/apps/desktop-shell/src-tauri/src/main.rs
 
 ## Key Insights
 
-1. **Backend is Complete**: Cipher module is fully implemented with 90%+ accuracy detection
+1. **Backend is Complete**: Cipher module is fully implemented with heuristic encoding detection
 2. **Framework is Ready**: Tauri + React Router + Tailwind all set up
 3. **Pattern Exists**: Follow `/blitz.tsx` and `/scope.tsx` as templates
 4. **Simple Integration**: Just need to call Go functions from Rust, Rust from TypeScript, TypeScript from React

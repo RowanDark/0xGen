@@ -136,7 +136,7 @@ Manage the 0xGen plugin ecosystem from a centralized interface.
 #### Plugin Marketplace
 
 - **Browse Official Plugins**:
-  - Hydra (AI vulnerability analyzer)
+  - Hydra (heuristic vulnerability analyzer)
   - Blitz (fuzzing engine) - *Phase 3*
   - Cipher (encoder/decoder) - *Phase 3*
   - Delta (response comparer) - *Phase 3*
