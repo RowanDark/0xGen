@@ -186,7 +186,11 @@ func runPassiveHeaderScenario(t *testing.T, scenario passiveHeaderScenario) {
 	}()
 
 	expected := expectedScenarioFindings(scenario)
-	findings := waitForFindings(t, findingsPath, len(expected), 10*time.Second)
+	// Halved from the original 10s: the daemon now attaches the plugin bus to
+	// the flow publisher before the proxy accepts traffic (Issue 21), so this
+	// budget only needs to cover plugin process startup and gRPC handshake,
+	// not a window where captured flows had nowhere to go.
+	findings := waitForFindings(t, findingsPath, len(expected), 5*time.Second)
 	comparable := normaliseFindings(findings)
 	sort.SliceStable(comparable, func(i, j int) bool {
 		return comparable[i].Message < comparable[j].Message

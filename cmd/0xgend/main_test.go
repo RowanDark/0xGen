@@ -7,6 +7,7 @@ import (
         "testing"
         "time"
 
+        "github.com/RowanDark/0xgen/internal/bus"
         "github.com/RowanDark/0xgen/internal/findings"
         "github.com/RowanDark/0xgen/internal/logging"
         "google.golang.org/grpc"
@@ -33,10 +34,10 @@ func TestServeBootsAndShutsDown(t *testing.T) {
 	}
 
         errCh := make(chan error, 1)
-        publisher := newBusFlowPublisher()
         findingsBus := findings.NewBus()
+        busServer := bus.NewServer("test-token", findingsBus, bus.WithAuditLogger(busLogger))
         go func() {
-                errCh <- serve(ctx, lis, "test-token", coreLogger, busLogger, false, "", "auto", publisher, findingsBus)
+                errCh <- serve(ctx, lis, "test-token", coreLogger, "", busServer, findingsBus)
         }()
 
 	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
