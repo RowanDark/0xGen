@@ -5,6 +5,8 @@ description: "Galdr Proxy is the interception layer for 0xgen. It terminates cli
 
 # Galdr Proxy
 
+> ⚠️ **Planned — not yet implemented.** `plugins/galdr-proxy/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature. (The proxy service embedded in `0xgend --enable-proxy` is a separate, working Go feature — see its [README](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/galdr-proxy#readme).)
+
 Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
 
 ## Metadata

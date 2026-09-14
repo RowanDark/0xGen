@@ -5,6 +5,8 @@ description: "Ranker scores assets, findings, and leads so teams focus on the hi
 
 # Ranker
 
+> ⚠️ **Planned — not yet implemented.** `plugins/ranker/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature.
+
 Ranker scores assets, findings, and leads so teams focus on the highest-impact work first.
 
 ## Metadata

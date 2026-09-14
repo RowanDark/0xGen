@@ -5,6 +5,8 @@ description: "Raider coordinates focused offensive testing campaigns once high-v
 
 # Raider
 
+> ⚠️ **Planned — not yet implemented.** `plugins/raider/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature.
+
 Raider coordinates focused offensive testing campaigns once high-value targets are identified by discovery plugins.
 
 ## Metadata

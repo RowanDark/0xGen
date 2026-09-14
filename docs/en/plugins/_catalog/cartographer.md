@@ -5,6 +5,8 @@ description: "Cartographer charts application surfaces discovered by crawlers an
 
 # Cartographer
 
+> ⚠️ **Planned — not yet implemented.** `plugins/cartographer/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature.
+
 Cartographer charts application surfaces discovered by crawlers and passive sensors so other plugins can prioritize exploration.
 
 ## Metadata

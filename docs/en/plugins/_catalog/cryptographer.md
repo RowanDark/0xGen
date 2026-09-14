@@ -5,6 +5,8 @@ description: "Cryptographer is a CyberChef-inspired utility surface for quickly 
 
 # Cryptographer
 
+> ⚠️ **Planned — not yet implemented.** `plugins/cryptographer/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature.
+
 Cryptographer is a CyberChef-inspired utility surface for quickly transforming payloads and experimenting with encoding operations during investigations.
 
 ## Metadata

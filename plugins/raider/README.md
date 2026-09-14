@@ -1,5 +1,7 @@
 # Raider
 
+> **Status: scaffold, not implemented.** `plugin.js` is a stub with `// TODO` hook bodies, and 0xgen's plugin launcher currently only builds and runs Go plugins (`internal/plugins/launcher/launcher.go` always calls `go build`, with no JavaScript dispatch path). This plugin cannot be launched today.
+
 Raider coordinates focused offensive testing campaigns once high-value targets are identified by discovery plugins.
 
 ## Capabilities

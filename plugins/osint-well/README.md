@@ -1,5 +1,7 @@
 # OSINT Well
 
+> **Status: `plugin.js` scaffold not implemented.** The `run_amass.sh` / `normalize.js` wrapper scripts documented below work standalone, but `plugin.js` — the entry point that would let 0xgen's plugin runtime launch OSINT Well as a plugin — is a stub with `// TODO` hook bodies. 0xgen's plugin launcher also only builds and runs Go plugins today (`internal/plugins/launcher/launcher.go` always calls `go build`, with no JavaScript dispatch path), so this cannot be launched as a plugin.
+
 OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface open-source intelligence such as subdomains and infrastructure relationships. The plugin intentionally defaults to passive reconnaissance so that it can be executed safely in shared or sensitive environments.
 
 ## Installation

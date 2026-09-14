@@ -132,12 +132,17 @@ The wizard can install the following components:
 ### 3. Plugins (Recommended)
 
 Security testing plugins including:
-- **cartographer** - Application surface mapping
 - **hydra** - Passive vulnerability detection
-- **raider** - Offensive testing
 - **seer** - Secrets and PII detection
-- **cryptographer** - Cryptographic analysis
-- And more...
+- **grapher** - Relationship graphing
+- **entropy** - Entropy analysis
+- And the `example-hello` reference plugin.
+
+Note: `cartographer`, `raider`, `cryptographer`, and four other JavaScript
+plugin directories also ship with the repository, but they are unimplemented
+scaffolds that cannot yet be launched — see the
+[Plugin Roster](https://rowandark.github.io/0xgen/plugins/#plugin-roster) for
+current status.
 
 **Default**: Installed in quick mode
 

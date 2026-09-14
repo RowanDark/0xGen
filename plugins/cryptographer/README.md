@@ -1,5 +1,7 @@
 # Cipher - Encoder/Decoder
 
+> **Status: `plugin.js` scaffold not implemented.** The web UI and `/internal/cipher` Go package described below are real and covered by tests, but `plugin.js` — the entry point that would let 0xgen's plugin runtime launch Cryptographer as a plugin — is a stub with `// TODO` hook bodies. 0xgen's plugin launcher also only builds and runs Go plugins today (`internal/plugins/launcher/launcher.go` always calls `go build`, with no JavaScript dispatch path), so this cannot be launched as a plugin.
+
 Cipher is 0xGen's answer to Burp Decoder, providing heuristic encoding detection and transformation chaining for security testing.
 
 ## Features

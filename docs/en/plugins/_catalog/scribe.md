@@ -5,6 +5,8 @@ description: "Scribe renders investigation output into human-friendly reports, s
 
 # Scribe
 
+> ⚠️ **Planned — not yet implemented.** `plugins/scribe/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature. (The `0xgenctl report` command is separate, working CLI functionality backed by `internal/reporter` — see the plugin's [README](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/scribe#readme).)
+
 Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.
 
 ## Metadata

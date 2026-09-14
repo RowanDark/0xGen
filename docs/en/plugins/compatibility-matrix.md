@@ -9,6 +9,15 @@ The matrix below reflects every plugin listed in the registry feed. Filter by
 0xgen core version or compatibility status to plan safe upgrades—filters apply
 instantly, and search works across plugin names, authors, and categories.
 
+!!! warning "Eight plugins in this matrix are not yet implemented"
+    Cartographer, Cryptographer, Excavator, Galdr Proxy, OSINT Well, Raider,
+    Ranker, and Scribe all declare a `plugin.js` entry point that is an empty
+    scaffold, and 0xgen's plugin launcher does not yet dispatch JavaScript
+    plugins at all — none of them can be launched regardless of what this
+    matrix reports for a given 0xgen version. See the
+    [Plugin Roster](index.md#plugin-roster) for which plugins actually run
+    today.
+
 <div class="plugin-compatibility__toolbar">
   <label class="plugin-compatibility__filter">
     <span>Search</span>
@@ -41,8 +50,8 @@ instantly, and search works across plugin names, authors, and categories.
 ## Version constraints
 
 - **0xgen v1.0** introduced the initial plugin runtime. Plugins that rely on
-  bidirectional communications (like Galdr Proxy and Raider) require the 1.1
-  transport improvements.
+  bidirectional communications (like Galdr Proxy and Raider, once implemented)
+  would require the 1.1 transport improvements.
 - **0xgen v1.1** adds streaming responses and is the minimum version for
   real-time exploitation tooling.
 - **0xgen v2.0** is the current stable release. All plugins target this version

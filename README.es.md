@@ -2,7 +2,7 @@
 
 [![Estado de la documentación](https://github.com/RowanDark/0xgen/actions/workflows/docs.yml/badge.svg?branch=main)](https://rowandark.github.io/0xgen/)
 
-0xgen es un conjunto de herramientas de automatización para orquestar flujos de trabajo de red teaming y detección. Coordina complementos como Galdr (proxy de reescritura HTTP), Excavator (rastreador Playwright), Seer (detector de secretos/PII), Ranker y Scribe para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para humanos.
+0xgen es un conjunto de herramientas de automatización para orquestar flujos de trabajo de red teaming y detección. Hoy en día coordina complementos en funcionamiento como Seer (detector de secretos/PII), Grapher y Entropy para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para humanos. Galdr, Excavator, Ranker y Scribe existen como directorios de complementos en JavaScript, pero aún son prototipos sin implementar: consulta la sección "Plugins" del [README en inglés](README.md#plugins) para más detalles.
 
 ## Instalación
 

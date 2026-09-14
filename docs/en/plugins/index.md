@@ -7,23 +7,38 @@ manifest, and the rules for emitting JSONL findings safely.
 
 ## Plugin Roster {#plugin-roster}
 
-The following plugins form the foundation of the 0xgen platform. Each directory
-under `plugins/` contains a manifest, implementation, documentation, and test
-fixtures to accelerate future development.
+The following plugins are implemented, launchable, and form the current foundation
+of the 0xgen platform. Each directory under `plugins/` contains a manifest,
+implementation, documentation, and test fixtures to accelerate future development.
 
 | Plugin | Description |
 | ------ | ----------- |
+| `seer` | Passive analytics engine that flags suspicious behavior observed in captured traffic. |
+| `grapher` | Relationship engine that models assets and signals as a navigable graph. |
+| `example-hello` | Minimal starter plugin that emits a greeting finding during startup. |
+
+Note: `entropy` and `hydra` are also implemented, launchable Go plugins; see their
+own `plugins/<name>/README.md` for details.
+
+### Planned — not yet implemented
+
+The following plugin directories exist with a manifest, a `plugin.js` scaffold,
+and documentation describing their intended design, but none of them can be
+launched yet: `internal/plugins/launcher/launcher.go` always builds plugins with
+`go build` and has no dispatch path for JavaScript entries, and every `plugin.js`
+below is an empty stub whose hook signatures don't even match the SDK. Treat the
+descriptions as a roadmap, not a working feature.
+
+| Plugin | Intended purpose |
+| ------ | ----------------- |
 | `galdr-proxy` | Proxy ingress layer that streams HTTP flows into 0xgen for collaborative analysis. |
 | `cartographer` | Surface mapper that catalogs hosts, endpoints, and assets discovered across crawlers. |
 | `excavator` | Playwright-powered crawler starter that captures links and scripts from target applications. |
 | `raider` | Active testing coordinator that executes offensive playbooks against prioritized targets. |
 | `osint-well` | Amass-backed OSINT collector that enriches investigations with external intelligence. |
-| `seer` | Passive analytics engine that flags suspicious behavior observed in captured traffic. |
 | `scribe` | Reporting pipeline that turns findings into human-friendly Markdown deliverables. |
 | `ranker` | Prioritization service that scores leads and findings to focus remediation efforts. |
-| `grapher` | Relationship engine that models assets and signals as a navigable graph. |
 | `cryptographer` | CyberChef-inspired utility UI for transforming payloads during investigations. |
-| `example-hello` | Minimal starter plugin that emits a greeting finding during startup. |
 
 ## Getting started {#getting-started}
 

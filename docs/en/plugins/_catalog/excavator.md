@@ -5,6 +5,8 @@ description: "Excavator is the Playwright-powered crawler foundation for 0xgen. 
 
 # Excavator
 
+> ⚠️ **Planned — not yet implemented.** `plugins/excavator/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature. (The standalone Playwright crawl script under `plugins/excavator/` is separate tooling and unaffected — see its [README](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/excavator#readme).)
+
 Excavator is the Playwright-powered crawler foundation for 0xgen. It provides a reproducible baseline for scripted reconnaissance of target applications.
 
 ## Metadata

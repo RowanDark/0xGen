@@ -5,6 +5,8 @@ description: "OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amas
 
 # OSINT Well
 
+> ⚠️ **Planned — not yet implemented.** `plugins/osint-well/plugin.js` is an empty scaffold, and the plugin launcher does not yet dispatch JavaScript plugins at all. This page describes the intended design, not a working feature. (The standalone `run_amass.sh` / `normalize.js` wrapper scripts under `plugins/osint-well/` are separate tooling and unaffected — see its [README](https://github.com/RowanDark/0xgen/tree/HEAD/plugins/osint-well#readme).)
+
 OSINT Well wraps [OWASP Amass](https://github.com/owasp-amass/amass) to surface open-source intelligence such as subdomains and infrastructure relationships. The plugin intentionally defaults to passive reconnaissance so that it can be executed safely in shared or sensitive environments.
 
 ## Metadata

@@ -10,6 +10,14 @@ first-party extensions. Use the catalogue below to browse every maintained
 plugin, inspect its capabilities, verify the detached signature, and jump
 straight into the author guides.
 
+!!! warning "Eight entries below are not yet implemented"
+    Cartographer, Cryptographer, Excavator, Galdr Proxy, OSINT Well, Raider,
+    Ranker, and Scribe all appear in the registry feed with a manifest and
+    signature, but their `plugin.js` entry point is an empty scaffold and
+    0xgen's plugin launcher does not yet dispatch JavaScript plugins at all —
+    none of them can actually be launched. See the
+    [Plugin Roster](index.md#plugin-roster) for the plugins that run today.
+
 <div class="plugin-catalog__toolbar">
   <label class="plugin-catalog__filter">
     <span>Search</span>

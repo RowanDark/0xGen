@@ -1,5 +1,7 @@
 # Galdr Proxy
 
+> **Status: `plugin.js` scaffold not implemented.** The proxy service documented below (`0xgend --enable-proxy`) is a separate, working Go feature embedded in the daemon. `plugin.js` — the entry point that would let 0xgen's plugin runtime launch Galdr Proxy as a plugin — is a stub with `// TODO` hook bodies, and the plugin launcher only builds and runs Go plugins today (`internal/plugins/launcher/launcher.go` always calls `go build`, with no JavaScript dispatch path), so this cannot be launched as a plugin.
+
 Galdr Proxy is the interception layer for 0xgen. It terminates client HTTP/HTTPS sessions, applies rules-based modifications, and records a tamper-proof history that other plugins can consume.
 
 ## Capabilities

@@ -1,5 +1,7 @@
 # Excavator
 
+> **Status: `plugin.js` scaffold not implemented.** The crawl script invoked below (`npm run crawl`) works standalone, but `plugin.js` — the entry point that would let 0xgen's plugin runtime launch Excavator as a plugin — is a stub with `// TODO` hook bodies. 0xgen's plugin launcher also only builds and runs Go plugins today (`internal/plugins/launcher/launcher.go` always calls `go build`, with no JavaScript dispatch path), so this cannot be launched as a plugin.
+
 Excavator is the Playwright-powered crawler foundation for 0xgen. It provides a reproducible baseline for scripted reconnaissance of target applications.
 
 ## Capabilities

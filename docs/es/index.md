@@ -1,7 +1,7 @@
 # Bienvenido a 0xgen
 
 0xgen es un conjunto de herramientas de automatización para orquestar flujos de trabajo de red teaming y detección.
-Coordina complementos como Galdr, Excavator, Seer, Ranker y Scribe para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para las personas. Este sitio unifica la documentación operativa y para contribuidores que antes vivía en archivos Markdown dispersos.
+Hoy en día coordina complementos en funcionamiento como Seer, Grapher y Entropy para convertir telemetría sin procesar en hallazgos priorizados e informes legibles para las personas. Galdr, Excavator, Ranker y Scribe existen como directorios de complementos en JavaScript, pero aún son prototipos sin implementar (consulta la sección "Plugin Roster" de la [guía de complementos](plugins/index.md#plugin-roster)). Este sitio unifica la documentación operativa y para contribuidores que antes vivía en archivos Markdown dispersos.
 
 _Nota histórica: 0xgen cambió de nombre recientemente. Consulta la versión en inglés para más contexto._
 

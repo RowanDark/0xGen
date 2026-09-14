@@ -167,7 +167,7 @@ concept command and embedded thumbnail metadata.
 
 ## Plugins
 
-0xgen's modular architecture is powered by 13 production plugins that handle everything from passive reconnaissance to active vulnerability detection. Each plugin runs in an isolated sandbox with explicit capability grants, ensuring safe execution even with untrusted code.
+0xgen's modular architecture is built around a plugin system: each plugin runs in an isolated sandbox with explicit capability grants, ensuring safe execution even with untrusted code. Today 5 plugins actually launch and run; a further 8 JavaScript plugins are designed but not yet implemented (see below).
 
 ### Core Detection Plugins
 
@@ -180,8 +180,6 @@ concept command and embedded thumbnail metadata.
 
 | Plugin | Description | Use Case |
 |--------|-------------|----------|
-| **[Cartographer](plugins/cartographer/)** | Application surface mapping and asset discovery from crawlers and passive sensors | Build comprehensive attack surface maps to prioritize testing targets and identify hidden endpoints. |
-| **[Excavator](plugins/excavator/)** | Data extraction and structured information harvesting | Extract structured data from responses for correlation analysis and evidence collection. |
 | **[Grapher](plugins/grapher/)** | Relationship graphing and dependency visualization | Visualize application architecture, API dependencies, and data flows for threat modeling. |
 
 ### Analysis & Intelligence
@@ -189,33 +187,27 @@ concept command and embedded thumbnail metadata.
 | Plugin | Description | Use Case |
 |--------|-------------|----------|
 | **[Entropy](plugins/entropy/)** | Shannon entropy analysis for detecting randomness and obfuscation | Identify compressed data, encrypted payloads, or obfuscated code that may hide malicious behavior. |
-| **[Ranker](plugins/ranker/)** | Finding prioritization and risk scoring using CVSS and context | Triage large finding sets by automatically ranking vulnerabilities based on exploitability and impact. |
-| **[Cryptographer](plugins/cryptographer/)** | Cryptographic analysis and cipher identification | Detect weak encryption, identify cipher usage, and analyze cryptographic implementations. |
-
-### Active Testing
-
-| Plugin | Description | Use Case |
-|--------|-------------|----------|
-| **[Raider](plugins/raider/)** | Offensive testing campaign orchestration with attack playbooks | Execute coordinated exploitation attempts once high-value targets are identified by discovery plugins. |
-
-### OSINT & External Data
-
-| Plugin | Description | Use Case |
-|--------|-------------|----------|
-| **[OSINT Well](plugins/osint-well/)** | Open-source intelligence aggregation from public sources | Enrich findings with external threat intelligence, leaked credential databases, and public exploit data. |
-
-### Infrastructure
-
-| Plugin | Description | Use Case |
-|--------|-------------|----------|
-| **[Galdr Proxy](plugins/galdr-proxy/)** | HTTP/HTTPS proxy engine with full MITM interception | Intercept and analyze application traffic for both passive monitoring and active manipulation testing. |
-| **[Scribe](plugins/scribe/)** | Report generation with SARIF, JSON, HTML, and PDF export | Generate professional security reports with findings, evidence, and remediation guidance for stakeholders. |
 
 ### Development & Examples
 
 | Plugin | Description | Use Case |
 |--------|-------------|----------|
 | **[Example Hello](plugins/example-hello/)** | Minimal SDK example demonstrating plugin development patterns | Learn plugin development with a simple reference implementation showing core SDK concepts. |
+
+### Planned — not yet implemented
+
+The following plugins declare `"entry": "plugin.js"` in their manifest, but the plugin launcher only knows how to build and run Go plugins today ([`internal/plugins/launcher/launcher.go`](internal/plugins/launcher/launcher.go) always calls `go build`, with no JavaScript dispatch path). Their `plugin.js` files are empty scaffolds with `// TODO` bodies, and even the scaffolding doesn't match the SDK's `register()` call signature (`sdk/plugin-sdk/index.js`). None of them can be launched, and none of their hooks emit findings. The design is sound and tracked as future work — see [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) — but nothing below runs yet.
+
+| Plugin | Intended purpose |
+|--------|-------------------|
+| **[Cartographer](plugins/cartographer/)** | Application surface mapping and asset discovery from crawlers and passive sensors. |
+| **[Cryptographer](plugins/cryptographer/)** | Cryptographic analysis and cipher identification. |
+| **[Excavator](plugins/excavator/)** | Data extraction and structured information harvesting. |
+| **[Galdr Proxy](plugins/galdr-proxy/)** | HTTP/HTTPS proxy engine with full MITM interception. |
+| **[OSINT Well](plugins/osint-well/)** | Open-source intelligence aggregation from public sources. |
+| **[Raider](plugins/raider/)** | Offensive testing campaign orchestration with attack playbooks. |
+| **[Ranker](plugins/ranker/)** | Finding prioritization and risk scoring using CVSS and context. |
+| **[Scribe](plugins/scribe/)** | Report generation with SARIF, JSON, HTML, and PDF export. |
 
 ### Plugin Capabilities
 

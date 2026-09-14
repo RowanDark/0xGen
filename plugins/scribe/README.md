@@ -1,5 +1,7 @@
 # Scribe
 
+> **Status: `plugin.js` scaffold not implemented.** The `0xgenctl report` command documented below is real, working CLI functionality backed by `internal/reporter`. `plugin.js` — the entry point that would let 0xgen's plugin runtime launch Scribe as a plugin — is a stub with `// TODO` hook bodies. 0xgen's plugin launcher also only builds and runs Go plugins today (`internal/plugins/launcher/launcher.go` always calls `go build`, with no JavaScript dispatch path), so this cannot be launched as a plugin.
+
 Scribe renders investigation output into human-friendly reports, summarizing findings across the 0xgen pipeline.
 
 ## Capabilities
