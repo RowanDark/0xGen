@@ -5,7 +5,7 @@
     "response": {
       "add_headers": {
         "X-0xgen": "on",
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://0xgen.dev"
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://example.com"
       },
       "remove_headers": ["Server"]
     }

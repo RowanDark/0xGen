@@ -18,8 +18,11 @@ import (
 	"github.com/RowanDark/0xgen/internal/env"
 )
 
-// DefaultBaseURL is the canonical CDN endpoint for update manifests.
-const DefaultBaseURL = "https://updates.0xgen.dev"
+// DefaultBaseURL is the canonical CDN endpoint for update manifests. No
+// default update server has been registered yet, so this is intentionally
+// empty; callers must set the 0XGEN_UPDATER_BASE_URL environment variable
+// (see cmd/0xgenctl/self_update.go) or Client.BaseURL to enable self-update.
+const DefaultBaseURL = ""
 
 // releasePublicKeyBase64 holds the Minisign/ed25519 public key that signs
 // production manifests. Tests can override this value via the
