@@ -116,6 +116,14 @@ func (c *AIClassifier) initializePatterns() {
 			cwe:        "CWE-89",
 			owasp:      "A03:2021-Injection",
 		},
+		{
+			regex:      regexp.MustCompile(`(?i)sql\s+syntax\s+error|syntax\s+error\s+(at\s+or\s+)?near`),
+			confidence: 0.80,
+			message:    "Generic SQL syntax error exposed - likely SQL injection vulnerability",
+			severity:   "high",
+			cwe:        "CWE-89",
+			owasp:      "A03:2021-Injection",
+		},
 	}
 
 	// XSS Reflection patterns

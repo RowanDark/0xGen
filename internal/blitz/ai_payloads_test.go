@@ -1,6 +1,7 @@
 package blitz
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -134,7 +135,7 @@ func TestAIPayloadSelector_GenerateXSSPayloads(t *testing.T) {
 	// Check for script tags
 	hasScriptTag := false
 	for _, p := range payloads {
-		if contains([]string{p}, "<script>") {
+		if strings.Contains(p, "<script>") {
 			hasScriptTag = true
 			break
 		}
