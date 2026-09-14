@@ -45,17 +45,20 @@ const (
 
 // Config controls proxy behaviour.
 type Config struct {
-	Addr           string
-	RulesPath      string
-	HistoryPath    string
-	CACertPath     string
-	CAKeyPath      string
-	Logger         *slog.Logger
-	ReloadInterval time.Duration
-	Transport      http.RoundTripper
-	FlowPublisher  FlowPublisher
-	Scope          ScopeEvaluator
-	Flow           FlowCaptureConfig
+	Addr        string
+	RulesPath   string
+	HistoryPath string
+	CACertPath  string
+	CAKeyPath   string
+	// LeafCertCacheSize bounds how many generated leaf (host) certificates
+	// are kept in memory at once. Defaults to defaultLeafCacheSize when <= 0.
+	LeafCertCacheSize int
+	Logger            *slog.Logger
+	ReloadInterval    time.Duration
+	Transport         http.RoundTripper
+	FlowPublisher     FlowPublisher
+	Scope             ScopeEvaluator
+	Flow              FlowCaptureConfig
 }
 
 // FlowCaptureConfig governs how intercepted flows are sampled, truncated, and
@@ -108,7 +111,7 @@ type Proxy struct {
 func New(cfg Config) (*Proxy, error) {
 	cfg = applyDefaults(cfg)
 
-	ca, err := newCAStore(cfg.CACertPath, cfg.CAKeyPath)
+	ca, err := newCAStore(cfg.CACertPath, cfg.CAKeyPath, cfg.LeafCertCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("initialise CA store: %w", err)
 	}

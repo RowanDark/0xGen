@@ -1,6 +1,9 @@
 package proxy
 
 import (
+	"container/list"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -21,6 +24,11 @@ import (
 const (
 	defaultCACertName = "galdr_proxy_ca.pem"
 	defaultCAKeyName  = "galdr_proxy_ca.key"
+
+	// defaultLeafCacheSize bounds the number of generated leaf certificates
+	// kept in memory. Without a bound, a long-running proxy session against a
+	// large attack surface would grow the cache without limit.
+	defaultLeafCacheSize = 4096
 )
 
 // DefaultCACertificatePath returns the path where the proxy root certificate is stored when no override is provided.
@@ -42,16 +50,29 @@ func EnsureRootCertificate(certPath, keyPath string) ([]byte, error) {
 	return certPEM, nil
 }
 
+// leafCacheEntry is the value stored in caStore.cacheList, keyed by host in
+// caStore.cacheIndex for O(1) lookup.
+type leafCacheEntry struct {
+	host string
+	cert *tls.Certificate
+}
+
 type caStore struct {
 	cert    *x509.Certificate
 	key     *rsa.PrivateKey
 	certPEM []byte
 	keyPEM  []byte
-	cacheMu sync.Mutex
-	cache   map[string]*tls.Certificate
+
+	cacheMu    sync.Mutex
+	cacheCap   int
+	cacheIndex map[string]*list.Element
+	cacheOrder *list.List // front = most recently used, back = least recently used
 }
 
-func newCAStore(certPath, keyPath string) (*caStore, error) {
+// newCAStore loads (or creates) the proxy root CA and prepares a bounded LRU
+// cache for generated leaf certificates. A cacheSize <= 0 selects
+// defaultLeafCacheSize.
+func newCAStore(certPath, keyPath string, cacheSize int) (*caStore, error) {
 	certPEM, keyPEM, err := loadOrCreateCA(certPath, keyPath)
 	if err != nil {
 		return nil, err
@@ -60,7 +81,18 @@ func newCAStore(certPath, keyPath string) (*caStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &caStore{cert: cert, key: key, certPEM: certPEM, keyPEM: keyPEM, cache: make(map[string]*tls.Certificate)}, nil
+	if cacheSize <= 0 {
+		cacheSize = defaultLeafCacheSize
+	}
+	return &caStore{
+		cert:       cert,
+		key:        key,
+		certPEM:    certPEM,
+		keyPEM:     keyPEM,
+		cacheCap:   cacheSize,
+		cacheIndex: make(map[string]*list.Element),
+		cacheOrder: list.New(),
+	}, nil
 }
 
 func (c *caStore) certificatePEM() []byte {
@@ -77,12 +109,22 @@ func (c *caStore) certificateForHost(host string) (*tls.Certificate, error) {
 		return nil, errors.New("host must not be empty")
 	}
 
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
-	if cert, ok := c.cache[host]; ok {
+	if cert, ok := c.lookupCache(host); ok {
 		return cert, nil
 	}
 
+	// Generate the leaf outside the cache lock: signing is the expensive
+	// part, and serializing it across every concurrent new-host connection
+	// would defeat the point of a fast key algorithm.
+	tlsCert, err := c.generateLeafCertificate(host)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.storeCache(host, tlsCert), nil
+}
+
+func (c *caStore) generateLeafCertificate(host string) (*tls.Certificate, error) {
 	tpl := &x509.Certificate{
 		SerialNumber: newSerialNumber(),
 		Subject:      pkix.Name{CommonName: host},
@@ -101,7 +143,11 @@ func (c *caStore) certificateForHost(host string) (*tls.Certificate, error) {
 		tpl.DNSNames = []string{host}
 	}
 
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	// Leaf certificates use ECDSA P-256: it is far cheaper to generate than
+	// RSA-2048 and is supported by every TLS client 0xgen needs to
+	// intercept. The CA itself stays RSA-3072 for maximum client
+	// compatibility.
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("generate host key: %w", err)
 	}
@@ -111,14 +157,59 @@ func (c *caStore) certificateForHost(host string) (*tls.Certificate, error) {
 		return nil, fmt.Errorf("create host certificate: %w", err)
 	}
 
+	keyDER, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return nil, fmt.Errorf("marshal host key: %w", err)
+	}
+
 	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	pemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	pemKey := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 	tlsCert, err := tls.X509KeyPair(pemCert, pemKey)
 	if err != nil {
 		return nil, fmt.Errorf("load tls key pair: %w", err)
 	}
-	c.cache[host] = &tlsCert
 	return &tlsCert, nil
+}
+
+// lookupCache returns the cached certificate for host, if any, and marks it
+// most recently used.
+func (c *caStore) lookupCache(host string) (*tls.Certificate, bool) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	elem, ok := c.cacheIndex[host]
+	if !ok {
+		return nil, false
+	}
+	c.cacheOrder.MoveToFront(elem)
+	return elem.Value.(*leafCacheEntry).cert, true
+}
+
+// storeCache inserts cert for host, evicting the least recently used entry
+// once the cache exceeds its configured capacity. If another goroutine won
+// the race to populate host first, the existing cached certificate is
+// returned instead so all callers converge on one certificate per host.
+func (c *caStore) storeCache(host string, cert *tls.Certificate) *tls.Certificate {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+
+	if elem, ok := c.cacheIndex[host]; ok {
+		c.cacheOrder.MoveToFront(elem)
+		return elem.Value.(*leafCacheEntry).cert
+	}
+
+	elem := c.cacheOrder.PushFront(&leafCacheEntry{host: host, cert: cert})
+	c.cacheIndex[host] = elem
+
+	for c.cacheOrder.Len() > c.cacheCap {
+		oldest := c.cacheOrder.Back()
+		if oldest == nil {
+			break
+		}
+		c.cacheOrder.Remove(oldest)
+		delete(c.cacheIndex, oldest.Value.(*leafCacheEntry).host)
+	}
+
+	return cert
 }
 
 func loadOrCreateCA(certPath, keyPath string) ([]byte, []byte, error) {

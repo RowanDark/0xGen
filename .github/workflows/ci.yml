@@ -48,6 +48,10 @@ jobs:
       - name: Build
         run: go build ./...
 
+      - name: Check every plugins/ directory is a plugin or explicitly excluded
+        if: matrix.os == 'ubuntu-latest'
+        run: scripts/ci/check_plugin_dirs.sh
+
       - name: Validate plugin manifests
         shell: bash
         run: |
