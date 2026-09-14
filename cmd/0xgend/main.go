@@ -332,6 +332,31 @@ func run(ctx context.Context, cfg config) error {
 	flowPublisher := newBusFlowPublisher()
 	cfg.proxy.FlowPublisher = flowPublisher
 
+	findingsBus := findings.NewBus()
+
+	gateOpts := []netgate.Option{}
+	switch mode := strings.ToLower(strings.TrimSpace(cfg.http3Mode)); mode {
+	case "", "auto":
+	case "disable", "off":
+		gateOpts = append(gateOpts, netgate.WithTransportConfig(netgate.TransportConfig{EnableHTTP2: true, EnableHTTP3: false}))
+	case "require", "force":
+		gateOpts = append(gateOpts, netgate.WithTransportConfig(netgate.TransportConfig{EnableHTTP2: true, EnableHTTP3: true, RequireHTTP3: true}))
+	default:
+		return fmt.Errorf("unsupported http3 mode: %q", cfg.http3Mode)
+	}
+	if cfg.fingerprintRotate {
+		strategy := fingerprint.DefaultStrategy()
+		strategy.EnableRotation(true)
+		gateOpts = append(gateOpts, netgate.WithFingerprintStrategy(strategy))
+	}
+
+	// The bus must be attached to the flow publisher before the proxy is
+	// allowed to accept traffic (WaitUntilReady below), otherwise flows
+	// captured during the startup window would have nowhere to go.
+	busServer := bus.NewServer(cfg.token, findingsBus, bus.WithAuditLogger(busLogger), bus.WithGateOptions(gateOpts...))
+	flowPublisher.SetBus(busServer)
+	defer flowPublisher.SetBus(nil)
+
 	proxyEnabled := cfg.enableProxy
 	if val, ok := env.Lookup("0XGEN_ENABLE_PROXY"); ok {
 		if strings.TrimSpace(val) == "1" {
@@ -431,11 +456,9 @@ func run(ctx context.Context, cfg config) error {
 	serviceCtx, cancelService := context.WithCancel(ctx)
 	defer cancelService()
 
-	findingsBus := findings.NewBus()
-
 	grpcErrCh := make(chan error, 1)
 	go func() {
-		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, busLogger, cfg.fingerprintRotate, cfg.pluginsDir, cfg.http3Mode, flowPublisher, findingsBus)
+		grpcErrCh <- serve(serviceCtx, lis, cfg.token, coreLogger, cfg.pluginsDir, busServer, findingsBus)
 	}()
 
 	var apiErrCh chan error
@@ -588,9 +611,12 @@ func run(ctx context.Context, cfg config) error {
 	}
 }
 
-func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busLogger *logging.AuditLogger, rotateFingerprints bool, pluginsDir string, http3Mode string, publisher *busFlowPublisher, findingsBus *findings.Bus) error {
+func serve(ctx context.Context, lis net.Listener, token string, coreLogger *logging.AuditLogger, pluginsDir string, busServer *bus.Server, findingsBus *findings.Bus) error {
 	if token == "" {
 		return errors.New("auth token must be provided")
+	}
+	if busServer == nil {
+		return errors.New("bus server must be provided")
 	}
 
 	if findingsBus == nil {
@@ -625,26 +651,6 @@ func serve(ctx context.Context, lis net.Listener, token string, coreLogger, busL
 		grpc.ChainUnaryInterceptor(tracing.UnaryServerInterceptor()),
 		grpc.ChainStreamInterceptor(tracing.StreamServerInterceptor()),
 	)
-	gateOpts := []netgate.Option{}
-	switch mode := strings.ToLower(strings.TrimSpace(http3Mode)); mode {
-	case "", "auto":
-	case "disable", "off":
-		gateOpts = append(gateOpts, netgate.WithTransportConfig(netgate.TransportConfig{EnableHTTP2: true, EnableHTTP3: false}))
-	case "require", "force":
-		gateOpts = append(gateOpts, netgate.WithTransportConfig(netgate.TransportConfig{EnableHTTP2: true, EnableHTTP3: true, RequireHTTP3: true}))
-	default:
-		return fmt.Errorf("unsupported http3 mode: %q", http3Mode)
-	}
-	if rotateFingerprints {
-		strategy := fingerprint.DefaultStrategy()
-		strategy.EnableRotation(true)
-		gateOpts = append(gateOpts, netgate.WithFingerprintStrategy(strategy))
-	}
-	busServer := bus.NewServer(token, findingsBus, bus.WithAuditLogger(busLogger), bus.WithGateOptions(gateOpts...))
-	if publisher != nil {
-		publisher.SetBus(busServer)
-		defer publisher.SetBus(nil)
-	}
 	pb.RegisterPluginBusServer(srv, busServer)
 
 	secretsLogger := coreLogger.WithComponent("secrets_broker")
