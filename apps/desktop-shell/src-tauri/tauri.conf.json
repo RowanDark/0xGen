@@ -37,26 +37,8 @@
     ]
   },
   "plugins": {
-    "dialog": {
-      "all": true,
-      "ask": true,
-      "confirm": true,
-      "message": true,
-      "open": true,
-      "save": true
-    },
     "shell": {
-      "all": false,
-      "execute": false,
-      "open": true,
-      "scope": [
-        {
-          "name": "open-url",
-          "cmd": "open",
-          "args": true
-        }
-      ]
-    },
-    "os": {}
+      "open": "https://github\\.com/RowanDark/0xgen/.+"
+    }
   }
 }

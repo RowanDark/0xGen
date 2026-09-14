@@ -1,8 +1,8 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
-import { save } from '@tauri-apps/api/dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { save } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 
 import {

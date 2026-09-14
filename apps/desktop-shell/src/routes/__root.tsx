@@ -1,7 +1,7 @@
 import { Link, Outlet, createRootRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Menu, Play, RefreshCw, Archive, Command as CommandIcon, MessageCircle } from 'lucide-react';
-import { open } from '@tauri-apps/api/dialog';
+import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';

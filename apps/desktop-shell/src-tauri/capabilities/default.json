@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal permissions for the 0xgen desktop shell's main window. Grants only the plugin commands the frontend actually calls: reading/saving files through native dialogs, reading OS platform/arch for the About screen, and opening release links on github.com/RowanDark/0xgen in the system browser. Custom #[tauri::command] app commands are not part of the ACL system (no app-level permission manifest is registered) and remain reachable from the bundled frontend as usual.",
+  "windows": ["main"],
+  "permissions": [
+    "core:app:allow-version",
+    "core:app:allow-name",
+    "core:event:allow-listen",
+    "os:allow-platform",
+    "os:allow-arch",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "shell:allow-open"
+  ]
+}
